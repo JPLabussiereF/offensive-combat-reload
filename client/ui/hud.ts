@@ -1,4 +1,6 @@
 // In-match HUD (section 5): DOM updated by direct reference, numbers throttled by the caller.
+import { IS_MOBILE } from '../core/device';
+import { gamepad } from '../core/gamepad';
 import { t } from './strings';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -17,6 +19,9 @@ export class Hud {
   private ammoMag = $('ammo-mag');
   private ammoReserve = $('ammo-reserve');
   private ammoWarn = $('ammo-warn');
+  private ammoStatus = $('ammo-status');
+  private reloadFill = $('reload-fill');
+  private reloadKey = '';
   private weaponName = $('weapon-name');
   private scorePoints = $('score-points');
   private scoreKills = $('score-kills');
@@ -61,29 +66,42 @@ export class Hud {
     this.weaponName.textContent = name;
   }
 
-  setHealth(h: number) {
+  /** `max`: the body's max health (150 for the heavy build), so the bar is full at full health. */
+  setHealth(h: number, max = 100) {
     const v = Math.ceil(h);
     if (v === this.lastHealth) return;
     this.lastHealth = v;
     this.healthNum.textContent = String(v);
-    this.healthFill.style.width = `${v}%`;
+    this.healthFill.style.width = `${Math.min(100, (v / max) * 100)}%`;
     this.healthBox.classList.toggle('low', v < 25);
     this.vignette.style.setProperty('--low', String(Math.max(0, (30 - v) / 30)));
   }
 
+  /**
+   * The count, and the status line above it: reloading (with its bar, see setReload), low (with the key that
+   * reloads: R, the controller's button, nothing on a phone where the reload button pulses) or empty.
+   */
   setAmmo(mag: number, reserve: number, size: number, reloading: boolean) {
-    const key = `${mag}|${reserve}|${reloading}`;
+    const pad = gamepad.device === 'pad';
+    const key = `${mag}|${reserve}|${reloading}|${pad}`;
     if (key === this.lastAmmo) return;
     this.lastAmmo = key;
     this.ammoMag.textContent = String(mag);
     this.ammoReserve.textContent = String(reserve);
-    this.ammoMag.classList.toggle('low', mag <= size * 0.3);
-    let warn = '';
-    if (reloading) warn = t('reloading');
-    else if (mag === 0 && reserve === 0) warn = t('noAmmo');
-    else if (mag <= size * 0.3) warn = t('reload');
-    this.ammoWarn.textContent = warn;
-    this.ammoWarn.classList.toggle('visible', warn !== '');
+    const low = mag <= size * 0.3;
+    this.ammoMag.classList.toggle('low', low);
+    const state = reloading ? 'reloading' : mag === 0 && reserve === 0 ? 'empty' : low && reserve > 0 ? 'low' : '';
+    this.ammoStatus.className = state;
+    this.ammoWarn.textContent = state === 'reloading' ? t('reloading') : state === 'empty' ? t('noAmmo') : state === 'low' ? t('reload') : '';
+    this.ammoWarn.dataset.key = state === 'low' ? (pad ? gamepad.glyph('x') : IS_MOBILE ? '' : 'R') : '';
+  }
+
+  /** The reload bar under the status line (`progress` 0..1; null when not reloading). Every frame. */
+  setReload(progress: number | null) {
+    const key = progress === null ? '' : progress.toFixed(3);
+    if (key === this.reloadKey) return;
+    this.reloadKey = key;
+    this.reloadFill.style.width = `${((progress ?? 0) * 100).toFixed(1)}%`;
   }
 
   setCrosshair(gapPx: number, visible: boolean) {
@@ -98,6 +116,9 @@ export class Hud {
   }
 
   hit(kind: HitKind) {
+    // Phones: a short buzz on a hit, a longer one on a kill (Android; iOS ignores it).
+    if (IS_MOBILE) navigator.vibrate?.(kind === 'kill' ? 40 : 12);
+    gamepad.rumble(kind === 'kill' ? 160 : 60, kind === 'kill' ? 0.5 : 0.15, 0.6);
     this.hitmarker.className = `show ${kind}`;
     // Restart the CSS animation.
     void this.hitmarker.offsetWidth;
@@ -140,7 +161,7 @@ export class Hud {
     setTimeout(() => el.remove(), 5600);
   }
 
-  /** Grenade slots next to the ammo counter: filled = carried, faded = used. */
+  /** Grenade slots left of the ammo count: filled = carried, faded = used. */
   setGrenades(count: number, max: number) {
     const key = `${count}/${max}`;
     if (key === this.grenadesKey) return;
@@ -188,7 +209,8 @@ export class Hud {
     if (id !== this.promptKey) {
       this.promptKey = id;
       this.prompt.classList.remove('hidden');
-      this.prompt.querySelector('kbd')!.textContent = key;
+      // Controller: its button; phones: the prompt itself is tapped.
+      this.prompt.querySelector('kbd')!.textContent = gamepad.device === 'pad' ? gamepad.glyph('y') : IS_MOBILE ? t('tapHint') : key;
       this.promptText.textContent = text;
     }
     this.promptFill.style.width = `${(frac * 100).toFixed(1)}%`;
@@ -212,6 +234,7 @@ export class Hud {
   }
 
   damageFlash(amount: number) {
+    gamepad.rumble(180, Math.min(1, 0.3 + amount / 50), 0.4);
     this.vignette.style.setProperty('--hit', String(Math.min(1, 0.3 + amount / 60)));
     this.vignette.classList.remove('flash');
     void this.vignette.offsetWidth;

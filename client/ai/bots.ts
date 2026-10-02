@@ -53,7 +53,6 @@ export interface BotOptions {
   sfx: Sfx;
   /** Local player as a combatant (id 0). */
   player: Combatant;
-  listener(): THREE.Vector3;
   count: number;
   skill: BotSkillName;
   hooks: BotHooks;
@@ -155,6 +154,7 @@ export class BotManager {
       dealt = before - left;
     } else {
       const bot = victim as Bot;
+      if (attacker !== bot) bot.hitReact(attacker.position);
       dealt = Math.min(bot.health, amount);
       bot.health -= dealt;
       bot.lastDamageAt = this.time;
@@ -187,7 +187,7 @@ export class BotManager {
     const p = victim.position;
     const yaw = victim instanceof Bot ? victim.yaw : (victim as Combatant & { yaw?: number }).yaw ?? 0;
     const corpse = new Corpse(
-      { id: this.nextCorpse++, victim: victim.id, name: victim.name, sex: victim.sex, p: [p.x, p.y, p.z], yaw, until: this.time + HUMILIATION.window },
+      { id: this.nextCorpse++, victim: victim.id, name: victim.name, sex: victim.sex, ap: victim.look, p: [p.x, p.y, p.z], yaw, until: this.time + HUMILIATION.window },
       this.o.player.id,
       this.o.scene,
       groundBelow(this.o.physics.world, [p.x, p.y, p.z]),
@@ -219,15 +219,14 @@ export class BotManager {
     const dir = applySpread(aim, spread, new THREE.Vector3());
     const { hit, through, keep, end } = traceShot(this.o.physics, this.o.registry, eye, dir, RIFLE.alcanceMaximo, bot.rig.body, RIFLE.penetracao);
     const muzzle = bot.muzzle(new THREE.Vector3());
-    const listener = this.o.listener();
-    const dist = listener.distanceTo(muzzle);
-    this.o.sfx.gunshot(Math.min(0.8, 10 / (dist + 6)));
+    bot.fired();
+    this.o.sfx.at(muzzle, 'gun', (s) => s.gunshot());
     if (Math.random() < 0.5) this.o.effects.tracer(muzzle, end);
     for (const p of through) {
       this.o.effects.decal(p.point, p.normal);
       this.o.effects.decal(p.exit, p.exitNormal);
       this.o.effects.burst('debris', p.exit, dir, 3, 0x9a6a3a);
-      if (dist < 30) this.o.sfx.impact(p.surface.material);
+      this.o.sfx.at(p.point, 'normal', (s) => s.impact(p.surface.material));
       p.surface.onShot?.(p.point);
     }
     if (!hit) return;
@@ -241,7 +240,8 @@ export class BotManager {
     } else {
       this.o.effects.decal(hit.point, hit.normal);
       this.o.effects.burst('debris', hit.point, hit.normal, 3, 0x9a8f80);
-      if (hit.surface && dist < 30) this.o.sfx.impact(hit.surface.material);
+      const surface = hit.surface;
+      if (surface) this.o.sfx.at(hit.point, 'normal', (s) => s.impact(surface.material));
       hit.surface?.onShot?.(hit.point);
     }
   }
@@ -250,7 +250,7 @@ export class BotManager {
     const d = Math.hypot(target.position.x - bot.position.x, target.position.z - bot.position.z);
     if (d > MELEE.faca.alcance + 0.4) return;
     const eye = bot.eye(new THREE.Vector3());
-    if (this.o.listener().distanceTo(eye) < 15) this.o.sfx.knifeHit();
+    this.o.sfx.at(eye, 'normal', (s) => s.knifeHit());
     this.o.effects.burst('star', target.position.clone().setY(target.position.y + 1.1), UP, 10);
     this.hit(target, bot, LETHAL_DAMAGE, { kind: 'knife', behind: target.isBehind(eye) });
   }
@@ -268,7 +268,7 @@ export class BotManager {
         continue;
       }
       // Same regeneration rule as players.
-      if (b.health < 100 && time - b.lastDamageAt > 4) b.health = Math.min(100, b.health + 25 * dt);
+      if (b.health < b.bodyStats.maxHealth && time - b.lastDamageAt > 4) b.health = Math.min(b.bodyStats.maxHealth, b.health + 25 * dt);
       b.fixedUpdate(dt, this.world);
       if (b.position.y < -20) this.kill(b, null, { kind: 'void' });
     }

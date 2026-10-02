@@ -1,5 +1,6 @@
 // Accounts, profiles, progress and audit: every SQL query about players lives here.
 import { accountLevel } from '@shared/accountLevel';
+import { sanitizeAppearance, type Appearance } from '@shared/appearance';
 import { DELETION_GRACE_DAYS, formatTag, NAME_COOLDOWN_DAYS, type Participation, type ProfileResponse, type Totals } from '@shared/account';
 import { levelForXp, PROG_WEAPONS, type Loadout, type ProgWeapon } from '@shared/progression';
 import type { Sex } from '@shared/protocol';
@@ -28,6 +29,8 @@ export type AuthEventType =
   | 'anonymized'
   | 'ban'
   | 'unban'
+  | 'chat_mute'
+  | 'chat_unmute'
   | 'role_grant'
   | 'role_revoke';
 
@@ -120,16 +123,26 @@ export async function getAccount(db: Queryable, accountId: string) {
   return rows[0] ?? null;
 }
 
-/** The active ban of an account, if any (expired or revoked ones don't count). */
-export async function activeBan(db: Queryable, accountId: string) {
+export type SanctionType = 'ban' | 'chat_mute';
+
+/** The active sanction of that type on an account, if any (expired or revoked ones don't count). */
+export async function activeSanction(db: Queryable, accountId: string, type: SanctionType) {
   const { rows } = await db.query<{ reason: string; expires_at: Date | null }>(
     `SELECT reason, expires_at FROM sanction
-      WHERE account_id = $1 AND type = 'ban' AND revoked_at IS NULL AND starts_at <= now()
+      WHERE account_id = $1 AND type = $2 AND revoked_at IS NULL AND starts_at <= now()
         AND (expires_at IS NULL OR expires_at > now())
       ORDER BY expires_at DESC NULLS FIRST LIMIT 1`,
-    [accountId],
+    [accountId, type],
   );
   return rows[0] ?? null;
+}
+
+export const activeBan = (db: Queryable, accountId: string) => activeSanction(db, accountId, 'ban');
+
+/** Until when the account can't chat (ms since the epoch): 0 = it can, Infinity = muted for good. */
+export async function chatMutedUntil(db: Queryable, accountId: string): Promise<number> {
+  const mute = await activeSanction(db, accountId, 'chat_mute');
+  return mute ? (mute.expires_at?.getTime() ?? Infinity) : 0;
 }
 
 export async function providers(db: Queryable, accountId: string): Promise<('senha' | 'discord')[]> {
@@ -146,13 +159,14 @@ interface ProfileRow {
   display_name: string;
   discriminator: number;
   sex: Sex;
+  appearance: unknown;
   name_changed_at: Date | null;
 }
 
 /** The account's game profile (one per account for now; the oldest one). */
 export async function profileOf(db: Queryable, accountId: string): Promise<ProfileRow> {
   const { rows } = await db.query<ProfileRow>(
-    'SELECT id, display_name, discriminator, sex, name_changed_at FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1',
+    'SELECT id, display_name, discriminator, sex, appearance, name_changed_at FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1',
     [accountId],
   );
   if (!rows[0]) throw new HttpError(404, 'nao_encontrado');
@@ -226,6 +240,7 @@ export async function fullProfile(db: Db, accountId: string): Promise<ProfileRes
     tag: formatTag(profile.display_name, profile.discriminator),
     nome: profile.display_name,
     sexo: profile.sex,
+    aparencia: sanitizeAppearance(profile.appearance, profile.sex),
     nivel: lvl.level,
     xp,
     xpNoNivel: lvl.into,
@@ -242,7 +257,7 @@ export async function fullProfile(db: Db, accountId: string): Promise<ProfileRes
 /** Changes the display name: the first change is free, then one every NAME_COOLDOWN_DAYS days. */
 export async function changeName(db: Db, accountId: string, name: string, info: AuditInfo) {
   await transaction(db, async (c) => {
-    const { rows } = await c.query<ProfileRow>('SELECT id, display_name, discriminator, sex, name_changed_at FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1 FOR UPDATE', [accountId]);
+    const { rows } = await c.query<ProfileRow>('SELECT id, display_name, discriminator, sex, appearance, name_changed_at FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1 FOR UPDATE', [accountId]);
     const p = rows[0];
     if (!p) throw new HttpError(404, 'nao_encontrado');
     if (p.display_name === name) return;
@@ -259,8 +274,18 @@ export async function changeName(db: Db, accountId: string, name: string, info: 
   });
 }
 
+/** Changing the body type keeps the look, except a hair style of the other body (it falls back). */
 export async function setSex(db: Queryable, accountId: string, sex: Sex) {
-  await db.query('UPDATE player_profile SET sex = $2 WHERE account_id = $1', [accountId, sex]);
+  const p = await profileOf(db, accountId);
+  await db.query('UPDATE player_profile SET sex = $2, appearance = $3 WHERE id = $1', [p.id, sex, JSON.stringify(sanitizeAppearance(p.appearance, sex))]);
+}
+
+/** Saves the character's look (anything invalid falls back to a valid choice). */
+export async function setAppearance(db: Queryable, accountId: string, raw: unknown): Promise<Appearance> {
+  const p = await profileOf(db, accountId);
+  const look = sanitizeAppearance(raw, p.sex);
+  await db.query('UPDATE player_profile SET appearance = $2 WHERE id = $1', [p.id, JSON.stringify(look)]);
+  return look;
 }
 
 /** Equips unlocked levels; a locked one fails the whole request. */
@@ -322,6 +347,7 @@ export interface GameProfile {
   profileId: string;
   tag: string;
   sex: Sex;
+  appearance: Appearance;
   xp: number;
   weapons: Record<ProgWeapon, { xp: number; equipped: number }>;
 }
@@ -336,6 +362,7 @@ export async function loadGameProfile(db: Db, accountId: string): Promise<GamePr
     profileId: profile.id,
     tag: formatTag(profile.display_name, profile.discriminator),
     sex: profile.sex,
+    appearance: sanitizeAppearance(profile.appearance, profile.sex),
     xp: Number(stats.rows[0]?.xp ?? 0),
     weapons: w,
   };
