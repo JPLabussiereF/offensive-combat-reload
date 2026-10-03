@@ -5,7 +5,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { mergeColoredParts, toonGradient, type ColoredPart } from '../render/materials';
 
 /** Clouds drifting across the sky: one instanced mesh. Returns the per-frame update. */
-export function skyClouds(scene: THREE.Scene): (dt: number) => void {
+export function skyClouds(scene: THREE.Scene, tint: { color: number; emissive: number } = { color: 0xffffff, emissive: 0x9fb8cc }): (dt: number) => void {
   const cloudParts = [
     [0, 0, 0, 5],
     [4.5, -0.8, 1, 3.8],
@@ -14,7 +14,7 @@ export function skyClouds(scene: THREE.Scene): (dt: number) => void {
   ].map(([x, y, z, r]) => new THREE.IcosahedronGeometry(r, 1).translate(x, y, z));
   const cloudGeo = mergeGeometries(cloudParts, false)!;
   cloudGeo.computeVertexNormals();
-  const clouds = new THREE.InstancedMesh(cloudGeo, new THREE.MeshToonMaterial({ color: 0xffffff, emissive: 0x9fb8cc, gradientMap: toonGradient() }), 10);
+  const clouds = new THREE.InstancedMesh(cloudGeo, new THREE.MeshToonMaterial({ color: tint.color, emissive: tint.emissive, gradientMap: toonGradient() }), 10);
   clouds.frustumCulled = false;
   const cloudPos: THREE.Vector3[] = [];
   const cm = new THREE.Matrix4();

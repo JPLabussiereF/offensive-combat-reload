@@ -2,6 +2,7 @@
 // progress earned only from kills the server validated.
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { CLOSE, NET } from '@shared/protocol';
+import { CHERRY, HEALTH, KOI } from '@shared/constants';
 import type { GameServer } from '../app';
 import { ticketKey } from '../api';
 import { ban, mute, unmute } from '../moderacao';
@@ -174,6 +175,74 @@ describe('mapas', () => {
     p.send({ t: 'create', name: 'Lugar nenhum', map: 'atlantida' as never });
     expect((await p.next('joined')).session.map).toBe('rua');
     p.close();
+  });
+});
+
+describe('cereja do jardim', () => {
+  async function joinGarden(b: Browser) {
+    const p = await Player.connect(game, await b.ticket());
+    p.send({ t: 'hello' });
+    await p.next('welcome');
+    p.send({ t: 'join', session: 'jardim' });
+    return { p, joined: await p.next('joined') };
+  }
+
+  it('só quem está perto pega; aumenta a vida máxima, some para todos e quem chega depois sabe quando volta', async () => {
+    const A = await joinGarden(await signedIn('Longe'));
+    const B = await joinGarden(await signedIn('Perto'));
+    const bId = B.joined.you;
+    A.p.send({ t: 'respawn', p: [12, 0, 12], yaw: 0 });
+    B.p.send({ t: 'respawn', p: [0, 0.35, 2.4], yaw: 0 });
+    await A.p.next('spawned', (m) => m.id === bId);
+
+    // Too far from the tree: ignored.
+    A.p.send({ t: 'pickup', id: 'cereja' });
+    await expect(A.p.next('pickup', () => true, 300)).rejects.toThrow();
+
+    B.p.send({ t: 'pickup', id: 'cereja' });
+    const taken = await A.p.next('pickup');
+    expect(taken).toMatchObject({ id: 'cereja', by: bId });
+    expect(taken.ready - taken.until).toBe((CHERRY.respawn - CHERRY.duration) * 1000);
+    await B.p.next('snap', (m) => m.players.find((x) => x.id === bId)?.h === HEALTH.max + CHERRY.extraHealth);
+
+    // Gone until it grows back: walking up to it doesn't give it again.
+    A.p.send({ t: 'state', s: { p: [0, 0.35, 2.2], yaw: 0, pitch: 0, f: 0 } });
+    A.p.send({ t: 'pickup', id: 'cereja' });
+    await expect(A.p.next('pickup', () => true, 300)).rejects.toThrow();
+
+    const C = await joinGarden(await signedIn('Atrasado'));
+    expect(C.joined.pickups).toEqual([{ id: 'cereja', ready: taken.ready }]);
+    for (const x of [A, B, C]) x.p.close();
+  });
+
+  it('peixe abatido dá XP da conta uma vez, volta depois e quem chega sabe quando', async () => {
+    const A = await joinGarden(await signedIn('Pescador'));
+    const B = await joinGarden(await signedIn('Atrasado'));
+    const aId = A.joined.you;
+    A.p.send({ t: 'respawn', p: [-10, 0, -31], yaw: 0 });
+    await B.p.next('spawned', (m) => m.id === aId);
+
+    A.p.send({ t: 'fish', id: 'koi:0' });
+    const killed = await B.p.next('fish');
+    expect(killed).toMatchObject({ id: 'koi:0', by: aId, prize: 'koi' });
+    const [min, max] = KOI.respawn;
+    // Server clock: B joined just before the kill.
+    expect(killed.ready - B.joined.time).toBeGreaterThanOrEqual(min * 1000);
+    expect(killed.ready - B.joined.time).toBeLessThanOrEqual(max * 1000 + 2000);
+    // A new account: its only XP is the fish's.
+    expect((await A.p.next('progresso', (m) => m.conta.xp > 0)).conta.xp).toBe(KOI.xp);
+
+    // Dead until it's back: shooting it again gives nothing, and whoever joins now knows when it returns.
+    A.p.send({ t: 'fish', id: 'koi:0' });
+    await expect(B.p.next('fish', () => true, 300)).rejects.toThrow();
+    const C = await joinGarden(await signedIn('Curioso'));
+    expect(C.joined.fish).toContainEqual({ id: 'koi:0', ready: killed.ready, golden: killed.golden });
+    // A fish that doesn't exist, or a shooter too far from it, is ignored.
+    A.p.send({ t: 'fish', id: 'koi:99' });
+    A.p.send({ t: 'state', s: { p: [44, 0, 44], yaw: 0, pitch: 0, f: 0 } });
+    A.p.send({ t: 'fish', id: 'koi:1' });
+    await expect(B.p.next('fish', () => true, 300)).rejects.toThrow();
+    for (const x of [A, B, C]) x.p.close();
   });
 });
 

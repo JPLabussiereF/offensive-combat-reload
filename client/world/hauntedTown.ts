@@ -823,19 +823,14 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
       for (const f of animated) f(dt, frame);
     },
     dog: null,
+    shadowExtent: Math.max(W, D) + 24,
     atmosphere: {
-      sky: 0x120f26,
-      fog: 0x231c38,
-      fogNear: 45,
-      fogFar: 185,
-      hemiSky: 0x9e9ae0,
-      hemiGround: 0x3e3446,
-      hemiIntensity: 1.55,
-      sunColor: 0xc8d2ff,
-      sunIntensity: 1.5,
-      sunPosition: MOON,
-      shadowHalf: 84,
-      viewmodelLight: 0.8,
+      background: 0x120f26,
+      fog: { color: 0x231c38, near: 45, far: 185 },
+      hemi: { sky: 0x9e9ae0, ground: 0x3e3446, intensity: 1.55 },
+      // Moonlight; its shadows reach the whole map within the shadow camera's 150 m depth.
+      sun: { color: 0xc8d2ff, intensity: 1.5, from: MOON },
+      viewmodel: { sky: 0x9e9ae0, ground: 0x3e3446, hemi: 1.3, sun: 1.45, sunColor: 0xc8d2ff },
     },
   };
 }

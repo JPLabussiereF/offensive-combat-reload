@@ -347,6 +347,24 @@ body {
   background: #fff;
   transition: width 0.15s, background 0.2s;
 }
+#health-boost {
+  margin-left: 8px;
+  font: 800 10px var(--body);
+  letter-spacing: 0.04em;
+  color: #ff8fb8;
+}
+#aim-boost {
+  font: 800 11px var(--body);
+  letter-spacing: 0.04em;
+  color: #ffd36b;
+  text-shadow: 0 0 8px rgba(255, 190, 60, 0.6), var(--hud-shadow);
+}
+#health.boost #health-fill {
+  background: #ff6fa0;
+}
+#health.boost #health-num {
+  color: #ffb3cf;
+}
 #health.low #health-fill {
   background: var(--bad);
 }

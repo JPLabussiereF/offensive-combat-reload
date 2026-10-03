@@ -133,16 +133,31 @@ export type ClientMsg =
   | { t: 'respawn'; p: Vec3; yaw: number }
   /** An environmental gag was triggered (e.g. "hidrante:1"); relayed so everyone sees it. */
   | { t: 'prop'; id: string }
+  /** Feet on a collectible of the map (PICKUPS): the server checks it's there and close, then applies it. */
+  | { t: 'pickup'; id: string }
+  /** Shot or stabbed one of the map's fish (FISH): the server checks it's alive and the shooter is near. */
+  | { t: 'fish'; id: string }
   /** A line in the session's chat (sanitized and rate-limited by the server). */
   | { t: 'chat'; text: string }
   /** `rtt` = the client's last measured round trip (ms), shown on the scoreboard. */
   | { t: 'ping'; c: number; rtt?: number };
 
+/** A fish of the map: dead until `ready` (server time; 0 = alive), golden when it's (back) there. */
+export interface FishState {
+  id: string;
+  ready: number;
+  golden: boolean;
+}
+
 // --- Server → client --------------------------------------------------------------------------------
 export type ServerMsg =
   | { t: 'welcome'; id: number; name: string; sessions: SessionInfo[] }
   | { t: 'sessions'; list: SessionInfo[] }
-  | { t: 'joined'; session: SessionInfo; you: number; players: PlayerInfo[]; corpses: CorpseInfo[]; time: number }
+  /**
+   * `pickups`: the map's collectibles still growing back (server time when each is ready again). `fish`: the
+   * fish that aren't a plain live koi (dead until `ready`, and/or golden once back).
+   */
+  | { t: 'joined'; session: SessionInfo; you: number; players: PlayerInfo[]; corpses: CorpseInfo[]; time: number; pickups?: { id: string; ready: number }[]; fish?: FishState[] }
   | { t: 'error'; message: string }
   | { t: 'playerJoined'; player: PlayerInfo }
   | { t: 'playerLeft'; id: number }
@@ -160,6 +175,13 @@ export type ServerMsg =
   /** A player changed their equipped weapon levels: everyone else sees the new models. */
   | { t: 'playerLoadout'; id: number; lo: Loadout }
   | { t: 'prop'; id: string; by: number }
+  /** `by` took a collectible: it's gone until `ready` (server time); their boost lasts until `until`. */
+  | { t: 'pickup'; id: string; by: number; ready: number; until: number }
+  /**
+   * `by` killed a fish (`prize`: what it was). It's back at `ready` (server time), golden or not; a golden
+   * carp's aim boost lasts until `until` (or `by`'s death).
+   */
+  | ({ t: 'fish'; by: number; prize: 'koi' | 'dourada'; until?: number } & FishState)
   /** A chat line, to everyone in the session (the sender too: what they see is what the server accepted). */
   | { t: 'chat'; id: number; name: string; text: string }
   /** The player's chat line was dropped: their account is muted, or they're sending too fast. */

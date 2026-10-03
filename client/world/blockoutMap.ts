@@ -38,6 +38,45 @@ export interface MapFrame {
   listener: THREE.Vector3;
   /** Throws the local player (hydrant). */
   launch(vx: number, vy: number, vz: number): void;
+  /** Game clock (s): the simulation's offline, the server's online. Shared timing (the fish swim on it). */
+  readonly time: number;
+}
+
+/** What a shot or a knife hit among the map's critters. */
+export interface CritterHit {
+  point: THREE.Vector3;
+  /** A fish (FISH id): what killing it gives is the game's call. Null for fruit (the map handles it). */
+  fish: { id: string; golden: boolean } | null;
+}
+
+/** Small things shots and the knife hit without a collider of their own: fish, the fruit on a tree. */
+export interface MapCritters {
+  /** The first one the shot from `o` along `dir` (unit) goes through within `dist`; fruit falls right away. */
+  shot(o: THREE.Vector3, dir: THREE.Vector3, dist: number): CritterHit | null;
+  /** The nearest one in reach of a knife swing from `eye` looking along `fwd` (unit). */
+  stab(eye: THREE.Vector3, fwd: THREE.Vector3, reach: number): CritterHit | null;
+}
+
+/** The map's fish (FISH in shared/maps.ts): the game tells them when they die and how they come back. */
+export interface MapFish {
+  /** Killed: dies now, back at `ready` (game clock), golden or not. */
+  kill(id: string, ready: number, golden: boolean): void;
+  /** How it is right now (joining a session): dead until `ready` (0: alive), golden when there. */
+  set(id: string, ready: number, golden: boolean): void;
+  isAlive(id: string): boolean;
+}
+
+/** A collectible lying on the map (the cherry): the game decides who takes it and what it does; the map shows it. */
+export interface MapPickup {
+  readonly id: string;
+  /** Feet position it's taken from. */
+  readonly position: THREE.Vector3;
+  /** There to be taken right now (not taken, not still falling back). */
+  readonly available: boolean;
+  /** Taken: it pops and disappears. */
+  take(): void;
+  /** Grown back: it comes back (the cherry falls from its tree). */
+  restore(): void;
 }
 
 export interface GameMap {
@@ -56,7 +95,13 @@ export interface GameMap {
   update(dt: number, frame: MapFrame): void;
   /** Amora, the doghouse's Chow Chow: bites (kills) anyone who steps in front of her door. */
   dog: ChowChow | null;
-  /** Sky, fog and lights; omitted = the default sunny day. */
+  /** Collectibles (positions match shared/maps.ts PICKUPS, which the server checks against). */
+  pickups?: MapPickup[];
+  /** Half size (m) the sun's shadow must cover, when the map is bigger than the default. */
+  shadowExtent?: number;
+  critters?: MapCritters;
+  fish?: MapFish;
+  /** Its own sky and light (default: the sunny day of createRenderContext). */
   atmosphere?: Atmosphere;
 }
 

@@ -16,6 +16,10 @@ export class Hud {
   private healthFill = $('health-fill');
   private healthNum = $('health-num');
   private healthBox = $('health');
+  private healthBoost = $('health-boost');
+  private lastBoost = -1;
+  private aimBoost = $('aim-boost');
+  private lastAim = -1;
   private ammoMag = $('ammo-mag');
   private ammoReserve = $('ammo-reserve');
   private ammoWarn = $('ammo-warn');
@@ -75,6 +79,25 @@ export class Hud {
     this.healthFill.style.width = `${Math.min(100, (v / max) * 100)}%`;
     this.healthBox.classList.toggle('low', v < 25);
     this.vignette.style.setProperty('--low', String(Math.max(0, (30 - v) / 30)));
+  }
+
+  /** The cherry's extra health: seconds left (null: none), on a pink badge; the bar turns pink too. */
+  setBoost(secondsLeft: number | null) {
+    const s = secondsLeft === null ? -1 : Math.ceil(secondsLeft);
+    if (s === this.lastBoost) return;
+    this.lastBoost = s;
+    this.healthBox.classList.toggle('boost', s >= 0);
+    this.healthBoost.classList.toggle('hidden', s < 0);
+    this.healthBoost.textContent = s >= 0 ? `🍒 ${s}s` : '';
+  }
+
+  /** The golden carp's sharp aim: seconds left (null: none), on a golden badge under the weapon's name. */
+  setAim(secondsLeft: number | null) {
+    const s = secondsLeft === null ? -1 : Math.ceil(secondsLeft);
+    if (s === this.lastAim) return;
+    this.lastAim = s;
+    this.aimBoost.classList.toggle('hidden', s < 0);
+    this.aimBoost.textContent = s >= 0 ? `🎯 ${s}s` : '';
   }
 
   /**

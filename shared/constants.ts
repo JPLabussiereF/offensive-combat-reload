@@ -37,6 +37,36 @@ export const HEALTH = {
   lowThreshold: 30,
 } as const;
 
+/**
+ * The Dragon Cherry (courtyard of "Jardim do Dragão"): picking it up raises the maximum health by
+ * `extraHealth` for `duration` seconds and heals that much at once. A new one falls from the tree
+ * `respawn` seconds later. `radius`: how close the feet must be (the server allows some lag on top).
+ */
+export const CHERRY = {
+  extraHealth: 50,
+  duration: 30,
+  respawn: 45,
+  radius: 1.2,
+} as const;
+
+/**
+ * The koi of "Jardim do Dragão" (FISH in maps.ts): shot or stabbed, a fish gives `xp` account XP and
+ * comes back `respawn` seconds later (a random time in the range). Each one that comes back has a
+ * `goldenChance` of being a golden carp, which glows: it gives `goldenXp` and, for `goldenDuration`
+ * seconds or until the player dies, sharper aim (spread and recoil multiplied by `spreadMul`/`recoilMul`).
+ * `range`: how far from its loop the shooter can be (the server checks it against their last position).
+ */
+export const KOI = {
+  xp: 1,
+  goldenXp: 100,
+  goldenChance: 0.05,
+  respawn: [25, 45],
+  goldenDuration: 60,
+  spreadMul: 0.5,
+  recoilMul: 0.6,
+  range: 80,
+} as const;
+
 /** Points per action (section 6). Computed server-side once multiplayer exists. */
 export const SCORE = {
   kill: 100,
