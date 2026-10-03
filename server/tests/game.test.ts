@@ -165,7 +165,7 @@ describe('mapas', () => {
     p.send({ t: 'hello' });
     const welcome = await p.next('welcome');
     const fixed = welcome.sessions.filter((s) => s.permanent);
-    expect(fixed.map((s) => [s.id, s.map]).sort()).toEqual([['jardim', 'jardim'], ['principal', 'rua']]);
+    expect(fixed.map((s) => [s.id, s.map]).sort()).toEqual([['halloween', 'halloween'], ['jardim', 'jardim'], ['principal', 'rua']]);
 
     p.send({ t: 'create', name: 'Chá das cinco', map: 'jardim' });
     expect((await p.next('joined')).session).toMatchObject({ name: 'Chá das cinco', map: 'jardim', permanent: false });

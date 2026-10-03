@@ -3,6 +3,7 @@
 export const MAPS = {
   rua: { nome: 'Rua dos Vizinhos' },
   jardim: { nome: 'Jardim do Dragão' },
+  halloween: { nome: 'Vila Assombrada' },
 } as const;
 
 export type MapId = keyof typeof MAPS;

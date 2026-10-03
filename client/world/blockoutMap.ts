@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PALETTE, toon, toonGradient } from '../render/materials';
+import type { Atmosphere } from '../render/renderer';
 import { WORLD_GROUPS, type Physics } from './physics';
 import { MapBuilder, stairRun, type Opening, type WallOpening } from './mapBuilder';
 import { addGltfToMap, gltfLoader } from './gltfMap';
@@ -55,6 +56,8 @@ export interface GameMap {
   update(dt: number, frame: MapFrame): void;
   /** Amora, the doghouse's Chow Chow: bites (kills) anyone who steps in front of her door. */
   dog: ChowChow | null;
+  /** Sky, fog and lights; omitted = the default sunny day. */
+  atmosphere?: Atmosphere;
 }
 
 export interface MapSfx extends HydrantSfx {

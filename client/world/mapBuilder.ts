@@ -68,7 +68,8 @@ export class MapBuilder {
   readonly stats = { pieces: 0, colliders: 0, meshes: 0, triangles: 0 };
   readonly openings: WallOpening[] = [];
 
-  constructor(readonly physics: Physics, readonly scene: THREE.Scene) {}
+  /** `cell`: side (m) of the squares static geometry is merged in; bigger maps trade culling for fewer draw calls. */
+  constructor(readonly physics: Physics, readonly scene: THREE.Scene, private cell = CELL) {}
 
   // --- Low level --------------------------------------------------------------------------------
 
@@ -82,7 +83,7 @@ export class MapBuilder {
       id = this.materialIds.size;
       this.materialIds.set(material, id);
     }
-    const key = `${id}|${Math.floor(this.center.x / CELL)}|${Math.floor(this.center.z / CELL)}|${castShadow ? 1 : 0}`;
+    const key = `${id}|${Math.floor(this.center.x / this.cell)}|${Math.floor(this.center.z / this.cell)}|${castShadow ? 1 : 0}`;
     let batch = this.batches.get(key);
     if (!batch) {
       batch = { material, castShadow, geos: [] };

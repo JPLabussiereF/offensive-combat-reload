@@ -96,6 +96,20 @@ Regras de medida que o jogo checa automaticamente:
 
 Pedras e árvores usam `seeded(semente)`, nunca `Math.random`: a colisão precisa ser igual em todos os clientes da sessão.
 
+### Peças de Halloween
+
+[client/world/halloween.ts](../client/world/halloween.ts) tem as peças da "Vila Assombrada" ([client/world/hauntedTown.ts](../client/world/hauntedTown.ts)):
+
+- `nightSky` (cúpula em degradê, estrelas e a lua cheia), `GroundMist` (neblina rasteira, fraca para não esconder ninguém), `Glow` (janelas, velas e rostos de abóbora acesos fundidos em uma malha só).
+- `deadTree` (árvore seca com galhos em garra), `tombstone` + `epitaph` (lápides com epitáfio), `signBoard`, `hedge` (cerca viva), `gateArch` (portão com pilares e placa), `slabWithHoles` (laje com buracos, usada no chão com as escadas do esgoto).
+- `ironFence` e `blocker`: o colisor só para jogadores e granadas. As balas passam entre as grades, e a malha dos bots continua desviando delas.
+- Animados e sincronizados: `GraveGhost` ("fantasma"), `Bell` ("sinocapela", "sinoparque"), `Pumpkins` ("abobora:N"), `LampPosts` ("poste:N"), `Cauldron` ("caldeirao"), `Scarecrows` ("espantalho:N"), `TargetRow` ("alvo:N"), `GiantPumpkin` ("aboboragigante"), `GrandfatherClock` ("relogio"), `GlowShrooms` ("cogumelo:N"). Eles contam o que aconteceu (`activations`, `rings`, `stirs`, `clears`, `laughs`, `hour`, `lit(i)`), que é a base para os segredos do documento de design.
+- Visuais: `FerrisWheel`, `Bonfire`, `Bats`, `SpeechBubble` (balão de fala sobre um objeto).
+
+Os ids das piadas precisam ser **minúsculos e sem acento** (`/^[a-z]{1,16}(:\d{1,3})?$/`). O servidor descarta os outros.
+
+Um mapa pode trocar o céu e a luz devolvendo `atmosphere` no `GameMap` ([client/render/renderer.ts](../client/render/renderer.ts): cores do céu e da neblina, luz ambiente, sol ou lua e alcance da sombra). Mapas maiores podem passar um tamanho de célula maior ao `MapBuilder` (a Vila usa 60 m): sai menos chamadas de desenho, com menos descarte de células fora da câmera.
+
 ### Mapas por sessão
 
 Os mapas jogáveis estão em [shared/maps.ts](../shared/maps.ts). Cada sessão online leva o id do mapa, e o servidor mantém uma sessão fixa por mapa. Para adicionar um mapa: registre o id ali, crie o `build...Map` em `client/world/` e ligue o id na escolha do mapa em [client/main.ts](../client/main.ts).
@@ -184,11 +198,11 @@ Eles fazem o papel de arquivos exportados do Blender; abra-os no Blender (File �
 
 ### Metas por mapa (seção 3 do documento de design)
 
-| Item | Meta | "Rua dos Vizinhos" hoje | "Jardim do Dragão" hoje |
-| --- | --- | --- | --- |
-| Draw calls por quadro | < 300 | ~150 com sombras | ~130–210 com sombras |
-| Triângulos visíveis | < 500 mil | ~50 mil | ~180–280 mil |
-| Tempo de construção do mapa | — | ~50–90 ms | ~180–210 ms |
+| Item | Meta | "Rua dos Vizinhos" hoje | "Jardim do Dragão" hoje | "Vila Assombrada" hoje |
+| --- | --- | --- | --- | --- |
+| Draw calls por quadro | < 300 | ~150 com sombras | ~130–210 com sombras | ~75–290 com sombras |
+| Triângulos visíveis | < 500 mil | ~50 mil | ~180–280 mil | ~130–520 mil |
+| Tempo de construção do mapa | — | ~50–90 ms | ~180–210 ms | ~400–500 ms |
 | Texturas | < 256 MB | 12 texturas procedurais de 512×512 (~16 MB com mipmaps) | as mesmas, mais `papel` e `pedra` |
 
 Aperte **F3** no jogo para ver FPS, draw calls, triângulos, tempo de CPU e a GPU em uso.

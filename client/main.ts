@@ -26,6 +26,7 @@ import { QualityManager } from './render/quality';
 import { createPhysics } from './world/physics';
 import { buildBlockoutMap, type SpawnPoint } from './world/blockoutMap';
 import { buildDragonGardenMap } from './world/dragonGarden';
+import { buildHauntedTownMap } from './world/hauntedTown';
 import { loadTextureOverrides } from './world/surfaces';
 import { buildGltfMap } from './world/gltfMap';
 import { MapBuilder } from './world/mapBuilder';
@@ -115,8 +116,11 @@ async function boot() {
     ? buildGltfMap(mapUrl, new MapBuilder(physics, ctx.scene), ctx.renderer)
     : choice.map === 'jardim'
       ? buildDragonGardenMap(physics, ctx.scene, sfx)
-      : buildBlockoutMap(physics, ctx.scene, ctx.renderer, sfx);
+      : choice.map === 'halloween'
+        ? buildHauntedTownMap(physics, ctx.scene, sfx)
+        : buildBlockoutMap(physics, ctx.scene, ctx.renderer, sfx);
   const [map] = await Promise.all([buildMap, textures]);
+  if (map.atmosphere) ctx.setAtmosphere(map.atmosphere);
   const mapBuildMs = performance.now() - tMap;
   mark('map');
   screens.setProgress(1);

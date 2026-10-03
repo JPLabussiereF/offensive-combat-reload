@@ -7,7 +7,28 @@ export interface RenderContext {
   vmScene: THREE.Scene;
   vmCamera: THREE.PerspectiveCamera;
   sun: THREE.DirectionalLight;
+  /** Sky, fog and lights for the map (the default is the sunny day every map started with). */
+  setAtmosphere(a: Atmosphere): void;
   render(): void;
+}
+
+/** A map's lighting mood: sky and fog colors, the two lights, and how far the sun's shadows reach. */
+export interface Atmosphere {
+  sky: THREE.ColorRepresentation;
+  fog: THREE.ColorRepresentation;
+  fogNear: number;
+  fogFar: number;
+  hemiSky: THREE.ColorRepresentation;
+  hemiGround: THREE.ColorRepresentation;
+  hemiIntensity: number;
+  sunColor: THREE.ColorRepresentation;
+  sunIntensity: number;
+  /** Where the sun (or moon) shines from, relative to the map center. */
+  sunPosition: [number, number, number];
+  /** Half size of the shadow camera (m): the map's half extent plus a margin. */
+  shadowHalf: number;
+  /** Multiplies the viewmodel's lights, so the gun in hand matches the scene. */
+  viewmodelLight: number;
 }
 
 /**
@@ -65,7 +86,8 @@ export function createRenderContext(container: HTMLElement): RenderContext {
   const vmScene = new THREE.Scene();
   // Its own FOV (style guide: 60–70°), independent of the player's.
   const vmCamera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.01, 10);
-  vmScene.add(new THREE.HemisphereLight(0xe8f6ff, 0x5a6a48, 1.6));
+  const vmHemi = new THREE.HemisphereLight(0xe8f6ff, 0x5a6a48, 1.6);
+  vmScene.add(vmHemi);
   const vmSun = new THREE.DirectionalLight(0xfff1d6, 1.8);
   vmSun.position.set(-1, 2, 1.5);
   vmScene.add(vmSun);
@@ -84,6 +106,25 @@ export function createRenderContext(container: HTMLElement): RenderContext {
     vmScene,
     vmCamera,
     sun,
+    setAtmosphere(a) {
+      scene.background = new THREE.Color(a.sky);
+      scene.fog = new THREE.Fog(a.fog, a.fogNear, a.fogFar);
+      hemi.color.set(a.hemiSky);
+      hemi.groundColor.set(a.hemiGround);
+      hemi.intensity = a.hemiIntensity;
+      sun.color.set(a.sunColor);
+      sun.intensity = a.sunIntensity;
+      sun.position.set(...a.sunPosition);
+      sc.left = sc.bottom = -a.shadowHalf;
+      sc.right = sc.top = a.shadowHalf;
+      sc.far = Math.hypot(...a.sunPosition) + a.shadowHalf * 1.5;
+      sc.updateProjectionMatrix();
+      vmHemi.color.set(a.hemiSky);
+      vmHemi.groundColor.set(a.hemiGround);
+      vmHemi.intensity = 1.6 * a.viewmodelLight;
+      vmSun.color.set(a.sunColor);
+      vmSun.intensity = 1.8 * a.viewmodelLight;
+    },
     render() {
       renderer.info.autoReset = false;
       renderer.info.reset();

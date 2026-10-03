@@ -736,6 +736,223 @@ export class Sfx {
     this.noiseBurst(t + 0.35, 0.12, 'lowpass', 700, 1, 0.6);
   }
 
+  // --- Vila Assombrada (Halloween map) ---------------------------------------------------------------
+
+  /** The grave's ghost rising: a wobbly "wooOOoo" over a breath of wind. */
+  ghostMoan() {
+    if (!this.ready) return;
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(260, t);
+    o.frequency.linearRampToValueAtTime(420, t + 0.6);
+    o.frequency.linearRampToValueAtTime(300, t + 1.5);
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 6;
+    const depth = ctx.createGain();
+    depth.gain.value = 14;
+    lfo.connect(depth).connect(o.frequency);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.16, t + 0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+    o.connect(g).connect(this.out('sfx'));
+    o.start(t);
+    lfo.start(t);
+    o.stop(t + 1.7);
+    lfo.stop(t + 1.7);
+    this.noiseBurst(t, 1.4, 'bandpass', 500, 0.8, 0.08);
+  }
+
+  /** Cartoon mumbling for speech bubbles: a few formant-ish blips. */
+  grumble() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    const n = 3 + ((Math.random() * 3) | 0);
+    for (let i = 0; i < n; i++) {
+      const f = 140 + Math.random() * 90;
+      this.tone(t + i * 0.11, 'sawtooth', f, f * (0.75 + Math.random() * 0.4), 0.09, 0.07, 'sfx', 0.01);
+      this.noiseBurst(t + i * 0.11, 0.06, 'bandpass', 700 + Math.random() * 500, 3, 0.05);
+    }
+  }
+
+  /** Church bell: a strike and slowly decaying, slightly inharmonic partials. */
+  churchBell(pitch = 1) {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.noiseBurst(t, 0.05, 'highpass', 2000, 0.7, 0.12);
+    const partials: [number, number, number][] = [[1, 0.18, 3.2], [2, 0.1, 2.6], [2.4, 0.08, 2.2], [3, 0.06, 1.8], [4.2, 0.04, 1.2], [5.4, 0.02, 0.8]];
+    for (const [k, peak, dur] of partials) this.tone(t, 'sine', 300 * pitch * k, 300 * pitch * k * 0.995, dur, peak, 'sfx', 0.004);
+  }
+
+  /** Old car horn; `seconds` grows when someone keeps honking. */
+  carHorn(seconds: number) {
+    if (!this.ready) return;
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 1400;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.12, t + 0.02);
+    g.gain.setValueAtTime(0.12, t + seconds);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + seconds + 0.08);
+    f.connect(g).connect(this.out('sfx'));
+    for (const hz of [392, 494]) {
+      const o = ctx.createOscillator();
+      o.type = 'square';
+      o.frequency.value = hz;
+      o.connect(f);
+      o.start(t);
+      o.stop(t + seconds + 0.1);
+    }
+  }
+
+  /** A pumpkin smashing: wet thud and a squelch. */
+  pumpkinSmash() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sine', 180, 60, 0.15, 0.2);
+    this.noiseBurst(t, 0.25, 'lowpass', 900, 0.8, 0.3);
+    this.noiseBurst(t + 0.03, 0.18, 'bandpass', 1800, 1.5, 0.12);
+  }
+
+  /** A lamp shot out: glass tink and a fizzle. */
+  bulbPop() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'triangle', 3200, 2400, 0.08, 0.08);
+    this.noiseBurst(t, 0.12, 'highpass', 3000, 0.8, 0.18);
+    this.noiseBurst(t + 0.08, 0.4, 'bandpass', 5000, 2, 0.04);
+  }
+
+  /** The one lamp post that screams when shot. */
+  tinyScream() {
+    if (!this.ready) return;
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(700, t);
+    o.frequency.exponentialRampToValueAtTime(1500, t + 0.12);
+    o.frequency.exponentialRampToValueAtTime(900, t + 0.55);
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 18;
+    const depth = ctx.createGain();
+    depth.gain.value = 60;
+    lfo.connect(depth).connect(o.frequency);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 1400;
+    f.Q.value = 1.2;
+    const g = ctx.createGain();
+    this.env(g, t, 0.14, 0.02, 0.55);
+    o.connect(f).connect(g).connect(this.out('sfx'));
+    o.start(t);
+    lfo.start(t);
+    o.stop(t + 0.65);
+    lfo.stop(t + 0.65);
+  }
+
+  /** The witch's cauldron: a run of bloops. */
+  cauldronBubble() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    for (let i = 0; i < 5; i++) {
+      const f = 180 + Math.random() * 220;
+      this.tone(t + i * 0.07 + Math.random() * 0.03, 'sine', f, f * 2.2, 0.07, 0.1);
+    }
+  }
+
+  /** Rubber duck. */
+  quack() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sawtooth', 900, 520, 0.16, 0.09, 'sfx', 0.01);
+    this.noiseBurst(t, 0.12, 'bandpass', 1300, 4, 0.08);
+  }
+
+  /** The giant pumpkin's evil laugh: "ha-ha-ha-HAAA" dropping in pitch. */
+  evilLaugh() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    for (let i = 0; i < 6; i++) {
+      const f = 210 - i * 14;
+      const dur = i === 5 ? 0.5 : 0.13;
+      this.tone(t + i * 0.17, 'sawtooth', f, f * 0.8, dur, 0.12, 'sfx', 0.01);
+      this.noiseBurst(t + i * 0.17, dur * 0.8, 'bandpass', 900, 2, 0.06);
+    }
+  }
+
+  /** Grandfather clock: `n` low bongs. */
+  clockChime(n: number) {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    for (let i = 0; i < n; i++) {
+      for (const [k, peak, dur] of [[1, 0.14, 1.6], [2.7, 0.05, 0.9], [4.1, 0.03, 0.5]] as const) this.tone(t + i * 0.9, 'sine', 196 * k, 196 * k * 0.99, dur, peak, 'sfx', 0.006);
+    }
+  }
+
+  /** Shooting gallery target going down. */
+  targetDing() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'triangle', 1760, 1700, 0.25, 0.1);
+    this.tone(t, 'sine', 2640, 2600, 0.15, 0.04);
+  }
+
+  /** Every target down: a quick calliope fanfare. */
+  carnivalJingle() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    const notes = [523, 659, 784, 1047, 0, 784, 1047];
+    notes.forEach((f, i) => {
+      if (f) this.tone(t + i * 0.12, 'square', f, f, i === notes.length - 1 ? 0.5 : 0.11, 0.06, 'sfx', 0.005);
+    });
+  }
+
+  /** Scarecrow hitting the ground: a straw thump. */
+  strawThud() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sine', 120, 50, 0.18, 0.18);
+    this.noiseBurst(t, 0.3, 'bandpass', 1200, 0.6, 0.12);
+  }
+
+  /** Ambient: a crow somewhere. */
+  ambientCrow() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    const n = 1 + ((Math.random() * 3) | 0);
+    for (let i = 0; i < n; i++) {
+      this.tone(t + i * 0.32, 'sawtooth', 620, 380, 0.22, 0.05, 'sfx', 0.01);
+      this.noiseBurst(t + i * 0.32, 0.2, 'bandpass', 1500, 3, 0.05);
+    }
+  }
+
+  /** Ambient: a wolf howling far away. */
+  ambientHowl() {
+    if (!this.ready) return;
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(380, t);
+    o.frequency.exponentialRampToValueAtTime(720, t + 0.8);
+    o.frequency.setValueAtTime(720, t + 1.8);
+    o.frequency.exponentialRampToValueAtTime(420, t + 3);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.06, t + 0.5);
+    g.gain.setValueAtTime(0.06, t + 2.2);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 3.1);
+    o.connect(g).connect(this.out('sfx'));
+    o.start(t);
+    o.stop(t + 3.2);
+  }
+
   ui() {
     if (!this.ready) return;
     const t = this.ctx!.currentTime;
