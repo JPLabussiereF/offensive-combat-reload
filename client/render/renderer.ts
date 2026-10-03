@@ -7,7 +7,38 @@ export interface RenderContext {
   vmScene: THREE.Scene;
   vmCamera: THREE.PerspectiveCamera;
   sun: THREE.DirectionalLight;
+  hemi: THREE.HemisphereLight;
+  /** The viewmodel's own lights (they follow the map's mood, see applyAtmosphere). */
+  vmHemi: THREE.HemisphereLight;
+  vmSun: THREE.DirectionalLight;
   render(): void;
+}
+
+/** A map's sky and light (the default is a sunny day): see applyAtmosphere. */
+export interface Atmosphere {
+  background: number;
+  fog: { color: number; near: number; far: number };
+  hemi: { sky: number; ground: number; intensity: number };
+  /** The sun's color, strength and where it shines from (its target is the origin). */
+  sun: { color: number; intensity: number; from: [number, number, number] };
+  viewmodel: { sky: number; ground: number; hemi: number; sun: number; sunColor: number };
+}
+
+/** Puts a map's sky and light on the scene and the viewmodel's lights. */
+export function applyAtmosphere(ctx: RenderContext, a: Atmosphere) {
+  ctx.scene.background = new THREE.Color(a.background);
+  ctx.scene.fog = new THREE.Fog(a.fog.color, a.fog.near, a.fog.far);
+  ctx.hemi.color.set(a.hemi.sky);
+  ctx.hemi.groundColor.set(a.hemi.ground);
+  ctx.hemi.intensity = a.hemi.intensity;
+  ctx.sun.color.set(a.sun.color);
+  ctx.sun.intensity = a.sun.intensity;
+  ctx.sun.position.set(...a.sun.from);
+  ctx.vmHemi.color.set(a.viewmodel.sky);
+  ctx.vmHemi.groundColor.set(a.viewmodel.ground);
+  ctx.vmHemi.intensity = a.viewmodel.hemi;
+  ctx.vmSun.color.set(a.viewmodel.sunColor);
+  ctx.vmSun.intensity = a.viewmodel.sun;
 }
 
 /**
@@ -65,7 +96,8 @@ export function createRenderContext(container: HTMLElement): RenderContext {
   const vmScene = new THREE.Scene();
   // Its own FOV (style guide: 60–70°), independent of the player's.
   const vmCamera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.01, 10);
-  vmScene.add(new THREE.HemisphereLight(0xe8f6ff, 0x5a6a48, 1.6));
+  const vmHemi = new THREE.HemisphereLight(0xe8f6ff, 0x5a6a48, 1.6);
+  vmScene.add(vmHemi);
   const vmSun = new THREE.DirectionalLight(0xfff1d6, 1.8);
   vmSun.position.set(-1, 2, 1.5);
   vmScene.add(vmSun);
@@ -84,6 +116,9 @@ export function createRenderContext(container: HTMLElement): RenderContext {
     vmScene,
     vmCamera,
     sun,
+    hemi,
+    vmHemi,
+    vmSun,
     render() {
       renderer.info.autoReset = false;
       renderer.info.reset();

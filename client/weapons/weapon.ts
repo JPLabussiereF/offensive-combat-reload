@@ -36,6 +36,9 @@ export class Weapon {
   reloadDuration = 0;
   /** Reload time multiplier of the body holding it (PCD: no hand or arm reloads slower). */
   reloadMul = 1;
+  /** Spread and recoil multipliers of a temporary boost (the golden carp's sharper aim). */
+  spreadMul = 1;
+  recoilMul = 1;
   reloading = false;
   private reloadEmpty = false;
   private cooldown = 0;
@@ -74,7 +77,7 @@ export class Weapon {
     if (input.crouched && input.grounded) base *= 0.8;
     const hip = base + this.bloom;
     const aimed = d.mirando + this.bloom * 0.25;
-    return hip + (aimed - hip) * this.ads;
+    return (hip + (aimed - hip) * this.ads) * this.spreadMul;
   }
 
   /** Knife and humiliations interrupt a reload; the magazine is untouched and R starts over. */
@@ -160,7 +163,7 @@ export class Weapon {
     // Semi-deterministic pattern: climbs and drifts to one side, with a little noise.
     const [hMin, hMax] = d.recuo.horizontal;
     const side = 0.5 + 0.5 * Math.sin(this.shotIndex * 0.9 + 0.6);
-    const aimMul = 1 - this.ads * 0.25;
+    const aimMul = (1 - this.ads * 0.25) * this.recoilMul;
     this.recoilPitch += d.recuo.vertical * (0.9 + Math.random() * 0.2) * aimMul;
     this.recoilYaw += (hMin + (hMax - hMin) * side + (Math.random() - 0.5) * 0.1) * aimMul;
     this.shotIndex++;
