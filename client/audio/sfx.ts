@@ -573,6 +573,67 @@ export class Sfx {
     for (const [f, peak, dur] of partials) this.tone(t, 'sine', f * (0.99 + Math.random() * 0.02), f * 0.985, dur, peak, 'sfx', 0.012);
   }
 
+  /**
+   * Bronze temple bell (`size` 1 ≈ a 1.25 m bell; bigger is deeper and rings longer): the strike's clank,
+   * then bell partials (hum, prime, tierce, quint, nominal...), each a slightly detuned pair so it beats
+   * ("wah-wah") as it fades.
+   */
+  bell(size = 1, note?: number) {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    const f = note ?? 300 / size;
+    const ring = note ? 1.6 + 1.2 * size : 2.2 + 2.2 * size;
+    this.noiseBurst(t, 0.05, 'bandpass', 2400 / size, 1.5, 0.18);
+    this.tone(t, 'triangle', f * 4.2, f * 4.1, 0.08, 0.06, 'sfx', 0.001);
+    // A tuned bell (`note`, Hz) leans on its prime and octave so the melody reads; a temple bell keeps its
+    // deep hum and minor third.
+    const partials: [number, number, number][] = note
+      ? [[0.5, 0.05, 0.7], [1, 0.22, 1], [2, 0.08, 0.6], [2.4, 0.03, 0.35], [3, 0.03, 0.25], [4.1, 0.015, 0.15]]
+      : [[0.5, 0.13, 1], [1, 0.15, 0.8], [1.19, 0.09, 0.6], [1.5, 0.05, 0.45], [2, 0.07, 0.4], [2.66, 0.035, 0.25], [3.3, 0.02, 0.15]];
+    for (const [ratio, peak, life] of partials) {
+      const p = f * ratio * (0.995 + Math.random() * 0.01);
+      this.tone(t, 'sine', p, p * 0.998, ring * life, peak, 'sfx', 0.003);
+      this.tone(t, 'sine', p * 1.004, p * 1.002, ring * life * 0.8, peak * 0.6, 'sfx', 0.003);
+    }
+  }
+
+  /** Biting the Dragon Cherry: a juicy crunch, then a rising sparkle (more max health). */
+  cherry() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.noiseBurst(t, 0.09, 'bandpass', 1400, 1.4, 0.3);
+    this.noiseBurst(t + 0.03, 0.12, 'lowpass', 700, 0.8, 0.18);
+    [784, 988, 1175, 1568].forEach((f, i) => this.tone(t + 0.08 + i * 0.06, 'triangle', f, f * 1.01, 0.22, 0.09, 'sfx', 0.004));
+  }
+
+  /** A cherry knocked off the tree: a wet little splat and the snap of its stem. */
+  fruitSplat() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.noiseBurst(t, 0.06, 'bandpass', 2600, 2, 0.12);
+    this.noiseBurst(t + 0.01, 0.1, 'lowpass', 900, 0.9, 0.16);
+    this.tone(t, 'sine', 520, 260, 0.08, 0.05, 'sfx', 0.002);
+  }
+
+  /** The cherry wears off: a short falling blip. */
+  cherryEnd() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'triangle', 880, 440, 0.25, 0.08, 'sfx', 0.004);
+  }
+
+  /** A struck drum (`size` 1 = a big temple drum; small ones are higher and drier): boom, body and skin slap. */
+  drum(size = 1) {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    const f = 95 / size;
+    const p = 0.96 + Math.random() * 0.08;
+    this.tone(t, 'sine', f * 1.6 * p, f * p, 0.1 + 0.6 * size, 0.6, 'sfx', 0.002);
+    this.tone(t, 'sine', f * 2.3 * p, f * 1.5 * p, 0.06 + 0.2 * size, 0.18, 'sfx', 0.002);
+    this.noiseBurst(t, 0.08 + 0.3 * size, 'lowpass', 260 / size, 0.8, 0.35);
+    this.noiseBurst(t, 0.035, 'bandpass', 1800 / size, 1.2, 0.12);
+  }
+
   /** The fountain dragon: a growl that rises into a roar, over the whoosh of its fire breath. */
   roar() {
     if (!this.ready) return;

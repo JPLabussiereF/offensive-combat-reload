@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { pickSafeSpawn } from './gameplay/spawnPicker';
-import { GROUP, groups, HEALTH, HUMILIATION, MOVE, SCORE } from '@shared/constants';
+import { CHERRY, GROUP, groups, HEALTH, HUMILIATION, KOI, MOVE, SCORE } from '@shared/constants';
 import { clampExplosionDamage, computeDamage, explosionDamage, GRENADES, grenadeLevel, idealTtk, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
 import { eyeHeight, type MoveInput } from '@shared/movement';
 import { CLOSE, FLAG, NET, ONLINE_GRENADE_LEVEL, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
@@ -17,14 +17,14 @@ import { gamepad } from './core/gamepad';
 import { PadNav } from './ui/padNav';
 import { AimAssist } from './gameplay/aimAssist';
 import { loadSettings, saveSettings, spatialMode } from './core/settings';
-import { createRenderContext } from './render/renderer';
+import { applyAtmosphere, createRenderContext } from './render/renderer';
 import { Effects } from './render/effects';
 import { Viewmodel, VM_FEEL } from './render/viewmodel';
 import { ANIM } from './character/animator';
 import { TuningPanel } from './ui/tuning';
 import { QualityManager } from './render/quality';
 import { createPhysics } from './world/physics';
-import { buildBlockoutMap, type SpawnPoint } from './world/blockoutMap';
+import { buildBlockoutMap, type CritterHit, type SpawnPoint } from './world/blockoutMap';
 import { buildDragonGardenMap } from './world/dragonGarden';
 import { loadTextureOverrides } from './world/surfaces';
 import { buildGltfMap } from './world/gltfMap';
@@ -118,6 +118,14 @@ async function boot() {
       : buildBlockoutMap(physics, ctx.scene, ctx.renderer, sfx);
   const [map] = await Promise.all([buildMap, textures]);
   const mapBuildMs = performance.now() - tMap;
+  if (map.atmosphere) applyAtmosphere(ctx, map.atmosphere);
+  if (map.shadowExtent) {
+    const sc = ctx.sun.shadow.camera;
+    sc.left = sc.bottom = -map.shadowExtent;
+    sc.right = sc.top = map.shadowExtent;
+    sc.far = 150;
+    sc.updateProjectionMatrix();
+  }
   mark('map');
   screens.setProgress(1);
   screens.hideLoading();
@@ -300,6 +308,101 @@ async function boot() {
   let myCorpseId: number | null = null;
   let deathMessage: string | null = null;
 
+  // --- Collectibles (the courtyard's cherry: extra max health for a while) ------------------------
+  // Offline and against bots the game applies it; online the server checks the pickup, applies it and
+  // tells everyone ('pickup'). Times are on the game clock: seconds of simulation offline (it pauses with
+  // the menu), the server's clock online.
+  const pickups = map.pickups ?? [];
+  const clock = () => (conn ? conn.serverNow() / 1000 : simTime);
+  /** When each taken collectible grows back (game clock). */
+  const pickupBack = new Map<string, number>();
+  /** When our cherry wears off (game clock; 0: none). */
+  let boostEnds = 0;
+  /** Online: when we last asked the server for a pickup (once is enough while it answers). */
+  let pickupAsked = 0;
+  const startBoost = (until: number) => {
+    boostEnds = until;
+    player.maxHealth = body.maxHealth + CHERRY.extraHealth;
+    sfx.cherry();
+    hud.notice(t('cherryTaken', { n: CHERRY.extraHealth, s: CHERRY.duration }));
+  };
+  const endBoost = (announce: boolean) => {
+    if (!boostEnds) return;
+    boostEnds = 0;
+    player.maxHealth = body.maxHealth;
+    player.health = Math.min(player.health, player.maxHealth);
+    if (announce) {
+      sfx.cherryEnd();
+      hud.notice(t('cherryOver'));
+    }
+  };
+  // --- The koi (KOI): shot or stabbed for account XP (online: the server decides and awards it); a golden
+  // carp also sharpens our aim (spread and recoil) for a while or until we die.
+  /** When our golden carp's aim wears off (game clock; 0: none). */
+  let aimEnds = 0;
+  /** Online: when we last reported each fish (once is enough while the server answers). */
+  const fishAsked = new Map<string, number>();
+  const startAim = (until: number) => {
+    aimEnds = until;
+    weapon.spreadMul = KOI.spreadMul;
+    weapon.recoilMul = KOI.recoilMul;
+    sfx.levelUp();
+    hud.showBanner(t('goldenKoi', { s: KOI.goldenDuration }), 'level');
+  };
+  const endAim = (announce: boolean) => {
+    if (!aimEnds) return;
+    aimEnds = 0;
+    weapon.spreadMul = weapon.recoilMul = 1;
+    if (announce) hud.notice(t('goldenKoiOver'));
+  };
+  /** What a shot or a knife did to the map's critters: fruit falls by itself, a fish is killed. */
+  const hitCritter = (c: CritterHit) => {
+    const fish = c.fish;
+    if (!fish || !map.fish) return;
+    sfx.at(c.point, 'normal', (s) => s.splash());
+    hud.hit('hit');
+    if (conn) {
+      if (performance.now() - (fishAsked.get(fish.id) ?? -1e9) < 800) return;
+      fishAsked.set(fish.id, performance.now());
+      conn.send({ t: 'fish', id: fish.id });
+      return;
+    }
+    // Offline and against bots the game decides (no account XP without the server).
+    const now = clock();
+    const [min, max] = KOI.respawn;
+    map.fish.kill(fish.id, now + min + Math.random() * (max - min), Math.random() < KOI.goldenChance);
+    if (fish.golden) startAim(now + KOI.goldenDuration);
+  };
+
+  const updatePickups = () => {
+    const now = clock();
+    if (player.dead) endAim(false);
+    else if (aimEnds && now >= aimEnds) endAim(true);
+    for (const [id, at] of pickupBack) {
+      if (now < at) continue;
+      pickupBack.delete(id);
+      pickups.find((p) => p.id === id)?.restore();
+    }
+    if (player.dead) endBoost(false);
+    else if (boostEnds && now >= boostEnds) endBoost(true);
+    if (player.dead) return;
+    const f = playerFeet(feet);
+    for (const pk of pickups) {
+      if (!pk.available || Math.hypot(f.x - pk.position.x, f.z - pk.position.z) > CHERRY.radius || Math.abs(f.y - pk.position.y) > 1.5) continue;
+      if (conn) {
+        if (performance.now() - pickupAsked > 800) {
+          pickupAsked = performance.now();
+          conn.send({ t: 'pickup', id: pk.id });
+        }
+      } else {
+        pk.take();
+        pickupBack.set(pk.id, now + CHERRY.respawn);
+        startBoost(now + CHERRY.duration);
+        player.health = Math.min(player.maxHealth, player.health + CHERRY.extraHealth);
+      }
+    }
+  };
+
   const aimForward = new THREE.Vector3();
   const shotDir = new THREE.Vector3();
   const eye = new THREE.Vector3();
@@ -358,6 +461,12 @@ async function boot() {
       sfx.gunshot();
       if (shotIndex % weapon.data.tracanteACada === 0) effects.tracer(muzzle, end);
       conn?.send({ t: 'shot', o: vec3(muzzle), e: vec3(end) });
+      // Fish and fruit don't stop the bullet: whatever it hits further on is hit too.
+      const critter = map.critters?.shot(eye, shotDir, hit ? hit.distance : Math.min(120, weapon.data.alcanceMaximo));
+      if (critter) {
+        effects.burst('confetti', critter.point, tmp.copy(shotDir).negate(), 4, critter.fish ? 0xbfeaff : 0xc8102e);
+        hitCritter(critter);
+      }
 
       // Through wood and glass: entry and exit holes, splinters out the far side.
       for (const p of through) {
@@ -483,7 +592,15 @@ async function boot() {
     let target = melee.target;
     const inReach = target && findMeleeTarget(physics, targets(), eye, player.yaw, melee.data.alcance + 0.4, 180)?.target === target;
     if (!inReach) target = findMeleeTarget(physics, targets(), eye, player.yaw, melee.data.alcance, melee.data.anguloGraus)?.target ?? null;
-    if (!target) return;
+    if (!target) {
+      // Nobody in reach: a fish in the pond or the cherries overhead (a little extra reach, down or up).
+      const critter = map.critters?.stab(eye, computeAim(aimForward), melee.data.alcance + 0.4);
+      if (!critter) return;
+      sfx.knifeHit();
+      effects.burst('star', critter.point, UP, 8);
+      hitCritter(critter);
+      return;
+    }
     tmp.set(target.position.x - eye.x, 0, target.position.z - eye.z).normalize();
     const behind = target.isBehind(eye);
     sfx.knifeHit();
@@ -904,6 +1021,28 @@ async function boot() {
       else if (c.info.victim === me || c.corpseCenter(tmp).distanceTo(playerFeet(feet)) < 25) humiliationFx(c);
     });
     conn.on('prop', (m) => map.props.remote(m.id));
+    // Collectibles: someone took one (maybe us); taken ones as we joined are still growing back.
+    for (const k of online.joined.pickups ?? []) {
+      pickups.find((p) => p.id === k.id)?.take();
+      pickupBack.set(k.id, k.ready / 1000);
+    }
+    // Fish: who's dead (and until when) or golden as we joined; then every kill, ours or not.
+    for (const f of online.joined.fish ?? []) map.fish?.set(f.id, f.ready / 1000, f.golden);
+    conn.on('fish', (m) => {
+      map.fish?.kill(m.id, m.ready / 1000, m.golden);
+      if (m.by !== me) return;
+      const golden = m.prize === 'dourada';
+      hud.notice(t(golden ? 'goldenKoiXp' : 'koiXp', { n: golden ? KOI.goldenXp : KOI.xp }));
+      if (golden && m.until) startAim(m.until / 1000);
+    });
+    conn.on('pickup', (m) => {
+      const pk = pickups.find((p) => p.id === m.id);
+      if (!pk) return;
+      pk.take();
+      pickupBack.set(m.id, m.ready / 1000);
+      if (m.by === me) startBoost(m.until / 1000);
+      else sfx.at({ x: pk.position.x, y: pk.position.y + 0.6, z: pk.position.z }, 'normal', (s) => s.cherry());
+    });
     conn.on('chat', (m) => chat.add(m.name, m.text, m.id === me));
     conn.on('chatRefused', (m) => chat.system(t(m.reason === 'muted' ? 'chatMuted' : 'chatSlow')));
     map.props.onLocal = (id) => conn.send({ t: 'prop', id });
@@ -1018,6 +1157,7 @@ async function boot() {
   const stepInner = (dt: number) => {
     simTime += dt;
     net?.update(dt);
+    updatePickups();
 
     if (player.dead) {
       hud.setDeathTimer(player.respawnIn(simTime));
@@ -1277,7 +1417,14 @@ async function boot() {
   const tpPos = new THREE.Vector3();
   const tpQuat = new THREE.Quaternion();
   const euler = new THREE.Euler(0, 0, 0, 'YXZ');
-  const mapFrame = { feet, listener: ctx.camera.position, launch: (vx: number, vy: number, vz: number) => player.launch(vx, vy, vz) };
+  const mapFrame = {
+    feet,
+    listener: ctx.camera.position,
+    launch: (vx: number, vy: number, vz: number) => player.launch(vx, vy, vz),
+    get time() {
+      return clock();
+    },
+  };
   const deathCamPos = new THREE.Vector3();
   let deathFloorAt = -1;
   let deathFloorY = 0;
@@ -1520,6 +1667,8 @@ async function boot() {
     if (hudTimer <= 0) {
       hudTimer = 1 / 15;
       hud.setHealth(player.health, player.maxHealth);
+      hud.setBoost(boostEnds ? Math.max(0, boostEnds - clock()) : null);
+      hud.setAim(aimEnds ? Math.max(0, aimEnds - clock()) : null);
       hud.setAmmo(weapon.mag, weapon.reserve, weapon.data.pente, weapon.reloading);
       hud.setGrenades(thrower.count, grenadeData.quantidade);
       const mine = net?.info.get(me) ?? bots?.standings().find((p) => p.id === me);

@@ -9,11 +9,11 @@
 // compensation, and interest culling. Movement is trusted; hits are validated against server positions
 // with a lag tolerance.
 import type { ServerWebSocket } from 'bun';
-import { HEALTH, HUMILIATION, SCORE } from '@shared/constants';
+import { CHERRY, HEALTH, HUMILIATION, KOI, SCORE } from '@shared/constants';
 import { clampExplosionDamage, computeDamage, explosionDamage, GRENADES, grenadeLevel, HIT_REGIONS, LETHAL_DAMAGE, minPenetrationKeep, WEAPONS, type HitRegion } from '@shared/weapons';
 import { ACCOUNT_XP } from '@shared/accountLevel';
 import { bodyStats } from '@shared/appearance';
-import type { MapId } from '@shared/maps';
+import { FISH, PICKUPS, type MapId } from '@shared/maps';
 import { knifeData, levelInfo, rifleData, sanitizeLoadout, weaponOfKill, type Loadout } from '@shared/progression';
 import { accountLevelOf, addAccountXp, addTime, addWeaponXp, equip, equippedOf, progressMsg, type LevelUp, type LiveAccount } from './progress';
 import { NET, ONLINE_GRENADE_LEVEL, sanitizeChat, type Award, type ClientMsg, type CorpseInfo, type KillKind, type NetState, type PlayerInfo, type ServerMsg, type Sex, type SessionInfo, type Vec3 } from '@shared/protocol';
@@ -67,6 +67,8 @@ interface SPlayer {
   chatAt: number;
   grenades: Map<number, { thrownAt: number; fuse: number; impact: boolean; mine: boolean; origin: Vec3; speed: number }>;
   dance: { corpse: number; since: number } | null;
+  /** Server time when the cherry's extra health runs out (0: none). */
+  boostUntil: number;
 }
 
 interface Corpse extends CorpseInfo {
@@ -74,6 +76,9 @@ interface Corpse extends CorpseInfo {
   humiliated: boolean;
   claimedBy: number | null;
 }
+
+/** How far (m) the server lets a pickup be from the player's last reported feet (latency). */
+const PICKUP_SLACK = 1.5;
 
 const dist3 = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 const eye = (p: SPlayer): Vec3 => [p.state.p[0], p.state.p[1] + EYE, p.state.p[2]];
@@ -85,6 +90,10 @@ export class Session {
   readonly players = new Map<number, SPlayer>();
   private corpses = new Map<number, Corpse>();
   private nextCorpse = 1;
+  /** The map's collectibles: where they are and when each is there again (0: now). */
+  private pickups = new Map<string, { p: Vec3; ready: number }>();
+  /** The map's fish: their loop (x, z, radius), when each is back (0: alive) and whether it's golden. */
+  private fish = new Map<string, { loop: [number, number, number]; ready: number; golden: boolean }>();
   private timer: Timer;
   private scoreTimer = 0;
   /** Bun pub/sub topic every player of this session is subscribed to. */
@@ -101,6 +110,8 @@ export class Session {
     private publish: (topic: string, data: string) => void,
   ) {
     this.topic = `sessao:${id}`;
+    for (const k of PICKUPS[map] ?? []) this.pickups.set(k.id, { p: k.p, ready: 0 });
+    for (const f of FISH[map] ?? []) this.fish.set(f.id, { loop: f.loop, ready: 0, golden: false });
     this.timer = setInterval(() => this.tick(), 1000 / NET.tickRate);
   }
 
@@ -176,6 +187,7 @@ export class Session {
       chatAt: this.now(),
       grenades: new Map(),
       dance: null,
+      boostUntil: 0,
     };
     this.players.set(p.id, p);
     conn.session = this;
@@ -187,6 +199,8 @@ export class Session {
       players: [...this.players.values()].map((x) => this.playerInfo(x, true)),
       corpses: [...this.corpses.values()].filter((c) => !c.humiliated).map(({ id, victim, name: n, sex, ap, p: pos, yaw, until }) => ({ id, victim, name: n, sex, ap, p: pos, yaw, until })),
       time: this.now(),
+      pickups: [...this.pickups].filter(([, k]) => k.ready > this.now()).map(([id, k]) => ({ id, ready: k.ready })),
+      fish: [...this.fish].filter(([, f]) => f.ready > this.now() || f.golden).map(([id, f]) => ({ id, ready: f.ready > this.now() ? f.ready : 0, golden: f.golden })),
     });
     this.broadcast({ t: 'playerJoined', player: this.playerInfo(p, true) }, p.id);
     this.onChange();
@@ -237,6 +251,10 @@ export class Session {
       case 'swing':
         if (p.alive) this.broadcast({ t: 'swing', id: p.id }, p.id);
         return;
+      case 'pickup':
+        return this.onPickup(p, msg.id, now);
+      case 'fish':
+        return this.onFish(p, msg.id, now);
       case 'chat': {
         const text = sanitizeChat(msg.text);
         if (!text) return;
@@ -288,6 +306,7 @@ export class Session {
         if (p.alive || !vec(msg.p) || !finite(msg.yaw)) return;
         if (now - p.deadAt < NET.respawnDelay * 1000 - 250) return;
         p.alive = true;
+        p.boostUntil = 0;
         p.health = p.body.maxHealth;
         p.lastDamageAt = 0;
         p.dance = null;
@@ -298,6 +317,39 @@ export class Session {
         return;
       }
     }
+  }
+
+  /** Max health right now: the body's, plus the cherry's while it lasts. */
+  private maxHealth(p: SPlayer, now = this.now()) {
+    return p.body.maxHealth + (p.boostUntil > now ? CHERRY.extraHealth : 0);
+  }
+
+  private onPickup(p: SPlayer, id: unknown, now: number) {
+    const k = typeof id === 'string' ? this.pickups.get(id) : undefined;
+    if (!k || !p.alive || now < k.ready) return;
+    const [x, y, z] = p.state.p;
+    if (Math.hypot(x - k.p[0], z - k.p[2]) > CHERRY.radius + PICKUP_SLACK || Math.abs(y - k.p[1]) > 2) return;
+    k.ready = now + CHERRY.respawn * 1000;
+    p.boostUntil = now + CHERRY.duration * 1000;
+    p.health = Math.min(this.maxHealth(p, now), p.health + CHERRY.extraHealth);
+    this.broadcast({ t: 'pickup', id: id as string, by: p.id, ready: k.ready, until: p.boostUntil });
+  }
+
+  /**
+   * A fish shot or stabbed: alive and within range of the shooter's last position. It gives account XP and
+   * comes back after a while, maybe golden; a golden one also sharpens the killer's aim (on their client).
+   */
+  private onFish(p: SPlayer, id: unknown, now: number) {
+    const f = typeof id === 'string' ? this.fish.get(id) : undefined;
+    if (!f || !p.alive || now < f.ready) return;
+    if (Math.hypot(p.state.p[0] - f.loop[0], p.state.p[2] - f.loop[1]) > KOI.range + f.loop[2]) return;
+    const prize = f.golden ? 'dourada' : 'koi';
+    const [min, max] = KOI.respawn;
+    f.ready = now + Math.round((min + Math.random() * (max - min)) * 1000);
+    f.golden = Math.random() < KOI.goldenChance;
+    this.progress(p, [addAccountXp(p.conn.account, prize === 'dourada' ? KOI.goldenXp : KOI.xp)]);
+    const until = prize === 'dourada' ? now + KOI.goldenDuration * 1000 : undefined;
+    this.broadcast({ t: 'fish', id: id as string, by: p.id, prize, ready: f.ready, golden: f.golden, ...(until ? { until } : {}) });
   }
 
   private onHit(p: SPlayer, targetId: number, region: HitRegion, reportedDist: number, reportedKeep: number | undefined, now: number) {
@@ -410,6 +462,7 @@ export class Session {
     const now = this.now();
     victim.alive = false;
     victim.health = 0;
+    victim.boostUntil = 0;
     victim.deaths++;
     victim.deadAt = now;
     victim.grenades.clear();
@@ -458,8 +511,14 @@ export class Session {
     const now = this.now();
     const dt = 1 / NET.tickRate;
     for (const p of this.players.values()) {
-      if (p.alive && p.health < p.body.maxHealth && now - p.lastDamageAt > HEALTH.regenDelay * 1000) {
-        p.health = Math.min(p.body.maxHealth, p.health + HEALTH.regenPerSecond * dt);
+      // The cherry wore off: back to the body's max (the extra health goes with it).
+      if (p.boostUntil && now >= p.boostUntil) {
+        p.boostUntil = 0;
+        p.health = Math.min(p.health, p.body.maxHealth);
+      }
+      const max = this.maxHealth(p, now);
+      if (p.alive && p.health < max && now - p.lastDamageAt > HEALTH.regenDelay * 1000) {
+        p.health = Math.min(max, p.health + HEALTH.regenPerSecond * dt);
       }
       const xpBefore = p.conn.account.profile.xp;
       const up = addTime(p.conn.account, dt, p.alive);
