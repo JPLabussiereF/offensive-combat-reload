@@ -46,6 +46,10 @@
       <div id="killfeed"></div>
 
       <!-- Session chat (online): the last lines over the game; the box opens with Enter/T or the chat button. -->
+      <!-- Buffs and debuffs we're under (cherry, sharp aim, potions...), top left, with the time they have left
+           (before the chat: on a phone the chat steps down while there are any). -->
+      <div id="buffs"></div>
+
       <div id="chat" class="hidden">
         <div id="chat-log" aria-live="polite"></div>
         <form id="chat-form" class="hidden" autocomplete="off">
@@ -62,7 +66,7 @@
       <div id="health">
         <b id="health-num">100</b>
         <div class="health-side">
-          <span id="health-label"></span><span id="health-boost" class="hidden"></span>
+          <span id="health-label"></span>
           <div id="health-bar"><div id="health-fill"></div></div>
         </div>
       </div>
@@ -78,7 +82,6 @@
           <div class="ammo-count"><b id="ammo-mag">30</b><span class="ammo-sep">/</span><span id="ammo-reserve">120</span></div>
         </div>
         <div id="weapon-name"></div>
-        <span id="aim-boost" class="hidden"></span>
       </div>
 
       <div id="death" class="hidden">

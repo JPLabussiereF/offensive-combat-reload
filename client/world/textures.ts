@@ -289,6 +289,45 @@ export const PAINTERS: Record<string, Painter> = {
     grain(g, s, rand, 12);
   },
 
+  /** Hay: a dense mat of short straws in every direction, light and dark, over a warm base. */
+  feno(g, s, rand) {
+    g.fillStyle = gray(205);
+    g.fillRect(0, 0, s, s);
+    blotches(g, s, rand, 30, 12, 40, 235, 165, 0.18);
+    for (let i = 0; i < 1400; i++) {
+      const x = rand() * s;
+      const y = rand() * s;
+      const a = (rand() - 0.5) * 1.4 + (rand() < 0.5 ? 0 : Math.PI / 2);
+      const len = 8 + rand() * 26;
+      const light = rand();
+      g.strokeStyle = light < 0.55 ? gray(250, 0.55) : light < 0.85 ? gray(150, 0.5) : gray(95, 0.45);
+      g.lineWidth = 1 + rand() * 1.6;
+      for (const [ox, oy] of [[0, 0], [-s, 0], [0, -s], [-s, -s]]) {
+        g.beginPath();
+        g.moveTo(x + ox, y + oy);
+        g.lineTo(x + ox + Math.cos(a) * len, y + oy + Math.sin(a) * len);
+        g.stroke();
+      }
+    }
+    grain(g, s, rand, 18);
+  },
+
+  /** Upholstery: a fine woven fabric with a soft nap. */
+  tecido(g, s, rand) {
+    g.fillStyle = gray(225);
+    g.fillRect(0, 0, s, s);
+    const n = 64;
+    const c = s / n;
+    for (let i = 0; i < n; i++) {
+      g.fillStyle = gray(200 + rand() * 25, 0.6);
+      g.fillRect(i * c, 0, c * 0.5, s);
+      g.fillStyle = gray(245, 0.35);
+      g.fillRect(0, i * c, s, c * 0.45);
+    }
+    blotches(g, s, rand, 24, 20, 60, 245, 190, 0.12);
+    grain(g, s, rand, 14);
+  },
+
   /** Bark: long wavy fissures running up the trunk, between lit ridges. */
   casca(g, s, rand) {
     g.fillStyle = gray(200);

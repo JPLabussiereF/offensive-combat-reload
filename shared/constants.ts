@@ -50,6 +50,49 @@ export const CHERRY = {
 } as const;
 
 /**
+ * The Scooby biscuit (the mansion kitchen's cabinet in "Vila Assombrada"): heals to full health. Another
+ * one is in the cabinet `respawn` seconds later. `radius`: how close the feet must be.
+ */
+export const BISCUIT = {
+  respawn: 60,
+  radius: 1.1,
+} as const;
+
+/**
+ * The giant rat at the end of the sewer's dead end ("Vila Assombrada", RATS in maps.ts). It goes down after
+ * `hits` bullets (a stab counts `stab`); whoever brings it down gets a humanity, as in Dark Souls:
+ * `extraHealth` more max health until they die (one at a time). It's back `respawn` seconds later.
+ * `range`: how far from it the killer may be (the server checks their last position).
+ */
+/**
+ * The witch's potions ("Vila Assombrada", WITCHES in maps.ts): each drink is a random effect. The duck
+ * (grenades look and sound like rubber ducks) is only a look and lasts until death; the others change the
+ * balance and last `duration` seconds: faster or slower movement, every bullet a critical (head damage),
+ * or drunk (worse spread and recoil, a swaying view). One drink every `cooldown` seconds; `radius`: how
+ * close to the witch.
+ */
+export const POTION = {
+  kinds: ['pato', 'veloz', 'lerdo', 'critico', 'bebado'],
+  duration: 60,
+  cooldown: 60,
+  fastSpeed: 1.3,
+  slowSpeed: 0.7,
+  drunkSpread: 2.5,
+  drunkRecoil: 1.8,
+  radius: 2.4,
+} as const;
+
+export type PotionKind = (typeof POTION.kinds)[number];
+
+export const RAT = {
+  hits: 14,
+  stab: 4,
+  respawn: 120,
+  extraHealth: 50,
+  range: 30,
+} as const;
+
+/**
  * The koi of "Jardim do Dragão" (FISH in maps.ts): shot or stabbed, a fish gives `xp` account XP and
  * comes back `respawn` seconds later (a random time in the range). Each one that comes back has a
  * `goldenChance` of being a golden carp, which glows: it gives `goldenXp` and, for `goldenDuration`

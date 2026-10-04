@@ -9,6 +9,16 @@ export type HitKind = 'hit' | 'head' | 'kill';
 export type FeedIcon = 'head' | 'knife' | 'bird' | 'taunt' | 'grenade' | 'dog' | null;
 const FEED_ICONS: Record<Exclude<FeedIcon, null>, string> = { head: '✚', knife: '🔪', bird: '🐦', taunt: '💃', grenade: '💣', dog: '🐕' };
 
+/** An effect we're under, for the buff panel: `left`/`total` in seconds, no `total` when it lasts until we die. */
+export interface Buff {
+  id: string;
+  icon: string;
+  label: string;
+  color: string;
+  left?: number;
+  total?: number;
+}
+
 export class Hud {
   private root = $('hud');
   private crosshair = $('crosshair');
@@ -16,10 +26,9 @@ export class Hud {
   private healthFill = $('health-fill');
   private healthNum = $('health-num');
   private healthBox = $('health');
-  private healthBoost = $('health-boost');
-  private lastBoost = -1;
-  private aimBoost = $('aim-boost');
-  private lastAim = -1;
+  private buffsEl = $('buffs');
+  private buffsKey = '';
+  private buffRows: { secs: HTMLElement; fill: HTMLElement; row: HTMLElement; last: number }[] = [];
   private ammoMag = $('ammo-mag');
   private ammoReserve = $('ammo-reserve');
   private ammoWarn = $('ammo-warn');
@@ -81,23 +90,45 @@ export class Hud {
     this.vignette.style.setProperty('--low', String(Math.max(0, (30 - v) / 30)));
   }
 
-  /** The cherry's extra health: seconds left (null: none), on a pink badge; the bar turns pink too. */
-  setBoost(secondsLeft: number | null) {
-    const s = secondsLeft === null ? -1 : Math.ceil(secondsLeft);
-    if (s === this.lastBoost) return;
-    this.lastBoost = s;
-    this.healthBox.classList.toggle('boost', s >= 0);
-    this.healthBoost.classList.toggle('hidden', s < 0);
-    this.healthBoost.textContent = s >= 0 ? `🍒 ${s}s` : '';
+  /** The cherry's extra health: the bar turns pink while it lasts (its timer is among the buffs). */
+  setBoost(on: boolean) {
+    this.healthBox.classList.toggle('boost', on);
   }
 
-  /** The golden carp's sharp aim: seconds left (null: none), on a golden badge under the weapon's name. */
-  setAim(secondsLeft: number | null) {
-    const s = secondsLeft === null ? -1 : Math.ceil(secondsLeft);
-    if (s === this.lastAim) return;
-    this.lastAim = s;
-    this.aimBoost.classList.toggle('hidden', s < 0);
-    this.aimBoost.textContent = s >= 0 ? `🎯 ${s}s` : '';
+  /**
+   * The effects we're under, top left: a card each with its icon, name, seconds left and a bar draining
+   * towards the end (blinking over the last seconds). Untimed ones (until we die) say so instead.
+   */
+  setBuffs(buffs: Buff[]) {
+    const key = buffs.map((b) => `${b.id}:${b.label}`).join('|');
+    if (key !== this.buffsKey) {
+      this.buffsKey = key;
+      this.buffsEl.replaceChildren();
+      this.buffRows = buffs.map((b) => {
+        const row = document.createElement('div');
+        row.className = `buff${b.total ? '' : ' forever'}`;
+        row.style.setProperty('--c', b.color);
+        row.innerHTML = '<span class="buff-icon"></span><span class="buff-name"></span><b class="buff-secs"></b><div class="buff-bar"><div class="buff-fill"></div></div>';
+        row.querySelector('.buff-icon')!.textContent = b.icon;
+        row.querySelector('.buff-name')!.textContent = b.label;
+        this.buffsEl.appendChild(row);
+        return { row, secs: row.querySelector<HTMLElement>('.buff-secs')!, fill: row.querySelector<HTMLElement>('.buff-fill')!, last: -2 };
+      });
+    }
+    buffs.forEach((b, i) => {
+      const r = this.buffRows[i];
+      if (!b.total || b.left === undefined) {
+        if (r.last !== -1) r.secs.textContent = t('buffUntilDeath');
+        r.last = -1;
+        return;
+      }
+      r.fill.style.transform = `scaleX(${Math.max(0, Math.min(1, b.left / b.total)).toFixed(4)})`;
+      const s = Math.ceil(b.left);
+      if (s === r.last) return;
+      r.last = s;
+      r.secs.textContent = `${s}s`;
+      r.row.classList.toggle('ending', s <= 10);
+    });
   }
 
   /**
@@ -185,11 +216,18 @@ export class Hud {
   }
 
   /** Grenade slots left of the ammo count: filled = carried, faded = used. */
-  setGrenades(count: number, max: number) {
-    const key = `${count}/${max}`;
-    if (key === this.grenadesKey) return;
-    this.grenadesKey = key;
-    this.grenadesEl.innerHTML = Array.from({ length: max }, (_, i) => `<i class="${i < count ? 'on' : ''}"></i>`).join('');
+  /**
+   * Grenade pips: the ones in hand lit, and the one on its way back (`recharge` 0..1, null: none) filling up
+   * from the bottom like a progress bar in the grenade's shape.
+   */
+  setGrenades(count: number, max: number, recharge: number | null = null) {
+    const charging = recharge !== null && count < max;
+    const key = `${count}/${max}/${charging}`;
+    if (key !== this.grenadesKey) {
+      this.grenadesKey = key;
+      this.grenadesEl.innerHTML = Array.from({ length: max }, (_, i) => `<i class="${i < count ? 'on' : i === count && charging ? 'charging' : ''}"></i>`).join('');
+    }
+    if (charging) (this.grenadesEl.children[count] as HTMLElement).style.setProperty('--p', recharge.toFixed(3));
   }
 
   /** Fuse bar under the crosshair while a grenade is cooking; null hides it. */

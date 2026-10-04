@@ -150,7 +150,7 @@ function arch(s: THREE.Shape, cx: number, axleY: number, r: number, bottom: numb
 const darker = (c: THREE.ColorRepresentation, k: number) => new THREE.Color(c).multiplyScalar(k);
 
 /** Compact hatchback/sedan, 4.2 m long, 1.8 m wide: body is waist-high cover, the cabin blocks a crouch. */
-export function buildCar(b: MapBuilder, x: number, z: number, color: THREE.ColorRepresentation, rotY = 0) {
+export function buildCar(b: MapBuilder, x: number, z: number, color: THREE.ColorRepresentation, rotY = 0, onShot?: SurfaceInfo['onShot']) {
   const k = new Kit(b, x, z, rotY);
   const WB = 1.3; // half wheelbase
   const R = 0.34; // wheel radius
@@ -224,8 +224,8 @@ export function buildCar(b: MapBuilder, x: number, z: number, color: THREE.Color
   k.pair(0.5, 1.12, 0.96, 0.1, 0.1, 0.14, 'lataria', color, 0.03);
 
   // Collision: waist-high body (with the bumpers) and the cabin.
-  k.collider(0, 0.62, 0, 2.2, 0.44, HW);
-  k.collider(-0.3, 1.27, 0, 0.95, 0.24, 0.76);
+  k.collider(0, 0.62, 0, 2.2, 0.44, HW, onShot);
+  k.collider(-0.3, 1.27, 0, 0.95, 0.24, 0.76, onShot);
 }
 
 /** Moving van next to the orange spawn: same footprint as the old box (4.5 x 2.2 x 2.6 m), front at +X. */

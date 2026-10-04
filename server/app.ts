@@ -99,6 +99,7 @@ export async function startServer(opts: Options): Promise<GameServer> {
   // One permanent session per map; "principal" keeps its id from when there was only the street.
   createSession(MAPS.rua.nome, 'rua', 'principal');
   createSession(MAPS.jardim.nome, 'jardim', 'jardim');
+  createSession(MAPS.halloween.nome, 'halloween', 'halloween');
 
   // --- Progress persistence ---------------------------------------------------------------------------
   async function flush(a: LiveAccount, close: boolean) {

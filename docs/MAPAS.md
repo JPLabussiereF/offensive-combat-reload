@@ -39,6 +39,8 @@ Toda superfície estática do mapa usa uma das **superfícies da biblioteca** ([
 | `pedra` | lajotas de jardim, caminhos, pedestais | 2,4 m | concreto |
 | `folhagem` | copas de árvore, arbustos, folhas de bambu | 1,1 m | grama |
 | `casca` | troncos e galhos | 0,9 m | madeira |
+| `feno` | fardos de feno, palha | 0,8 m | grama |
+| `tecido` | sofás, colchões, cobertores | 0,5 m | madeira |
 | `pintura` | cor lisa, sem textura | — | concreto |
 
 Hoje as texturas são **procedurais**, pintadas em canvas no carregamento ([client/world/textures.ts](../client/world/textures.ts)), como placeholder no estilo "pintado à mão". Elas são claras e quase sem cor de propósito: o tint dá o matiz.
@@ -123,6 +125,30 @@ Um mapa pode ter coletáveis (`GameMap.pickups`): a cereja do pátio ([client/wo
 Coisas pequenas que tiro e faca acertam sem ter colisor próprio ficam em `GameMap.critters` (`shot` e `stab`); elas não param a bala. No Jardim do Dragão são:
 - **As frutas** ([client/world/jardim/frutas.ts](../client/world/jardim/frutas.ts)): as cerejas da cerejeira ([cerejeira.ts](../client/world/jardim/cerejeira.ts), `HangingCherries`) e as frutas das bancas do mercado (`StallFruit`). Com tiro ou facada a fruta é **cortada ao meio**: as duas metades (casca por fora, polpa no corte) se separam com um espirro de suco, caem, ficam um tempo no chão (ou no balcão) e vão sumindo; a fruta nasce de novo depois de 40 s. Sincronizado online como `fruta:N` e `banca:N`.
 - **As carpas** ([client/world/jardim/peixes.ts](../client/world/jardim/peixes.ts)): ficam em `FISH` ([shared/maps.ts](../shared/maps.ts)) e as regras em `KOI` ([shared/constants.ts](../shared/constants.ts)). Nadam no relógio do jogo (online, o do servidor: todos veem no mesmo lugar). Abatida, a carpa vira de barriga para cima e some; volta em 25–45 s, com 5% de chance de ser uma **carpa dourada**, que brilha. Online, o servidor confere (viva, atirador perto) e dá o XP da conta (1, ou 100 pela dourada); a dourada também deixa a mira mais precisa (dispersão ×0,5, recuo ×0,6) por 60 s ou até a morte. O jogo diz ao mapa quem morre e como volta (`GameMap.fish`).
+
+### Peças de Halloween
+
+[client/world/halloween.ts](../client/world/halloween.ts) tem as peças da "Vila Assombrada" ([client/world/hauntedTown.ts](../client/world/hauntedTown.ts)):
+
+- `nightSky` (cúpula em degradê, estrelas e a lua cheia), `GroundMist` (neblina rasteira, fraca para não esconder ninguém), `Glow` (janelas, velas e rostos de abóbora acesos fundidos em uma malha só).
+- `deadTree` (árvore seca com galhos em garra), `tombstone` + `epitaph` (lápides com epitáfio), `signBoard`, `hedge` (cerca viva), `gateArch` (portão com pilares e placa), `slabWithHoles` (laje com buracos, usada no chão com as escadas do esgoto).
+- `ironFence` e `blocker`: o colisor só para jogadores e granadas. As balas passam entre as grades, e a malha dos bots continua desviando delas.
+- Animados e sincronizados: `GraveGhost` ("fantasma"), `Bell` ("sinocapela", "sinoparque"), `Pumpkins` ("abobora:N"), `LampPosts` ("poste:N"), `Cauldron` ("caldeirao"), `Scarecrows` ("espantalho:N"), `TargetRow` ("alvo:N"), `GiantPumpkin` ("aboboragigante"), `GrandfatherClock` ("relogio"), `GlowShrooms` ("cogumelo:N"). Eles contam o que aconteceu (`activations`, `rings`, `stirs`, `clears`, `laughs`, `hour`, `lit(i)`), que é a base para os segredos do documento de design.
+- Visuais: `FerrisWheel`, `Bonfire`, `Bats`, `SpeechBubble` (balão de fala sobre um objeto), `bumperCarGeometry` (carrinho de bate-bate), `circusTrailer` (trailer de circo com placa).
+- `LightPool`: um número fixo de luzes pontuais (a Vila usa 10) vai para os pontos de luz (`LightSpot`: velas, lampiões, lareira) mais próximos da câmera, com fade. Os shaders nunca recompilam e o custo não cresce com o número de velas. Lampiões apagados a tiro saem da lista.
+- `GiantRat`: o rato da rua sem saída do esgoto. Conta os nossos acertos (tiro = 1, facada = `RAT.stab`) e avisa quando o derrubamos (`GameMap.rewards.ratDown`). Offline o jogo decide na hora; online, o servidor confere (`RATS` em [shared/maps.ts](../shared/maps.ts): vivo e o atirador perto) e dá a humanidade (`RAT` em [shared/constants.ts](../shared/constants.ts): +50 de vida máxima até morrer). `GameMap.rats` recebe a morte e a volta.
+- `Witch` ("bruxa"): a bruxa da cabana. Mexe o caldeirão, olha para quem chega, dá bronca se levar tiro e gargalha quando alguém bebe a poção. A poção é `GameMap.potion` (`MapPotion`): perto dela a tecla de oprimir mostra "Beber Poção". O efeito é sorteado (`POTION` em [shared/constants.ts](../shared/constants.ts); online pelo servidor, que também aplica o crítico no dano): pato (granadas de pato até morrer, `duck` na mensagem `grenade`), pressa, lerdeza, crítico ou bêbado, os quatro últimos por 60 s. A bruxa fica em `WITCHES` ([shared/maps.ts](../shared/maps.ts)).
+- `KitchenCabinet` ("armario") e `ScoobyBiscuit`: o armário abre com tiro ou facada, e o biscoito é um coletável (`PICKUPS` com `kind: 'biscoito'`, regras em `BISCUIT`) que só pode ser pego com o armário aberto. Ele enche a vida.
+- Faca sem colisor próprio: `GameMap.critters.stab` do mapa tenta o rato, o armário e as abóboras (`Pumpkins.stab`).
+- O `PropBus` diz quem disparou cada piada (`PropTrigger`: `local` e a posição de quem atirou). O fantasma usa isso para sair virado para o atirador, e a barraca de tiro, para dar a mira afiada (`GameMap.rewards.aimBonus`) só a quem derrubou o último alvo.
+
+Os ids das piadas precisam ser **minúsculos e sem acento** (`/^[a-z]{1,16}(:\d{1,3})?$/`). O servidor descarta os outros.
+
+A Vila é noturna: devolve `atmosphere` (lua azulada, névoa roxa) e `shadowExtent`, porque tem 120 × 110 m e a sombra padrão não cobre o mapa todo. Ela usa células de 60 m no `MapBuilder`.
+
+### Móveis e objetos
+
+[client/world/furniture.ts](../client/world/furniture.ts) tem os objetos feitos de várias peças coloridas que vão para os lotes estáticos (sem chamada de desenho extra), cada um com um colisor simples: `crate` (caixote com quinas e travessas), `hayBale` (fardo de feno amarrado), `barrel` (barril com aros), `bench` (banco de praça), `sofa`, `table`, `chair`, `candle` (vela com cera, pavio e castiçal), `bed`, `coffin`, `pew` (banco de igreja), `suitOfArmor`, `toyChest`, `rockingHorse`, `bookshelf` (estante com livros de alturas, espessuras e cores variadas) e `potion` (frascos com o líquido aceso). `Place` monta qualquer objeto novo no referencial dele (x para a direita, z para a frente), já girado e posicionado.
 
 ### Mapas por sessão
 
@@ -212,12 +238,12 @@ Eles fazem o papel de arquivos exportados do Blender; abra-os no Blender (File �
 
 ### Metas por mapa (seção 3 do documento de design)
 
-| Item | Meta | "Rua dos Vizinhos" hoje | "Jardim do Dragão" hoje |
-| --- | --- | --- | --- |
-| Draw calls por quadro | < 300 | ~150 com sombras | ~100–250 com sombras |
-| Triângulos visíveis | < 500 mil | ~50 mil | ~290–410 mil (estáticos: ~290 mil, ~90 mil de folhagem) |
-| Tempo de construção do mapa | — | ~50–90 ms | ~380–480 ms |
-| Texturas | < 256 MB | 12 texturas procedurais de 512×512 (~16 MB com mipmaps) | as mesmas, mais `papel`, `pedra`, `folhagem` e `casca` |
+| Item | Meta | "Rua dos Vizinhos" hoje | "Jardim do Dragão" hoje | "Vila Assombrada" hoje |
+| --- | --- | --- | --- | --- |
+| Draw calls por quadro | < 300 | ~150 com sombras | ~100–250 com sombras | ~75–290 com sombras |
+| Triângulos visíveis | < 500 mil | ~50 mil | ~290–410 mil (estáticos: ~290 mil, ~90 mil de folhagem) | ~130–520 mil |
+| Tempo de construção do mapa | — | ~50–90 ms | ~380–480 ms | ~400–500 ms |
+| Texturas | < 256 MB | 12 texturas procedurais de 512×512 (~16 MB com mipmaps) | as mesmas, mais `papel`, `pedra`, `folhagem` e `casca` | as mesmas |
 
 Aperte **F3** no jogo para ver FPS, draw calls, triângulos, tempo de CPU e a GPU em uso.
 

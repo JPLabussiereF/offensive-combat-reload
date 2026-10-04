@@ -2,7 +2,7 @@
 // progress earned only from kills the server validated.
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { CLOSE, NET } from '@shared/protocol';
-import { CHERRY, HEALTH, KOI } from '@shared/constants';
+import { BISCUIT, CHERRY, HEALTH, KOI, POTION, RAT } from '@shared/constants';
 import type { GameServer } from '../app';
 import { ticketKey } from '../api';
 import { ban, mute, unmute } from '../moderacao';
@@ -166,7 +166,7 @@ describe('mapas', () => {
     p.send({ t: 'hello' });
     const welcome = await p.next('welcome');
     const fixed = welcome.sessions.filter((s) => s.permanent);
-    expect(fixed.map((s) => [s.id, s.map]).sort()).toEqual([['jardim', 'jardim'], ['principal', 'rua']]);
+    expect(fixed.map((s) => [s.id, s.map]).sort()).toEqual([['halloween', 'halloween'], ['jardim', 'jardim'], ['principal', 'rua']]);
 
     p.send({ t: 'create', name: 'Chá das cinco', map: 'jardim' });
     expect((await p.next('joined')).session).toMatchObject({ name: 'Chá das cinco', map: 'jardim', permanent: false });
@@ -243,6 +243,90 @@ describe('cereja do jardim', () => {
     A.p.send({ t: 'fish', id: 'koi:1' });
     await expect(B.p.next('fish', () => true, 300)).rejects.toThrow();
     for (const x of [A, B, C]) x.p.close();
+  });
+});
+
+describe('vila assombrada', () => {
+  async function joinTown(b: Browser) {
+    const p = await Player.connect(game, await b.ticket());
+    p.send({ t: 'hello' });
+    await p.next('welcome');
+    p.send({ t: 'join', session: 'halloween' });
+    return { p, joined: await p.next('joined') };
+  }
+
+  it('o rato gigante dá uma humanidade (+vida máxima até morrer) a quem o derruba perto dele', async () => {
+    const A = await joinTown(await signedIn('Longe'));
+    const B = await joinTown(await signedIn('Cavaleiro'));
+    const bId = B.joined.you;
+    A.p.send({ t: 'respawn', p: [50, 0, -40], yaw: 0 });
+    B.p.send({ t: 'respawn', p: [7.5, -4, 44], yaw: 0 });
+    await A.p.next('spawned', (m) => m.id === bId);
+
+    // Too far from the rat: ignored.
+    A.p.send({ t: 'rat', id: 'rato' });
+    await expect(A.p.next('rat', () => true, 300)).rejects.toThrow();
+
+    B.p.send({ t: 'rat', id: 'rato' });
+    const down = await A.p.next('rat');
+    expect(down).toMatchObject({ id: 'rato', by: bId });
+    await B.p.next('snap', (m) => m.players.find((x) => x.id === bId)?.h === HEALTH.max + RAT.extraHealth);
+
+    // Dead until it's back: nobody gets it again, and whoever joins now knows when it returns.
+    B.p.send({ t: 'rat', id: 'rato' });
+    await expect(A.p.next('rat', () => true, 300)).rejects.toThrow();
+    const C = await joinTown(await signedIn('Atrasado'));
+    expect(C.joined.rats).toEqual([{ id: 'rato', ready: down.ready }]);
+    for (const x of [A, B, C]) x.p.close();
+  });
+
+  it('a granada de quem bebeu a poção chega aos outros como pato', async () => {
+    const A = await joinTown(await signedIn('Pateta'));
+    const B = await joinTown(await signedIn('Vizinho'));
+    const aId = A.joined.you;
+    A.p.send({ t: 'respawn', p: [-40, 0, -38], yaw: 0 });
+    await B.p.next('spawned', (m) => m.id === aId);
+    A.p.send({ t: 'grenade', id: 1, p: [-40, 1.5, -38], v: [0, 3, 8], fuse: 2, impact: true, duck: true });
+    expect(await B.p.next('grenade')).toMatchObject({ owner: aId, id: 1, duck: true });
+    A.p.send({ t: 'grenade', id: 2, p: [-40, 1.5, -38], v: [0, 3, 8], fuse: 2, impact: true });
+    expect((await B.p.next('grenade', (m) => m.id === 2)).duck).toBeUndefined();
+    for (const x of [A, B]) x.p.close();
+  });
+
+  it('a poção da bruxa sorteia um efeito para quem está perto, uma de cada vez', async () => {
+    const A = await joinTown(await signedIn('Bebum'));
+    const B = await joinTown(await signedIn('Testemunha'));
+    const aId = A.joined.you;
+    A.p.send({ t: 'respawn', p: [10, 0, 10], yaw: 0 });
+    await B.p.next('spawned', (m) => m.id === aId);
+    // Far from the witch: nothing.
+    A.p.send({ t: 'potion' });
+    await expect(B.p.next('potion', () => true, 300)).rejects.toThrow();
+    A.p.send({ t: 'state', s: { p: [-40.2, 0, -44.5], yaw: 0, pitch: 0, f: 0 } });
+    A.p.send({ t: 'potion' });
+    const drunk = await B.p.next('potion');
+    expect(drunk.by).toBe(aId);
+    expect(POTION.kinds).toContain(drunk.kind);
+    if (drunk.kind === 'pato') expect(drunk.until).toBe(0);
+    else expect(drunk.until - B.joined.time).toBeGreaterThanOrEqual(POTION.duration * 1000);
+    // Another one right away: the witch says no.
+    A.p.send({ t: 'potion' });
+    await expect(B.p.next('potion', () => true, 300)).rejects.toThrow();
+    for (const x of [A, B]) x.p.close();
+  });
+
+  it('o biscoito do armário enche a vida de quem está perto e volta depois', async () => {
+    const A = await joinTown(await signedIn('Salsicha'));
+    const aId = A.joined.you;
+    A.p.send({ t: 'respawn', p: [-44.4, 0, 9.2], yaw: 0 });
+    await A.p.next('spawned', (m) => m.id === aId);
+    A.p.send({ t: 'pickup', id: 'biscoito' });
+    const taken = await A.p.next('pickup');
+    expect(taken).toMatchObject({ id: 'biscoito', by: aId, until: 0 });
+    expect(taken.ready - A.joined.time).toBeGreaterThanOrEqual(BISCUIT.respawn * 1000);
+    A.p.send({ t: 'pickup', id: 'biscoito' });
+    await expect(A.p.next('pickup', () => true, 300)).rejects.toThrow();
+    A.p.close();
   });
 });
 
