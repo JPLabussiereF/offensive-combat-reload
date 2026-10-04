@@ -247,6 +247,114 @@ export const PAINTERS: Record<string, Painter> = {
     grain(g, s, rand, 18);
   },
 
+  /**
+   * Foliage: a mat of small overlapping leaves in three layers (darker behind, lighter in front), each with a
+   * soft shadow under it and a lit midrib. Hedges, tree canopies, bamboo tops; the tint gives the green (or
+   * the blossom's pink).
+   */
+  folhagem(g, s, rand) {
+    g.fillStyle = gray(150);
+    g.fillRect(0, 0, s, s);
+    const leaf = (x: number, y: number, len: number, w: number, a: number, v: number) => {
+      for (const ox of [-s, 0, s]) {
+        for (const oy of [-s, 0, s]) {
+          const cx = x + ox;
+          const cy = y + oy;
+          if (cx < -len || cx > s + len || cy < -len || cy > s + len) continue;
+          g.save();
+          g.translate(cx, cy);
+          g.rotate(a);
+          g.fillStyle = gray(70, 0.22);
+          g.beginPath();
+          g.ellipse(1.5, 3, len / 2, w / 2, 0, 0, Math.PI * 2);
+          g.fill();
+          g.fillStyle = gray(v);
+          g.beginPath();
+          g.moveTo(-len / 2, 0);
+          g.quadraticCurveTo(0, -w, len / 2, 0);
+          g.quadraticCurveTo(0, w, -len / 2, 0);
+          g.fill();
+          g.strokeStyle = gray(Math.min(255, v + 30), 0.55);
+          g.lineWidth = 1.2;
+          g.beginPath();
+          g.moveTo(-len * 0.4, 0);
+          g.lineTo(len * 0.4, 0);
+          g.stroke();
+          g.restore();
+        }
+      }
+    };
+    const layers: [count: number, value: number][] = [[650, 182], [560, 208], [420, 230]];
+    for (const [n, v] of layers) for (let i = 0; i < n; i++) leaf(rand() * s, rand() * s, 20 + rand() * 16, 9 + rand() * 6, rand() * Math.PI * 2, v + rand() * 27);
+    grain(g, s, rand, 12);
+  },
+
+  /** Hay: a dense mat of short straws in every direction, light and dark, over a warm base. */
+  feno(g, s, rand) {
+    g.fillStyle = gray(205);
+    g.fillRect(0, 0, s, s);
+    blotches(g, s, rand, 30, 12, 40, 235, 165, 0.18);
+    for (let i = 0; i < 1400; i++) {
+      const x = rand() * s;
+      const y = rand() * s;
+      const a = (rand() - 0.5) * 1.4 + (rand() < 0.5 ? 0 : Math.PI / 2);
+      const len = 8 + rand() * 26;
+      const light = rand();
+      g.strokeStyle = light < 0.55 ? gray(250, 0.55) : light < 0.85 ? gray(150, 0.5) : gray(95, 0.45);
+      g.lineWidth = 1 + rand() * 1.6;
+      for (const [ox, oy] of [[0, 0], [-s, 0], [0, -s], [-s, -s]]) {
+        g.beginPath();
+        g.moveTo(x + ox, y + oy);
+        g.lineTo(x + ox + Math.cos(a) * len, y + oy + Math.sin(a) * len);
+        g.stroke();
+      }
+    }
+    grain(g, s, rand, 18);
+  },
+
+  /** Upholstery: a fine woven fabric with a soft nap. */
+  tecido(g, s, rand) {
+    g.fillStyle = gray(225);
+    g.fillRect(0, 0, s, s);
+    const n = 64;
+    const c = s / n;
+    for (let i = 0; i < n; i++) {
+      g.fillStyle = gray(200 + rand() * 25, 0.6);
+      g.fillRect(i * c, 0, c * 0.5, s);
+      g.fillStyle = gray(245, 0.35);
+      g.fillRect(0, i * c, s, c * 0.45);
+    }
+    blotches(g, s, rand, 24, 20, 60, 245, 190, 0.12);
+    grain(g, s, rand, 14);
+  },
+
+  /** Bark: long wavy fissures running up the trunk, between lit ridges. */
+  casca(g, s, rand) {
+    g.fillStyle = gray(200);
+    g.fillRect(0, 0, s, s);
+    blotches(g, s, rand, 40, 10, 40, 230, 170, 0.15);
+    for (let i = 0; i < 70; i++) {
+      const x = rand() * s;
+      const w = 2 + rand() * 5;
+      const wave = 6 + rand() * 10;
+      const ph = rand() * Math.PI * 2;
+      const dark = rand() < 0.6;
+      g.strokeStyle = dark ? gray(95, 0.75) : gray(245, 0.45);
+      g.lineWidth = dark ? w : w * 0.6;
+      for (const ox of [-s, 0, s]) {
+        g.beginPath();
+        // Whole periods along the height so the fissure meets itself at the tile's edge.
+        for (let y = 0; y <= s; y += 8) {
+          const px = x + ox + Math.sin((y / s) * Math.PI * 2 * 2 + ph) * wave + Math.sin((y / s) * Math.PI * 2 * 5 + ph * 2) * 2;
+          if (y === 0) g.moveTo(px, y);
+          else g.lineTo(px, y);
+        }
+        g.stroke();
+      }
+    }
+    grain(g, s, rand, 20);
+  },
+
   /** Small square pool tiles with grout. */
   azulejo(g, s, rand) {
     g.fillStyle = gray(255);

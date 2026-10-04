@@ -36,6 +36,14 @@ export const SURFACES = {
   pedra: { physics: 'concrete', metros: 2.4, painter: 'pedra' },
   /** Car paint: vehicles UV it in their own meters (v = height), see world/vehicles.ts. */
   lataria: { physics: 'metal', metros: 2, painter: 'lataria' },
+  /** Leaves (hedges, tree canopies, bamboo tops): visual only, the plants collide as simple shapes. */
+  folhagem: { physics: 'grass', metros: 1.1, painter: 'folhagem' },
+  /** Tree bark (trunks and branches). */
+  casca: { physics: 'wood', metros: 0.9, painter: 'casca' },
+  /** Hay bales and straw. */
+  feno: { physics: 'grass', metros: 0.8, painter: 'feno' },
+  /** Upholstery and bedding (sofas, mattresses, blankets). */
+  tecido: { physics: 'wood', metros: 0.5, painter: 'tecido' },
   /** Flat paint: team colors, stripes, small props. */
   pintura: { physics: 'concrete', metros: 1, painter: null },
 } as const satisfies Record<string, SurfaceDef>;

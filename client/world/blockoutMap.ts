@@ -3,8 +3,11 @@
 // truck. South: fenced yards, empty pool (2 m drop), tree house, 7 m watchtower and a doghouse loaded from
 // glTF (public/models/casinha_cachorro.glb) as an example of the Blender pipeline.
 import * as THREE from 'three';
+import { fitText } from './canvasText';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PALETTE, toon, toonGradient } from '../render/materials';
+import type { Atmosphere } from '../render/renderer';
+import type { PotionKind } from '@shared/constants';
 import { WORLD_GROUPS, type Physics } from './physics';
 import { MapBuilder, stairRun, type Opening, type WallOpening } from './mapBuilder';
 import { addGltfToMap, gltfLoader } from './gltfMap';
@@ -37,6 +40,68 @@ export interface MapFrame {
   listener: THREE.Vector3;
   /** Throws the local player (hydrant). */
   launch(vx: number, vy: number, vz: number): void;
+  /** Game clock (s): the simulation's offline, the server's online. Shared timing (the fish swim on it). */
+  readonly time: number;
+}
+
+/** What a shot or a knife hit among the map's critters. */
+export interface CritterHit {
+  point: THREE.Vector3;
+  /** A fish (FISH id): what killing it gives is the game's call. Null for fruit (the map handles it). */
+  fish: { id: string; golden: boolean } | null;
+}
+
+/** Small things shots and the knife hit without a collider of their own: fish, the fruit on a tree. */
+export interface MapCritters {
+  /** The first one the shot from `o` along `dir` (unit) goes through within `dist`; fruit falls right away. */
+  shot(o: THREE.Vector3, dir: THREE.Vector3, dist: number): CritterHit | null;
+  /** The nearest one in reach of a knife swing from `eye` looking along `fwd` (unit). */
+  stab(eye: THREE.Vector3, fwd: THREE.Vector3, reach: number): CritterHit | null;
+}
+
+/** The map's fish (FISH in shared/maps.ts): the game tells them when they die and how they come back. */
+export interface MapFish {
+  /** Killed: dies now, back at `ready` (game clock), golden or not. */
+  kill(id: string, ready: number, golden: boolean): void;
+  /** How it is right now (joining a session): dead until `ready` (0: alive), golden when there. */
+  set(id: string, ready: number, golden: boolean): void;
+  isAlive(id: string): boolean;
+}
+
+/** A collectible lying on the map (the cherry): the game decides who takes it and what it does; the map shows it. */
+export interface MapRats {
+  /** Dead now (an animation), back at `ready` (game clock). */
+  kill(id: string, ready: number): void;
+  /** As it is right now (joining a session): dead until `ready`. */
+  set(id: string, ready: number): void;
+}
+
+/** Something to drink by pressing the taunt key nearby (the witch's potion): the game applies the effect. */
+export interface MapPotion {
+  /** Feet position to stand near. */
+  at: THREE.Vector3;
+  radius: number;
+  /** Someone drank it (`kind`: what it did): the map reacts (the witch cackles). */
+  drink(kind: PotionKind): void;
+}
+
+export interface MapRewards {
+  /** We brought a giant rat down (our hits): the game claims its humanity (online, from the server). */
+  ratDown: ((id: string) => void) | null;
+  /** We knocked down the last target of a shooting gallery: the sharp-aim bonus. */
+  aimBonus: (() => void) | null;
+}
+
+export interface MapPickup {
+  readonly id: string;
+  /** Feet position it's taken from. */
+  readonly position: THREE.Vector3;
+  /** There to be taken right now (not taken, not still falling back). */
+  readonly available: boolean;
+  /** Taken: it pops and disappears. */
+  take(): void;
+  /** Grown back: it comes back (the cherry falls from its tree). */
+  restore(): void;
 }
 
 export interface GameMap {
@@ -55,6 +120,20 @@ export interface GameMap {
   update(dt: number, frame: MapFrame): void;
   /** Amora, the doghouse's Chow Chow: bites (kills) anyone who steps in front of her door. */
   dog: ChowChow | null;
+  /** Collectibles (positions match shared/maps.ts PICKUPS, which the server checks against). */
+  pickups?: MapPickup[];
+  /** Half size (m) the sun's shadow must cover, when the map is bigger than the default. */
+  shadowExtent?: number;
+  critters?: MapCritters;
+  fish?: MapFish;
+  /** Giant rats (RATS in shared/maps.ts): the game says when one dies and when it's back. */
+  rats?: MapRats;
+  /** The witch's potion (grenades become rubber ducks until death). */
+  potion?: MapPotion;
+  /** Rewards the map hands out; the game fills in what each one does (see main.ts). */
+  rewards?: MapRewards;
+  /** Its own sky and light (default: the sunny day of createRenderContext). */
+  atmosphere?: Atmosphere;
 }
 
 export interface MapSfx extends HydrantSfx {
@@ -296,10 +375,7 @@ export async function buildBlockoutMap(physics: Physics, scene: THREE.Scene, ren
     g.fillStyle = fg;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    lines.forEach((line, i) => {
-      g.font = i === 0 ? '400 44px "Lilita One", system-ui, sans-serif' : '800 22px Nunito, system-ui, sans-serif';
-      g.fillText(line, 128, i === 0 ? 52 : 92 + (i - 1) * 28);
-    });
+    lines.forEach((line, i) => fitText(g, line, 128, i === 0 ? 52 : 92 + (i - 1) * 28, 224, (px) => (i === 0 ? `400 ${px}px "Lilita One", system-ui, sans-serif` : `800 ${px}px Nunito, system-ui, sans-serif`), i === 0 ? 44 : 22));
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 4;

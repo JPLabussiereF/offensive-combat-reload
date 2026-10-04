@@ -1,9 +1,9 @@
 // Building blocks for oriental maps ("Jardim do Dragão"): curved roofs with swept-up corners, multi-story
 // pavilions with balconies and shoji (paper) walls, moon gates, rocks, cloud pines, bonsai and bamboo,
-// dragons, paper lanterns that swing when shot, a gong, the fountain dragon's fire breath and koi.
+// dragons, paper lanterns that swing when shot, a gong and the fountain dragon's fire breath.
 // Everything static goes through the MapBuilder batches; only animated props are separate meshes.
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { mergeColoredParts, toonGradient, type ColoredPart } from '../render/materials';
 import { MapBuilder, stairRun, worldUVs, type Opening } from './mapBuilder';
 import { surfaceMaterial, type SurfaceKey } from './surfaces';
@@ -82,8 +82,8 @@ export interface RoofOpts {
  * Returns the swept-up corner tips (where lanterns hang).
  */
 export function curvedRoof(b: MapBuilder, o: RoofOpts): THREE.Vector3[] {
-  const NS = 10;
-  const NT = 6;
+  const NS = 8;
+  const NT = 5;
   const curl = o.curl ?? 0.6;
   const th = o.thickness ?? 0.18;
   const E = corners(o.outer);
@@ -192,7 +192,7 @@ export function curvedRoof(b: MapBuilder, o: RoofOpts): THREE.Vector3[] {
       const pts: THREE.Vector3[] = [];
       for (let j = 0; j <= NT; j++) pts.push(point(k, 0, j / NT).add(new THREE.Vector3(0, 0.07, 0)));
       if (pts[0].distanceTo(pts[NT]) < 0.2) continue;
-      const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.11, 6);
+      const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 10, 0.11, 5);
       b.addGeometry(tube, paint, ridgeTint);
       tube.dispose();
     }
@@ -602,22 +602,215 @@ export function rock(b: MapBuilder, x: number, y: number, z: number, sx: number,
   geo.dispose();
 }
 
+// --- Foliage ----------------------------------------------------------------------------------------
+
+/** Smooth 3D noise (sums of sines), about -1..1: a function of the point, so welded vertices move together. */
+export function lumps(x: number, y: number, z: number, seed: number) {
+  return (
+    0.6 * Math.sin(x * 1.7 + seed) * Math.sin(y * 2.3 + seed * 1.3) * Math.sin(z * 1.9 + seed * 0.7) +
+    0.4 * Math.sin(x * 4.3 + y * 1.3 + seed * 2.1) * Math.sin(z * 3.9 - y * 2.2 + seed)
+  );
+}
+
 /**
- * Cloud pine: a crooked trunk with branches ending in flat foliage pads (the trees of the reference
- * gardens). `scale` 1 ≈ 4 m tall; at 0.25 it is a bonsai's shape. Only the trunk's base collides.
+ * Finishes a foliage geometry for the batches: the vertices are welded (smooth normals over the lumps),
+ * then every triangle takes world-meter UVs from the axis it faces (the leaves never smear where the
+ * projection turns) and `shade` bakes the light per vertex (see MapBuilder.addGeometry).
+ */
+export function foliageGeometry(src: THREE.BufferGeometry, shade: (p: THREE.Vector3, n: THREE.Vector3) => number): THREE.BufferGeometry {
+  src.deleteAttribute('normal');
+  src.deleteAttribute('uv');
+  const welded = mergeVertices(src, 1e-4);
+  welded.computeVertexNormals();
+  const g = welded.toNonIndexed();
+  welded.dispose();
+  const pos = g.getAttribute('position') as THREE.BufferAttribute;
+  const nor = g.getAttribute('normal') as THREE.BufferAttribute;
+  const uv = new Float32Array(pos.count * 2);
+  const sh = new Float32Array(pos.count);
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const face = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i += 3) {
+    a.fromBufferAttribute(pos, i);
+    b.fromBufferAttribute(pos, i + 1);
+    c.fromBufferAttribute(pos, i + 2);
+    face.subVectors(c, b).cross(n.subVectors(a, b));
+    const ax = Math.abs(face.x);
+    const ay = Math.abs(face.y);
+    const az = Math.abs(face.z);
+    for (let k = 0; k < 3; k++) {
+      const p = k === 0 ? a : k === 1 ? b : c;
+      const [u, v] = ax >= ay && ax >= az ? [p.z, p.y] : ay >= az ? [p.x, p.z] : [p.x, p.y];
+      uv[(i + k) * 2] = u;
+      uv[(i + k) * 2 + 1] = v;
+      sh[i + k] = shade(p, n.fromBufferAttribute(nor, i + k));
+    }
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  g.setAttribute('shade', new THREE.BufferAttribute(sh, 1));
+  return g;
+}
+
+/**
+ * Light baked into foliage: dark in the crown's lower part and underneath (where leaves shade each other),
+ * bright on top. `y0`..`y1`: the whole crown's height (a clump low in a tree is darker than one on top).
+ * Brighter than 1 on purpose: the leaf texture is mid-gray, this brings the tint back.
+ */
+export const leafShade = (y0: number, y1: number, lift = 0) => (p: THREE.Vector3, n: THREE.Vector3) => {
+  const h = THREE.MathUtils.clamp((p.y - y0) / Math.max(0.1, y1 - y0), 0, 1);
+  const up = n.y * 0.5 + 0.5;
+  return 0.68 + lift + 0.32 * h + 0.36 * up * up;
+};
+
+export interface ClumpOpts {
+  /** Icosphere detail: 2 rounds big clumps' silhouettes, small ones get by with 1. */
+  detail?: number;
+  castShadow?: boolean;
+  shade?: (p: THREE.Vector3, n: THREE.Vector3) => number;
+  /** Size of the lumps (fraction of the radius). */
+  rough?: number;
+}
+
+/**
+ * Point of a leaf clump's surface (see leafClump) in the unit direction `dir` from its center: where to
+ * hang fruit so it touches the leaves.
+ */
+export function clumpSurface(x: number, y: number, z: number, rx: number, ry: number, rz: number, dir: THREE.Vector3, rough = 0.16) {
+  const f = 1 + rough * lumps(dir.x * 2.2, dir.y * 2.2, dir.z * 2.2, x * 3.1 + z * 1.7 + y * 0.9);
+  return new THREE.Vector3(x + dir.x * rx * f, y + dir.y * ry * f, z + dir.z * rz * f);
+}
+
+/** A clump of leaves: an icosphere with smooth lumps (noise seeded by its position), the leaf texture and baked light. Visual only. */
+export function leafClump(b: MapBuilder, x: number, y: number, z: number, rx: number, ry: number, rz: number, tint: number, o: ClumpOpts = {}) {
+  const rough = o.rough ?? 0.16;
+  const geo = new THREE.IcosahedronGeometry(1, o.detail ?? (Math.max(rx, rz) > 0.55 ? 2 : 1));
+  const pos = geo.getAttribute('position') as THREE.BufferAttribute;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i).normalize();
+    const p = clumpSurface(x, y, z, rx, ry, rz, v, rough);
+    pos.setXYZ(i, p.x, p.y, p.z);
+  }
+  const g = foliageGeometry(geo, o.shade ?? leafShade(y - ry, y + ry));
+  geo.dispose();
+  b.addGeometry(g, surfaceMaterial('folhagem'), tint, o.castShadow ?? true);
+  g.dispose();
+}
+
+export interface Clump {
+  x: number;
+  y: number;
+  z: number;
+  rx: number;
+  ry: number;
+  rz: number;
+}
+
+/**
+ * Lowest point of the leaves over (x, z) among `clumps` (see clumpSurface), or null where none is above
+ * it: fruit hung from there touches the foliage.
+ */
+export function foliageUnder(clumps: Clump[], x: number, z: number): THREE.Vector3 | null {
+  let best: THREE.Vector3 | null = null;
+  const dir = new THREE.Vector3();
+  for (const k of clumps) {
+    const u = (x - k.x) / k.rx;
+    const w = (z - k.z) / k.rz;
+    const q = 1 - u * u - w * w;
+    if (q <= 0.04) continue;
+    const p = clumpSurface(k.x, k.y, k.z, k.rx, k.ry, k.rz, dir.set(u, -Math.sqrt(q), w).normalize());
+    if (!best || p.y < best.y) best = p;
+  }
+  return best;
+}
+
+/**
+ * A crown of foliage around `p`: a big flattened clump with smaller ones bulging from its rim and top, so
+ * the outline reads as leaves and not as one ball. `r` is the horizontal radius, `flat` the height ratio,
+ * `y0`..`y1` the whole tree's crown (for the light). Seeded by its position; visual only. Returns its
+ * clumps (see foliageUnder).
+ */
+export function foliageCrown(b: MapBuilder, p: THREE.Vector3, r: number, tints: readonly number[], o: { flat?: number; y0?: number; y1?: number; castShadow?: boolean; bumps?: number; blossom?: boolean } = {}): Clump[] {
+  const rand = seeded(Math.round(p.x * 131 + p.z * 71 + p.y * 17));
+  const flat = o.flat ?? 0.5;
+  // Blossom lets the light through: it's never as dark underneath as leaves.
+  const shade = leafShade(o.y0 ?? p.y - r * flat, o.y1 ?? p.y + r * flat, o.blossom ? 0.3 : 0);
+  const clumps: Clump[] = [];
+  const clump = (x: number, y: number, z: number, rx: number, ry: number, rz: number, tint: number, detail: number, castShadow: boolean) => {
+    leafClump(b, x, y, z, rx, ry, rz, tint, { shade, castShadow, detail });
+    clumps.push({ x, y, z, rx, ry, rz });
+  };
+  const tint = (k: number) => tints[k % tints.length];
+  // Only the big clump casts a shadow (the small ones would double the shadow pass's triangles for little).
+  clump(p.x, p.y, p.z, r * 1.08, r * flat, r, tint(0), r > 0.95 ? 2 : 1, o.castShadow ?? true);
+  const n = o.bumps ?? (r < 0.3 ? 0 : Math.max(3, Math.round(r * 3.2)));
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2 + rand() * 0.8;
+    const d = r * (0.62 + rand() * 0.25);
+    const rr = r * (0.4 + rand() * 0.18);
+    clump(p.x + Math.cos(a) * d, p.y + r * flat * (rand() - 0.25) * 0.7, p.z + Math.sin(a) * d, rr, rr * (0.75 + rand() * 0.2), rr, tint(k + 1), 1, false);
+  }
+  if (!n) return clumps;
+  // One on top, so the crown is rounded and not a saucer.
+  const a = rand() * Math.PI * 2;
+  const rr = r * (0.5 + rand() * 0.15);
+  clump(p.x + Math.cos(a) * r * 0.25, p.y + r * flat * 0.55, p.z + Math.sin(a) * r * 0.25, rr, rr * 0.7, rr, tint(2), 1, false);
+  return clumps;
+}
+
+/** Branch or trunk: a tube along `pts` tapering from `r0` to `r1`, in bark. Returns its curve. */
+export function limb(b: MapBuilder, pts: THREE.Vector3[], r0: number, r1: number, tint: number, castShadow = true) {
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const segs = Math.max(4, Math.round(curve.getLength() * 3));
+  const radial = r0 > 0.12 ? 8 : 5;
+  const geo = new THREE.TubeGeometry(curve, segs, 1, radial);
+  // Taper: the tube is built with radius 1, every ring is pulled toward its center on the curve.
+  const pos = geo.getAttribute('position') as THREE.BufferAttribute;
+  const c = new THREE.Vector3();
+  const v = new THREE.Vector3();
+  for (let i = 0; i <= segs; i++) {
+    curve.getPointAt(i / segs, c);
+    const r = r0 + (r1 - r0) * (i / segs);
+    for (let j = 0; j <= radial; j++) {
+      const k = i * (radial + 1) + j;
+      v.fromBufferAttribute(pos, k).sub(c).multiplyScalar(r).add(c);
+      pos.setXYZ(k, v.x, v.y, v.z);
+    }
+  }
+  geo.computeVertexNormals();
+  worldUVs(geo);
+  b.addGeometry(geo, surfaceMaterial('casca'), tint, castShadow);
+  geo.dispose();
+  return curve;
+}
+
+/**
+ * Cloud pine: a crooked trunk with branches ending in flat crowns of foliage (the trees of the reference
+ * gardens). `scale` 1 ≈ 4 m tall; at 0.25 it is a bonsai's shape. Only the trunk's base collides. Returns
+ * the crowns (center, horizontal radius).
  */
 export function pine(b: MapBuilder, x: number, y: number, z: number, scale: number, rand: () => number, o: { greens?: number[]; trunk?: number; collide?: boolean } = {}) {
   const s = scale;
-  const paint = surfaceMaterial('pintura');
   const greens = o.greens ?? [0x4f8f3a, 0x5c9e44, 0x467f33];
+  const bark = o.trunk ?? 0x6b4a32;
   const lean = rand() * Math.PI * 2;
   const lx = Math.cos(lean);
   const lz = Math.sin(lean);
   const trunkPts = [0, 0.9, 1.8, 2.7, 3.5].map((h, i) => new THREE.Vector3(x + lx * Math.sin(i * 1.3) * 0.45 * s + (rand() - 0.5) * 0.2 * s, y + h * s, z + lz * Math.sin(i * 1.3) * 0.45 * s + (rand() - 0.5) * 0.2 * s));
-  const trunk = new THREE.CatmullRomCurve3(trunkPts);
-  const trunkGeo = new THREE.TubeGeometry(trunk, 14, 0.2 * s, 7);
-  b.addGeometry(trunkGeo, paint, o.trunk ?? 0x6b4a32);
-  trunkGeo.dispose();
+  // From a little under the ground: the base never floats.
+  trunkPts[0].y -= 0.1 * s;
+  const trunk = limb(b, trunkPts, 0.24 * s, 0.13 * s, bark);
+  // Root flare: short roots spreading into the ground.
+  if (s >= 0.5) {
+    for (let k = 0; k < 4; k++) {
+      const a = lean + (k / 4) * Math.PI * 2 + 0.4;
+      const p0 = new THREE.Vector3(trunkPts[0].x, y + 0.35 * s, trunkPts[0].z);
+      limb(b, [p0, new THREE.Vector3(x + Math.cos(a) * 0.32 * s, y + 0.07 * s, z + Math.sin(a) * 0.32 * s), new THREE.Vector3(x + Math.cos(a) * 0.62 * s, y - 0.06, z + Math.sin(a) * 0.62 * s)], 0.13 * s, 0.04 * s, bark, false);
+    }
+  }
   const pads: [THREE.Vector3, number][] = [[trunkPts[4].clone().add(new THREE.Vector3(0, 0.35 * s, 0)), 1.25]];
   const branches = 3 + Math.floor(rand() * 2);
   for (let k = 0; k < branches; k++) {
@@ -627,17 +820,17 @@ export function pine(b: MapBuilder, x: number, y: number, z: number, scale: numb
     const reach = (1.3 + rand() * 0.8) * s;
     const to = from.clone().add(new THREE.Vector3(Math.cos(a) * reach, (0.3 + rand() * 0.4) * s, Math.sin(a) * reach));
     const midP = from.clone().lerp(to, 0.5).add(new THREE.Vector3(0, 0.25 * s, 0));
-    const br = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([from, midP, to]), 6, 0.08 * s, 5);
-    b.addGeometry(br, paint, o.trunk ?? 0x6b4a32);
-    br.dispose();
+    limb(b, [from, midP, to], 0.1 * s, 0.05 * s, bark);
     pads.push([to.add(new THREE.Vector3(0, 0.15 * s, 0)), 0.85 + rand() * 0.35]);
   }
-  pads.forEach(([p, r], i) => {
-    const pad = new THREE.IcosahedronGeometry(r * s, 1).scale(1.15, 0.42, 1).translate(p.x, p.y, p.z);
-    b.addGeometry(pad, paint, greens[i % greens.length]);
-    pad.dispose();
-  });
+  const y0 = Math.min(...pads.map(([p, r]) => p.y - r * s * 0.5));
+  const y1 = Math.max(...pads.map(([p, r]) => p.y + r * s * 0.5));
+  // Each crown starts on another of the greens, so neighbors differ. Pinks are blossom.
+  const blossom = ((greens[0] >> 16) & 255) > ((greens[0] >> 8) & 255) + 30;
+  pads.forEach(([p, r], i) => foliageCrown(b, p, r * s, [...greens.slice(i % greens.length), ...greens.slice(0, i % greens.length)], { flat: 0.46, y0, y1, blossom }));
   if (o.collide !== false) b.cuboidCollider(new THREE.Vector3(x, y + s, z), new THREE.Vector3(0.22 * s, s, 0.22 * s), new THREE.Quaternion(), 'wood');
+  // Where the crowns are (center, horizontal radius): for fruit or lanterns.
+  return pads.map(([p, r]) => ({ p, r: r * s * 1.15 }));
 }
 
 /** Bonsai in a glazed pot (visual; stand it on something that collides). */
@@ -651,7 +844,6 @@ export function bonsai(b: MapBuilder, x: number, y: number, z: number, scale: nu
 
 /** Clump of bamboo: green stalks with nodes and leafy tops. Each stalk is a thin collider. */
 export function bamboo(b: MapBuilder, x: number, z: number, count: number, spread: number, rand: () => number) {
-  const paint = surfaceMaterial('pintura');
   for (let i = 0; i < count; i++) {
     const a = rand() * Math.PI * 2;
     const d = Math.sqrt(rand()) * spread;
@@ -664,9 +856,8 @@ export function bamboo(b: MapBuilder, x: number, z: number, count: number, sprea
     for (let y = 0.5 + rand() * 0.3; y < h - 0.3; y += 0.55) b.cylinder(sx, y, sz, r * 1.25, 0.04, 'pintura', { tint: 0x557a2b, segments: 6, collide: false, castShadow: false });
     for (let k = 0; k < 3; k++) {
       const la = rand() * Math.PI * 2;
-      const leaves = new THREE.IcosahedronGeometry(0.55 + rand() * 0.3, 0).scale(1.2, 0.45, 1.2).translate(sx + Math.cos(la) * 0.4, h - 0.4 - k * 0.6, sz + Math.sin(la) * 0.4);
-      b.addGeometry(leaves, paint, k % 2 ? 0x5b9a35 : 0x6fae3f);
-      leaves.dispose();
+      const lr = 0.55 + rand() * 0.3;
+      leafClump(b, sx + Math.cos(la) * 0.4, h - 0.4 - k * 0.6, sz + Math.sin(la) * 0.4, lr * 1.05, lr * 0.6, lr * 1.05, k % 2 ? 0x5b9a35 : 0x6fae3f, { detail: 0, rough: 0.3 });
     }
     b.cuboidCollider(new THREE.Vector3(sx, h / 2, sz), new THREE.Vector3(r, h / 2, r), new THREE.Quaternion(), 'wood');
   }
@@ -838,6 +1029,8 @@ export class Lanterns {
   private v = new THREE.Vector3();
   private s = new THREE.Vector3();
   private t = 0;
+  /** Where each lantern's body is right now (x, y, z per lantern; they swing): for their glow and light. */
+  at = new Float32Array(0);
 
   /** Hangs a lantern from `hook`, its body `drop` meters below. */
   hang(hook: THREE.Vector3, drop = 0.85) {
@@ -852,13 +1045,15 @@ export class Lanterns {
     const n = this.specs.length;
     this.ang = new Float32Array(n * 2);
     this.vel = new Float32Array(n * 2);
+    this.at = new Float32Array(n * 3);
     const geo = mergeColoredParts([
-      { geo: new THREE.SphereGeometry(0.3, 14, 10), color: 0xff4a32, pos: [0, 0, 0], scale: [1, 1.15, 1] },
-      { geo: new THREE.CylinderGeometry(0.308, 0.308, 0.035, 14), color: 0xffd36b, pos: [0, 0.12, 0] },
-      { geo: new THREE.CylinderGeometry(0.308, 0.308, 0.035, 14), color: 0xffd36b, pos: [0, -0.12, 0] },
-      { geo: new THREE.CylinderGeometry(0.13, 0.17, 0.08, 12), color: 0xf2b84a, pos: [0, 0.37, 0] },
-      { geo: new THREE.CylinderGeometry(0.17, 0.13, 0.08, 12), color: 0xf2b84a, pos: [0, -0.37, 0] },
-      { geo: new THREE.ConeGeometry(0.06, 0.34, 6), color: 0xc42020, pos: [0, -0.58, 0], rot: [Math.PI, 0, 0] },
+      // Light on purpose: there are over a hundred of them, all drawn every frame.
+      { geo: new THREE.SphereGeometry(0.3, 11, 8), color: 0xff4a32, pos: [0, 0, 0], scale: [1, 1.15, 1] },
+      { geo: new THREE.CylinderGeometry(0.308, 0.308, 0.035, 11, 1, true), color: 0xffd36b, pos: [0, 0.12, 0] },
+      { geo: new THREE.CylinderGeometry(0.308, 0.308, 0.035, 11, 1, true), color: 0xffd36b, pos: [0, -0.12, 0] },
+      { geo: new THREE.CylinderGeometry(0.13, 0.17, 0.08, 8), color: 0xf2b84a, pos: [0, 0.37, 0] },
+      { geo: new THREE.CylinderGeometry(0.17, 0.13, 0.08, 8), color: 0xf2b84a, pos: [0, -0.37, 0] },
+      { geo: new THREE.ConeGeometry(0.06, 0.34, 5), color: 0xc42020, pos: [0, -0.58, 0], rot: [Math.PI, 0, 0] },
     ]);
     // Unlit: they read as glowing in any light.
     this.bodies = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true }), Math.max(1, n));
@@ -893,6 +1088,9 @@ export class Lanterns {
       this.e.set(this.ang[i * 2] + breeze, 0, this.ang[i * 2 + 1] + breeze * 0.6);
       this.q.setFromEuler(this.e);
       this.v.set(0, -drop, 0).applyQuaternion(this.q).add(hook);
+      this.at[i * 3] = this.v.x;
+      this.at[i * 3 + 1] = this.v.y;
+      this.at[i * 3 + 2] = this.v.z;
       this.m.compose(this.v, this.q, this.s.set(1, 1, 1));
       this.bodies.setMatrixAt(i, this.m);
       this.m.compose(hook, this.q, this.s.set(1, Math.max(0.05, drop - 0.4), 1));
@@ -944,6 +1142,72 @@ export class Gong {
 
   update(dt: number) {
     this.vel = (this.vel - 23 * this.angle * dt) * Math.exp(-0.7 * dt);
+    this.angle += this.vel * dt;
+    this.pivot.rotation.x = this.angle;
+  }
+}
+
+/**
+ * Bronze bell hanging from a hook at (x, top, z); `size` 1 is 1.25 m tall. A flared, waisted body with
+ * bands, rows of bosses and a loop on top. Shot: it rings (`sound`, at most every 0.12 s so a burst doesn't
+ * pile up) and swings, synchronized as `id`. The collider stays where the bell rests.
+ */
+export class Bell {
+  private pivot = new THREE.Group();
+  private angle = 0;
+  private vel = 0;
+  private last = -1;
+
+  constructor(scene: THREE.Scene, b: MapBuilder, x: number, top: number, z: number, size: number, props: PropBus, id: string, sound: () => void) {
+    const s = size;
+    const h = 1.25 * s;
+    const r = 0.42 * s;
+    const loop = 0.22 * s;
+    // Profile from the inside's top down to the lip, then up the outside (a closed shell; going up on the
+    // outside and down on the inside keeps both surfaces' normals facing out of the bronze).
+    const profile = [
+      [0, h * 0.88], [r * 0.7, h * 0.86], [r * 0.76, h * 0.6], [r * 0.86, h * 0.08], [r * 0.92, 0],
+      [r * 1.04, 0], [r * 0.99, h * 0.08], [r * 0.9, h * 0.3], [r * 0.85, h * 0.62], [r * 0.84, h * 0.9], [r * 0.78, h * 0.97], [r * 0.6, h], [0, h],
+    ].map(([px, py]) => new THREE.Vector2(px, py));
+    const bronze = 0x8f6a2c;
+    const band = 0x5f7f5a;
+    const parts: ColoredPart[] = [
+      { geo: new THREE.LatheGeometry(profile, 16), color: bronze, pos: [0, -loop - h, 0] },
+      { geo: new THREE.TorusGeometry(r * 1.02, 0.035 * s, 4, 16), color: band, pos: [0, -loop - h + 0.03 * s, 0], rot: [Math.PI / 2, 0, 0] },
+      { geo: new THREE.TorusGeometry(r * 0.86, 0.03 * s, 4, 16), color: band, pos: [0, -loop - h * 0.3, 0], rot: [Math.PI / 2, 0, 0] },
+      { geo: new THREE.TorusGeometry(r * 0.89, 0.03 * s, 4, 16), color: band, pos: [0, -loop - h * 0.64, 0], rot: [Math.PI / 2, 0, 0] },
+      { geo: new THREE.TorusGeometry(0.11 * s, 0.035 * s, 5, 12), color: band, pos: [0, -loop * 0.45, 0] },
+      { geo: new THREE.CylinderGeometry(0.025 * s, 0.025 * s, loop * 0.35, 5), color: 0x3a2a1a, pos: [0, -loop * 0.12, 0] },
+    ];
+    // Bosses: three rows of four on the front and the back panels, between the two bands.
+    for (const side of [-1, 1]) {
+      for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 4; col++) {
+          const a = side * (Math.PI / 2) + (col - 1.5) * 0.28;
+          const y = -loop - h + h * (0.45 + row * 0.08);
+          const rr = r * (0.885 - row * 0.014);
+          parts.push({ geo: new THREE.IcosahedronGeometry(0.03 * s, 0), color: 0xb88a3a, pos: [Math.sin(a) * rr, y, Math.cos(a) * rr] });
+        }
+      }
+    }
+    const mesh = new THREE.Mesh(mergeColoredParts(parts), new THREE.MeshToonMaterial({ vertexColors: true, emissive: 0x24160a, gradientMap: toonGradient() }));
+    mesh.castShadow = true;
+    parts.forEach((p) => p.geo.dispose());
+    this.pivot.add(mesh);
+    this.pivot.position.set(x, top, z);
+    scene.add(this.pivot);
+    const onShot = props.register(id, () => {
+      this.vel += this.vel >= 0 ? 0.9 / s : -0.9 / s;
+      const now = performance.now();
+      if (now - this.last < 120) return;
+      this.last = now;
+      sound();
+    });
+    b.cuboidCollider(new THREE.Vector3(x, top - loop - h / 2, z), new THREE.Vector3(r * 0.95, h / 2, r * 0.95), new THREE.Quaternion(), 'metal', onShot);
+  }
+
+  update(dt: number) {
+    this.vel = (this.vel - 14 * this.angle * dt) * Math.exp(-0.9 * dt);
     this.angle += this.vel * dt;
     this.pivot.rotation.x = this.angle;
   }
@@ -1033,42 +1297,6 @@ export class FireBreath {
     if (any) {
       this.mesh.instanceMatrix.needsUpdate = true;
       if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
-    }
-  }
-}
-
-/** Koi swimming slow loops under the pond's surface (visual only). */
-export class Koi {
-  private fish: { mesh: THREE.Mesh; cx: number; cz: number; r: number; speed: number; a: number }[] = [];
-
-  constructor(scene: THREE.Scene, loops: [cx: number, cz: number, r: number][], y: number, rand: () => number) {
-    const colors = [[0xff7a1a, 0xffffff], [0xffffff, 0xe0301e], [0xffb52e, 0xff7a1a], [0xf2f2f2, 0x1b1530]];
-    const mat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() });
-    loops.forEach(([cx, cz, r], i) => {
-      const [main, spot] = colors[i % colors.length];
-      const geo = mergeColoredParts([
-        { geo: new THREE.SphereGeometry(0.12, 10, 6), color: main, pos: [0, 0, 0], scale: [1, 0.75, 2.6] },
-        { geo: new THREE.SphereGeometry(0.07, 8, 5), color: spot, pos: [0, 0.05, 0.08], scale: [1, 0.6, 1.6] },
-        { geo: new THREE.ConeGeometry(0.12, 0.28, 4), color: main, pos: [0, 0, -0.4], rot: [-Math.PI / 2, 0, 0], scale: [1, 1, 0.25] },
-      ]);
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.y = y;
-      scene.add(mesh);
-      this.fish.push({ mesh, cx, cz, r, speed: (0.25 + rand() * 0.25) * (i % 2 ? 1 : -1), a: rand() * Math.PI * 2 });
-    });
-  }
-
-  update(dt: number) {
-    for (const f of this.fish) {
-      f.a += (f.speed * dt) / Math.max(0.5, f.r) * 2;
-      const x = f.cx + Math.cos(f.a) * f.r;
-      const z = f.cz + Math.sin(f.a) * f.r * 0.7;
-      f.mesh.position.x = x;
-      f.mesh.position.z = z;
-      // Face along the loop: derivative of the ellipse.
-      const dx = -Math.sin(f.a) * f.r * Math.sign(f.speed);
-      const dz = Math.cos(f.a) * f.r * 0.7 * Math.sign(f.speed);
-      f.mesh.rotation.y = Math.atan2(dx, dz) + Math.sin(f.a * 6) * 0.15;
     }
   }
 }

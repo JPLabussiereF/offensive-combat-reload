@@ -347,6 +347,110 @@ body {
   background: #fff;
   transition: width 0.15s, background 0.2s;
 }
+/* Buffs and debuffs, top left: a card each (icon, name, seconds left in big digits) over a bar that drains
+   to the end in the effect's color (--c); the last 10 s blink. */
+#buffs {
+  position: absolute;
+  left: calc(20px + var(--safe-l));
+  top: calc(18px + var(--safe-t));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.buff {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  grid-template-rows: auto 6px;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 5px;
+  width: 236px;
+  padding: 8px 12px 9px 10px;
+  border-radius: 12px;
+  background: rgba(8, 10, 16, 0.55);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent), 0 2px 10px rgba(0, 0, 0, 0.35);
+  animation: buffin 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.buff-icon {
+  grid-row: span 2;
+  font-size: 28px;
+  line-height: 1;
+  text-align: center;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--c) 60%, transparent));
+}
+.buff-name {
+  font: 900 13px var(--body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: var(--hud-shadow);
+}
+.buff-secs {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 0.9;
+  color: #fff;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--c) 70%, transparent), var(--hud-shadow);
+}
+.buff.forever {
+  grid-template-rows: auto auto;
+  row-gap: 2px;
+}
+.buff.forever .buff-name {
+  grid-column: 2 / span 2;
+}
+.buff.forever .buff-secs {
+  grid-column: 2 / span 2;
+  font: 800 11px var(--body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hud-dim);
+  text-shadow: var(--hud-shadow);
+}
+.buff-bar {
+  grid-column: 2 / span 2;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.buff.forever .buff-bar {
+  display: none;
+}
+.buff-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--c);
+  box-shadow: 0 0 8px var(--c);
+  transform-origin: left;
+  transition: transform 0.07s linear;
+}
+.buff.ending .buff-secs,
+.buff.ending .buff-fill {
+  animation: buffblink 0.5s steps(2, jump-none) infinite alternate;
+}
+@keyframes buffin {
+  from {
+    opacity: 0;
+    transform: translateX(-24px) scale(0.92);
+  }
+}
+@keyframes buffblink {
+  to {
+    opacity: 0.35;
+  }
+}
+#health.boost #health-fill {
+  background: #ff6fa0;
+}
+#health.boost #health-num {
+  color: #ffb3cf;
+}
 #health.low #health-fill {
   background: var(--bad);
 }
@@ -1114,7 +1218,7 @@ input[type='range'] {
 #grenades {
   display: flex;
   gap: 5px;
-  padding: 3px 12px 0 0;
+  padding: 5px 12px 0 0;
   border-right: 1px solid rgba(255, 255, 255, 0.35);
 }
 #grenades:empty {
@@ -1122,8 +1226,8 @@ input[type='range'] {
 }
 #grenades i {
   position: relative;
-  width: 10px;
-  height: 14px;
+  width: 15px;
+  height: 21px;
   border-radius: 45% 45% 40% 40%;
   background: #fff;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
@@ -1133,15 +1237,25 @@ input[type='range'] {
 #grenades i::before {
   content: '';
   position: absolute;
-  left: 2px;
-  top: -4px;
-  width: 6px;
-  height: 3px;
+  left: 3px;
+  top: -5px;
+  width: 9px;
+  height: 4px;
   border-radius: 1px;
   background: inherit;
 }
 #grenades i.on {
   opacity: 1;
+}
+/* The next one on its way back: the grenade itself is the progress bar, filling up from the bottom (--p),
+   its lever lighting up when it's back. */
+#grenades i.charging {
+  opacity: 1;
+  background: linear-gradient(to top, var(--warn) calc(var(--p, 0) * 100%), rgba(255, 255, 255, 0.2) 0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+#grenades i.charging::before {
+  background: rgba(255, 255, 255, 0.35);
 }
 
 #cook {
@@ -2000,6 +2114,17 @@ input[type='range'] {
 .touch-reload.reloading::after {
   opacity: 1;
 }
+/* Grenade: a ring fills while the next one comes back. */
+.touch-grenade.charging::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(#fff calc(var(--g, 0) * 1turn), rgba(255, 255, 255, 0.15) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  pointer-events: none;
+}
 .touch-reload.low {
   opacity: 1;
   border-color: var(--warn);
@@ -2129,6 +2254,42 @@ input[type='range'] {
 }
 .mobile #grenades {
   display: none;
+}
+/* Buffs: a row of chips (icon, seconds, bar; no names) under the top-left buttons, the chat a step lower. */
+.mobile #buffs {
+  left: calc(10px + var(--safe-l));
+  top: calc(13vh + var(--safe-t));
+  flex-direction: row;
+  flex-wrap: wrap;
+  max-width: 44vw;
+  gap: 4px;
+}
+.mobile #buffs:not(:empty) ~ #chat:not(.open) {
+  top: calc(16vh + 30px + var(--safe-t));
+}
+.mobile .buff,
+.mobile .buff.forever {
+  grid-template-columns: 18px auto;
+  grid-template-rows: auto 3px;
+  column-gap: 5px;
+  row-gap: 2px;
+  width: auto;
+  padding: 3px 8px 4px 5px;
+  border-radius: 8px;
+}
+.mobile .buff-icon {
+  font-size: 15px;
+}
+.mobile .buff-name,
+.mobile .buff.forever .buff-secs {
+  display: none;
+}
+.mobile .buff-secs {
+  font-size: 15px;
+}
+.mobile .buff-bar {
+  grid-column: 2;
+  height: 3px;
 }
 .mobile #ammo-mag {
   font-size: 26px;

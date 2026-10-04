@@ -198,14 +198,18 @@ export class TouchControls {
   /**
    * What the buttons show (every frame; cheap when nothing changed): grenades left on the grenade button
    * (dimmed at none), the reload progress as a ring on the reload button (`reload` 0..1, null when not
-   * reloading), and a pulse on it when the magazine runs low.
+   * reloading), and a pulse on it when the magazine runs low; the next grenade coming back fills a ring on its
+   * button (`grenadeCharge` 0..1, null when none is on its way).
    */
-  setStatus(grenades: number, reload: number | null, lowAmmo: boolean) {
-    const key = `${grenades}|${reload === null ? '' : reload.toFixed(2)}|${lowAmmo}`;
+  setStatus(grenades: number, reload: number | null, lowAmmo: boolean, grenadeCharge: number | null = null) {
+    const key = `${grenades}|${reload === null ? '' : reload.toFixed(2)}|${lowAmmo}|${grenadeCharge === null ? '' : grenadeCharge.toFixed(2)}`;
     if (key === this.statusKey) return;
     this.statusKey = key;
     this.grenadeBadge.textContent = String(grenades);
-    this.buttons.get('grenade')?.classList.toggle('empty', grenades === 0);
+    const g = this.buttons.get('grenade');
+    g?.classList.toggle('empty', grenades === 0);
+    g?.classList.toggle('charging', grenadeCharge !== null);
+    g?.style.setProperty('--g', String(grenadeCharge ?? 0));
     const r = this.buttons.get('reload');
     if (!r) return;
     r.classList.toggle('reloading', reload !== null);

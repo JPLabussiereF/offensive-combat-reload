@@ -3,7 +3,7 @@
 // Performance rules applied here:
 //  - One material per surface (not per color): hue is a per-vertex tint, so 13 surfaces cover the map.
 //  - Static geometry is merged per (material, 40 m cell): few draw calls, and cells outside the camera are
-//    frustum-culled instead of drawing the whole map every frame.
+//    frustum-culled instead of drawing the whole map every frame. A map can pick its own cell size.
 //  - Colliders are simple shapes (cuboids, convex hulls) or triangle meshes built once at load.
 //  - Stairs render as steps but collide as a smooth ramp (autostep on steps next to walls is unreliable).
 import * as THREE from 'three';
@@ -49,7 +49,9 @@ export interface WallOpening {
 
 export const STEP_H = 0.3;
 export const STEP_D = 0.38;
-export const stairRun = (rise: number) => Math.ceil(rise / STEP_H) * STEP_D;
+/** Steps for `rise`: one per 0.3 m at most; `gentle` adds steps until the ramp is under 45° (short flights). */
+export const stairSteps = (rise: number, gentle = false) => Math.max(Math.ceil(rise / STEP_H), gentle ? Math.ceil(rise / STEP_D) + 1 : 0);
+export const stairRun = (rise: number, gentle = false) => stairSteps(rise, gentle) * STEP_D;
 
 interface Batch {
   material: THREE.Material;
@@ -68,11 +70,18 @@ export class MapBuilder {
   readonly stats = { pieces: 0, colliders: 0, meshes: 0, triangles: 0 };
   readonly openings: WallOpening[] = [];
 
-  constructor(readonly physics: Physics, readonly scene: THREE.Scene) {}
+  constructor(
+    readonly physics: Physics,
+    readonly scene: THREE.Scene,
+    private readonly cell = CELL,
+  ) {}
 
   // --- Low level --------------------------------------------------------------------------------
 
-  /** Adds world-space geometry to the static batch of `material`, tinted per vertex. */
+  /**
+   * Adds world-space geometry to the static batch of `material`, tinted per vertex. A `shade` attribute on
+   * the geometry (1 or 3 floats per vertex) multiplies the tint: baked light and occlusion (foliage).
+   */
   addGeometry(geo: THREE.BufferGeometry, material: THREE.Material, tint: THREE.ColorRepresentation = 0xffffff, castShadow = true) {
     const g = normalize(geo, tint);
     g.computeBoundingBox();
@@ -82,7 +91,7 @@ export class MapBuilder {
       id = this.materialIds.size;
       this.materialIds.set(material, id);
     }
-    const key = `${id}|${Math.floor(this.center.x / CELL)}|${Math.floor(this.center.z / CELL)}|${castShadow ? 1 : 0}`;
+    const key = `${id}|${Math.floor(this.center.x / this.cell)}|${Math.floor(this.center.z / this.cell)}|${castShadow ? 1 : 0}`;
     let batch = this.batches.get(key);
     if (!batch) {
       batch = { material, castShadow, geos: [] };
@@ -219,10 +228,11 @@ export class MapBuilder {
   /**
    * Stairs climbing `rise` meters from `start` toward `dir` along `axis`. Steps are visual only; collision
    * is one ramp through the step nosings plus the top step as a landing, so walking up is smooth and never
-   * snags on a riser (e.g. when hugging a wall).
+   * snags on a riser (e.g. when hugging a wall). With `gentle`, short flights get extra steps so the ramp
+   * stays walkable (under the 45° slope limit; see stairSteps).
    */
-  stairs(axis: 'x' | 'z', dir: 1 | -1, start: number, across0: number, across1: number, baseY: number, rise: number, surface: SurfaceKey, o: PieceOpts = {}) {
-    const n = Math.ceil(rise / STEP_H);
+  stairs(axis: 'x' | 'z', dir: 1 | -1, start: number, across0: number, across1: number, baseY: number, rise: number, surface: SurfaceKey, o: PieceOpts & { gentle?: boolean } = {}) {
+    const n = stairSteps(rise, o.gentle);
     const h = rise / n;
     const place = (s0: number, s1: number, top: number, collide: boolean) => {
       const a = Math.min(s0, s1);
@@ -345,7 +355,7 @@ export class MapBuilder {
   }
 }
 
-/** Keeps only position/normal/uv, adds a tint color attribute, and makes the geometry indexed. */
+/** Keeps only position/normal/uv, adds a tint color attribute (times `shade`, if any), and makes the geometry indexed. */
 function normalize(src: THREE.BufferGeometry, tint: THREE.ColorRepresentation): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
   const pos = src.getAttribute('position');
@@ -359,7 +369,12 @@ function normalize(src: THREE.BufferGeometry, tint: THREE.ColorRepresentation): 
   g.setAttribute('uv', uv ? uv.clone() : new THREE.Float32BufferAttribute(new Float32Array(pos.count * 2), 2));
   const c = new THREE.Color(tint);
   const colors = new Float32Array(pos.count * 3);
-  for (let i = 0; i < pos.count; i++) colors.set([c.r, c.g, c.b], i * 3);
+  const shade = src.getAttribute('shade');
+  for (let i = 0; i < pos.count; i++) {
+    if (!shade) colors.set([c.r, c.g, c.b], i * 3);
+    else if (shade.itemSize === 1) colors.set([c.r * shade.getX(i), c.g * shade.getX(i), c.b * shade.getX(i)], i * 3);
+    else colors.set([c.r * shade.getX(i), c.g * shade.getY(i), c.b * shade.getZ(i)], i * 3);
+  }
   g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   g.setIndex(src.index ? src.index.clone() : Array.from({ length: pos.count }, (_, i) => i));
   return g;

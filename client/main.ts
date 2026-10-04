@@ -5,7 +5,8 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { pickSafeSpawn } from './gameplay/spawnPicker';
-import { GROUP, groups, HEALTH, HUMILIATION, MOVE, SCORE } from '@shared/constants';
+import { BISCUIT, CHERRY, GROUP, groups, HEALTH, HUMILIATION, KOI, MOVE, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
+import { PICKUPS } from '@shared/maps';
 import { clampExplosionDamage, computeDamage, explosionDamage, GRENADES, grenadeLevel, idealTtk, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
 import { eyeHeight, type MoveInput } from '@shared/movement';
 import { CLOSE, FLAG, NET, ONLINE_GRENADE_LEVEL, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
@@ -17,15 +18,16 @@ import { gamepad } from './core/gamepad';
 import { PadNav } from './ui/padNav';
 import { AimAssist } from './gameplay/aimAssist';
 import { loadSettings, saveSettings, spatialMode } from './core/settings';
-import { createRenderContext } from './render/renderer';
+import { applyAtmosphere, createRenderContext } from './render/renderer';
 import { Effects } from './render/effects';
 import { Viewmodel, VM_FEEL } from './render/viewmodel';
 import { ANIM } from './character/animator';
 import { TuningPanel } from './ui/tuning';
 import { QualityManager } from './render/quality';
 import { createPhysics } from './world/physics';
-import { buildBlockoutMap, type SpawnPoint } from './world/blockoutMap';
+import { buildBlockoutMap, type CritterHit, type SpawnPoint } from './world/blockoutMap';
 import { buildDragonGardenMap } from './world/dragonGarden';
+import { buildHauntedTownMap } from './world/hauntedTown';
 import { loadTextureOverrides } from './world/surfaces';
 import { buildGltfMap } from './world/gltfMap';
 import { MapBuilder } from './world/mapBuilder';
@@ -49,7 +51,7 @@ import { Corpse } from './gameplay/corpse';
 import { Sfx } from './audio/sfx';
 import { BodySounds, OCCLUSION_WEIGHT, type Vec, type Walker } from './audio/spatial';
 import { Chat } from './ui/chat';
-import { Hud, type FeedIcon } from './ui/hud';
+import { Hud, type Buff, type FeedIcon } from './ui/hud';
 import { Screens } from './ui/menu';
 import { closeReason, showHome } from './ui/home';
 import { Progress } from './gameplay/progress';
@@ -72,6 +74,13 @@ const KIND_ICON: Record<KillKind, FeedIcon> = { gun: null, head: 'head', groin: 
 const WEAPON_LABEL: Record<ProgWeapon, StringKey> = { rifle: 'weaponRifle', faca: 'weaponKnife', granada: 'weaponGrenade' };
 /** Dose Dupla: seconds between the two grenades of one throw. */
 const DOUBLE_THROW_GAP = 0.3;
+/** How each timed potion shows on the buff panel (the debuffs in colder colors). */
+const POTION_BUFFS: Record<Exclude<PotionKind, 'pato'>, { icon: string; label: StringKey; color: string }> = {
+  veloz: { icon: '💨', label: 'buffVeloz', color: '#6fe3ff' },
+  lerdo: { icon: '🐌', label: 'buffLerdo', color: '#b08a5e' },
+  critico: { icon: '💀', label: 'buffCritico', color: '#ff5a4f' },
+  bebado: { icon: '🍺', label: 'buffBebado', color: '#e0a83a' },
+};
 const AWARD_TEXT: Record<AwardLabel, StringKey> = { kill: 'kill', headshot: 'headshot', groin: 'groin', knife: 'knife', backstab: 'backstab', longShot: 'longShot', humiliation: 'humiliation' };
 
 async function boot() {
@@ -116,9 +125,19 @@ async function boot() {
     ? buildGltfMap(mapUrl, new MapBuilder(physics, ctx.scene), ctx.renderer)
     : choice.map === 'jardim'
       ? buildDragonGardenMap(physics, ctx.scene, sfx)
-      : buildBlockoutMap(physics, ctx.scene, ctx.renderer, sfx);
+      : choice.map === 'halloween'
+        ? buildHauntedTownMap(physics, ctx.scene, sfx)
+        : buildBlockoutMap(physics, ctx.scene, ctx.renderer, sfx);
   const [map] = await Promise.all([buildMap, textures]);
   const mapBuildMs = performance.now() - tMap;
+  if (map.atmosphere) applyAtmosphere(ctx, map.atmosphere);
+  if (map.shadowExtent) {
+    const sc = ctx.sun.shadow.camera;
+    sc.left = sc.bottom = -map.shadowExtent;
+    sc.right = sc.top = map.shadowExtent;
+    sc.far = 150;
+    sc.updateProjectionMatrix();
+  }
   mark('map');
   screens.setProgress(1);
   screens.hideLoading();
@@ -149,7 +168,7 @@ async function boot() {
   const grenadeData = GRENADES.granada_frag;
   const grenadeLvl = grenadeLevel(grenadeData, GRENADE_LEVEL);
   const thrower = new GrenadeThrower(grenadeData);
-  const grenades = new GrenadeProjectiles(physics, ctx.scene, grenadeData, (s, at) => sfx.at(at, 'normal', (x) => x.grenadeBounce(s)));
+  const grenades = new GrenadeProjectiles(physics, ctx.scene, grenadeData, (s, at, duck) => sfx.at(at, 'normal', (x) => (duck ? x.quack() : x.grenadeBounce(s))));
   const taunt = new Taunt();
   const hud = new Hud();
   const scoreboard = new Scoreboard();
@@ -301,6 +320,230 @@ async function boot() {
   let myCorpseId: number | null = null;
   let deathMessage: string | null = null;
 
+  // --- Collectibles (the courtyard's cherry: extra max health for a while) ------------------------
+  // Offline and against bots the game applies it; online the server checks the pickup, applies it and
+  // tells everyone ('pickup'). Times are on the game clock: seconds of simulation offline (it pauses with
+  // the menu), the server's clock online.
+  const pickups = map.pickups ?? [];
+  const clock = () => (conn ? conn.serverNow() / 1000 : simTime);
+  /** When each taken collectible grows back (game clock). */
+  const pickupBack = new Map<string, number>();
+  /** When our cherry wears off (game clock; 0: none). */
+  let boostEnds = 0;
+  /** Online: when we last asked the server for a pickup (once is enough while it answers). */
+  let pickupAsked = 0;
+  /** What each collectible does (cherry or biscuit), from the map's table. */
+  const pickupKind = (id: string) => (mapUrl ? undefined : PICKUPS[choice.map].find((k) => k.id === id)?.kind);
+  /** A giant rat's humanity (RAT): extra max health until we die. */
+  let humanity = false;
+  /** Max health: the body's, the cherry's while it lasts and the humanity's. */
+  const refreshMaxHealth = () => {
+    player.maxHealth = body.maxHealth + (boostEnds ? CHERRY.extraHealth : 0) + (humanity ? RAT.extraHealth : 0);
+    player.health = Math.min(player.health, player.maxHealth);
+  };
+  const startBoost = (until: number) => {
+    boostEnds = until;
+    refreshMaxHealth();
+    sfx.cherry();
+    hud.notice(t('cherryTaken', { n: CHERRY.extraHealth, s: CHERRY.duration }));
+  };
+  const endBoost = (announce: boolean) => {
+    if (!boostEnds) return;
+    boostEnds = 0;
+    refreshMaxHealth();
+    if (announce) {
+      sfx.cherryEnd();
+      hud.notice(t('cherryOver'));
+    }
+  };
+  /** The Scooby biscuit: full health. */
+  const eatBiscuit = () => {
+    player.health = player.maxHealth;
+    sfx.scoobySnack();
+    hud.showBanner(t('biscuitTaken'), 'level');
+  };
+  const gainHumanity = () => {
+    if (humanity) return;
+    humanity = true;
+    refreshMaxHealth();
+    player.health = Math.min(player.maxHealth, player.health + RAT.extraHealth);
+    sfx.humanity();
+    hud.showBanner(t('humanityTaken', { n: RAT.extraHealth }), 'level');
+  };
+  const loseHumanity = () => {
+    if (!humanity) return;
+    humanity = false;
+    refreshMaxHealth();
+  };
+  // --- The witch's potions (POTION): a random effect. The duck (our grenades are rubber ducks, everyone
+  // sees and hears them) lasts until we die; the others change the balance and last a minute. Offline the
+  // game draws it; online the server does (and applies the critical to the damage it computes).
+  let duckAmmo = false;
+  /** The timed potion we're feeling and when it wears off (game clock). */
+  let potionKind: Exclude<PotionKind, 'pato'> | null = null;
+  let potionEnds = 0;
+  /** When the witch lets us drink again (game clock). */
+  let potionReady = 0;
+  let potionAsked = 0;
+  const nearPotion = () => {
+    const pot = map.potion;
+    if (!pot || player.dead || clock() < potionReady) return false;
+    const f = playerFeet(new THREE.Vector3());
+    return Math.hypot(f.x - pot.at.x, f.z - pot.at.z) < pot.radius && Math.abs(f.y - pot.at.y) < 1.5;
+  };
+  /** Spread and recoil: the golden carp sharpens them, the drunk potion ruins them. */
+  const refreshWeaponMods = () => {
+    const drunk = potionKind === 'bebado';
+    weapon.spreadMul = (aimEnds ? KOI.spreadMul : 1) * (drunk ? POTION.drunkSpread : 1);
+    weapon.recoilMul = (aimEnds ? KOI.recoilMul : 1) * (drunk ? POTION.drunkRecoil : 1);
+  };
+  const potionSpeed = () => (potionKind === 'veloz' ? POTION.fastSpeed : potionKind === 'lerdo' ? POTION.slowSpeed : 1);
+  const endPotion = (announce: boolean) => {
+    if (!potionKind) return;
+    potionKind = null;
+    potionEnds = 0;
+    refreshWeaponMods();
+    if (announce) hud.notice(t('potionOver'));
+  };
+  const applyPotion = (kind: PotionKind, until: number) => {
+    potionReady = clock() + POTION.cooldown;
+    map.potion?.drink(kind);
+    sfx.potionGulp();
+    if (kind === 'pato') duckAmmo = true;
+    else {
+      potionKind = kind;
+      potionEnds = until;
+      refreshWeaponMods();
+    }
+    hud.showBanner(t(`potion_${kind}`, { s: POTION.duration }), 'level');
+  };
+  const drinkPotion = () => {
+    if (conn) {
+      if (performance.now() - potionAsked < 800) return;
+      potionAsked = performance.now();
+      conn.send({ t: 'potion' });
+      return;
+    }
+    const kind = POTION.kinds[Math.floor(Math.random() * POTION.kinds.length)];
+    applyPotion(kind, clock() + POTION.duration);
+  };
+  // --- The koi (KOI): shot or stabbed for account XP (online: the server decides and awards it); a golden
+  // carp also sharpens our aim (spread and recoil) for a while or until we die.
+  /** When our golden carp's aim wears off (game clock; 0: none). */
+  let aimEnds = 0;
+  /** Where the sharp aim came from: the golden carp (Chinese garden) or a shooting gallery (Halloween). */
+  let aimWhy: 'goldenKoi' | 'galleryAim' = 'goldenKoi';
+  /** Online: when we last reported each fish (once is enough while the server answers). */
+  const fishAsked = new Map<string, number>();
+  /** Sharper aim until `until` (the golden carp's, or a shooting gallery's: `why` is the banner). */
+  const startAim = (until: number, why: 'goldenKoi' | 'galleryAim' = 'goldenKoi') => {
+    aimEnds = until;
+    aimWhy = why;
+    refreshWeaponMods();
+    sfx.levelUp();
+    hud.showBanner(t(why, { s: KOI.goldenDuration }), 'level');
+  };
+  // --- Giant rats (RAT): our hits bring one down; its humanity is ours (online, once the server agrees).
+  /** Online: when we last claimed each rat (once is enough while the server answers). */
+  const ratAsked = new Map<string, number>();
+  // Gags that care who set them off (the ghost faces the shooter) ask where we shoot from.
+  map.props.shooter = () => player.eye(1, new THREE.Vector3());
+  if (map.rewards) {
+    map.rewards.ratDown = (id) => {
+      if (conn) {
+        if (performance.now() - (ratAsked.get(id) ?? -1e9) < 800) return;
+        ratAsked.set(id, performance.now());
+        conn.send({ t: 'rat', id });
+        return;
+      }
+      map.rats?.kill(id, clock() + RAT.respawn);
+      gainHumanity();
+    };
+    // Shooting galleries: whoever knocks down the last target gets the golden carp's sharp aim.
+    map.rewards.aimBonus = () => startAim(clock() + KOI.goldenDuration, 'galleryAim');
+  }
+  /** What we're under, for the HUD's buff panel (timed ones first). */
+  const buffs = (): Buff[] => {
+    const now = clock();
+    const list: Buff[] = [];
+    if (player.dead) return list;
+    if (aimEnds) {
+      const koi = aimWhy === 'goldenKoi';
+      list.push({ id: 'aim', icon: koi ? '🐟' : '🎯', label: t(koi ? 'buffKoi' : 'buffGallery'), color: '#ffd36b', left: Math.max(0, aimEnds - now), total: KOI.goldenDuration });
+    }
+    if (boostEnds) list.push({ id: 'cherry', icon: '🍒', label: t('buffCherry'), color: '#ff6fa0', left: Math.max(0, boostEnds - now), total: CHERRY.duration });
+    if (potionKind) list.push({ id: 'potion', ...POTION_BUFFS[potionKind], label: t(POTION_BUFFS[potionKind].label), left: Math.max(0, potionEnds - now), total: POTION.duration });
+    if (humanity) list.push({ id: 'humanity', icon: '💜', label: `${t('buffHumanity')} +${RAT.extraHealth}`, color: '#c9a2ff' });
+    if (duckAmmo) list.push({ id: 'duck', icon: '🦆', label: t('buffDuck'), color: '#ffe066' });
+    return list;
+  };
+  const endAim = (announce: boolean) => {
+    if (!aimEnds) return;
+    aimEnds = 0;
+    refreshWeaponMods();
+    if (announce) hud.notice(t(aimWhy === 'galleryAim' ? 'galleryAimOver' : 'goldenKoiOver'));
+  };
+  /** What a shot or a knife did to the map's critters: fruit falls by itself, a fish is killed. */
+  const hitCritter = (c: CritterHit) => {
+    const fish = c.fish;
+    if (!fish || !map.fish) return;
+    sfx.at(c.point, 'normal', (s) => s.splash());
+    hud.hit('hit');
+    if (conn) {
+      if (performance.now() - (fishAsked.get(fish.id) ?? -1e9) < 800) return;
+      fishAsked.set(fish.id, performance.now());
+      conn.send({ t: 'fish', id: fish.id });
+      return;
+    }
+    // Offline and against bots the game decides (no account XP without the server).
+    const now = clock();
+    const [min, max] = KOI.respawn;
+    map.fish.kill(fish.id, now + min + Math.random() * (max - min), Math.random() < KOI.goldenChance);
+    if (fish.golden) startAim(now + KOI.goldenDuration);
+  };
+
+  const updatePickups = () => {
+    const now = clock();
+    if (player.dead) endAim(false);
+    else if (aimEnds && now >= aimEnds) endAim(true);
+    for (const [id, at] of pickupBack) {
+      if (now < at) continue;
+      pickupBack.delete(id);
+      pickups.find((p) => p.id === id)?.restore();
+    }
+    if (player.dead) endBoost(false);
+    else if (boostEnds && now >= boostEnds) endBoost(true);
+    if (player.dead) loseHumanity();
+    if (player.dead) {
+      duckAmmo = false;
+      potionReady = 0;
+      endPotion(false);
+      return;
+    }
+    if (potionKind && now >= potionEnds) endPotion(true);
+    const f = playerFeet(feet);
+    for (const pk of pickups) {
+      const kind = pickupKind(pk.id);
+      const radius = kind === 'biscoito' ? BISCUIT.radius : CHERRY.radius;
+      if (!pk.available || Math.hypot(f.x - pk.position.x, f.z - pk.position.z) > radius || Math.abs(f.y - pk.position.y) > 1.5) continue;
+      if (conn) {
+        if (performance.now() - pickupAsked > 800) {
+          pickupAsked = performance.now();
+          conn.send({ t: 'pickup', id: pk.id });
+        }
+      } else if (kind === 'biscoito') {
+        pk.take();
+        pickupBack.set(pk.id, now + BISCUIT.respawn);
+        eatBiscuit();
+      } else {
+        pk.take();
+        pickupBack.set(pk.id, now + CHERRY.respawn);
+        startBoost(now + CHERRY.duration);
+        player.health = Math.min(player.maxHealth, player.health + CHERRY.extraHealth);
+      }
+    }
+  };
+
   const aimForward = new THREE.Vector3();
   const shotDir = new THREE.Vector3();
   const eye = new THREE.Vector3();
@@ -359,6 +602,12 @@ async function boot() {
       sfx.gunshot();
       if (shotIndex % weapon.data.tracanteACada === 0) effects.tracer(muzzle, end);
       conn?.send({ t: 'shot', o: vec3(muzzle), e: vec3(end) });
+      // Fish and fruit don't stop the bullet: whatever it hits further on is hit too.
+      const critter = map.critters?.shot(eye, shotDir, hit ? hit.distance : Math.min(120, weapon.data.alcanceMaximo));
+      if (critter) {
+        effects.burst('confetti', critter.point, tmp.copy(shotDir).negate(), 4, critter.fish ? 0xbfeaff : 0xc8102e);
+        hitCritter(critter);
+      }
 
       // Through wood and glass: entry and exit holes, splinters out the far side.
       for (const p of through) {
@@ -391,7 +640,7 @@ async function boot() {
           // Against bots: same rules as online; kills and popups come back through the bot hooks.
           if (entity.dead) return;
           const kind: KillKind = head ? 'head' : groin ? 'groin' : 'gun';
-          const res = bots.hit(entity, playerTarget, computeDamage(weapon.data, hit.distance, region, keep), { kind, region, dist: hit.distance });
+          const res = bots.hit(entity, playerTarget, computeDamage(weapon.data, hit.distance, potionKind === 'critico' ? 'cabeca' : region, keep), { kind, region, dist: hit.distance });
           if (res.dealt <= 0) return;
           hits++;
           lastHitDist = hit.distance;
@@ -401,7 +650,7 @@ async function boot() {
           return;
         }
         const dummy = entity as Dummy;
-        const res = dummy.applyHit(computeDamage(weapon.data, hit.distance, region, keep), region, simTime, shotDir, groin ? 'forward' : 'back');
+        const res = dummy.applyHit(computeDamage(weapon.data, hit.distance, potionKind === 'critico' ? 'cabeca' : region, keep), region, simTime, shotDir, groin ? 'forward' : 'back');
         if (res.damage <= 0) return;
         hits++;
         lastHitDist = hit.distance;
@@ -484,7 +733,15 @@ async function boot() {
     let target = melee.target;
     const inReach = target && findMeleeTarget(physics, targets(), eye, player.yaw, melee.data.alcance + 0.4, 180)?.target === target;
     if (!inReach) target = findMeleeTarget(physics, targets(), eye, player.yaw, melee.data.alcance, melee.data.anguloGraus)?.target ?? null;
-    if (!target) return;
+    if (!target) {
+      // Nobody in reach: a fish in the pond or the cherries overhead (a little extra reach, down or up).
+      const critter = map.critters?.stab(eye, computeAim(aimForward), melee.data.alcance + 0.4);
+      if (!critter) return;
+      sfx.knifeHit();
+      effects.burst('star', critter.point, UP, 8);
+      hitCritter(critter);
+      return;
+    }
     tmp.set(target.position.x - eye.x, 0, target.position.z - eye.z).normalize();
     const behind = target.isBehind(eye);
     sfx.knifeHit();
@@ -697,8 +954,9 @@ async function boot() {
   const launch = (origin: THREE.Vector3, vel: THREE.Vector3, fuse: number, impact = false) => {
     const id = grenadeSeq++;
     const limit = impact ? grenadeData.tempoMaximoVoo : fuse;
-    grenades.spawn(origin, vel, limit, undefined, id, { impact, ignore: playerRig?.body });
-    conn?.send({ t: 'grenade', id, p: vec3(origin), v: vec3(vel), fuse: +limit.toFixed(3), ...(impact ? { impact } : {}) });
+    grenades.spawn(origin, vel, limit, undefined, id, { impact, ignore: playerRig?.body, duck: duckAmmo });
+    if (duckAmmo) sfx.at(origin, 'normal', (s) => s.quack());
+    conn?.send({ t: 'grenade', id, p: vec3(origin), v: vec3(vel), fuse: +limit.toFixed(3), ...(impact ? { impact } : {}), ...(duckAmmo ? { duck: true } : {}) });
   };
 
   const throwGrenade = (fuseLeft: number) => {
@@ -838,7 +1096,7 @@ async function boot() {
         mines.place(m.id, m.owner, new THREE.Vector3(...m.p));
         sfx.at({ x: m.p[0], y: m.p[1] + 0.2, z: m.p[2] }, 'normal', (s) => s.minePlant());
       }
-      else grenades.spawn(new THREE.Vector3(...m.p), new THREE.Vector3(...m.v), m.fuse, `${m.owner}:${m.id}`, 0, { impact: m.impact });
+      else grenades.spawn(new THREE.Vector3(...m.p), new THREE.Vector3(...m.v), m.fuse, `${m.owner}:${m.id}`, 0, { impact: m.impact, duck: m.duck });
     });
     conn.on('boom', (m) => {
       grenades.removeRemote(`${m.owner}:${m.id}`);
@@ -904,7 +1162,42 @@ async function boot() {
       if (m.id === me) for (const a of m.awards) hud.popup(t(AWARD_TEXT[a.label]), a.value);
       else if (c.info.victim === me || c.corpseCenter(tmp).distanceTo(playerFeet(feet)) < 25) humiliationFx(c);
     });
-    conn.on('prop', (m) => map.props.remote(m.id));
+    conn.on('prop', (m) => map.props.remote(m.id, net?.players.get(m.by)?.position ?? null));
+    // Collectibles: someone took one (maybe us); taken ones as we joined are still growing back.
+    for (const k of online.joined.pickups ?? []) {
+      pickups.find((p) => p.id === k.id)?.take();
+      pickupBack.set(k.id, k.ready / 1000);
+    }
+    // Fish: who's dead (and until when) or golden as we joined; then every kill, ours or not.
+    for (const f of online.joined.fish ?? []) map.fish?.set(f.id, f.ready / 1000, f.golden);
+    // Giant rats: the dead ones as we joined, then every kill (whoever brought it down gets the humanity).
+    for (const r of online.joined.rats ?? []) map.rats?.set(r.id, r.ready / 1000);
+    conn.on('potion', (m) => {
+      if (m.by === me) applyPotion(m.kind, m.until / 1000);
+      else map.potion?.drink(m.kind);
+    });
+    conn.on('rat', (m) => {
+      map.rats?.kill(m.id, m.ready / 1000);
+      if (m.by === me) gainHumanity();
+    });
+    conn.on('fish', (m) => {
+      map.fish?.kill(m.id, m.ready / 1000, m.golden);
+      if (m.by !== me) return;
+      const golden = m.prize === 'dourada';
+      hud.notice(t(golden ? 'goldenKoiXp' : 'koiXp', { n: golden ? KOI.goldenXp : KOI.xp }));
+      if (golden && m.until) startAim(m.until / 1000);
+    });
+    conn.on('pickup', (m) => {
+      const pk = pickups.find((p) => p.id === m.id);
+      if (!pk) return;
+      pk.take();
+      pickupBack.set(m.id, m.ready / 1000);
+      const biscuit = pickupKind(m.id) === 'biscoito';
+      if (m.by === me) {
+        if (biscuit) eatBiscuit();
+        else startBoost(m.until / 1000);
+      } else sfx.at({ x: pk.position.x, y: pk.position.y + 0.6, z: pk.position.z }, 'normal', (s) => (biscuit ? s.scoobySnack() : s.cherry()));
+    });
     conn.on('chat', (m) => chat.add(m.name, m.text, m.id === me));
     conn.on('chatRefused', (m) => chat.system(t(m.reason === 'muted' ? 'chatMuted' : 'chatSlow')));
     map.props.onLocal = (id) => conn.send({ t: 'prop', id });
@@ -1020,6 +1313,7 @@ async function boot() {
   const stepInner = (dt: number) => {
     simTime += dt;
     net?.update(dt);
+    updatePickups();
 
     if (player.dead) {
       hud.setDeathTimer(player.respawnIn(simTime));
@@ -1051,7 +1345,7 @@ async function boot() {
         if (corpse) {
           weapon.cancelReload();
           taunt.start(corpse, player.yaw, simTime, (d) => sfx.danceMusic(d));
-        }
+        } else if (nearPotion()) drinkPotion();
       }
       if (input.consume('melee') && !fireIntent && !taunt.active && !thrower.busy) startMelee();
 
@@ -1126,7 +1420,7 @@ async function boot() {
         sprint: !locked && !melee.swinging && !fireIntent && input.down('sprint'),
         ads: !locked && !melee.swinging && !thrower.busy && input.down('ads'),
         yaw: player.yaw,
-        speedMul: weapon.data.movimento * body.speedMul,
+        speedMul: weapon.data.movimento * body.speedMul * potionSpeed(),
         lunge,
       };
       const ev = player.fixedStep(dt, move, simTime);
@@ -1279,7 +1573,14 @@ async function boot() {
   const tpPos = new THREE.Vector3();
   const tpQuat = new THREE.Quaternion();
   const euler = new THREE.Euler(0, 0, 0, 'YXZ');
-  const mapFrame = { feet, listener: ctx.camera.position, launch: (vx: number, vy: number, vz: number) => player.launch(vx, vy, vz) };
+  const mapFrame = {
+    feet,
+    listener: ctx.camera.position,
+    launch: (vx: number, vy: number, vz: number) => player.launch(vx, vy, vz),
+    get time() {
+      return clock();
+    },
+  };
   const deathCamPos = new THREE.Vector3();
   let deathFloorAt = -1;
   let deathFloorY = 0;
@@ -1383,6 +1684,12 @@ async function boot() {
         euler.y += Math.sin(tt * 1.7 + 1) * 0.035 * k;
         euler.z += Math.sin(tt * 2.1 + 2) * 0.02 * k;
       }
+      // The drunk potion: the view sways (the aim follows the crosshair, not the swaying).
+      if (potionKind === 'bebado' && !player.dead) {
+        euler.z += Math.sin(renderTime * 1.1) * 0.07;
+        euler.x += Math.sin(renderTime * 0.83 + 1) * 0.025;
+        euler.y += Math.sin(renderTime * 0.61 + 2) * 0.03;
+      }
       fpQuat.setFromEuler(euler);
     }
     shake = Math.max(0, shake - frameDt * 1.6);
@@ -1475,6 +1782,7 @@ async function boot() {
     } else {
       const corpse = !player.dead && input.locked ? nearestHumiliable(humiliables(), feet, HUMILIATION.radius, simTime) : null;
       if (corpse) hud.setPrompt(screens.keyName('taunt'), t('promptTaunt', { name: corpse.name }), corpse.humiliationTimeLeft(simTime) / HUMILIATION.window);
+      else if (input.locked && nearPotion()) hud.setPrompt(screens.keyName('taunt'), t('promptPotion'), 1);
       else hud.setPrompt(null);
     }
 
@@ -1509,7 +1817,7 @@ async function boot() {
     hud.update(frameDt);
     // Every frame (the bar and the ring move): the reload, and what the touch buttons show.
     hud.setReload(weapon.reloadProgress);
-    touch?.setStatus(thrower.count, weapon.reloadProgress, weapon.mag <= weapon.data.pente * 0.3 && weapon.reserve > 0);
+    touch?.setStatus(thrower.count, weapon.reloadProgress, weapon.mag <= weapon.data.pente * 0.3 && weapon.reserve > 0, thrower.rechargeProgress);
     sfx.setMuffled(player.dead ? 0 : Math.max(0, (HEALTH.lowThreshold - player.health) / HEALTH.lowThreshold));
 
     quality.beforeRender();
@@ -1522,8 +1830,10 @@ async function boot() {
     if (hudTimer <= 0) {
       hudTimer = 1 / 15;
       hud.setHealth(player.health, player.maxHealth);
+      hud.setBoost(!!boostEnds);
+      hud.setBuffs(buffs());
       hud.setAmmo(weapon.mag, weapon.reserve, weapon.data.pente, weapon.reloading);
-      hud.setGrenades(thrower.count, grenadeData.quantidade);
+      hud.setGrenades(thrower.count, grenadeData.quantidade, thrower.rechargeProgress);
       const mine = net?.info.get(me) ?? bots?.standings().find((p) => p.id === me);
       hud.setScore(mine ? mine.score : points, mine ? mine.kills : kills, shots ? hits / shots : 0);
       if (showDebug) {
