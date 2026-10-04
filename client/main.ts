@@ -11,7 +11,7 @@ import { clampExplosionDamage, computeDamage, explosionDamage, GRENADES, grenade
 import { eyeHeight, type MoveInput } from '@shared/movement';
 import { CLOSE, FLAG, NET, ONLINE_GRENADE_LEVEL, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
 import { startLoop } from './core/loop';
-import { Input } from './core/input';
+import { applyKeybinds, Input } from './core/input';
 import { CAN_KEEP_ESCAPE, enterFullscreen, escapeIsKept, IS_MOBILE, isFullscreen, keepEscape } from './core/device';
 import { TouchControls } from './ui/touch';
 import { gamepad } from './core/gamepad';
@@ -103,6 +103,7 @@ async function boot() {
   const textures = loadTextureOverrides(ctx.renderer);
   screens.setProgress(1);
   const settings = loadSettings();
+  applyKeybinds(settings.keybinds);
   quality.set(settings.quality);
   if (quality.software) screens.showGpuWarning(quality.gpu);
 
@@ -1206,6 +1207,7 @@ async function boot() {
   // --- Menus and pointer lock ---------------------------------------------------------------------
   screens.bindSettings(settings, (s) => {
     saveSettings(s);
+    applyKeybinds(s.keybinds);
     sfx.setVolume(s.volume);
     sfx.setSpatialMode(spatialMode(s));
     if (s.quality !== quality.current) quality.set(s.quality);
@@ -1776,11 +1778,11 @@ async function boot() {
 
     // Context prompt: dancing progress, or "[E] Oprimir" over a fresh corpse.
     if (taunt.active && taunt.dummy) {
-      hud.setPrompt('E', t('dancing', { name: taunt.dummy.name }), taunt.t / taunt.duration);
+      hud.setPrompt(screens.keyName('taunt'), t('dancing', { name: taunt.dummy.name }), taunt.t / taunt.duration);
     } else {
       const corpse = !player.dead && input.locked ? nearestHumiliable(humiliables(), feet, HUMILIATION.radius, simTime) : null;
-      if (corpse) hud.setPrompt('E', t('promptTaunt', { name: corpse.name }), corpse.humiliationTimeLeft(simTime) / HUMILIATION.window);
-      else if (input.locked && nearPotion()) hud.setPrompt('E', t('promptPotion'), 1);
+      if (corpse) hud.setPrompt(screens.keyName('taunt'), t('promptTaunt', { name: corpse.name }), corpse.humiliationTimeLeft(simTime) / HUMILIATION.window);
+      else if (input.locked && nearPotion()) hud.setPrompt(screens.keyName('taunt'), t('promptPotion'), 1);
       else hud.setPrompt(null);
     }
 
