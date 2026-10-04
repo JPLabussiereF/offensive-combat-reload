@@ -2,6 +2,7 @@
 // garden walls with their gates, spirit walls, water basins, bridges, bamboo groves and small props.
 // Every sector file builds on a `Ctx` so the lanterns, props and animations end up in one place.
 import * as THREE from 'three';
+import { fitText } from '../canvasText';
 import { toon, toonGradient } from '../../render/materials';
 import type { SpatialKindName, SpatialSfx, Vec } from '../../audio/spatial';
 import type { MapFrame } from '../blockoutMap';
@@ -393,10 +394,9 @@ export function signBoard(c: Ctx, lines: string[], x: number, z: number, yaw: nu
   g.fillStyle = fg;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  lines.forEach((line, i) => {
-    g.font = i === 0 ? '400 40px "Lilita One", system-ui, sans-serif' : i === 1 ? '400 30px "Lilita One", system-ui, sans-serif' : '800 18px Nunito, system-ui, sans-serif';
-    g.fillText(line, 128, i === 0 ? 44 : i === 1 ? 84 : 122);
-  });
+  lines.forEach((line, i) =>
+    fitText(g, line, 128, i === 0 ? 44 : i === 1 ? 84 : 122, 224, (px) => (i < 2 ? `400 ${px}px "Lilita One", system-ui, sans-serif` : `800 ${px}px Nunito, system-ui, sans-serif`), i === 0 ? 40 : i === 1 ? 30 : 18),
+  );
   const wood = toon(0x8a5432);
   const face = canvasMaterial(cv);
   const board = new THREE.Mesh(boardGeometry(1.1, 0.7, 0.05, true), [wood, face]);

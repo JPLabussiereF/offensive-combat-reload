@@ -6,7 +6,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { GROUP, groups } from '@shared/constants';
 import type { GrenadeData } from '@shared/weapons';
 import type { GrenadeKind } from '@shared/progression';
-import { toon } from '../render/materials';
+import { mergeColoredParts, toon, toonGradient } from '../render/materials';
 import type { Physics } from '../world/physics';
 
 // Grenades bounce off the map and off characters' blockers, never off the player (who would shove them).
@@ -52,6 +52,12 @@ export class GrenadeThrower {
   /** Remaining fuse while cooking (for the HUD), or null. */
   get fuseLeft(): number | null {
     return this.cookT === null ? null : Math.max(0, this.data.pavio - this.cookT);
+  }
+
+  /** How far the next grenade is from coming back (0..1, for the HUD), or null when none is on its way. */
+  get rechargeProgress(): number | null {
+    const d = this.data;
+    return d.recargaSegundos > 0 && this.count < d.quantidade ? Math.min(1, this.recharge / d.recargaSegundos) : null;
   }
 
   refill() {
@@ -149,6 +155,8 @@ interface Live {
   remote?: string;
   /** Our own grenade's id, reported with its explosion. */
   id: number;
+  /** Thrown by someone who drank the witch's potion: a rubber duck that quacks when it bounces. */
+  duck: boolean;
 }
 
 export interface Explosion {
@@ -159,6 +167,8 @@ export interface Explosion {
 export interface SpawnOpts {
   impact?: boolean;
   ignore?: RAPIER.RigidBody;
+  /** Looks like a rubber duck (the witch's potion): same grenade, quacks instead of tinks. */
+  duck?: boolean;
 }
 
 export class GrenadeProjectiles {
@@ -166,7 +176,7 @@ export class GrenadeProjectiles {
   private tmpV = new THREE.Vector3();
   private probe: RAPIER.Ball;
 
-  constructor(private physics: Physics, private scene: THREE.Scene, private data: GrenadeData, private onBounce: (strength: number, at: THREE.Vector3) => void) {
+  constructor(private physics: Physics, private scene: THREE.Scene, private data: GrenadeData, private onBounce: (strength: number, at: THREE.Vector3, duck: boolean) => void) {
     this.probe = new RAPIER.Ball(data.raio);
   }
 
@@ -190,7 +200,7 @@ export class GrenadeProjectiles {
       RAPIER.ColliderDesc.ball(d.raio).setRestitution(d.quique).setFriction(d.atrito).setDensity(900).setCollisionGroups(PROJECTILE_GROUPS),
       body,
     );
-    const mesh = grenadeModel();
+    const mesh = opts.duck ? duckModel() : grenadeModel();
     mesh.traverse((o) => (o.castShadow = true));
     mesh.position.copy(position);
     this.scene.add(mesh);
@@ -208,6 +218,7 @@ export class GrenadeProjectiles {
       lastVel: velocity.clone(),
       remote,
       id,
+      duck: !!opts.duck,
     });
   }
 
@@ -238,7 +249,7 @@ export class GrenadeProjectiles {
       // Bounce "tink": a sudden change of velocity means it hit something.
       const v = g.body.linvel();
       const dv = this.tmpV.set(v.x, v.y, v.z).sub(g.lastVel).length();
-      if (dv > 2.5) this.onBounce(Math.min(1, dv / 12), g.curr);
+      if (dv > 2.5) this.onBounce(Math.min(1, dv / 12), g.curr, g.duck);
       g.lastVel.set(v.x, v.y, v.z);
 
       g.fuse -= dt;
@@ -279,6 +290,26 @@ export class GrenadeProjectiles {
 /** Cartoon frag grenade: ribbed body, spoon and pin ring, ~12 cm tall. Shared by world and viewmodel. */
 export function grenadeGeometry(): THREE.BufferGeometry {
   return new THREE.SphereGeometry(0.06, 12, 10).scale(1, 1.2, 1);
+}
+
+let duckGeo: THREE.BufferGeometry | null = null;
+
+/** A rubber duck the size of a big grenade (the witch's potion turns grenades into these). */
+export function duckModel(): THREE.Group {
+  duckGeo ??= mergeColoredParts([
+    { geo: new THREE.SphereGeometry(0.075, 12, 8), color: 0xffd23f, pos: [0, 0, 0], scale: [1, 0.8, 1.3] },
+    { geo: new THREE.SphereGeometry(0.05, 10, 8), color: 0xffd23f, pos: [0, 0.07, 0.06] },
+    { geo: new THREE.ConeGeometry(0.022, 0.05, 6), color: 0xff8a1a, pos: [0, 0.065, 0.115], rot: [Math.PI / 2, 0, 0], scale: [1.5, 1, 0.6] },
+    { geo: new THREE.SphereGeometry(0.009, 6, 4), color: 0x111111, pos: [0.025, 0.085, 0.095] },
+    { geo: new THREE.SphereGeometry(0.009, 6, 4), color: 0x111111, pos: [-0.025, 0.085, 0.095] },
+    { geo: new THREE.ConeGeometry(0.03, 0.05, 6), color: 0xffd23f, pos: [0, 0.03, -0.1], rot: [-1.1, 0, 0] },
+  ]);
+  const g = new THREE.Group();
+  const duck = new THREE.Mesh(duckGeo, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() }));
+  // Bigger than a grenade: everyone should see it coming.
+  duck.scale.setScalar(1.6);
+  g.add(duck);
+  return g;
 }
 
 export function grenadeModel(): THREE.Group {

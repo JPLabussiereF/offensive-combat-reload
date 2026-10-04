@@ -6,9 +6,11 @@
 // Static pieces go through the MapBuilder batches; only animated props are separate meshes. Every gag is
 // registered on the PropBus, so online everyone in the session sees the same thing.
 import * as THREE from 'three';
+import { fitText } from './canvasText';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { GROUP, groups } from '@shared/constants';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { GROUP, groups, type PotionKind } from '@shared/constants';
 import { mergeColoredParts, toon, toonGradient } from '../render/materials';
 import { MapBuilder, worldUVs } from './mapBuilder';
 import { surfaceMaterial, type SurfaceKey } from './surfaces';
@@ -459,10 +461,7 @@ export function epitaph(scene: THREE.Scene, f: ReturnType<typeof tombstone>, lin
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     const size = Math.min(H / (lines.length + 0.6), W / 7.5);
-    lines.forEach((line, i) => {
-      g.font = `${i === 0 ? 900 : 800} ${Math.round(size * (i === 0 ? 1 : 0.82))}px Nunito, system-ui, sans-serif`;
-      g.fillText(line, W / 2, (H * (i + 0.8)) / (lines.length + 0.6));
-    });
+    lines.forEach((line, i) => fitText(g, line, W / 2, (H * (i + 0.8)) / (lines.length + 0.6), W - 24, (px) => `${i === 0 ? 900 : 800} ${px}px Nunito, system-ui, sans-serif`, Math.round(size * (i === 0 ? 1 : 0.82))));
   });
   const plate = new THREE.Mesh(new THREE.PlaneGeometry(f.w, f.h), new THREE.MeshToonMaterial({ map: tex, transparent: true, alphaTest: 0.35, gradientMap: toonGradient() }));
   plate.position.copy(f.at);
@@ -491,10 +490,11 @@ export function signBoard(b: MapBuilder, scene: THREE.Scene, lines: string[], x:
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     const rows = lines.length;
-    lines.forEach((line, i) => {
-      g.font = i === 0 ? `400 ${Math.round(H / (rows + 0.9))}px "Lilita One", system-ui, sans-serif` : `800 ${Math.round(H / (rows + 2.4))}px Nunito, system-ui, sans-serif`;
-      g.fillText(line, 160, (H * (i + 0.75)) / (rows + 0.5));
-    });
+    // The posts stand in front of the board's edges: the text keeps clear of them.
+    const textW = Math.min(280, 320 * ((w / 2 - 0.16) / (w / 2)));
+    lines.forEach((line, i) =>
+      fitText(g, line, 160, (H * (i + 0.75)) / (rows + 0.5), textW, (px) => (i === 0 ? `400 ${px}px "Lilita One", system-ui, sans-serif` : `800 ${px}px Nunito, system-ui, sans-serif`), Math.round(i === 0 ? H / (rows + 0.9) : H / (rows + 2.4))),
+    );
   });
   const rot = new THREE.Euler(0, yaw, o.tilt ?? 0, 'YXZ');
   b.box(x, height, z, w, h, 0.06, 'madeira', { tint: 0x5a3a26, collide: false, rot });
@@ -575,8 +575,7 @@ export function gateArch(b: MapBuilder, scene: THREE.Scene, glow: Glow, axis: 'x
     g.fillStyle = '#d8cfb8';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.font = '400 60px "Lilita One", system-ui, sans-serif';
-    g.fillText(text, 256, 52);
+    fitText(g, text, 256, 52, 470, (px) => `400 ${px}px "Lilita One", system-ui, sans-serif`, 60);
   });
   const bw = Math.min(span, 4);
   const [bx, by, bz] = at(mid, 3.15 + span / 4);
@@ -797,14 +796,15 @@ export class GraveGhost {
     scene.add(this.root);
 
     // The grave: a dirt mound in front of a big headstone. Shooting the mound (or the stone) wakes him.
-    const wake = props.register('fantasma', () => this.wake());
+    const wake = props.register('fantasma', (t) => this.wake(t.from));
     const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0));
     const mound = new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(0.75, 0.32, 1.25);
     b.addGeometry(mound.applyQuaternion(q).translate(at.x, at.y, at.z), surfaceMaterial('grama'), SPOOKY.dirt);
     b.cuboidCollider(V(at.x, at.y + 0.15, at.z), V(0.7, 0.15, 1.2), q, 'grass', wake);
   }
 
-  private wake() {
+  /** `from`: the shooter (he faces them when he rises); unknown keeps his last facing. */
+  private wake(from: THREE.Vector3 | null) {
     if (this.state !== 'down') {
       // Shot again while complaining: one extra line, now and then.
       if (this.state === 'up' && this.t - this.extraLine > 1.6) {
@@ -818,6 +818,7 @@ export class GraveGhost {
     const tier = GHOST_LINES[Math.min(GHOST_LINES.length - 1, Math.floor(this.activations / 4))];
     this.bubble.say(tier[this.activations % 4], 3.6);
     this.activations++;
+    if (from) this.root.rotation.y = Math.atan2(from.x - this.at.x, from.z - this.at.z);
     this.state = 'rising';
     this.stateT = 0;
     this.body.visible = true;
@@ -906,7 +907,7 @@ export class Bell {
  * "abobora:N"). Bodies and faces are two instanced meshes.
  */
 export class Pumpkins {
-  private specs: { pos: THREE.Vector3; yaw: number; s: number; smashed: number; grow: number; col: RAPIER.Collider | null }[] = [];
+  private specs: { pos: THREE.Vector3; yaw: number; s: number; smashed: number; grow: number; col: RAPIER.Collider | null; hit: (() => void) | null }[] = [];
   private bodies!: THREE.InstancedMesh;
   private faces!: THREE.InstancedMesh;
   private m = new THREE.Matrix4();
@@ -916,7 +917,7 @@ export class Pumpkins {
   private t = 0;
 
   add(x: number, y: number, z: number, yaw: number, s = 1) {
-    this.specs.push({ pos: V(x, y, z), yaw, s, smashed: 0, grow: 1, col: null });
+    this.specs.push({ pos: V(x, y, z), yaw, s, smashed: 0, grow: 1, col: null, hit: null });
   }
 
   finish(scene: THREE.Scene, b: MapBuilder, props: PropBus, debris: Debris, onSmash: (at: THREE.Vector3) => void) {
@@ -937,9 +938,28 @@ export class Pumpkins {
         debris.burst(center, 0xffd27a, 4, 2.4, 0.07 * p.s, p.pos.y);
         onSmash(center);
       });
+      p.hit = onShot;
       p.col = b.ballCollider(center, 0.3 * p.s, 'wood', onShot);
     });
     this.update(0);
+  }
+
+  /** A knife swing from `eye` along `fwd`: smashes the nearest whole pumpkin in reach and in front; its center, or null. */
+  stab(eye: THREE.Vector3, fwd: THREE.Vector3, reach: number): THREE.Vector3 | null {
+    let best: (typeof this.specs)[number] | null = null;
+    let bestD = Infinity;
+    const to = new THREE.Vector3();
+    for (const p of this.specs) {
+      if (p.smashed > 0 || p.grow < 1) continue;
+      to.set(p.pos.x, p.pos.y + 0.26 * p.s, p.pos.z).sub(eye);
+      const d = to.length();
+      if (d > reach + 0.3 * p.s || d < 1e-3 || to.dot(fwd) / d < 0.6 || d >= bestD) continue;
+      best = p;
+      bestD = d;
+    }
+    if (!best) return null;
+    best.hit?.();
+    return V(best.pos.x, best.pos.y + 0.26 * best.s, best.pos.z);
   }
 
   update(dt: number) {
@@ -970,8 +990,6 @@ export interface LampSpec {
   /** Direction the arm reaches out to (unit, on the ground plane). */
   dir: [number, number];
   flicker?: boolean;
-  /** This one screams when shot out. */
-  scream?: boolean;
 }
 
 /** Old street lamps. Some flicker; shooting the lamp puts it out for a while ("poste:N"). */
@@ -985,7 +1003,12 @@ export class LampPosts {
     this.specs.push({ ...spec, head: V(spec.x + spec.dir[0] * 0.85, 4.05, spec.z + spec.dir[1] * 0.85), out: 0, flick: 0 });
   }
 
-  finish(scene: THREE.Scene, b: MapBuilder, props: PropBus, onOut: (at: THREE.Vector3, scream: boolean) => void) {
+  /** Where each lamp shines from and whether it's lit right now (for real lights, see LightPool). */
+  lights(): LightSpot[] {
+    return this.specs.map((p) => ({ at: V(p.head.x, p.head.y - 0.3, p.head.z), color: new THREE.Color(0xffc878), intensity: 14, range: 16, on: () => p.out <= 0 && p.flick >= 0 }));
+  }
+
+  finish(scene: THREE.Scene, b: MapBuilder, props: PropBus, onOut: (at: THREE.Vector3) => void) {
     const n = this.specs.length;
     const iron = { tint: SPOOKY.iron };
     this.heads = new THREE.InstancedMesh(new THREE.BoxGeometry(0.2, 0.3, 0.2), new THREE.MeshBasicMaterial({ color: 0xffffff }), Math.max(1, n));
@@ -1008,7 +1031,7 @@ export class LampPosts {
       const onShot = props.register(`poste:${i}`, () => {
         if (p.out > 0) return;
         p.out = 45;
-        onOut(p.head, !!p.scream);
+        onOut(p.head);
       });
       b.cuboidCollider(p.head, V(0.18, 0.2, 0.18), NO_ROT, 'glass', onShot);
     });
@@ -1247,21 +1270,22 @@ export class TargetRow {
   private t = 0;
   private c = new THREE.Color();
 
-  constructor(scene: THREE.Scene, b: MapBuilder, props: PropBus, from: THREE.Vector3, to: THREE.Vector3, count: number, private onHit: (at: THREE.Vector3) => void, private onAll: () => void, bulbAt: THREE.Vector3[] = []) {
+  /** `spots`: each target's base; it stands on a pole down to the floor. `onAll(local)`: true when we knocked down the last one. */
+  constructor(scene: THREE.Scene, b: MapBuilder, props: PropBus, spots: THREE.Vector3[], private onHit: (at: THREE.Vector3) => void, private onAll: (local: boolean) => void, bulbAt: THREE.Vector3[] = []) {
     const ring = (r: number, color: number, z: number) => ({ geo: new THREE.CylinderGeometry(r, r, 0.02, 20), color, pos: [0, 0.32, z] as [number, number, number], rot: [Math.PI / 2, 0, 0] as [number, number, number] });
     const targetGeo = mergeColoredParts([
       { geo: new THREE.BoxGeometry(0.04, 0.3, 0.04), color: SPOOKY.iron, pos: [0, 0.15, 0] },
       ring(0.22, 0xf2efe6, 0), ring(0.16, 0xd8342a, 0.006), ring(0.1, 0xf2efe6, 0.012), ring(0.045, 0xd8342a, 0.018),
     ]);
     const targetMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() });
-    for (let i = 0; i < count; i++) {
-      const at = from.clone().lerp(to, count === 1 ? 0.5 : i / (count - 1));
+    spots.forEach((at, i) => {
+      b.box(at.x, at.y / 2, at.z - 0.06, 0.04, at.y, 0.04, 'metal', { tint: SPOOKY.iron, collide: false, castShadow: false });
       const pivot = new THREE.Group();
       pivot.add(new THREE.Mesh(targetGeo, targetMat));
       pivot.position.copy(at);
       scene.add(pivot);
       const tgt = { pivot, down: false, a: 0, col: null as unknown as RAPIER.Collider };
-      const hit = props.register(`alvo:${i}`, () => {
+      const hit = props.register(`alvo:${i}`, (t) => {
         if (tgt.down) return;
         tgt.down = true;
         tgt.col.setEnabled(false);
@@ -1270,12 +1294,12 @@ export class TargetRow {
           this.clears++;
           this.party = 4;
           this.reset = 5;
-          this.onAll();
+          this.onAll(t.local);
         }
       });
       tgt.col = b.cuboidCollider(V(at.x, at.y + 0.32, at.z), V(0.22, 0.22, 0.04), NO_ROT, 'metal', hit);
       this.targets.push(tgt);
-    }
+    });
     if (bulbAt.length) {
       this.bulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }), bulbAt.length);
       const m = new THREE.Matrix4();
@@ -1662,6 +1686,9 @@ export class Bats {
 
 /** Slab of `surface` over [x0,x1]x[z0,z1] between y0 and y1 with rectangular holes cut out of it. */
 export function slabWithHoles(b: MapBuilder, x0: number, z0: number, x1: number, z1: number, y0: number, y1: number, holes: { x0: number; z0: number; x1: number; z1: number }[], surface: SurfaceKey, o: Parameters<MapBuilder['span']>[7] = {}) {
+  // Only the holes that overlap the slab cut it (one beside it would add a cut outside the slab, and the
+  // piece between that cut and the slab's edge would be laid out there).
+  holes = holes.filter((h) => h.x0 < x1 && h.x1 > x0 && h.z0 < z1 && h.z1 > z0);
   const cuts = [...new Set([x0, x1, ...holes.flatMap((h) => [Math.max(x0, h.x0), Math.min(x1, h.x1)])])].sort((p, q) => p - q);
   for (let i = 0; i < cuts.length - 1; i++) {
     const a = cuts[i];
@@ -1670,5 +1697,715 @@ export function slabWithHoles(b: MapBuilder, x0: number, z0: number, x1: number,
     const mid = (a + c) / 2;
     const covering = holes.filter((h) => h.x0 <= mid && h.x1 >= mid).map((h) => [h.z0, h.z1] as [number, number]);
     for (const [s0, s1] of solidIntervals(z0, z1, covering)) b.span(a, y0, s0, c, y1, s1, surface, o);
+  }
+}
+
+// --- Real lights ------------------------------------------------------------------------------------
+
+/** A place that gives light: candles, lamps, the fire. Only the nearest few become real lights (LightPool). */
+export interface LightSpot {
+  at: THREE.Vector3;
+  color: THREE.Color;
+  /** Point light intensity (candela) when it's a real light. */
+  intensity: number;
+  /** How far it reaches (m). */
+  range: number;
+  /** Lit right now (a lamp shot out isn't); omitted = always. */
+  on?: () => boolean;
+  /** 0..1: how much it flickers (candles, fire). */
+  flicker?: number;
+}
+
+/**
+ * A fixed number of point lights handed to the light spots nearest the camera, a few times a second, fading
+ * in and out as they move. The number of lights never changes, so shaders never recompile, and the cost
+ * stays the same however many candles and lamps the map has.
+ */
+export class LightPool {
+  private spots: LightSpot[] = [];
+  private lights: { light: THREE.PointLight; spot: number; level: number }[] = [];
+  private pick = 0;
+  private t = 0;
+
+  constructor(scene: THREE.Scene, count = 8) {
+    for (let i = 0; i < count; i++) {
+      const light = new THREE.PointLight(0xffffff, 0, 10, 1.6);
+      scene.add(light);
+      this.lights.push({ light, spot: -1, level: 0 });
+    }
+  }
+
+  add(...spots: LightSpot[]) {
+    this.spots.push(...spots);
+  }
+
+  update(dt: number, camera: THREE.Vector3) {
+    this.t += dt;
+    this.pick -= dt;
+    if (this.pick <= 0) {
+      this.pick = 0.2;
+      // Nearest first, a bigger light counting as a little nearer; out of reach or unlit ones never.
+      const score = this.spots.map((s, i) => {
+        const d = s.at.distanceTo(camera);
+        return { i, v: d > s.range + 14 || (s.on && !s.on()) ? Infinity : d - s.range * 0.4 };
+      });
+      const nearest = new Set(score.filter((s) => s.v < Infinity).sort((a, b) => a.v - b.v).slice(0, this.lights.length).map((s) => s.i));
+      const kept = new Set(this.lights.filter((l) => nearest.has(l.spot)).map((l) => l.spot));
+      const free = [...nearest].filter((i) => !kept.has(i));
+      for (const l of this.lights) {
+        if (nearest.has(l.spot)) continue;
+        l.spot = free.shift() ?? -1;
+        l.level = 0;
+      }
+    }
+    this.lights.forEach((l, k) => {
+      const s = this.spots[l.spot];
+      const lit = !!s && (!s.on || s.on());
+      l.level = THREE.MathUtils.clamp(l.level + (lit ? dt : -dt) * 4, 0, 1);
+      if (!s || l.level <= 0) {
+        l.light.intensity = 0;
+        return;
+      }
+      const f = s.flicker ?? 0;
+      const wobble = 1 - f * (0.18 + 0.12 * Math.sin(this.t * 13 + k * 1.7) + 0.08 * Math.sin(this.t * 29 + k));
+      l.light.position.copy(s.at);
+      l.light.color.copy(s.color);
+      l.light.distance = s.range;
+      l.light.intensity = s.intensity * l.level * wobble;
+    });
+  }
+}
+
+// --- The sewer's giant rat ----------------------------------------------------------------------------
+
+/**
+ * The giant rat at the end of the sewer's dead end (RAT). It watches whoever comes near, squeaks, flinches
+ * when hit; our hits are counted here and the one that brings it down reports it (`onDown`): the game
+ * decides (offline at once, online through the server) and calls kill(). Dead, it rolls over and sinks,
+ * and it's back at `ready` on the game clock.
+ */
+/** The rat's model is built ~1.4 m tall; this makes it properly giant. */
+const RAT_SCALE = 1.35;
+
+export class GiantRat {
+  private group = new THREE.Group();
+  private body: THREE.Mesh;
+  private tail = new THREE.Group();
+  private hp: number;
+  private claimed = -99;
+  private state: 'alive' | 'dying' | 'dead' = 'alive';
+  private ready = 0;
+  private stateT = 0;
+  private flinch = 0;
+  private squeakIn = 3;
+  private t = 0;
+  private cols: RAPIER.Collider[] = [];
+  private yaw: number;
+
+  constructor(
+    scene: THREE.Scene,
+    b: MapBuilder,
+    readonly id: string,
+    private at: THREE.Vector3,
+    yaw: number,
+    private maxHp: number,
+    private stabDamage: number,
+    private onDown: (id: string) => void,
+    private puffs: Puffs,
+    private sfx: { squeak(at: THREE.Vector3): void; hurt(at: THREE.Vector3): void; death(at: THREE.Vector3): void },
+  ) {
+    this.yaw = yaw;
+    this.hp = maxHp;
+    const fur = 0x5e504a;
+    const pink = 0xd89aa0;
+    type P = [number, number, number];
+    const side = (s: number) => [
+      { geo: new THREE.CylinderGeometry(0.26, 0.26, 0.05, 14), color: fur, pos: [s * 0.32, 1.42, 1.08] as P, rot: [Math.PI / 2, 0, s * 0.3] as P },
+      { geo: new THREE.CylinderGeometry(0.17, 0.17, 0.06, 12), color: pink, pos: [s * 0.32, 1.42, 1.1] as P, rot: [Math.PI / 2, 0, s * 0.3] as P },
+      // Legs and pink paws.
+      { geo: new THREE.CylinderGeometry(0.11, 0.09, 0.5, 8), color: fur, pos: [s * 0.36, 0.25, 0.75] as P },
+      { geo: new THREE.CylinderGeometry(0.14, 0.1, 0.55, 8), color: fur, pos: [s * 0.4, 0.27, -0.7] as P },
+      { geo: new THREE.SphereGeometry(0.12, 8, 6), color: pink, pos: [s * 0.36, 0.05, 0.85] as P, scale: [1, 0.5, 1.4] as P },
+      { geo: new THREE.SphereGeometry(0.14, 8, 6), color: pink, pos: [s * 0.4, 0.05, -0.6] as P, scale: [1, 0.5, 1.5] as P },
+      // Whiskers.
+      ...[-0.08, 0.04].map((dy) => ({ geo: new THREE.BoxGeometry(0.6, 0.012, 0.012), color: 0x2a2220, pos: [s * 0.32, 0.92 + dy, 1.95] as P, rot: [0, s * 0.25, s * dy * 2] as P })),
+    ];
+    const geo = mergeColoredParts([
+      { geo: new THREE.SphereGeometry(1, 16, 12), color: fur, pos: [0, 0.8, 0], scale: [0.66, 0.6, 1.25] },
+      { geo: new THREE.SphereGeometry(1, 12, 10), color: 0x7a6c64, pos: [0, 0.6, 0.1], scale: [0.52, 0.42, 0.95] },
+      { geo: new THREE.SphereGeometry(1, 12, 10), color: fur, pos: [0, 0.78, -0.75], scale: [0.6, 0.55, 0.65] },
+      { geo: new THREE.SphereGeometry(1, 14, 10), color: fur, pos: [0, 1.0, 1.25], scale: [0.44, 0.42, 0.62] },
+      { geo: new THREE.ConeGeometry(0.26, 0.6, 10), color: fur, pos: [0, 0.94, 1.85], rot: [Math.PI / 2, 0, 0] },
+      { geo: new THREE.SphereGeometry(0.09, 8, 6), color: pink, pos: [0, 0.94, 2.15] },
+      { geo: new THREE.BoxGeometry(0.05, 0.14, 0.04), color: 0xf2ead0, pos: [-0.04, 0.76, 1.98] },
+      { geo: new THREE.BoxGeometry(0.05, 0.14, 0.04), color: 0xf2ead0, pos: [0.04, 0.76, 1.98] },
+      ...side(-1),
+      ...side(1),
+    ]);
+    this.body = new THREE.Mesh(geo, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() }));
+    this.body.castShadow = true;
+    const eyes = new THREE.Mesh(mergeGeometries([-1, 1].map((s) => new THREE.SphereGeometry(0.075, 8, 6).translate(s * 0.2, 1.12, 1.74)), false)!, new THREE.MeshBasicMaterial({ color: 0xff2a1a }));
+    const tailCurve = new THREE.CatmullRomCurve3([V(0, 0.65, 0), V(0, 0.35, -0.6), V(0.6, 0.15, -1.1), V(1.4, 0.1, -1.2), V(1.9, 0.25, -0.9)]);
+    this.tail.add(new THREE.Mesh(taperedTube(tailCurve, 16, 6, 0.13, 0.025), toon(pink)));
+    this.tail.position.z = -1.35;
+    this.group.add(this.body, eyes, this.tail);
+    this.group.position.copy(at);
+    this.group.rotation.y = yaw;
+    this.group.scale.setScalar(RAT_SCALE);
+    scene.add(this.group);
+    const hit = () => this.damage(1);
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0));
+    const k = RAT_SCALE;
+    const box = (x: number, y: number, z: number, hx: number, hy: number, hz: number) => this.cols.push(b.cuboidCollider(V(x * k, y * k, z * k).applyQuaternion(q).add(at), V(hx * k, hy * k, hz * k), q, 'wood', hit));
+    box(0, 0.75, 0, 0.66, 0.68, 1.3);
+    box(0, 1.0, 1.5, 0.42, 0.42, 0.65);
+  }
+
+  get alive() {
+    return this.state === 'alive';
+  }
+
+  /** Our hit (a bullet counts 1). */
+  damage(n: number) {
+    if (this.state !== 'alive') return;
+    this.hp -= n;
+    this.flinch = 1;
+    if (this.hp > 0) {
+      this.sfx.hurt(this.group.localToWorld(V(0, 1.1, 1.4)));
+      return;
+    }
+    // Ours: claim it (again after a while, if nobody answered).
+    if (this.t - this.claimed > 2) {
+      this.claimed = this.t;
+      this.onDown(this.id);
+    }
+  }
+
+  /** A knife swing from `eye` along `fwd`: hits the rat when it's in reach and in front; where, or null. */
+  stab(eye: THREE.Vector3, fwd: THREE.Vector3, reach: number): THREE.Vector3 | null {
+    if (this.state !== 'alive') return null;
+    const center = this.group.localToWorld(V(0, 0.9, 0.6));
+    const to = center.clone().sub(eye);
+    const d = to.length();
+    if (d > reach + 1.4 * RAT_SCALE || to.dot(fwd) / d < 0.4) return null;
+    this.damage(this.stabDamage);
+    return eye.clone().addScaledVector(fwd, Math.max(0.3, Math.min(reach, d - 0.6)));
+  }
+
+  kill(ready: number) {
+    this.ready = ready;
+    if (this.state !== 'alive') return;
+    this.state = 'dying';
+    this.stateT = 0;
+    this.cols.forEach((c) => c.setEnabled(false));
+    const at = this.group.localToWorld(V(0, 1, 0));
+    this.sfx.death(at);
+    // Its humanity leaves the body: a pale wisp rising.
+    for (let i = 0; i < 24; i++) this.puffs.emit(at, (Math.random() - 0.5) * 0.6, 1 + Math.random() * 2, (Math.random() - 0.5) * 0.6, 1.6, 0.18, 0.05, 0xf2ecff);
+  }
+
+  set(ready: number) {
+    this.ready = ready;
+    this.state = 'dead';
+    this.group.visible = false;
+    this.cols.forEach((c) => c.setEnabled(false));
+  }
+
+  update(dt: number, time: number, listener: THREE.Vector3) {
+    this.t += dt;
+    this.stateT += dt;
+    if (this.state === 'dead') {
+      if (time < this.ready) return;
+      this.state = 'alive';
+      this.hp = this.maxHp;
+      this.group.visible = true;
+      this.group.position.copy(this.at);
+      this.group.scale.setScalar(0.01);
+      this.cols.forEach((c) => c.setEnabled(true));
+    }
+    if (this.state === 'dying') {
+      const k = Math.min(1, this.stateT / 0.7);
+      this.group.rotation.set(0, this.yaw, k * k * 1.6);
+      this.group.position.y = this.at.y - Math.max(0, this.stateT - 1.5) * 0.8;
+      if (this.stateT > 3) {
+        this.state = 'dead';
+        this.group.visible = false;
+      }
+      return;
+    }
+    // Alive: grows back in, breathes, turns to watch whoever is near, squeaks now and then.
+    this.group.scale.setScalar(Math.min(RAT_SCALE, this.group.scale.x + dt * 1.5));
+    const dx = listener.x - this.at.x;
+    const dz = listener.z - this.at.z;
+    const near = Math.abs(listener.y - this.at.y) < 4 && dx * dx + dz * dz < 18 * 18;
+    if (near) {
+      const d = Math.atan2(dx, dz) - this.yaw;
+      this.yaw += Math.atan2(Math.sin(d), Math.cos(d)) * Math.min(1, dt * 2);
+    }
+    this.flinch = Math.max(0, this.flinch - dt * 4);
+    this.group.rotation.set(-this.flinch * 0.15, this.yaw + Math.sin(this.t * 40) * this.flinch * 0.08, 0);
+    this.body.scale.set(1, 1 + Math.sin(this.t * 2.2) * 0.025, 1);
+    this.tail.rotation.y = Math.sin(this.t * 1.6) * 0.35;
+    this.squeakIn -= dt;
+    if (near && this.squeakIn <= 0) {
+      this.squeakIn = 4 + Math.random() * 5;
+      this.sfx.squeak(this.group.localToWorld(V(0, 1.1, 1.6)));
+    }
+  }
+}
+
+// --- Vehicles of the park -----------------------------------------------------------------------------
+
+/**
+ * Bumper car facing +X, resting on y = 0: rounded chassis inside a fat black rubber bumper, a fiberglass
+ * shell with a high back, seat, steering wheel, headlights and the pole to the ceiling grid (with its spark
+ * brush). One vertex-colored geometry; the map merges all of them.
+ */
+export function bumperCarGeometry(color: THREE.ColorRepresentation, accent: THREE.ColorRepresentation): THREE.BufferGeometry {
+  const dark = new THREE.Color(color).multiplyScalar(0.6);
+  return mergeColoredParts([
+    { geo: new RoundedBoxGeometry(1.7, 0.22, 1.2, 2, 0.08), color: 0x2a2a30, pos: [0, 0.13, 0] },
+    { geo: new THREE.TorusGeometry(1, 0.13, 8, 28), color: 0x18181c, pos: [0, 0.2, 0], rot: [Math.PI / 2, 0, 0], scale: [0.86, 0.6, 1] },
+    { geo: new RoundedBoxGeometry(1.5, 0.42, 1.06, 3, 0.16), color, pos: [0, 0.48, 0] },
+    { geo: new RoundedBoxGeometry(0.5, 0.36, 0.98, 3, 0.14), color, pos: [0.5, 0.78, 0] },
+    { geo: new RoundedBoxGeometry(0.22, 0.78, 1.0, 3, 0.1), color, pos: [-0.62, 0.98, 0] },
+    { geo: new RoundedBoxGeometry(0.42, 0.14, 0.8, 2, 0.06), color: 0x3a2a3a, pos: [-0.3, 0.74, 0] },
+    { geo: new RoundedBoxGeometry(0.12, 0.5, 0.78, 2, 0.05), color: 0x3a2a3a, pos: [-0.47, 0.99, 0] },
+    { geo: new THREE.BoxGeometry(1.52, 0.06, 1.08), color: accent, pos: [0, 0.6, 0] },
+    { geo: new THREE.CylinderGeometry(0.03, 0.03, 0.32, 6), color: 0x2a2a2a, pos: [0.22, 0.98, 0], rot: [0, 0, 0.6] },
+    { geo: new THREE.TorusGeometry(0.15, 0.025, 6, 18), color: 0x1a1a1a, pos: [0.12, 1.12, 0], rot: [0, Math.PI / 2, 0.6] },
+    { geo: new THREE.SphereGeometry(0.07, 8, 6), color: 0xfff0b0, pos: [0.76, 0.8, 0.3] },
+    { geo: new THREE.SphereGeometry(0.07, 8, 6), color: 0xfff0b0, pos: [0.76, 0.8, -0.3] },
+    { geo: new THREE.BoxGeometry(0.06, 0.2, 0.5), color: dark, pos: [0.76, 0.56, 0] },
+    { geo: new THREE.CylinderGeometry(0.03, 0.03, 1.55, 6), color: 0x9a9aa4, pos: [-0.66, 2.05, 0] },
+    { geo: new THREE.BoxGeometry(0.1, 0.06, 0.24), color: 0xd8c050, pos: [-0.66, 2.84, 0] },
+    { geo: new THREE.SphereGeometry(0.09, 8, 6), color: accent, pos: [-0.66, 1.4, 0] },
+  ]);
+}
+
+/**
+ * Old circus trailer facing +X (its hitch end), on y = 0: a rounded painted body with a stripe, windows
+ * (one lit), a door with a striped awning, roof vent and A/C, an axle pair under fenders, the tow hitch on
+ * its jack and a sign. One mesh; the lit window goes to `glow`; it collides as its body.
+ */
+export function circusTrailer(b: MapBuilder, scene: THREE.Scene, glow: Glow, x: number, z: number, yaw: number, color: number, stripe: number, sign: string) {
+  const L = 6.4;
+  const Wd = 2.4;
+  const H = 2.5;
+  const y0 = 0.62;
+  type P = [number, number, number];
+  const parts: { geo: THREE.BufferGeometry; color: THREE.ColorRepresentation; pos: P; rot?: P; scale?: P }[] = [
+    { geo: new RoundedBoxGeometry(L, H, Wd, 4, 0.38), color, pos: [0, y0 + H / 2, 0] },
+    { geo: new RoundedBoxGeometry(L - 0.5, 0.18, Wd + 0.03, 2, 0.06), color: stripe, pos: [0, y0 + 0.9, 0] },
+    { geo: new RoundedBoxGeometry(L - 0.5, 0.08, Wd + 0.03, 2, 0.03), color: 0xf2ead8, pos: [0, y0 + 1.1, 0] },
+    { geo: new RoundedBoxGeometry(L - 0.2, 0.12, Wd - 0.1, 2, 0.05), color: 0xd8d4cc, pos: [0, y0 + H + 0.02, 0] },
+    { geo: new THREE.BoxGeometry(0.9, 0.35, 0.8), color: 0xd8d4cc, pos: [-1.2, y0 + H + 0.25, 0] },
+    { geo: new THREE.BoxGeometry(0.5, 0.15, 0.5), color: 0x9a9aa4, pos: [1.4, y0 + H + 0.12, 0] },
+    { geo: new THREE.BoxGeometry(L - 0.6, 0.25, Wd - 0.3), color: 0x1a1a1e, pos: [0, y0 - 0.1, 0] },
+  ];
+  // Windows: dark glass in white frames on both sides (one lit, below), a round one at the back.
+  for (const s of [-1, 1]) {
+    for (const wx of [-1.9, 1.7]) {
+      parts.push({ geo: new THREE.BoxGeometry(1.1, 0.75, 0.06), color: 0xf2ead8, pos: [wx, y0 + 1.75, s * (Wd / 2 + 0.005)] });
+      parts.push({ geo: new THREE.BoxGeometry(0.95, 0.6, 0.07), color: 0x1e2430, pos: [wx, y0 + 1.75, s * (Wd / 2 + 0.01)] });
+    }
+    // A fender over the wheels, then the wheels.
+    parts.push({ geo: new THREE.CylinderGeometry(0.55, 0.55, 0.3, 14, 1, false, -Math.PI / 2, Math.PI), color: stripe, pos: [-0.35, 0.36, s * (Wd / 2 - 0.12)], rot: [-Math.PI / 2, 0, 0], scale: [1.7, 1, 1] });
+    for (const wx of [-0.75, 0.05]) {
+      parts.push({ geo: new THREE.CylinderGeometry(0.36, 0.36, 0.24, 14), color: 0x141416, pos: [wx, 0.36, s * (Wd / 2 - 0.16)], rot: [Math.PI / 2, 0, 0] });
+      parts.push({ geo: new THREE.CylinderGeometry(0.18, 0.18, 0.26, 10), color: 0xc8c8d0, pos: [wx, 0.36, s * (Wd / 2 - 0.16)], rot: [Math.PI / 2, 0, 0] });
+    }
+  }
+  // Door with a step and a striped awning (on the +Z side).
+  parts.push({ geo: new THREE.BoxGeometry(0.85, 1.9, 0.06), color: stripe, pos: [0.15, y0 + 1.0, Wd / 2 + 0.01] });
+  parts.push({ geo: new THREE.SphereGeometry(0.05, 6, 4), color: 0xd8c050, pos: [0.45, y0 + 1.0, Wd / 2 + 0.06] });
+  parts.push({ geo: new THREE.BoxGeometry(0.9, 0.12, 0.5), color: 0x5a5a60, pos: [0.15, y0 - 0.25, Wd / 2 + 0.25] });
+  for (let k = 0; k < 6; k++) parts.push({ geo: new THREE.BoxGeometry(0.3, 0.05, 0.9), color: k % 2 ? 0xf2ead8 : stripe, pos: [-0.6 + k * 0.3, y0 + 2.15, Wd / 2 + 0.42], rot: [0.25, 0, 0] });
+  parts.push({ geo: new THREE.CylinderGeometry(0.3, 0.3, 0.05, 16), color: 0xf2ead8, pos: [-L / 2 - 0.005, y0 + 1.7, 0], rot: [0, 0, Math.PI / 2] });
+  // Tow hitch: the A-frame, the coupler and the jack stand.
+  for (const s of [-1, 1]) parts.push({ geo: new THREE.BoxGeometry(1.5, 0.1, 0.1), color: 0x2a2a30, pos: [L / 2 + 0.55, y0 - 0.05, s * 0.42], rot: [0, s * 0.5, 0] });
+  parts.push({ geo: new THREE.CylinderGeometry(0.08, 0.08, 0.2, 8), color: 0x2a2a30, pos: [L / 2 + 1.2, y0, 0] });
+  parts.push({ geo: new THREE.CylinderGeometry(0.04, 0.04, y0, 6), color: 0x5a5a60, pos: [L / 2 + 1.05, y0 / 2, 0] });
+  parts.push({ geo: new THREE.CylinderGeometry(0.1, 0.1, 0.03, 8), color: 0x5a5a60, pos: [L / 2 + 1.05, 0.02, 0] });
+  const geo = mergeColoredParts(parts);
+  parts.forEach((p) => p.geo.dispose());
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0));
+  const mesh = new THREE.Mesh(geo, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() }));
+  mesh.position.set(x, 0, z);
+  mesh.quaternion.copy(q);
+  mesh.castShadow = true;
+  scene.add(mesh);
+  const m = new THREE.Matrix4().compose(V(x, 0, z), q, V(1, 1, 1));
+  glow.add(new THREE.BoxGeometry(0.95, 0.6, 0.02).translate(1.7, y0 + 1.75, Wd / 2 + 0.05).applyMatrix4(m), 0xffc070);
+  // The sign along the -Z side, reading from that side.
+  const tex = canvasTexture(512, 96, (g) => {
+    g.fillStyle = '#f2ead8';
+    g.fillRect(0, 0, 512, 96);
+    g.fillStyle = '#7a1a2a';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    fitText(g, sign, 256, 52, 470, (px) => `400 ${px}px "Lilita One", system-ui, sans-serif`, 64);
+  });
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.6), new THREE.MeshToonMaterial({ map: tex, gradientMap: toonGradient() }));
+  board.position.copy(V(-0.1, y0 + 2.2, -Wd / 2 - 0.02).applyMatrix4(m));
+  board.quaternion.copy(q).multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), Math.PI));
+  scene.add(board);
+  b.cuboidCollider(V(0, y0 + H / 2, 0).applyMatrix4(m), V(L / 2, H / 2 + 0.3, Wd / 2), q, 'metal');
+  b.cuboidCollider(V(-0.35, 0.35, 0).applyMatrix4(m), V(0.8, 0.35, Wd / 2 - 0.05), q, 'metal');
+}
+
+// --- The mansion kitchen's cabinet and its Scooby biscuit ------------------------------------------------
+
+/**
+ * Tall kitchen cabinet against a wall, facing +Z at yaw 0 (`at`: its base's center). Shot or stabbed, its
+ * two doors swing open (synchronized as "armario") and show the box of Scooby biscuits on the middle shelf;
+ * they close again after a while. The biscuit itself is a collectible (ScoobyBiscuit).
+ */
+export class KitchenCabinet {
+  /** Where the biscuit box stands, inside. */
+  readonly shelf: THREE.Vector3;
+  readonly quaternion: THREE.Quaternion;
+  private doors: { pivot: THREE.Group; sign: number }[] = [];
+  private openFor = 0;
+  private angle = 0;
+  private front: THREE.Vector3;
+  private trigger: () => void;
+
+  constructor(scene: THREE.Scene, b: MapBuilder, at: THREE.Vector3, yaw: number, props: PropBus, private creak: () => void) {
+    const W = 1.4;
+    const Dp = 0.6;
+    const H = 2.1;
+    this.quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0));
+    const m = new THREE.Matrix4().compose(at, this.quaternion, V(1, 1, 1));
+    const wood = surfaceMaterial('madeira');
+    const put = (geo: THREE.BufferGeometry, tint: number) => {
+      geo.applyMatrix4(m);
+      worldUVs(geo);
+      b.addGeometry(geo, wood, tint);
+      geo.dispose();
+    };
+    put(new THREE.BoxGeometry(W, H, 0.04).translate(0, H / 2, -Dp / 2 + 0.02), 0x4a3424);
+    for (const s of [-1, 1]) put(new THREE.BoxGeometry(0.05, H, Dp).translate(s * (W / 2 - 0.025), H / 2, 0), 0x6a4a34);
+    put(new THREE.BoxGeometry(W + 0.1, 0.08, Dp + 0.08).translate(0, H + 0.04, 0.02), 0x4a3424);
+    put(new THREE.BoxGeometry(W, 0.1, Dp).translate(0, 0.05, 0), 0x4a3424);
+    for (const y of [0.55, 1.05, 1.55]) put(new THREE.BoxGeometry(W - 0.1, 0.03, Dp - 0.06).translate(0, y, 0), 0x8a6a4a);
+    // Jars and tins on the other shelves.
+    for (const [tx, ty, c] of [[-0.45, 0.57, 0xb8402a], [-0.15, 0.57, 0x3a6a8a], [0.35, 1.57, 0xd8b04a], [-0.4, 1.57, 0x6a8a3a], [0.4, 0.57, 0xc8c0b0]] as const) {
+      put(new THREE.CylinderGeometry(0.08, 0.08, 0.22, 10).translate(tx, ty + 0.11, -0.05), c);
+    }
+    this.shelf = V(0, 1.065, -0.02).applyMatrix4(m);
+    this.front = V(0, 1.1, Dp / 2).applyMatrix4(m);
+    // Doors: hinged at the outer edges, swinging out toward the room (each one mesh: leaf, panel, knob).
+    const doorMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() });
+    for (const sign of [-1, 1]) {
+      const pivot = new THREE.Group();
+      const leaf = mergeColoredParts([
+        { geo: new THREE.BoxGeometry(W / 2 - 0.02, H - 0.16, 0.04), color: 0x7a5238, pos: [-sign * (W / 4), H / 2, 0] },
+        { geo: new THREE.BoxGeometry(W / 2 - 0.2, H - 0.5, 0.02), color: 0x6a4630, pos: [-sign * (W / 4), H / 2, 0.025] },
+        { geo: new THREE.SphereGeometry(0.035, 8, 6), color: 0xd8c070, pos: [-sign * (W / 2 - 0.1), H / 2, 0.05] },
+      ]);
+      pivot.add(new THREE.Mesh(leaf, doorMat));
+      pivot.position.copy(V(sign * (W / 2 - 0.01), 0, Dp / 2 + 0.02).applyMatrix4(m));
+      pivot.quaternion.copy(this.quaternion);
+      pivot.traverse((o) => (o.castShadow = true));
+      scene.add(pivot);
+      this.doors.push({ pivot, sign });
+    }
+    this.trigger = props.register('armario', () => {
+      if (this.openFor <= 0) this.creak();
+      this.openFor = 25;
+    });
+    b.cuboidCollider(V(0, H / 2, 0).applyMatrix4(m), V(W / 2, H / 2, Dp / 2), this.quaternion, 'wood', this.trigger);
+  }
+
+  get isOpen() {
+    return this.angle > 1.2;
+  }
+
+  /** A knife swing from `eye` along `fwd` that reaches the doors opens them; where, or null. */
+  stab(eye: THREE.Vector3, fwd: THREE.Vector3, reach: number): THREE.Vector3 | null {
+    const to = this.front.clone().sub(eye);
+    const d = to.length();
+    if (d > reach + 0.6 || to.dot(fwd) / d < 0.5) return null;
+    this.trigger();
+    return this.front.clone();
+  }
+
+  update(dt: number) {
+    const was = this.openFor > 0;
+    this.openFor = Math.max(0, this.openFor - dt);
+    if (was && this.openFor <= 0) this.creak();
+    this.angle += ((this.openFor > 0 ? 1.9 : 0) - this.angle) * Math.min(1, dt * (this.openFor > 0 ? 5 : 2.5));
+    for (const d of this.doors) d.pivot.quaternion.copy(this.quaternion).multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), d.sign * this.angle));
+  }
+}
+
+/**
+ * The box of Scooby biscuits on the cabinet's middle shelf: a collectible (PICKUPS kind "biscoito") that can
+ * only be taken while the cabinet is open. Taken, it pops; back, it's on the shelf again.
+ */
+export class ScoobyBiscuit {
+  readonly position: THREE.Vector3;
+  private box = new THREE.Group();
+  private taken = false;
+  private pop = 0;
+
+  constructor(scene: THREE.Scene, readonly id: string, feet: THREE.Vector3, private cabinet: KitchenCabinet) {
+    this.position = feet.clone();
+    const label = canvasTexture(256, 192, (g) => {
+      g.fillStyle = '#6ab04a';
+      g.fillRect(0, 0, 256, 192);
+      g.fillStyle = '#f2a83a';
+      g.beginPath();
+      g.ellipse(128, 96, 116, 70, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#5a2a6a';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.font = '400 52px "Lilita One", system-ui, sans-serif';
+      g.fillText('SCOOBY', 128, 76);
+      g.fillText('SNACKS', 128, 124);
+    });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.14), toon(0x6ab04a));
+    body.position.y = 0.21;
+    const front = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.4), new THREE.MeshToonMaterial({ map: label, gradientMap: toonGradient() }));
+    front.position.set(0, 0.21, 0.071);
+    // A couple of bone-shaped biscuits next to the box.
+    const bone = mergeColoredParts([
+      { geo: new THREE.CylinderGeometry(0.025, 0.025, 0.16, 8), color: 0xc8904a, pos: [0, 0, 0], rot: [0, 0, Math.PI / 2] },
+      ...[-1, 1].flatMap((s) => [-1, 1].map((t) => ({ geo: new THREE.SphereGeometry(0.03, 8, 6), color: 0xc8904a, pos: [s * 0.085, t * 0.022, 0] as [number, number, number] }))),
+    ]);
+    const boneMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() });
+    for (const [bx, rz] of [[0.3, 0.4], [0.36, -0.2]]) {
+      const piece = new THREE.Mesh(bone, boneMat);
+      piece.position.set(bx, 0.04, 0.04);
+      piece.rotation.z = rz;
+      this.box.add(piece);
+    }
+    this.box.add(body, front);
+    this.box.position.copy(cabinet.shelf);
+    this.box.quaternion.copy(cabinet.quaternion);
+    scene.add(this.box);
+  }
+
+  get available() {
+    return !this.taken && this.cabinet.isOpen;
+  }
+
+  take() {
+    this.taken = true;
+    this.pop = 1;
+  }
+
+  restore() {
+    this.taken = false;
+    this.box.visible = true;
+    this.box.scale.setScalar(1);
+  }
+
+  update(dt: number) {
+    if (!this.taken) return;
+    this.pop = Math.max(0, this.pop - dt * 4);
+    this.box.scale.setScalar(1 + (1 - this.pop) * 0.4);
+    this.box.visible = this.pop > 0;
+  }
+}
+
+const WITCH_SCOLDS = ['Ei! Sem tiros na minha cabana!', 'Quer virar sapo?', 'Olha os modos, mocinho!', 'Vou te transformar em abóbora!'];
+const WITCH_LINES: Record<PotionKind, string[]> = {
+  pato: ['Quá-quá-quá! Agora é só pato!', 'Hihihi! Patinhos explosivos!'],
+  veloz: ['Corre, corre, minhoca!', 'Hihi! Pernas pra que te quero!'],
+  lerdo: ['Devagar, tartaruguinha... hihihi!', 'Sem pressa, querido. Muita... sem... pressa.'],
+  critico: ['Cada tiro, uma desgraça!', 'Hehehe! Mira na cabeça... de todo mundo!'],
+  bebado: ['Saúde! Hic!', 'Hihi! Tá vendo duas bruxas?'],
+};
+
+/**
+ * The witch in her cabin, facing +Z at yaw 0 with the cauldron 1.2 m in front of her: a fat, hunched old
+ * crone with a warty green face, a crooked hooked nose, a pointed chin, stringy grey hair and a bent hat.
+ * She stirs the brew with a long ladle that dips into the cauldron, turns her head to watch whoever comes
+ * close, cackles a line for each potion drunk (drink(kind)) and scolds whoever shoots her ("bruxa").
+ */
+export class Witch {
+  private root = new THREE.Group();
+  private head = new THREE.Group();
+  private arm = new THREE.Group();
+  private bubble = new SpeechBubble(1.9);
+  private t = 0;
+  private shake = 0;
+  private scolds = 0;
+  private lines = 0;
+
+  constructor(scene: THREE.Scene, b: MapBuilder, readonly feet: THREE.Vector3, private yaw: number, props: PropBus, private sfx: { cackle(at: THREE.Vector3): void; scold(at: THREE.Vector3): void }) {
+    type P = [number, number, number];
+    type Part = { geo: THREE.BufferGeometry; color: THREE.ColorRepresentation; pos: P; rot?: P; scale?: P };
+    const robe = 0x3a2a48;
+    const robeDark = 0x2a1e36;
+    const skin = 0x7aa040;
+    const skinDark = 0x5a7a2a;
+    const tube = (pts: P[], r0: number, r1: number, color: number, segs = 10): Part => ({ geo: taperedTube(new THREE.CatmullRomCurve3(pts.map((p) => V(...p))), segs, 6, r0, r1), color, pos: [0, 0, 0] });
+    // Body: a fat robe, a hump, a tattered shawl, an apron, a belt, patches, pointed boots, the left
+    // hand on her hip.
+    const robeProfile = [[0.5, 0], [0.57, 0.08], [0.62, 0.3], [0.65, 0.55], [0.66, 0.75], [0.6, 0.95], [0.52, 1.1], [0.44, 1.24], [0.36, 1.36], [0.22, 1.46], [0.12, 1.5], [0, 1.51]];
+    const shawlProfile = [[0.5, 1.1], [0.55, 1.18], [0.48, 1.3], [0.36, 1.42], [0.22, 1.5], [0.13, 1.54]];
+    const tatters: Part[] = [];
+    for (let k = 0; k < 14; k++) {
+      const a = (k / 14) * Math.PI * 2;
+      tatters.push({ geo: new THREE.ConeGeometry(0.06, 0.16, 4), color: 0x3a3a2e, pos: [Math.sin(a) * 0.53, 1.06, Math.cos(a) * 0.53], rot: [Math.PI, a, 0] });
+    }
+    const body = mergeColoredParts([
+      { geo: new THREE.LatheGeometry(robeProfile.map(([r, y]) => new THREE.Vector2(r, y)), 28), color: robe, pos: [0, 0, 0] },
+      { geo: new THREE.SphereGeometry(0.34, 18, 14), color: robe, pos: [0, 1.3, -0.24], scale: [1.15, 0.85, 0.9] },
+      { geo: new THREE.LatheGeometry(shawlProfile.map(([r, y]) => new THREE.Vector2(r, y)), 28), color: 0x3a3a2e, pos: [0, 0, 0] },
+      ...tatters,
+      { geo: new THREE.BoxGeometry(0.52, 0.72, 0.03), color: 0x6a6458, pos: [0, 0.55, 0.64], rot: [-0.06, 0, 0] },
+      { geo: new THREE.BoxGeometry(0.12, 0.1, 0.02), color: 0x4a2a1a, pos: [0.12, 0.42, 0.665], rot: [-0.06, 0, 0.3] },
+      { geo: new THREE.TorusGeometry(0.63, 0.04, 6, 32), color: 0x5a3a22, pos: [0, 0.86, 0], rot: [Math.PI / 2, 0, 0] },
+      { geo: new THREE.BoxGeometry(0.12, 0.1, 0.03), color: 0xd8b040, pos: [0, 0.86, 0.66] },
+      { geo: new THREE.BoxGeometry(0.2, 0.18, 0.02), color: 0x2a4a3a, pos: [-0.42, 0.42, 0.47], rot: [0, -0.75, 0.2] },
+      { geo: new THREE.BoxGeometry(0.16, 0.2, 0.02), color: 0x6a4a2a, pos: [0.5, 0.25, -0.38], rot: [0, 2.2, -0.1] },
+      ...[-1, 1].flatMap((s) => [
+        { geo: new THREE.ConeGeometry(0.08, 0.34, 8), color: 0x1a1420, pos: [s * 0.17, 0.06, 0.6] as P, rot: [Math.PI / 2 - 0.15, 0, 0] as P, scale: [1, 1, 0.6] as P },
+        { geo: new THREE.TorusGeometry(0.04, 0.012, 4, 8, Math.PI), color: 0x1a1420, pos: [s * 0.17, 0.12, 0.78] as P, rot: [0, Math.PI / 2, 0] as P },
+      ]),
+      { geo: new THREE.CylinderGeometry(0.08, 0.1, 0.16, 12), color: skin, pos: [0, 1.56, 0.04] },
+      // Left arm, hand on the hip (sleeve, then the green hand with knobbly fingers).
+      tube([[0.4, 1.34, 0], [0.6, 1.08, 0.02], [0.56, 0.9, 0.2]], 0.1, 0.08, robe),
+      { geo: new THREE.ConeGeometry(0.13, 0.22, 10, 1, true), color: robeDark, pos: [0.57, 0.95, 0.15], rot: [-0.9, 0, 0.4] },
+      { geo: new THREE.SphereGeometry(0.065, 10, 8), color: skin, pos: [0.52, 0.86, 0.28], scale: [1, 0.8, 1.2] },
+      ...[0, 1, 2].map((k) => ({ geo: new THREE.CylinderGeometry(0.014, 0.01, 0.1, 5), color: skin, pos: [0.47 + k * 0.03, 0.83, 0.33] as P, rot: [1.2, 0, 0.3] as P })),
+    ]);
+    const mat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() });
+    const bodyMesh = new THREE.Mesh(body, mat);
+    bodyMesh.castShadow = true;
+
+    // Head: warty green face, hooked crooked nose, jutting pointed chin, sunken mismatched eyes, a
+    // unibrow, a crooked toothy grin, pointed ears, stringy grey hair and a bent hat. Built around (0,0,0).
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const hair: Part[] = [];
+    for (let k = 0; k < 40; k++) {
+      // Sides and back (her face looks toward +Z), from under the brim down past the shoulders.
+      const a = Math.PI * 0.32 + (k / 39) * Math.PI * 1.36 + (rnd() - 0.5) * 0.08;
+      const s = Math.sin(a);
+      const c = Math.cos(a);
+      const len = 0.42 + rnd() * 0.3;
+      const flare = 0.24 + rnd() * 0.12;
+      const wave = (rnd() - 0.5) * 0.1;
+      hair.push(tube([[s * 0.19, 0.09, c * 0.19], [s * 0.25 + wave, -0.08, c * 0.25], [s * flare - wave, -0.25 - len * 0.4, c * flare], [s * (flare + 0.06) + wave, -0.2 - len, c * (flare + 0.06)]], 0.026, 0.006, k % 3 === 0 ? 0x3a3432 : k % 3 === 1 ? 0x8a8680 : 0x6a6660, 8));
+    }
+    // A few frizzy strands sticking out at the sides.
+    for (const s of [-1, 1]) for (let k = 0; k < 3; k++) hair.push(tube([[s * 0.19, 0.06 - k * 0.04, 0.05], [s * (0.3 + k * 0.03), 0.02 - k * 0.05, 0.08], [s * (0.38 + k * 0.04), -0.04 - k * 0.06, 0.04]], 0.014, 0.004, 0x8a8680, 5));
+    const warts: Part[] = ([[0.025, -0.03, 0.33, 0.022], [0.12, -0.06, 0.15, 0.026], [-0.06, -0.25, 0.15, 0.02], [-0.13, 0.08, 0.13, 0.016]] as const).map(([x, y, z, r]) => ({ geo: new THREE.SphereGeometry(r, 8, 6), color: skinDark, pos: [x, y, z] as P }));
+    const brim = new THREE.CylinderGeometry(0.46, 0.46, 0.025, 32, 2);
+    const bp = brim.getAttribute('position') as THREE.BufferAttribute;
+    for (let i = 0; i < bp.count; i++) {
+      const x = bp.getX(i);
+      const z = bp.getZ(i);
+      const r = Math.hypot(x, z);
+      if (r > 0.3) bp.setY(i, bp.getY(i) - (r - 0.3) * 0.35 + Math.sin(Math.atan2(z, x) * 3) * 0.025);
+    }
+    brim.computeVertexNormals();
+    const face = mergeColoredParts([
+      { geo: new THREE.SphereGeometry(0.21, 22, 18), color: skin, pos: [0, 0, 0], scale: [1, 1.08, 0.95] },
+      { geo: new THREE.SphereGeometry(0.14, 16, 12), color: skin, pos: [0, -0.13, 0.08], scale: [0.85, 0.7, 0.95] },
+      { geo: new THREE.ConeGeometry(0.045, 0.11, 10), color: skin, pos: [0, -0.2, 0.16], rot: [1.77, 0, 0] },
+      tube([[0, 0.03, 0.17], [0, 0.0, 0.27], [0.01, -0.06, 0.34], [0.025, -0.13, 0.33]], 0.055, 0.014, skin, 12),
+      ...warts,
+      ...[-1, 1].flatMap((s) => [
+        { geo: new THREE.SphereGeometry(0.055, 12, 8), color: 0x3a4a1a, pos: [s * 0.085, 0.05, 0.15] as P, scale: [1.1, 0.8, 0.5] as P },
+        { geo: new THREE.SphereGeometry(s < 0 ? 0.04 : 0.032, 10, 8), color: 0xe0d860, pos: [s * 0.085, 0.05, 0.17] as P },
+        { geo: new THREE.SphereGeometry(0.014, 6, 4), color: 0x8a1010, pos: [s * 0.08, 0.05, 0.205] as P },
+        { geo: new THREE.ConeGeometry(0.05, 0.14, 8), color: skin, pos: [s * 0.22, 0.03, -0.01] as P, rot: [0, 0, -s * 1.3] as P },
+        { geo: new THREE.BoxGeometry(0.07, 0.008, 0.01), color: skinDark, pos: [s * 0.1, -0.06, 0.18] as P, rot: [0, s * 0.4, s * 0.5] as P },
+      ]),
+      { geo: new THREE.BoxGeometry(0.2, 0.025, 0.03), color: 0x2a2a28, pos: [0, 0.11, 0.17], rot: [0, 0, 0.08] },
+      ...[0, 1, 2].map((k) => ({ geo: new THREE.BoxGeometry(0.14 - k * 0.02, 0.006, 0.01), color: skinDark, pos: [0, 0.15 + k * 0.025, 0.165 - k * 0.01] as P })),
+      { geo: new THREE.SphereGeometry(0.07, 10, 6), color: 0x2a0a0a, pos: [0, -0.115, 0.165], scale: [1.2, 0.3, 0.5] },
+      { geo: new THREE.BoxGeometry(0.022, 0.04, 0.012), color: 0xd8c860, pos: [-0.028, -0.105, 0.19], rot: [0, 0, 0.15] },
+      { geo: new THREE.BoxGeometry(0.02, 0.055, 0.012), color: 0xc8b850, pos: [0.034, -0.12, 0.188], rot: [0, 0, -0.25] },
+      ...hair,
+      // The hat: a floppy wavy brim, a crooked cone in three bends with a curled tip, a band and buckle.
+      { geo: brim, color: 0x1a1420, pos: [0, 0.15, 0] },
+      { geo: new THREE.CylinderGeometry(0.14, 0.21, 0.3, 20), color: 0x1a1420, pos: [0, 0.31, -0.01], rot: [-0.08, 0, 0] },
+      { geo: new THREE.CylinderGeometry(0.08, 0.14, 0.28, 16), color: 0x1a1420, pos: [0.03, 0.57, -0.04], rot: [-0.15, 0, -0.22] },
+      { geo: new THREE.ConeGeometry(0.08, 0.3, 14), color: 0x1a1420, pos: [0.12, 0.78, -0.08], rot: [-0.2, 0, -0.65] },
+      { geo: new THREE.SphereGeometry(0.03, 8, 6), color: 0x1a1420, pos: [0.24, 0.86, -0.1] },
+      { geo: new THREE.TorusGeometry(0.205, 0.035, 6, 24), color: 0x6a3a8a, pos: [0, 0.2, -0.01], rot: [Math.PI / 2 - 0.08, 0, 0] },
+      { geo: new THREE.BoxGeometry(0.08, 0.07, 0.015), color: 0xd8b040, pos: [0, 0.2, 0.215] },
+      { geo: new THREE.BoxGeometry(0.06, 0.06, 0.01), color: 0x4a6a3a, pos: [-0.12, 0.33, 0.14], rot: [0, -0.5, 0] },
+    ]);
+    const faceMesh = new THREE.Mesh(face, mat);
+    faceMesh.castShadow = true;
+    this.head.add(faceMesh);
+    this.head.position.set(0, 1.74, 0.06);
+
+    // The stirring arm, from the right shoulder: sleeve, bell cuff, knobbly hand holding the ladle over the
+    // cauldron's rim; the ladle dips into the brew (the cauldron's center is 1.2 m in front of her).
+    const shoulder = V(-0.4, 1.36, 0.05);
+    const hand: P = [0.14, 0.06, 0.55];
+    const bowl: P = [0.36, -0.2, 1.08];
+    const ladleDir = V(bowl[0] - hand[0], bowl[1] - hand[1], bowl[2] - hand[2]);
+    const ladleLen = ladleDir.length();
+    const ladleMid: P = [(bowl[0] + hand[0]) / 2, (bowl[1] + hand[1]) / 2, (bowl[2] + hand[2]) / 2];
+    const ladleRot = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), ladleDir.normalize()));
+    const arm = mergeColoredParts([
+      tube([[0, 0, 0], [0.06, -0.2, 0.25], [0.12, -0.02, 0.48]], 0.1, 0.075, robe),
+      { geo: new THREE.ConeGeometry(0.12, 0.2, 10, 1, true), color: robeDark, pos: [0.12, 0.0, 0.47], rot: [-Math.PI / 2 + 0.4, 0, 0] },
+      { geo: new THREE.SphereGeometry(0.065, 10, 8), color: skin, pos: hand, scale: [1, 0.9, 1.2] },
+      ...[0, 1, 2].map((k) => ({ geo: new THREE.TorusGeometry(0.035, 0.014, 4, 8, Math.PI * 1.3), color: skin, pos: [hand[0] + 0.03, hand[1] - 0.02 - k * 0.03, hand[2] + 0.03] as P, rot: [0, Math.PI / 2, 0.4] as P })),
+      { geo: new THREE.CylinderGeometry(0.016, 0.016, ladleLen + 0.12, 6), color: 0x5a3a22, pos: ladleMid, rot: [ladleRot.x, ladleRot.y, ladleRot.z] },
+      { geo: new THREE.SphereGeometry(0.08, 12, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), color: 0x4a4a52, pos: bowl },
+    ]);
+    const armMesh = new THREE.Mesh(arm, mat);
+    armMesh.castShadow = true;
+    this.arm.add(armMesh);
+    this.arm.position.copy(shoulder);
+    this.bubble.sprite.position.set(0, 2.6, 0);
+    this.root.add(bodyMesh, this.head, this.arm, this.bubble.sprite);
+    this.root.position.copy(feet);
+    this.root.rotation.y = yaw;
+    scene.add(this.root);
+    const scold = props.register('bruxa', () => {
+      this.shake = 0.6;
+      this.bubble.say(WITCH_SCOLDS[this.scolds++ % WITCH_SCOLDS.length], 2.8);
+      this.sfx.scold(this.mouth());
+    });
+    b.cuboidCollider(V(feet.x, feet.y + 0.8, feet.z), V(0.5, 0.8, 0.5), NO_ROT, 'wood', scold);
+    b.ballCollider(V(feet.x, feet.y + 1.8, feet.z), 0.3, 'wood', scold);
+  }
+
+  private mouth() {
+    return this.root.localToWorld(V(0, 1.62, 0.2));
+  }
+
+  /** Someone drank her potion (`kind`): she cackles a line about it. */
+  drink(kind: PotionKind) {
+    this.shake = 0.4;
+    const lines = WITCH_LINES[kind];
+    this.bubble.say(lines[this.lines++ % lines.length], 3.2);
+    this.sfx.cackle(this.mouth());
+  }
+
+  update(dt: number, listener: THREE.Vector3) {
+    this.t += dt;
+    this.bubble.update(dt);
+    this.shake = Math.max(0, this.shake - dt);
+    // Stirring: the ladle's bowl circles inside the cauldron.
+    this.arm.rotation.set(Math.cos(this.t * 2.2) * 0.05, Math.sin(this.t * 2.2) * 0.13, 0);
+    // Head: toward whoever is near (within her neck's reach), otherwise down at the brew.
+    const dx = listener.x - this.feet.x;
+    const dz = listener.z - this.feet.z;
+    let want = 0;
+    let tilt = 0.3;
+    if (dx * dx + dz * dz < 64 && Math.abs(listener.y - this.feet.y) < 3) {
+      const d = Math.atan2(dx, dz) - this.yaw;
+      want = THREE.MathUtils.clamp(Math.atan2(Math.sin(d), Math.cos(d)), -1.1, 1.1);
+      tilt = -0.05;
+    }
+    this.head.rotation.y += (want - this.head.rotation.y) * Math.min(1, dt * 4);
+    this.head.rotation.x += (tilt - this.head.rotation.x) * Math.min(1, dt * 3);
+    this.head.rotation.z = Math.sin(this.t * 30) * this.shake * 0.15 + Math.sin(this.t * 1.1) * 0.04;
+    this.root.position.y = this.feet.y + Math.abs(Math.sin(this.t * 2.2)) * 0.012;
   }
 }

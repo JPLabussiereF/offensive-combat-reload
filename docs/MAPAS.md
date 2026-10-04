@@ -39,6 +39,8 @@ Toda superfície estática do mapa usa uma das **superfícies da biblioteca** ([
 | `pedra` | lajotas de jardim, caminhos, pedestais | 2,4 m | concreto |
 | `folhagem` | copas de árvore, arbustos, folhas de bambu | 1,1 m | grama |
 | `casca` | troncos e galhos | 0,9 m | madeira |
+| `feno` | fardos de feno, palha | 0,8 m | grama |
+| `tecido` | sofás, colchões, cobertores | 0,5 m | madeira |
 | `pintura` | cor lisa, sem textura | — | concreto |
 
 Hoje as texturas são **procedurais**, pintadas em canvas no carregamento ([client/world/textures.ts](../client/world/textures.ts)), como placeholder no estilo "pintado à mão". Elas são claras e quase sem cor de propósito: o tint dá o matiz.
@@ -132,11 +134,21 @@ Coisas pequenas que tiro e faca acertam sem ter colisor próprio ficam em `GameM
 - `deadTree` (árvore seca com galhos em garra), `tombstone` + `epitaph` (lápides com epitáfio), `signBoard`, `hedge` (cerca viva), `gateArch` (portão com pilares e placa), `slabWithHoles` (laje com buracos, usada no chão com as escadas do esgoto).
 - `ironFence` e `blocker`: o colisor só para jogadores e granadas. As balas passam entre as grades, e a malha dos bots continua desviando delas.
 - Animados e sincronizados: `GraveGhost` ("fantasma"), `Bell` ("sinocapela", "sinoparque"), `Pumpkins` ("abobora:N"), `LampPosts` ("poste:N"), `Cauldron` ("caldeirao"), `Scarecrows` ("espantalho:N"), `TargetRow` ("alvo:N"), `GiantPumpkin` ("aboboragigante"), `GrandfatherClock` ("relogio"), `GlowShrooms` ("cogumelo:N"). Eles contam o que aconteceu (`activations`, `rings`, `stirs`, `clears`, `laughs`, `hour`, `lit(i)`), que é a base para os segredos do documento de design.
-- Visuais: `FerrisWheel`, `Bonfire`, `Bats`, `SpeechBubble` (balão de fala sobre um objeto).
+- Visuais: `FerrisWheel`, `Bonfire`, `Bats`, `SpeechBubble` (balão de fala sobre um objeto), `bumperCarGeometry` (carrinho de bate-bate), `circusTrailer` (trailer de circo com placa).
+- `LightPool`: um número fixo de luzes pontuais (a Vila usa 10) vai para os pontos de luz (`LightSpot`: velas, lampiões, lareira) mais próximos da câmera, com fade. Os shaders nunca recompilam e o custo não cresce com o número de velas. Lampiões apagados a tiro saem da lista.
+- `GiantRat`: o rato da rua sem saída do esgoto. Conta os nossos acertos (tiro = 1, facada = `RAT.stab`) e avisa quando o derrubamos (`GameMap.rewards.ratDown`). Offline o jogo decide na hora; online, o servidor confere (`RATS` em [shared/maps.ts](../shared/maps.ts): vivo e o atirador perto) e dá a humanidade (`RAT` em [shared/constants.ts](../shared/constants.ts): +50 de vida máxima até morrer). `GameMap.rats` recebe a morte e a volta.
+- `Witch` ("bruxa"): a bruxa da cabana. Mexe o caldeirão, olha para quem chega, dá bronca se levar tiro e gargalha quando alguém bebe a poção. A poção é `GameMap.potion` (`MapPotion`): perto dela a tecla de oprimir mostra "Beber Poção". O efeito é sorteado (`POTION` em [shared/constants.ts](../shared/constants.ts); online pelo servidor, que também aplica o crítico no dano): pato (granadas de pato até morrer, `duck` na mensagem `grenade`), pressa, lerdeza, crítico ou bêbado, os quatro últimos por 60 s. A bruxa fica em `WITCHES` ([shared/maps.ts](../shared/maps.ts)).
+- `KitchenCabinet` ("armario") e `ScoobyBiscuit`: o armário abre com tiro ou facada, e o biscoito é um coletável (`PICKUPS` com `kind: 'biscoito'`, regras em `BISCUIT`) que só pode ser pego com o armário aberto. Ele enche a vida.
+- Faca sem colisor próprio: `GameMap.critters.stab` do mapa tenta o rato, o armário e as abóboras (`Pumpkins.stab`).
+- O `PropBus` diz quem disparou cada piada (`PropTrigger`: `local` e a posição de quem atirou). O fantasma usa isso para sair virado para o atirador, e a barraca de tiro, para dar a mira afiada (`GameMap.rewards.aimBonus`) só a quem derrubou o último alvo.
 
 Os ids das piadas precisam ser **minúsculos e sem acento** (`/^[a-z]{1,16}(:\d{1,3})?$/`). O servidor descarta os outros.
 
 A Vila é noturna: devolve `atmosphere` (lua azulada, névoa roxa) e `shadowExtent`, porque tem 120 × 110 m e a sombra padrão não cobre o mapa todo. Ela usa células de 60 m no `MapBuilder`.
+
+### Móveis e objetos
+
+[client/world/furniture.ts](../client/world/furniture.ts) tem os objetos feitos de várias peças coloridas que vão para os lotes estáticos (sem chamada de desenho extra), cada um com um colisor simples: `crate` (caixote com quinas e travessas), `hayBale` (fardo de feno amarrado), `barrel` (barril com aros), `bench` (banco de praça), `sofa`, `table`, `chair`, `candle` (vela com cera, pavio e castiçal), `bed`, `coffin`, `pew` (banco de igreja), `suitOfArmor`, `toyChest`, `rockingHorse`, `bookshelf` (estante com livros de alturas, espessuras e cores variadas) e `potion` (frascos com o líquido aceso). `Place` monta qualquer objeto novo no referencial dele (x para a direita, z para a frente), já girado e posicionado.
 
 ### Mapas por sessão
 

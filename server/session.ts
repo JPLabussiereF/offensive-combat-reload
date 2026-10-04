@@ -9,11 +9,11 @@
 // compensation, and interest culling. Movement is trusted; hits are validated against server positions
 // with a lag tolerance.
 import type { ServerWebSocket } from 'bun';
-import { CHERRY, HEALTH, HUMILIATION, KOI, SCORE } from '@shared/constants';
+import { BISCUIT, CHERRY, HEALTH, HUMILIATION, KOI, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
 import { clampExplosionDamage, computeDamage, explosionDamage, GRENADES, grenadeLevel, HIT_REGIONS, LETHAL_DAMAGE, minPenetrationKeep, WEAPONS, type HitRegion } from '@shared/weapons';
 import { ACCOUNT_XP } from '@shared/accountLevel';
 import { bodyStats } from '@shared/appearance';
-import { FISH, PICKUPS, type MapId } from '@shared/maps';
+import { FISH, PICKUPS, RATS, WITCHES, type MapId, type PickupKind } from '@shared/maps';
 import { knifeData, levelInfo, rifleData, sanitizeLoadout, weaponOfKill, type Loadout } from '@shared/progression';
 import { accountLevelOf, addAccountXp, addTime, addWeaponXp, equip, equippedOf, progressMsg, type LevelUp, type LiveAccount } from './progress';
 import { NET, ONLINE_GRENADE_LEVEL, sanitizeChat, type Award, type ClientMsg, type CorpseInfo, type KillKind, type NetState, type PlayerInfo, type ServerMsg, type Sex, type SessionInfo, type Vec3 } from '@shared/protocol';
@@ -69,6 +69,11 @@ interface SPlayer {
   dance: { corpse: number; since: number } | null;
   /** Server time when the cherry's extra health runs out (0: none). */
   boostUntil: number;
+  /** Carries a giant rat's humanity: extra max health until death. */
+  humanity: boolean;
+  /** The witch's potion being felt (until: server time) and when the next one can be drunk. */
+  potion: { kind: PotionKind; until: number } | null;
+  potionReady: number;
 }
 
 interface Corpse extends CorpseInfo {
@@ -91,9 +96,11 @@ export class Session {
   private corpses = new Map<number, Corpse>();
   private nextCorpse = 1;
   /** The map's collectibles: where they are and when each is there again (0: now). */
-  private pickups = new Map<string, { p: Vec3; ready: number }>();
+  private pickups = new Map<string, { kind: PickupKind; p: Vec3; ready: number }>();
   /** The map's fish: their loop (x, z, radius), when each is back (0: alive) and whether it's golden. */
   private fish = new Map<string, { loop: [number, number, number]; ready: number; golden: boolean }>();
+  /** The map's giant rats: where each stands and when it's back (0: alive). */
+  private rats = new Map<string, { p: Vec3; ready: number }>();
   private timer: Timer;
   private scoreTimer = 0;
   /** Bun pub/sub topic every player of this session is subscribed to. */
@@ -110,7 +117,8 @@ export class Session {
     private publish: (topic: string, data: string) => void,
   ) {
     this.topic = `sessao:${id}`;
-    for (const k of PICKUPS[map] ?? []) this.pickups.set(k.id, { p: k.p, ready: 0 });
+    for (const k of PICKUPS[map] ?? []) this.pickups.set(k.id, { kind: k.kind, p: k.p, ready: 0 });
+    for (const r of RATS[map] ?? []) this.rats.set(r.id, { p: r.p, ready: 0 });
     for (const f of FISH[map] ?? []) this.fish.set(f.id, { loop: f.loop, ready: 0, golden: false });
     this.timer = setInterval(() => this.tick(), 1000 / NET.tickRate);
   }
@@ -188,6 +196,9 @@ export class Session {
       grenades: new Map(),
       dance: null,
       boostUntil: 0,
+      humanity: false,
+      potion: null,
+      potionReady: 0,
     };
     this.players.set(p.id, p);
     conn.session = this;
@@ -201,6 +212,7 @@ export class Session {
       time: this.now(),
       pickups: [...this.pickups].filter(([, k]) => k.ready > this.now()).map(([id, k]) => ({ id, ready: k.ready })),
       fish: [...this.fish].filter(([, f]) => f.ready > this.now() || f.golden).map(([id, f]) => ({ id, ready: f.ready > this.now() ? f.ready : 0, golden: f.golden })),
+      rats: [...this.rats].filter(([, r]) => r.ready > this.now()).map(([id, r]) => ({ id, ready: r.ready })),
     });
     this.broadcast({ t: 'playerJoined', player: this.playerInfo(p, true) }, p.id);
     this.onChange();
@@ -255,6 +267,10 @@ export class Session {
         return this.onPickup(p, msg.id, now);
       case 'fish':
         return this.onFish(p, msg.id, now);
+      case 'rat':
+        return this.onRat(p, msg.id, now);
+      case 'potion':
+        return this.onPotion(p, now);
       case 'chat': {
         const text = sanitizeChat(msg.text);
         if (!text) return;
@@ -281,7 +297,8 @@ export class Session {
         const fuse = mine ? 0 : Math.max(0, Math.min(impact ? GRENADE.tempoMaximoVoo : GRENADE.pavio, msg.fuse));
         const speed = Math.hypot(msg.v[0], msg.v[1], msg.v[2]);
         p.grenades.set(msg.id, { thrownAt: now, fuse, impact, mine, origin: msg.p, speed });
-        this.broadcast({ t: 'grenade', owner: p.id, id: msg.id, p: msg.p, v: msg.v, fuse, impact, ...(mine ? { mine } : {}) }, p.id);
+        // A duck (the witch's potion) is only how it looks and sounds.
+        this.broadcast({ t: 'grenade', owner: p.id, id: msg.id, p: msg.p, v: msg.v, fuse, impact, ...(mine ? { mine } : {}), ...(!mine && msg.duck === true ? { duck: true } : {}) }, p.id);
         return;
       }
       case 'boom':
@@ -319,20 +336,52 @@ export class Session {
     }
   }
 
-  /** Max health right now: the body's, plus the cherry's while it lasts. */
+  /** Max health right now: the body's, plus the cherry's while it lasts and a rat's humanity. */
   private maxHealth(p: SPlayer, now = this.now()) {
-    return p.body.maxHealth + (p.boostUntil > now ? CHERRY.extraHealth : 0);
+    return p.body.maxHealth + (p.boostUntil > now ? CHERRY.extraHealth : 0) + (p.humanity ? RAT.extraHealth : 0);
   }
 
   private onPickup(p: SPlayer, id: unknown, now: number) {
     const k = typeof id === 'string' ? this.pickups.get(id) : undefined;
     if (!k || !p.alive || now < k.ready) return;
     const [x, y, z] = p.state.p;
-    if (Math.hypot(x - k.p[0], z - k.p[2]) > CHERRY.radius + PICKUP_SLACK || Math.abs(y - k.p[1]) > 2) return;
+    const radius = k.kind === 'biscoito' ? BISCUIT.radius : CHERRY.radius;
+    if (Math.hypot(x - k.p[0], z - k.p[2]) > radius + PICKUP_SLACK || Math.abs(y - k.p[1]) > 2) return;
+    if (k.kind === 'biscoito') {
+      k.ready = now + BISCUIT.respawn * 1000;
+      p.health = this.maxHealth(p, now);
+      this.broadcast({ t: 'pickup', id: id as string, by: p.id, ready: k.ready, until: 0 });
+      return;
+    }
     k.ready = now + CHERRY.respawn * 1000;
     p.boostUntil = now + CHERRY.duration * 1000;
     p.health = Math.min(this.maxHealth(p, now), p.health + CHERRY.extraHealth);
     this.broadcast({ t: 'pickup', id: id as string, by: p.id, ready: k.ready, until: p.boostUntil });
+  }
+
+  /** The witch's potion: near her and not too soon after the last one; the effect is drawn here. */
+  private onPotion(p: SPlayer, now: number) {
+    const witch = WITCHES[this.map];
+    if (!witch || !p.alive || now < p.potionReady) return;
+    if (Math.hypot(p.state.p[0] - witch[0], p.state.p[2] - witch[2]) > POTION.radius + PICKUP_SLACK || Math.abs(p.state.p[1] - witch[1]) > 2) return;
+    const kind = POTION.kinds[Math.floor(Math.random() * POTION.kinds.length)];
+    const until = kind === 'pato' ? 0 : now + POTION.duration * 1000;
+    p.potionReady = now + POTION.cooldown * 1000;
+    p.potion = kind === 'pato' ? null : { kind, until };
+    this.broadcast({ t: 'potion', by: p.id, kind, until });
+  }
+
+  /** A giant rat brought down: alive and near the killer. Its humanity raises their max health until they die. */
+  private onRat(p: SPlayer, id: unknown, now: number) {
+    const r = typeof id === 'string' ? this.rats.get(id) : undefined;
+    if (!r || !p.alive || now < r.ready) return;
+    if (dist3(p.state.p, r.p) > RAT.range) return;
+    r.ready = now + RAT.respawn * 1000;
+    if (!p.humanity) {
+      p.humanity = true;
+      p.health = Math.min(this.maxHealth(p, now), p.health + RAT.extraHealth);
+    }
+    this.broadcast({ t: 'rat', id: id as string, by: p.id, ready: r.ready });
   }
 
   /**
@@ -372,7 +421,9 @@ export class Session {
     if (dist > SCORE.longShotDistance) awards.push({ label: 'longShot', value: SCORE.longShot });
     // Went through wood/glass: never less than the weapon allows, never more than a clean hit.
     const keep = finite(reportedKeep) ? Math.min(1, Math.max(PEN_MIN_KEEP, reportedKeep!)) : 1;
-    this.damage(target, p, computeDamage(rifle, dist, region, keep), kind, eye(p), awards);
+    // The critical potion: every bullet does a head's damage (the hit still counts where it landed).
+    const crit = p.potion?.kind === 'critico' && p.potion.until > now;
+    this.damage(target, p, computeDamage(rifle, dist, crit ? 'cabeca' : region, keep), kind, eye(p), awards);
   }
 
   private onStab(p: SPlayer, targetId: number, behind: boolean, now: number) {
@@ -463,6 +514,9 @@ export class Session {
     victim.alive = false;
     victim.health = 0;
     victim.boostUntil = 0;
+    victim.humanity = false;
+    victim.potion = null;
+    victim.potionReady = 0;
     victim.deaths++;
     victim.deadAt = now;
     victim.grenades.clear();

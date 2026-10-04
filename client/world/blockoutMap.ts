@@ -3,9 +3,11 @@
 // truck. South: fenced yards, empty pool (2 m drop), tree house, 7 m watchtower and a doghouse loaded from
 // glTF (public/models/casinha_cachorro.glb) as an example of the Blender pipeline.
 import * as THREE from 'three';
+import { fitText } from './canvasText';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { PALETTE, toon, toonGradient } from '../render/materials';
 import type { Atmosphere } from '../render/renderer';
+import type { PotionKind } from '@shared/constants';
 import { WORLD_GROUPS, type Physics } from './physics';
 import { MapBuilder, stairRun, type Opening, type WallOpening } from './mapBuilder';
 import { addGltfToMap, gltfLoader } from './gltfMap';
@@ -67,6 +69,29 @@ export interface MapFish {
 }
 
 /** A collectible lying on the map (the cherry): the game decides who takes it and what it does; the map shows it. */
+export interface MapRats {
+  /** Dead now (an animation), back at `ready` (game clock). */
+  kill(id: string, ready: number): void;
+  /** As it is right now (joining a session): dead until `ready`. */
+  set(id: string, ready: number): void;
+}
+
+/** Something to drink by pressing the taunt key nearby (the witch's potion): the game applies the effect. */
+export interface MapPotion {
+  /** Feet position to stand near. */
+  at: THREE.Vector3;
+  radius: number;
+  /** Someone drank it (`kind`: what it did): the map reacts (the witch cackles). */
+  drink(kind: PotionKind): void;
+}
+
+export interface MapRewards {
+  /** We brought a giant rat down (our hits): the game claims its humanity (online, from the server). */
+  ratDown: ((id: string) => void) | null;
+  /** We knocked down the last target of a shooting gallery: the sharp-aim bonus. */
+  aimBonus: (() => void) | null;
+}
+
 export interface MapPickup {
   readonly id: string;
   /** Feet position it's taken from. */
@@ -101,6 +126,12 @@ export interface GameMap {
   shadowExtent?: number;
   critters?: MapCritters;
   fish?: MapFish;
+  /** Giant rats (RATS in shared/maps.ts): the game says when one dies and when it's back. */
+  rats?: MapRats;
+  /** The witch's potion (grenades become rubber ducks until death). */
+  potion?: MapPotion;
+  /** Rewards the map hands out; the game fills in what each one does (see main.ts). */
+  rewards?: MapRewards;
   /** Its own sky and light (default: the sunny day of createRenderContext). */
   atmosphere?: Atmosphere;
 }
@@ -344,10 +375,7 @@ export async function buildBlockoutMap(physics: Physics, scene: THREE.Scene, ren
     g.fillStyle = fg;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    lines.forEach((line, i) => {
-      g.font = i === 0 ? '400 44px "Lilita One", system-ui, sans-serif' : '800 22px Nunito, system-ui, sans-serif';
-      g.fillText(line, 128, i === 0 ? 52 : 92 + (i - 1) * 28);
-    });
+    lines.forEach((line, i) => fitText(g, line, 128, i === 0 ? 52 : 92 + (i - 1) * 28, 224, (px) => (i === 0 ? `400 ${px}px "Lilita One", system-ui, sans-serif` : `800 ${px}px Nunito, system-ui, sans-serif`), i === 0 ? 44 : 22));
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 4;

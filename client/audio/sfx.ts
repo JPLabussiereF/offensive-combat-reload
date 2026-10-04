@@ -889,32 +889,66 @@ export class Sfx {
     this.noiseBurst(t + 0.08, 0.4, 'bandpass', 5000, 2, 0.04);
   }
 
-  /** The one lamp post that screams when shot. */
-  tinyScream() {
+  /** The giant rat: a big squeak (idle, or when it notices someone). */
+  ratSqueak() {
     if (!this.ready) return;
-    const ctx = this.ctx!;
-    const t = ctx.currentTime;
-    const o = ctx.createOscillator();
-    o.type = 'sawtooth';
-    o.frequency.setValueAtTime(700, t);
-    o.frequency.exponentialRampToValueAtTime(1500, t + 0.12);
-    o.frequency.exponentialRampToValueAtTime(900, t + 0.55);
-    const lfo = ctx.createOscillator();
-    lfo.frequency.value = 18;
-    const depth = ctx.createGain();
-    depth.gain.value = 60;
-    lfo.connect(depth).connect(o.frequency);
-    const f = ctx.createBiquadFilter();
-    f.type = 'bandpass';
-    f.frequency.value = 1400;
-    f.Q.value = 1.2;
-    const g = ctx.createGain();
-    this.env(g, t, 0.14, 0.02, 0.55);
-    o.connect(f).connect(g).connect(this.out('sfx'));
-    o.start(t);
-    lfo.start(t);
-    o.stop(t + 0.65);
-    lfo.stop(t + 0.65);
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sawtooth', 900, 1500, 0.12, 0.07, 'sfx', 0.01);
+    this.tone(t + 0.13, 'sawtooth', 1300, 700, 0.16, 0.06, 'sfx', 0.01);
+    this.noiseBurst(t, 0.25, 'bandpass', 2400, 3, 0.05);
+  }
+
+  /** The giant rat taking a hit: a short, angry shriek. */
+  ratHit() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'square', 1400, 900, 0.09, 0.06, 'sfx', 0.005);
+    this.noiseBurst(t, 0.08, 'bandpass', 1800, 2, 0.08);
+  }
+
+  /** The giant rat going down: a long falling squeal and a thud. */
+  ratDeath() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sawtooth', 1600, 300, 0.9, 0.1, 'sfx', 0.01);
+    this.tone(t + 0.85, 'sine', 140, 50, 0.25, 0.25);
+    this.noiseBurst(t + 0.85, 0.3, 'lowpass', 600, 0.8, 0.25);
+  }
+
+  /** A humanity, Dark Souls style: a soft rising shimmer over a low chord. */
+  humanity() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    for (const [f, d] of [[110, 2.2], [165, 2.0], [220, 1.8]] as const) this.tone(t, 'sine', f, f, d, 0.08, 'sfx', 0.3);
+    for (let i = 0; i < 6; i++) this.tone(t + 0.2 + i * 0.12, 'triangle', 660 * 1.122 ** i, 680 * 1.122 ** i, 0.5, 0.04, 'sfx', 0.05);
+  }
+
+  /** The Scooby biscuit: "Scoo-by Doo-by Doo!" on a cartoon horn. */
+  scoobySnack() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    const notes: [number, number, number][] = [[392, 0, 0.14], [330, 0.16, 0.2], [392, 0.42, 0.14], [330, 0.58, 0.2], [523, 0.84, 0.45]];
+    for (const [f, at, d] of notes) {
+      this.tone(t + at, 'square', f, f * 1.02, d, 0.07, 'sfx', 0.01);
+      this.tone(t + at, 'sawtooth', f / 2, f / 2, d, 0.04, 'sfx', 0.01);
+    }
+  }
+
+  /** Drinking the witch's potion: three gulps and a bubbly burp. */
+  potionGulp() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    for (let i = 0; i < 3; i++) this.tone(t + i * 0.22, 'sine', 220, 120, 0.12, 0.14, 'sfx', 0.01);
+    this.tone(t + 0.75, 'sawtooth', 110, 70, 0.35, 0.08, 'sfx', 0.02);
+    for (let i = 0; i < 4; i++) this.tone(t + 0.8 + i * 0.06, 'sine', 400 + i * 120, 900 + i * 150, 0.05, 0.05);
+  }
+
+  /** An old cabinet door swinging open: a creak. */
+  cabinetCreak() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sawtooth', 320, 520, 0.45, 0.05, 'sfx', 0.04);
+    this.noiseBurst(t, 0.45, 'bandpass', 1200, 6, 0.06);
   }
 
   /** The witch's cauldron: a run of bloops. */
