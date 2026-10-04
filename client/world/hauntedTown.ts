@@ -178,6 +178,11 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
   ];
   const trees: [number, number][] = [];
   const free = (x: number, z: number) => !keepOut.some((r) => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1) && trees.every(([tx, tz]) => Math.hypot(tx - x, tz - z) > 3.4);
+  // Trees that would hide something are still planted and drawn from `rand`, so every tree, tombstone and
+  // potion after them keeps its place, but into a builder that keeps nothing (deadTree only adds geometry
+  // and its trunk's collider).
+  const clearOf: [number, number][] = [[-36.5, -39.6]]; // the witch's sign
+  const nowhere = { addGeometry() {}, cuboidCollider() {} } as unknown as MapBuilder;
   const plant = (x0: number, z0: number, x1: number, z1: number, n: number) => {
     for (let tries = 0, placed = 0; placed < n && tries < n * 30; tries++) {
       const x = x0 + rand() * (x1 - x0);
@@ -185,7 +190,8 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
       if (!free(x, z)) continue;
       trees.push([x, z]);
       placed++;
-      deadTree(b, x, z, 0.85 + rand() * 0.5, rand);
+      const hidden = clearOf.some(([cx, cz]) => Math.hypot(x - cx, z - cz) < 2);
+      deadTree(hidden ? nowhere : b, x, z, 0.85 + rand() * 0.5, rand);
     }
   };
   plant(-58, -53.5, 17, -38, 34);
@@ -232,7 +238,7 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
   table(b, -35.2, 0, -49.6, 1.4, 0.8, 0, 0.8, 0x4a3020);
   for (const [px, pz, kind, c] of [[-35.6, -49.8, 0, 0x6affd8], [-35.3, -49.4, 1, 0xff6ad8], [-34.8, -49.75, 2, 0xffb43a]] as const) potion(b, glow, px, 0.8, pz, kind, c, 1.3);
   b.box(-34.85, 0.82, -49.35, 0.36, 0.04, 0.26, 'pintura', { tint: 0xd8c8a0, collide: false });
-  candle(b, glow, -35.9, 0.8, -49.3, 0.14);
+  candle(b, glow, -35.7, 0.8, -49.3, 0.14);
   // The broom leaning by the south door.
   b.box(-38.4, 0.75, -41.5, 0.05, 1.5, 0.05, 'madeira', { tint: 0x8a6a3a, collide: false, rot: new THREE.Euler(0.22, 0, 0) });
   b.box(-38.4, 0.14, -41.38, 0.3, 0.32, 0.18, 'feno', { tint: 0xc8a050, collide: false, rot: new THREE.Euler(0.22, 0, 0) });
@@ -294,6 +300,8 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     b.wall('x', -31, -15.85, -13, 0.3, 8, 'pedra', [], 0, tw);
     b.wall('x', -28, -15.85, -13, 0.3, 8, 'pedra', [], 0, tw);
     b.wall('z', -13, -30.85, -28.15, 0.3, 8, 'pedra', [[-30.3, -28.7, 0, 2.6]], 0, { ...tw, frame: { surface: 'pintura', tint: 0x2a2428, width: 0.1 } });
+    // The tower's west face above the chapel roof (the gable only covers a triangle under it).
+    b.wall('z', -16, -31.15, -27.85, 0.3, 3.4, 'pedra', [], 4.6, tw);
     b.span(-16.15, 7.8, -31.15, -12.85, 8.0, -27.85, 'pedra', { tint: 0x5a5650 });
     for (const [x, z] of [[-16, -31], [-13, -31], [-13, -28], [-16, -28]]) b.box(x, 9.3, z, 0.35, 2.6, 0.35, 'pedra', { tint: 0x77726c });
     const spire = new THREE.ConeGeometry(2.5, 3.6, 4).rotateY(Math.PI / 4).translate(-14.5, 10.6 + 1.8, -29.5);
@@ -341,8 +349,8 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     // Porch with columns on the west side, facing the graves.
     for (const z of [-32.7, -29.3]) b.cylinder(13.1, 0, z, 0.25, h, 'pedra', { tint: 0x8a867e, segments: 10 });
     b.span(12.6, h, -33.3, 14, h + 0.3, -28.7, 'pedra', { tint: 0x5a5650 });
-    // Coffins in the burial rooms.
-    for (const [x, z] of [[16.5, -33.6], [21.5, -33.6], [21.5, -28.4], [16.4, -28.4]]) coffin(b, x, 0, z, Math.PI / 2, 0x3a2420);
+    // Coffins in the burial rooms (not the north-west one: its outer door lines up with the corridor's).
+    for (const [x, z] of [[16.5, -33.6], [21.5, -33.6], [21.5, -28.4]]) coffin(b, x, 0, z, Math.PI / 2, 0x3a2420);
     const plate = canvasTexture(256, 64, (g) => {
       g.fillStyle = '#4a4644';
       g.fillRect(0, 0, 256, 64);
@@ -429,7 +437,9 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
   const FH = 3.6;
   const M = { x0: -56, z0: -8, x1: -30, z1: 12 };
   const MWH = FH * 2 + 0.2;
-  const hall = { x0: -43.1, z0: -0.5, x1: -34, z1: 5.85 }; // the hall's open void up to the ceiling
+  // The hall's open void up to the ceiling. Its east edge leaves the east gallery wide enough to reach the
+  // upstairs door over the hall (x -35), in one straight railing.
+  const hall = { x0: -43.1, z0: -0.5, x1: -36.2, z1: 5.85 };
   {
     const t = 0.3;
     const ext = { tint: C.mansion, frame: { surface: 'pintura' as const, tint: C.trim, width: 0.12 } };
@@ -549,6 +559,8 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     chair(b, -52.55, 0, 9.7, Math.PI / 2, 0x4a2e20, 0xd8c8a0);
     chair(b, -50.25, 0, 9.7, -Math.PI / 2, 0x4a2e20, 0xd8c8a0);
     b.box(-51.4, 2.9, 9.7, 1.5, 0.05, 0.05, 'metal', { tint: C.iron, collide: false, castShadow: false });
+    // The rack hangs from the ceiling (FH - 0.25) by a rod at each end.
+    for (const px of [-52.05, -50.75]) b.box(px, (2.925 + FH - 0.25) / 2, 9.7, 0.02, FH - 0.25 - 2.925, 0.02, 'metal', { tint: C.iron, collide: false, castShadow: false });
     for (const [px, pr] of [[-51.9, 0.14], [-51.4, 0.11], [-50.9, 0.16]]) {
       b.box(px, 2.75, 9.7, 0.015, 0.3, 0.015, 'metal', { tint: C.iron, collide: false, castShadow: false });
       b.cylinder(px, 2.42, 9.7, pr, 0.18, 'metal', { tint: 0xb87a4a, collide: false, segments: 10 });
@@ -626,8 +638,19 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
   // --- Village: the street and its houses ------------------------------------------------------------
   const vf = 0x2a201c;
   home({ x0: -20, z0: -12.5, x1: -11, z1: -5, wall: 'reboco', tint: 0x6a5a4a, roof: C.roofRed, doors: { s: [-15.5], n: [-13], e: [-8.75] }, windows: { s: [-18.4, -12.4], w: [-8.75] }, frame: vf });
-  b.box(-18.3, 0.52, -8.8, 2.6, 1.05, 0.6, 'madeira', { tint: 0x5a3a2a }); // butcher's counter
-  b.box(-12, 0.6, -11.6, 1.6, 1.2, 1.0, 'metal', { tint: 0xc8c8c0 }); // freezer
+  b.box(-18.3, 0.52, -11.2, 2.6, 1.05, 0.6, 'madeira', { tint: 0x5a3a2a }); // butcher's counter, under the hooks (clear of the west window)
+  // Chest freezer against the back wall, between the north door (x -13) and the counter: the lid with its seam
+  // and handle, a dark kick plate. Only the body collides.
+  {
+    const [fx, fz] = [-15.4, -11.6];
+    const front = fz + 0.5;
+    const trim = { collide: false, castShadow: false };
+    b.box(fx, 0.6, fz, 1.6, 1.2, 1.0, 'metal', { tint: 0xc8c8c0 });
+    b.box(fx, 1.21, fz, 1.62, 0.02, 1.02, 'metal', { tint: 0xe2e2dc, ...trim });
+    b.box(fx, 1.04, front + 0.005, 1.6, 0.025, 0.01, 'metal', { tint: 0x7a7a82, ...trim });
+    b.box(fx, 0.95, front + 0.03, 0.5, 0.05, 0.05, 'metal', { tint: 0x5a5a62, ...trim });
+    b.box(fx, 0.05, front + 0.005, 1.6, 0.1, 0.01, 'metal', { tint: 0x3a3a40, ...trim });
+  }
   for (const x of [-19, -18.2, -17.4]) b.box(x, 2.3, -11.9, 0.04, 0.5, 0.04, 'metal', { tint: 0x8a8a90, collide: false }); // hooks
   home({ x0: -6, z0: -13, x1: 6, z1: -5, stories: 2, wall: 'tijolo', tint: 0x6a3a30, roof: C.roof, doors: { s: [2], n: [3.5], w: [-9], e: [-9] }, windows: { s: [-3] }, upper: { s: [-3, 3], n: [0], e: [-9], w: [-9] }, frame: vf });
   {
@@ -645,12 +668,15 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
   home({ x0: -20, z0: 5, x1: -11, z1: 12.5, wall: 'madeira', tint: 0x7a6a3a, roof: 0x4a3a2a, doors: { n: [-15.5], s: [-13], e: [8.75] }, windows: { n: [-18.4, -12.4], w: [8.75] }, frame: vf });
   for (const [x, y, z, yaw] of [[-18.8, 0, 11.5, 0], [-17.55, 0, 11.5, 0.05], [-18.2, 0.5, 11.5, -0.08]] as const) hayBale(b, x, y, z, yaw, [1.2, 0.5, 0.6]);
   home({ x0: -6, z0: 5, x1: 3, z1: 12.5, wall: 'reboco', tint: 0x6a4a6a, roof: 0x2a2a3a, doors: { n: [-1.5], s: [0], w: [8.75] }, windows: { n: [-4.3, 1.5] }, frame: vf });
-  b.box(-3.5, 0.5, 8.5, 3, 1.0, 0.7, 'madeira', { tint: 0x8a3a6a }); // candy counter
+  // Candy counter with its jars, toward the north wall: out of the way of the west door (z 8.75) and the
+  // north door (x -1.5).
+  const [ccx, ccz] = [-3.8, 10.7];
+  b.box(ccx, 0.5, ccz, 3, 1.0, 0.7, 'madeira', { tint: 0x8a3a6a });
   for (let k = 0; k < 5; k++) {
-    const jx = -4.7 + k * 0.6;
-    b.cylinder(jx, 1.0, 8.5, 0.135, 0.03, 'vidro', { tint: 0xd8f0f0, collide: false, segments: 10 });
-    glow.add(new THREE.CylinderGeometry(0.11, 0.11, 0.2, 10).translate(jx, 1.12, 8.5), [0xff6ad8, 0xffd23f, 0x6affd8, 0xff8a3a, 0xb46aff][k]);
-    b.cylinder(jx, 1.22, 8.5, 0.12, 0.04, 'metal', { tint: 0xd8d8d0, collide: false, segments: 10 });
+    const jx = ccx - 1.2 + k * 0.6;
+    b.cylinder(jx, 1.0, ccz, 0.135, 0.03, 'vidro', { tint: 0xd8f0f0, collide: false, segments: 10 });
+    glow.add(new THREE.CylinderGeometry(0.11, 0.11, 0.2, 10).translate(jx, 1.12, ccz), [0xff6ad8, 0xffd23f, 0x6affd8, 0xff8a3a, 0xb46aff][k]);
+    b.cylinder(jx, 1.22, ccz, 0.12, 0.04, 'metal', { tint: 0xd8d8d0, collide: false, segments: 10 });
   }
   home({ x0: 9, z0: 5, x1: 15, z1: 11, wall: 'madeira', tint: 0x4a4a52, roof: C.roof, doorW: 2.4, doors: { n: [12], s: [11], e: [8] }, frame: vf });
   signBoard(b, scene, ['AÇOUGUE', 'Carne fresca', '(mais ou menos)'], -15.5, -4.4, 0, { bg: '#8a2a2a', fg: '#f2e6d0', height: 2.6, w: 1.4, h: 0.8 });
@@ -853,7 +879,8 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     }
     ugWall('z', -56.2, 5.8, 12.4);
     ugWall('z', -42.8, 5.8, 12.4);
-    ugWall('x', 5.8, -56.4, -42.6);
+    // Basement's north wall flush with the side of the stairs (z 6.4): no gap to snag on going up.
+    ugWall('x', 6.2, -56.4, -42.6);
     ugWall('x', 12.2, -56.4, -42.6, [[-50, -47, 0, 3]]);
     ugWall('z', -50.2, 12.4, 33.4);
     ugWall('z', -46.8, 12.4, 29.6);
@@ -868,7 +895,8 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     ugWall('x', 51.4, 2.6, 12.4);
     ugWall('z', 24.7, 29.6, 33.4);
     ugWall('z', -26.2, 33.4, 41.4);
-    ugWall('z', -16.8, 33.4, 41.4);
+    // Maintenance room's east wall flush with the side of the plaza stairs (x -17.4): no gap to snag on going up.
+    ugWall('z', -17.2, 33.4, 41.4);
     ugWall('x', 41.2, -26.4, -16.6);
     ugWall('z', H_PARK.x0 - 0.2, H_PARK.z0, 29.6);
     ugWall('z', H_PARK.x1 + 0.2, H_PARK.z0, 29.6);
@@ -907,7 +935,6 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
       glow.add(new THREE.BoxGeometry(0.15, 0.25, 0.25).translate(-49.92, UG + 2.6, z), 0xd8e070);
       light(-49.5, UG + 2.4, z, sewerLight);
     }
-    light(-49.4, UG + 2.4, 6.6, { intensity: 10, range: 10 });
     light(-46, UG + 2.4, 10, { intensity: 9, range: 9 });
     light(-21.5, UG + 2.5, 34, sewerLight);
     light(-23, UG + 2.5, 38.5, sewerLight);
@@ -948,9 +975,8 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     stabbable.push((eye, fwd, reach) => rat!.stab(eye, fwd, reach));
     // Basement: the boiler, barrels, shelves. Maintenance room: generator, panels, fuses, a lever.
     b.cylinder(-45, UG, 10.2, 0.8, 2.2, 'metal', { tint: 0x5a3a2a, segments: 12 });
-    for (const [x, z] of [[-55.3, 11.4], [-54.45, 11.5], [-55.4, 10.55], [-44, 6.6]]) barrel(b, x, UG, z, 0.38, 1.0, 0x5a3820);
+    for (const [x, z] of [[-55.3, 11.4], [-54.45, 11.5], [-55.4, 10.55], [-44, 6.9]]) barrel(b, x, UG, z, 0.38, 1.0, 0x5a3820);
     b.box(-51.5, UG + 1, 11.7, 3, 2, 0.5, 'madeira', { tint: C.woodDark });
-    glow.add(new THREE.BoxGeometry(0.2, 0.2, 0.15).translate(-49.4, UG + 2.6, 6.08), 0xffc861);
     b.box(-24.5, UG + 0.6, 36.5, 1.8, 1.2, 1.1, 'metal', { tint: 0x5a6a3a });
     b.box(-25.7, UG + 1.4, 39.2, 0.3, 1.6, 2.4, 'metal', { tint: 0x4a4a52 });
     for (const [z, c] of [[38.4, 0xff4a3a], [39.0, 0x6aff6a], [39.6, 0xffd23f]] as const) glow.add(new THREE.BoxGeometry(0.02, 0.12, 0.12).translate(-25.54, UG + 1.8, z), c);
