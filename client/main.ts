@@ -1316,6 +1316,8 @@ async function boot() {
     updatePickups();
 
     if (player.dead) {
+      // Dose Dupla: dying between the two throws loses the second one (it must not fly as we respawn).
+      secondThrowIn = null;
       hud.setDeathTimer(player.respawnIn(simTime));
       if (player.canRespawn(simTime)) {
         respawn();
