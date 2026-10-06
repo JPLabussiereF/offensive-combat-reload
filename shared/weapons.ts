@@ -219,6 +219,12 @@ export function damageAtDistance(w: WeaponData, dist: number): number {
 }
 
 /**
+ * Where a hit does its damage under the witch's critical potion: every bullet as a head, but a groin hit keeps
+ * its own (an instant kill, already more than a head's).
+ */
+export const critRegion = (region: HitRegion, crit: boolean): HitRegion => (crit && region !== 'virilha' ? 'cabeca' : region);
+
+/**
  * `keep` is the damage fraction left after going through surfaces (1 = clean hit). A groin hit kills
  * no matter what the bullet went through.
  */

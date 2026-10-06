@@ -10,7 +10,7 @@ import { MODE_RULES, type GameModeId, type ModeRules } from '@shared/modes';
 import { loadoutKnife, type GunStats, type Loadout } from '@shared/arsenal';
 import type { WeaponId } from '@shared/progression';
 import type { MapId } from '@shared/maps';
-import { explosionDamage, HIT_REGIONS, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
+import { critRegion, explosionDamage, HIT_REGIONS, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
 import { afterDeath, afterKill, GUN_GAME, ladderLoadout, ladderStart, type LadderPos } from '@shared/gunGame';
 import { grenadeDamageToZombie, gunDamageToZombie, isBoss, kindScale, knifeDamageToZombie, startItems, weaponMul, ZOMBIE, zombieLoadout, type ZKind } from '@shared/zombies';
 import { ZombieMatch, type ZombieHost } from '@shared/zombieMatch';
@@ -367,7 +367,7 @@ class ZombieMode implements SessionMode {
     const k = typeof keep === 'number' && Number.isFinite(keep) ? Math.min(1, Math.max(minPenetrationKeep(gun), keep)) : 1;
     const crit = p.potion?.kind === 'critico' && p.potion.until > now;
     const r = region as HitRegion;
-    const dmg = gunDamageToZombie(gun, Math.min(dist, gun.alcanceMaximo), crit && r !== 'virilha' ? 'cabeca' : r, k, weaponMul(m.itemsOf(p.id), gun.arma), isBoss(z.kind));
+    const dmg = gunDamageToZombie(gun, Math.min(dist, gun.alcanceMaximo), critRegion(r, crit), k, weaponMul(m.itemsOf(p.id), gun.arma), isBoss(z.kind));
     m.damage(z.id, p.id, dmg, r === 'cabeca' ? 'head' : r === 'virilha' ? 'groin' : 'gun');
   }
 

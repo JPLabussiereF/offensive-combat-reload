@@ -8,7 +8,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { pickSafeSpawn } from './gameplay/spawnPicker';
 import { BISCUIT, CHERRY, GROUP, groups, HEALTH, HUMILIATION, KOI, MOVE, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
 import { PICKUPS } from '@shared/maps';
-import { clampExplosionDamage, computeDamage, explosionDamage, idealTtk, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
+import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, idealTtk, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
 import { eyeHeight, type MoveInput } from '@shared/movement';
 import { CLOSE, FLAG, NET, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
 import { startLoop } from './core/loop';
@@ -777,7 +777,7 @@ async function boot() {
           // Against bots: same rules as online; kills and popups come back through the bot hooks.
           if (entity.dead) return;
           const kind: KillKind = head ? 'head' : groin ? 'groin' : 'gun';
-          const res = bots.hit(entity, playerTarget, computeDamage(weapon.data, hit.distance, potionKind === 'critico' ? 'cabeca' : region, keep), { kind, region, dist: hit.distance, w: weapon.data.arma });
+          const res = bots.hit(entity, playerTarget, computeDamage(weapon.data, hit.distance, critRegion(region, potionKind === 'critico'), keep), { kind, region, dist: hit.distance, w: weapon.data.arma });
           if (res.dealt <= 0) return;
           hits++;
           lastHitDist = hit.distance;
@@ -787,7 +787,7 @@ async function boot() {
           return;
         }
         const dummy = entity as Dummy;
-        const res = dummy.applyHit(computeDamage(weapon.data, hit.distance, potionKind === 'critico' ? 'cabeca' : region, keep), region, simTime, shotDir, groin ? 'forward' : 'back');
+        const res = dummy.applyHit(computeDamage(weapon.data, hit.distance, critRegion(region, potionKind === 'critico'), keep), region, simTime, shotDir, groin ? 'forward' : 'back');
         if (res.damage <= 0) return;
         hits++;
         lastHitDist = hit.distance;
