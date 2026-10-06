@@ -173,10 +173,34 @@ O "calling card" do jogo: cada jogador escolhe **uma figurinha em destaque** (qu
 - Servidor: `server/progress.ts` (`stickerAdd`, `stickerMax`, `liveSources`, `liveOwn`, `settle`, `countEntry`, `stickerUps`), `server/accounts.ts` (`achievement_progress` no perfil, no login e no flush), migration `005_figurinhas.sql`.
 - Testes: `server/tests/album.test.ts` (dados, acabamentos, repetidas, recordes, coleções, contagem e o mapeamento do perfil) e `server/tests/albumSession.test.ts` (eventos numa sessão de relógio falso; aviso, gravação e perfil no servidor real).
 
-## Ainda não existe (fases seguintes da proposta)
+## Ideias futuras
 
-- **Molduras** para a figurinha em destaque e uma **dancinha nova** para o álbum completo (as recompensas por página hoje são só os títulos).
-- Datas em que cada acabamento foi pego (só o número é guardado).
+Nada disto existe ainda; fica anotado para as próximas versões do álbum (proposta original na issue #25).
+
+**Recompensas e exibição**
+- **Molduras** para a figurinha em destaque (uma por página completa) e uma **dancinha nova** para o álbum completo. Hoje a recompensa da página é só o título.
+- **Ver o álbum de outro jogador**: clicar no nome no placar ou no perfil público mostra o álbum dele, só para ver.
+- **Aviso na aba**: um selo "3 novas" na aba Álbum quando chegam figurinhas desde a última visita.
+- **Ranking de álbum**: quem tem mais acabamentos dourados (ou títulos), por semana e no geral.
+
+**Mais registro**
+- **Data de cada acabamento** ("Dourada em 06/10"): hoje só o número é guardado. Precisa de uma coluna de datas em `achievement_progress` e, para as derivadas, de gravar a data na primeira vez que o servidor vê a meta cruzada.
+- **Arte das figurinhas** renderizada com os modelos do próprio jogo (o rato, a Noiva, o Frango de Borracha), por uma ferramenta como a `bake-navmesh` (`tools/bake-figurinhas.ts`), no lugar dos emojis.
+
+**Mais figurinhas**
+- **Mapas e easter eggs**: sino da capela ("EU JÁ OUVI."), buzina ("CHEGA."), fantasma que desiste, dragão do Jardim, carrilhão (tocar Dó-Ré-Mi-Fá-Sol), alvos do parque. Antes disso, o servidor precisa guardar e conferir o estado desses objetos: hoje eles só são repassados entre os clientes ([[Map Gags]]).
+- **Feitiço da Meia-Noite** e a figurinha secreta **Aprendiz de Bruxa** (issue #23, deixada de lado por enquanto).
+- **Proezas que dependem do cliente**, aceitas só se o jogo passar a conferir esses dados:
+  - Carpa e Cabra (um tiro mata a carpa e um jogador);
+  - Troca Ligeira (trocar para a secundária e matar em menos de 1 s);
+  - Última Bala;
+  - Voo do Hidrante;
+  - Bote do Gato (matar com a faca no ar).
+- **Figurinhas de temporada**: valem só num período (Halloween, festa junina) e ficam marcadas como "edição limitada" no álbum.
+- **Desafios semanais**: três metas pequenas por semana, que dão uma figurinha de coleção da semana.
+
+**Social**
+- **Troca de repetidas**: as "repetidas" depois da Dourada viram moeda para trocar por molduras.
 
 ## Notas relacionadas
 
