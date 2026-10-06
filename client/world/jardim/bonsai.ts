@@ -79,7 +79,7 @@ export function buildBonsai(c: Ctx) {
 }
 
 /** Bonsai in a glazed pot on a stone pedestal (`y` = ground under it). */
-function pedestal(c: Ctx, x: number, z: number, y = 0) {
+export function pedestal(c: Ctx, x: number, z: number, y = 0) {
   c.b.box(x, y + 0.35, z, 0.9, 0.7, 0.7, 'pedra', { tint: C.stone });
   bonsai(c.b, x, y + 0.7, z, 1, c.rand, c.rand() < 0.5 ? 0x2f5d8a : 0x8a4a2f);
 }
@@ -88,7 +88,7 @@ function pedestal(c: Ctx, x: number, z: number, y = 0) {
  * The landmark: a pot 4.6 m wide and a pine whose trunk rises, then snakes sideways in coils like a dragon,
  * with crowns of foliage along its back and a "head" crown at the end. Only the pot and the trunk's base collide.
  */
-function dragonBonsai(c: Ctx, x: number, z: number) {
+export function dragonBonsai(c: Ctx, x: number, z: number) {
   const { b, rand } = c;
   const pot = 0x2f5d8a;
   b.box(x, 0.55, z, 4.6, 1.1, 3.2, 'pintura', { tint: pot });

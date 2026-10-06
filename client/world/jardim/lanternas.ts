@@ -153,7 +153,7 @@ export function buildLanternas(c: Ctx): StallFruit {
   return fruit;
 }
 
-interface Market {
+export interface Market {
   fruit: { p: THREE.Vector3; r: number; color: number }[];
   counters: { x0: number; x1: number; z0: number; z1: number; y: number }[];
 }
@@ -166,7 +166,7 @@ const NOTES = [523.25, 587.33, 659.25, 698.46, 783.99];
  * faces them from the market (-X), down to the smallest (sol) on their left. Each rings its note and swings
  * when shot, synchronized as "carrilhao:0".."carrilhao:4".
  */
-function bianzhong(c: Ctx, x0: number, x1: number, z: number) {
+export function bianzhong(c: Ctx, x0: number, x1: number, z: number) {
   const { b } = c;
   const top = 2.75;
   for (const x of [x0, x1]) {
@@ -191,7 +191,7 @@ function bianzhong(c: Ctx, x0: number, x1: number, z: number) {
  * Market stall: a counter (cover), four posts and a sloping cloth canopy, goods on the counter. With a
  * `market`, the goods are fruit that can be cut (StallFruit builds them); without, pottery.
  */
-function stall(c: Ctx, x: number, z: number, cloth: number, goods: number[], market: Market | null) {
+export function stall(c: Ctx, x: number, z: number, cloth: number, goods: number[], market: Market | null) {
   const { b } = c;
   b.span(x - 1.3, 0, z - 0.45, x + 1.3, 0.9, z + 0.45, 'madeira', { tint: C.wood });
   for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) b.cylinder(x + sx * 1.35, 0, z + sz * 0.8, 0.05, sz < 0 ? 2.5 : 2.2, 'madeira', { tint: C.woodDark, collide: false, segments: 6 });
@@ -210,13 +210,13 @@ function stall(c: Ctx, x: number, z: number, cloth: number, goods: number[], mar
 }
 
 /** Wicker basket. */
-function basket(c: Ctx, x: number, z: number) {
+export function basket(c: Ctx, x: number, z: number) {
   c.b.cylinder(x, 0, z, 0.32, 0.45, 'madeira', { tint: 0xc9a46a, segments: 10, radiusTop: 0.38 });
   c.b.cylinder(x, 0.45, z, 0.39, 0.05, 'madeira', { tint: 0x8a6a3a, segments: 10, collide: false });
 }
 
 /** Hand cart with two wheels, along Z (cover in the middle of the street). */
-function cart(c: Ctx, x: number, z: number) {
+export function cart(c: Ctx, x: number, z: number) {
   const { b } = c;
   b.span(x - 0.65, 0.5, z - 1.1, x + 0.65, 1.15, z + 1.1, 'madeira', { tint: 0x8a5432 });
   b.span(x - 0.65, 0, z - 1.1, x + 0.65, 0.5, z + 1.1, 'madeira', { tint: 0x8a5432, collide: false });

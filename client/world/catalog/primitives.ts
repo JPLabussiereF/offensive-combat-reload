@@ -70,6 +70,14 @@ export const primitives: Record<string, Adapter> = {
     if (q.lampada) c.s.c.glow.add(new THREE.SphereGeometry(0.1, 8, 6).translate(x, y, z), 0xffe0a8);
   },
 
+  /** An invisible box collider (`meia`: half sizes), turned by `yaw`: a solid part of a prop drawn by other pieces. */
+  colisor(c, p) {
+    const q = P<{ meia: number[]; fisica: any; oclusor?: any }>(p);
+    const q4 = new THREE.Quaternion();
+    if (p.yaw) q4.setFromEuler(new THREE.Euler(0, p.yaw, 0));
+    c.b.cuboidCollider(V(...at(p)), V(q.meia[0], q.meia[1], q.meia[2]), q4, q.fisica, undefined, q.oclusor);
+  },
+
   lajeComFuros(c, p) {
     const q = P<Opts & { x0: number; z0: number; x1: number; z1: number; y0: number; y1: number; furos: Rect[]; superficie: string }>(p);
     slabWithHoles(c.b, q.x0, q.z0, q.x1, q.z1, q.y0, q.y1, q.furos, surface(q.superficie, 'concreto'), pieceOpts(q));

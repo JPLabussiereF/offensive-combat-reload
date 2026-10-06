@@ -15,7 +15,7 @@ import { bench, type Ctx, incenseBurner, inscription, lamp, painting, pave, plaq
 const GOLDEN: DragonColors = { body: 0xe7b847, bodyDark: 0xb98a2a, belly: 0xf7e7b0, spikes: 0xc0352b, horns: 0xf7e7b0 };
 
 /** Terrace top. */
-const TY = 3.0;
+export const TY = 3.0;
 
 export function buildSantuario(c: Ctx) {
   const { b, rand } = c;
@@ -169,7 +169,7 @@ export function buildSantuario(c: Ctx) {
 }
 
 /** Stone tomb: a plinth and a lid (good cover in the crypt). */
-function tomb(c: Ctx, x: number, z: number, along: 'x' | 'z') {
+export function tomb(c: Ctx, x: number, z: number, along: 'x' | 'z') {
   const [sx, sz] = along === 'x' ? [2.2, 1.0] : [1.0, 2.2];
   c.b.box(x, 0.45, z, sx, 0.9, sz, 'pedra', { tint: 0x9d9a90 });
   c.b.box(x, 0.95, z, sx + 0.12, 0.12, sz + 0.12, 'pedra', { tint: 0x8f8a80, collide: false });
@@ -177,7 +177,7 @@ function tomb(c: Ctx, x: number, z: number, along: 'x' | 'z') {
 }
 
 /** Bronze bell hanging in a wooden frame (on the terrace): rings and swings when shot. */
-function bellFrame(c: Ctx, x: number, y: number, z: number, i: number) {
+export function bellFrame(c: Ctx, x: number, y: number, z: number, i: number) {
   const { b } = c;
   for (const s of [-1, 1]) b.box(x + s * 0.8, y + 1.3, z, 0.16, 2.6, 0.16, 'pintura', { tint: C.lacquer, physics: 'wood' });
   b.box(x, y + 2.55, z, 1.9, 0.16, 0.2, 'pintura', { tint: C.lacquer, collide: false });
@@ -188,7 +188,7 @@ function bellFrame(c: Ctx, x: number, y: number, z: number, i: number) {
 }
 
 /** A great bell hung from a beam across a pavilion: an obstacle (and cover) in the middle of it. Rings when shot. */
-function hangingBell(c: Ctx, x: number, top: number, z: number) {
+export function hangingBell(c: Ctx, x: number, top: number, z: number) {
   c.b.span(x - 2.1, top - 0.32, z - 0.12, x + 2.1, top - 0.04, z + 0.12, 'pintura', { tint: C.lacquer, collide: false });
   const hook = top - 0.32;
   const bell = new Bell(c.scene, c.b, x, hook, z, 1.35, c.props, 'sino:2', () => c.sfx.at({ x, y: hook - 1, z }, 'loud', (s) => s.bell(1.35)));
@@ -196,7 +196,7 @@ function hangingBell(c: Ctx, x: number, top: number, z: number) {
 }
 
 /** Big drum on a stand: booms when shot. */
-function bigDrum(c: Ctx, x: number, y: number, z: number) {
+export function bigDrum(c: Ctx, x: number, y: number, z: number) {
   const { b } = c;
   b.span(x - 0.9, y, z - 0.5, x + 0.9, y + 0.7, z + 0.5, 'madeira', { tint: C.lacquerDark });
   const drum = new THREE.CylinderGeometry(0.85, 0.85, 1.0, 18).rotateZ(Math.PI / 2).translate(x, y + 1.55, z);
@@ -212,7 +212,7 @@ function bigDrum(c: Ctx, x: number, y: number, z: number) {
 }
 
 /** Memorial stele on a square stone base, in the middle of the lower court: it blocks the view up the stairs. */
-function stele(c: Ctx, x: number, z: number) {
+export function stele(c: Ctx, x: number, z: number) {
   const { b } = c;
   b.box(x, 0.4, z, 2.8, 0.8, 2.8, 'pedra', { tint: 0x9d9a90 });
   b.box(x, 0.74, z, 2.86, 0.06, 2.86, 'pedra', { tint: 0x8f8a80, collide: false, castShadow: false });
@@ -222,13 +222,13 @@ function stele(c: Ctx, x: number, z: number) {
   for (const side of [-1, 1]) inscription(c.scene, ['我操了正在', '读这句话的', '人的屁眼'], x, 2.7, z + side * 0.285, side > 0 ? 0 : Math.PI, 1.5, 2.7);
 }
 
-function planterPine(c: Ctx, x: number, z: number) {
+export function planterPine(c: Ctx, x: number, z: number) {
   c.b.box(x, TY + 0.4, z, 1.6, 0.8, 1.6, 'pedra', { tint: C.stoneDark });
   pine(c.b, x, TY + 0.8, z, 0.7, c.rand);
 }
 
 /** Ancestor portrait: a robed figure on silk, three different ones. */
-function portrait(g: CanvasRenderingContext2D, w: number, h: number, i: number) {
+export function portrait(g: CanvasRenderingContext2D, w: number, h: number, i: number) {
   g.fillStyle = '#efe2c2';
   g.fillRect(0, 0, w, h);
   const robes = ['#8a2a22', '#1f3d6b', '#2f7f78'];

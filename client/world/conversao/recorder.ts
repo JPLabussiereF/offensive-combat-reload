@@ -141,6 +141,14 @@ export class RecordingBuilder {
     this.r.place('telhado', { x0, z0, x1, z1, beiral: eaveY, subida: rise, superficie: surface, ...opts(o as never, ['overhang', 'ridgeAxis', 'gableSurface', 'gableTint']), aba: o.overhang, cumeeira: o.ridgeAxis, oitao: o.gableSurface, corOitao: o.gableTint });
   }
 
+  /** A box collider alone (identity or a plain yaw): the 'colisor' piece. */
+  cuboidCollider(center: THREE.Vector3, half: THREE.Vector3, rotation: THREE.Quaternion, physics: string, onShot?: unknown, occluder?: string) {
+    if (onShot) throw new Error('colisor com onShot: use uma peça com adaptador');
+    const e = new THREE.Euler().setFromQuaternion(rotation, 'YXZ');
+    if (Math.abs(e.x) > 1e-12 || Math.abs(e.z) > 1e-12) throw new Error('colisor só gira em Y');
+    this.r.place('colisor', { meia: [half.x, half.y, half.z], fisica: physics, oclusor: occluder }, { p: [center.x, center.y, center.z], yaw: e.y || undefined });
+  }
+
   addGeometry(): never {
     throw new Error('geometria solta: use r.shape(...) ou uma peça com adaptador');
   }

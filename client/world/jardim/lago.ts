@@ -107,7 +107,7 @@ export function buildLago(c: Ctx) {
   signBoard(c, ['PROIBIDO', 'acordar o dragão', '(ele cospe fogo)'], 43.9, -15.8, Math.PI / 2, '#ffd23f', '#1b1530', 2.2);
 }
 
-function lanternPost(c: Ctx, x: number, z: number, ax: number, az: number) {
+export function lanternPost(c: Ctx, x: number, z: number, ax: number, az: number) {
   column(c.b, x, z, 0, 3.3, 0.09);
   c.b.box(x + ax * 0.42, 3.22, z + az * 0.42, ax ? 0.9 : 0.08, 0.08, az ? 0.9 : 0.08, 'pintura', { tint: C.lacquer, collide: false });
   c.lanterns.hang(new THREE.Vector3(x + ax * 0.78, 3.18, z + az * 0.78), 0.75);
@@ -117,7 +117,7 @@ function lanternPost(c: Ctx, x: number, z: number, ax: number, az: number) {
  * Rock islet with a round basin and the jade dragon coiled up its pillar, looking west at the island. It
  * spits water into the basin; shot, it roars fire (synchronized online through the prop bus).
  */
-function dragonFountain(c: Ctx, cx: number, cz: number) {
+export function dragonFountain(c: Ctx, cx: number, cz: number) {
   const { b } = c;
   b.span(cx - 2.2, -1.1, cz - 2.4, cx + 2.2, 0.3, cz + 2.4, 'pedra', { tint: C.rock });
   for (const [x, z] of [[-1.8, -2.0], [1.8, -2.0], [1.8, 2.0], [-1.8, 2.0]]) rock(b, cx + x, 0.3, cz + z, 0.5, 0.55, 0.5, c.rand);

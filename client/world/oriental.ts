@@ -1033,7 +1033,7 @@ export function dragonMaterial() {
  * sway in the breeze and swing hard when shot (synchronized online as "lanterna:N").
  */
 export class Lanterns {
-  private specs: { hook: THREE.Vector3; drop: number }[] = [];
+  private specs: { hook: THREE.Vector3; drop: number; id?: string }[] = [];
   private bodies!: THREE.InstancedMesh;
   private strings!: THREE.InstancedMesh;
   private ang = new Float32Array(0);
@@ -1047,9 +1047,9 @@ export class Lanterns {
   /** Where each lantern's body is right now (x, y, z per lantern; they swing): for their glow and light. */
   at = new Float32Array(0);
 
-  /** Hangs a lantern from `hook`, its body `drop` meters below. */
-  hang(hook: THREE.Vector3, drop = 0.85) {
-    this.specs.push({ hook: hook.clone(), drop });
+  /** Hangs a lantern from `hook`, its body `drop` meters below; `id`: its PropBus id (default "lanterna:N", N its order here). */
+  hang(hook: THREE.Vector3, drop = 0.85, id?: string) {
+    this.specs.push({ hook: hook.clone(), drop, id });
   }
 
   get count() {
@@ -1076,9 +1076,9 @@ export class Lanterns {
     this.bodies.count = this.strings.count = n;
     this.bodies.frustumCulled = this.strings.frustumCulled = false;
     scene.add(this.bodies, this.strings);
-    this.specs.forEach(({ hook, drop }, i) => {
+    this.specs.forEach(({ hook, drop, id }, i) => {
       const at = new THREE.Vector3(hook.x, hook.y - drop, hook.z);
-      const onShot = props.register(`lanterna:${i}`, () => {
+      const onShot = props.register(id ?? `lanterna:${i}`, () => {
         const a = Math.random() * Math.PI * 2;
         this.vel[i * 2] += Math.cos(a) * 2.6;
         this.vel[i * 2 + 1] += Math.sin(a) * 2.6;

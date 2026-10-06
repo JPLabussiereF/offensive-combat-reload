@@ -8,6 +8,8 @@ import { toonGradient } from '../../render/materials';
 import { Debris, Glow, LampPosts, LightPool, Puffs, Pumpkins, Scarecrows } from '../halloween';
 import { Lanterns, type Rect } from '../oriental';
 import { WaterDrops } from '../hydrant';
+import { StallFruit } from '../jardim/frutas';
+import type { Market } from '../jardim/lanternas';
 import type { MapBuilder } from '../mapBuilder';
 import type { PropBus } from '../props';
 import type { MapFrame, MapSfx } from '../gameMap';
@@ -33,6 +35,7 @@ export class Collections {
   private _scarecrows?: Scarecrows;
   private _lanterns?: Lanterns;
   private _streetLamps?: THREE.BufferGeometry[];
+  private _market?: Market;
   /** Centers of the garden glow's cores (stone lanterns, crypt lamps): the night's fixed lights. */
   cores: THREE.Vector3[] = [];
 
@@ -63,11 +66,15 @@ export class Collections {
   get streetLamps() {
     return (this._streetLamps ??= []);
   }
+  /** The garden market's fruit on its stalls' counters: cut in half when hit (one StallFruit). */
+  get market() {
+    return (this._market ??= { fruit: [], counters: [] });
+  }
   get hasLanterns() {
     return !!this._lanterns;
   }
 
-  /** Closes every collection into `target` (the maps' original order: lamps, pumpkins, scarecrows, lanterns, glow). */
+  /** Closes every collection into `target` (the maps' original order: lamps, pumpkins, scarecrows, the market, lanterns, glow). */
   finish(target: THREE.Object3D) {
     const { host } = this;
     const scene = target as THREE.Scene;
@@ -92,6 +99,11 @@ export class Collections {
       const scarecrows = this._scarecrows;
       scarecrows.finish(scene, host.b, host.props, (at) => sfx.at(at, 'normal', (s) => s.strawThud()));
       host.animate((dt) => scarecrows.update(dt));
+    }
+    if (this._market?.fruit.length) {
+      const fruit = new StallFruit(scene, this._market.fruit, this._market.counters, host.props, (at) => sfx.at(at, 'normal', (s) => s.fruitSplat()));
+      host.animate((dt) => fruit.update(dt));
+      host.out.fruit.push(fruit);
     }
     if (this._gardenGlow?.length) {
       // The glowing cores' centers (a lamp is two boxes): lights for the night.

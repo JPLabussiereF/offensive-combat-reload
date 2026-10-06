@@ -26,9 +26,10 @@ export interface CherryTree {
   fruit: HangingCherries;
 }
 
-export function dragonCherryTree(c: Ctx, x: number, z: number): CherryTree {
+/** `seed`: the tree's own randomness (the same on every client, whatever is built before it). */
+export function dragonCherryTree(c: Ctx, x: number, z: number, seed = 5150): CherryTree {
   const { b } = c;
-  const rand = seeded(5150);
+  const rand = seeded(seed);
 
   // --- The bed: stone curb, mossy earth (it collides up to where you stand), a few stones -----------
   const curb = new THREE.LatheGeometry(

@@ -117,7 +117,7 @@ export function buildGuerreiros(c: Ctx) {
 }
 
 /** Weapon rack: a frame with spears and halberds standing in it (thin: bullets go through). */
-function weaponRack(c: Ctx, x: number, z: number, along: 'x' | 'z', len = 2.2) {
+export function weaponRack(c: Ctx, x: number, z: number, along: 'x' | 'z', len = 2.2) {
   const { b } = c;
   const o = { tint: C.woodDark, collide: false };
   const piece = (s0: number, s1: number, y0: number, y1: number, d: number) => {
@@ -141,7 +141,7 @@ function weaponRack(c: Ctx, x: number, z: number, along: 'x' | 'z', len = 2.2) {
 }
 
 /** Wooden training dummy (mu ren zhuang): a post with three arms and a leg, on a low base. */
-function dummy(c: Ctx, x: number, z: number) {
+export function dummy(c: Ctx, x: number, z: number) {
   const { b } = c;
   b.span(x - 0.35, 0, z - 0.35, x + 0.35, 0.12, z + 0.35, 'madeira', { tint: C.woodDark, collide: false });
   b.cylinder(x, 0.12, z, 0.16, 1.65, 'madeira', { tint: 0x8a5432, segments: 10 });
@@ -154,7 +154,7 @@ function dummy(c: Ctx, x: number, z: number) {
 }
 
 /** Lacquered armor on a stand (stops bullets). */
-function armorStand(c: Ctx, x: number, z: number) {
+export function armorStand(c: Ctx, x: number, z: number) {
   const { b } = c;
   b.cylinder(x, 0, z, 0.3, 0.1, 'madeira', { tint: C.woodDark, collide: false, segments: 8 });
   b.cylinder(x, 0.1, z, 0.04, 1.0, 'madeira', { tint: C.woodDark, collide: false, segments: 6 });

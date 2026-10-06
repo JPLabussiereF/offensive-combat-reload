@@ -104,8 +104,10 @@ export const garden: Record<string, Adapter> = {
   },
 
   telhadoCurvo(c, p) {
-    const q = P<{ externo: Rect; topo: Rect; beiral: number; cume: number; curva?: number; cor?: number; corBaixo?: number; colide?: boolean; cumeeiras?: boolean; espessura?: number }>(p);
-    curvedRoof(c.b, { outer: q.externo, top: q.topo, eaveY: q.beiral, topY: q.cume, curl: q.curva, tint: q.cor, underTint: q.corBaixo, collide: q.colide, ridges: q.cumeeiras, thickness: q.espessura });
+    const q = P<{ externo: Rect; topo: Rect; beiral: number; cume: number; curva?: number; cor?: number; corBaixo?: number; colide?: boolean; cumeeiras?: boolean; espessura?: number; lanternas?: number }>(p);
+    const hooks = curvedRoof(c.b, { outer: q.externo, top: q.topo, eaveY: q.beiral, topY: q.cume, curl: q.curva, tint: q.cor, underTint: q.corBaixo, collide: q.colide, ridges: q.cumeeiras, thickness: q.espessura });
+    // `lanternas`: a lantern hangs from every swept-up corner, this far down.
+    if (q.lanternas) for (const h of hooks) c.s.c.lanterns.hang(h, q.lanternas);
   },
 
   /** A multi-story pavilion (oriental.ts PavilionSpec); `lanternas`: hang a lantern from every eave corner, this far down. */
@@ -178,7 +180,7 @@ export const garden: Record<string, Adapter> = {
 
   /** A red paper lantern hanging `queda` metres below its hook at `p` (swings when shot: "lanterna:N"). */
   lanternaPapel(c, p) {
-    c.s.c.lanterns.hang(V(...at(p)), P<{ queda?: number }>(p).queda);
+    c.s.c.lanterns.hang(V(...at(p)), P<{ queda?: number }>(p).queda, p.prop);
   },
 
   gongo(c, p) {

@@ -9,8 +9,9 @@ import { haunted } from './haunted';
 import { objects } from './objects';
 import { cemetery } from './cemetery';
 import { garden } from './garden';
+import { gardenPieces } from './gardenPieces';
 import { glb } from './glb';
 
-export const CATALOG: Readonly<Record<string, Adapter>> = { ...primitives, ...street, ...vehicles, ...furniture, ...haunted, ...objects, ...cemetery, ...garden, ...glb };
+export const CATALOG: Readonly<Record<string, Adapter>> = { ...primitives, ...street, ...vehicles, ...furniture, ...haunted, ...objects, ...cemetery, ...garden, ...gardenPieces, ...glb };
 
 export type { Adapter, BuildCtx } from './types';

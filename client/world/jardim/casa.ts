@@ -175,8 +175,8 @@ export function buildCasa(c: Ctx): { cherry: CherryPickup; fruit: HangingCherrie
 
   // --- West wing: library (north half) and tea room (south half) ----------------------------------
   // Free-standing shelf right between the gate and the courtyard door: you walk around it.
-  bookshelf(c, -MID, -3.9, 'z', 3.0);
-  bookshelf(c, -12.6, -6.9, 'z', 2.6);
+  gardenBookshelf(c, -MID, -3.9, 'z', 3.0);
+  gardenBookshelf(c, -12.6, -6.9, 'z', 2.6);
   b.span(-9.6, 0, -1.6, -8.8, 0.78, -0.8, 'madeira', { tint: C.wood });
   for (let k = 0; k < 3; k++) b.cylinder(-9.45 + k * 0.22, 0.78, -1.2, 0.04, 0.3, 'pintura', { tint: 0xf2e6c8, collide: false, segments: 6 });
   foldingScreen(b, -MID, 0, 3.9, 'z', 3);
@@ -270,7 +270,7 @@ export function buildRing(c: Ctx) {
 const surfacePaint = () => surfaceMaterial('pintura');
 
 /** Bookshelf full of colored spines on both faces, `len` long along `along`, 2.2 m tall. */
-function bookshelf(c: Ctx, x: number, z: number, along: 'x' | 'z', len: number) {
+export function gardenBookshelf(c: Ctx, x: number, z: number, along: 'x' | 'z', len: number) {
   const { b } = c;
   const d = 0.45;
   const [sx, sz] = along === 'x' ? [len, d] : [d, len];
@@ -292,7 +292,7 @@ function bookshelf(c: Ctx, x: number, z: number, along: 'x' | 'z', len: number) 
 }
 
 /** Ink landscape: misty mountains, a pine and a red seal. */
-function inkLandscape(g: CanvasRenderingContext2D, w: number, h: number) {
+export function inkLandscape(g: CanvasRenderingContext2D, w: number, h: number) {
   g.fillStyle = '#f3ead6';
   g.fillRect(0, 0, w, h);
   const ridge = (base: number, amp: number, color: string, seed: number) => {
