@@ -54,7 +54,16 @@ export interface ItemDef {
  * Grip of the rifle in the right hand of the canonical rig: the barrel (model -Z) along the arm (bone +X),
  * the top (model +Y) toward bone -Z, which faces up when the arm is raised to aim.
  */
-const RIFLE_GRIP = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0)));
+export const RIFLE_GRIP = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0)));
+
+/**
+ * A grip on the other hand: the rotation mirrored across the body's middle (X → -X). The hands' bones are
+ * mirror images of each other, so the item sits in the left hand as it would in the right, seen in a mirror.
+ */
+export const mirrorGrip = (q: THREE.Quaternion) => new THREE.Quaternion(q.x, -q.y, -q.z, q.w);
+
+/** Rifle grip in the left hand (when the right one is missing): the right grip mirrored. */
+export const LEFT_GRIP = mirrorGrip(RIFLE_GRIP);
 /** On the back: barrel up, tilted. */
 const RIFLE_BACK = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0.55, 'ZXY'));
 
