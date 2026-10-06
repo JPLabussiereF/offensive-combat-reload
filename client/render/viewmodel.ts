@@ -2,7 +2,9 @@
 // The gun in hand comes with its upgrades (sight, magazine, silencer: weaponModels.ts), built once per look
 // and kept, so switching guns costs nothing; switching plays a short draw. The arms are the character's own
 // forearms and hands, faceted, in its skin and sleeve (viewmodelArms.ts), with PCD (a missing hand or arm is
-// not drawn; the knife or the grenade goes to the other hand).
+// not drawn; the knife or the grenade goes to the other hand; without the right hand the gun is held by the
+// left one, mirrored to the left of the screen, and with one hand it rests to reload and goes away for the
+// knife and the grenade).
 //
 // Procedural layers on top of the hip / ADS / sprint pose, each a damped spring (springs.ts) with every
 // number in VM_FEEL (tunable live with F6):
@@ -128,6 +130,11 @@ export class Viewmodel {
   /** Gloves on the hands (catalog id and colors), or none. */
   private glove: ReturnType<typeof armGlove> = null;
   private missing = { armL: false, armR: false, handL: false, handR: false };
+  /** Mirrors the gun to the left hand when the right one is missing (the ADS pose stays centered: x = 0). */
+  private gunSide = new THREE.Group();
+  /** The arm on the grip (with one hand it leaves the grip to change the magazine), and its wrist there. */
+  private gripArm: THREE.Object3D | null = null;
+  private gripWrist = new THREE.Vector3();
   private knifeItem: THREE.Object3D | null = null;
   private grenadeArm = new THREE.Group();
   private grenadeInHand: THREE.Object3D = new THREE.Group();
@@ -152,6 +159,7 @@ export class Viewmodel {
   /** 0..1: how far the rifle is lowered for a melee swing (smoothed so it comes back only afterwards). */
   private meleeDuck = 0;
   private tmp = new THREE.Vector3();
+  private tmpMag = new THREE.Vector3();
 
   constructor(vmScene: THREE.Scene) {
     // Muzzle flash: two crossed additive quads.
@@ -178,7 +186,8 @@ export class Viewmodel {
     this.setGun(gunStats('rifle'));
     this.knifeSide.add(this.knife);
     this.grenadeSide.add(this.grenadeArm);
-    this.root.add(this.gun, this.knifeSide, this.grenadeSide);
+    this.gunSide.add(this.gun);
+    this.root.add(this.gunSide, this.knifeSide, this.grenadeSide);
     vmScene.add(this.root);
   }
 
@@ -195,7 +204,19 @@ export class Viewmodel {
     // (A mirrored group: its children keep their animation, on the other side.)
     this.knifeSide.scale.x = m.handR ? -1 : 1;
     this.grenadeSide.scale.x = m.handL ? -1 : 1;
+    // No right hand: the left one holds the gun by the grip, the whole gun mirrored to the left.
+    this.gunSide.scale.x = m.handR ? -1 : 1;
     this.buildArms();
+  }
+
+  /** The gun is in the left hand, mirrored (no right hand). */
+  private get mirrored() {
+    return this.missing.handR;
+  }
+
+  /** Only one hand (PCD): it reloads with the gun resting and puts the gun away for the knife or a grenade. */
+  private get oneHand() {
+    return this.missing.handL || this.missing.handR;
   }
 
   /** Rebuilds the arms on the gun (PCD: a missing hand leaves the forearm, a missing arm leaves nothing). */
@@ -208,12 +229,16 @@ export class Viewmodel {
     }
     const A = VM_FEEL.arms;
     const opts = (grip: number, hand: boolean) => ({ sleeve: this.sleeve, skin: this.skin, grip, hand, glove: this.glove });
-    if (!this.missing.armR) {
-      const r = armMesh(this.sex, 1, opts(A.right.grip, !this.missing.handR));
+    // Mirrored (no right hand), the arm on the grip is the left hand and the right one hangs out of view.
+    this.gripArm = null;
+    if (this.mirrored || !this.missing.armR) {
+      const r = armMesh(this.sex, 1, opts(A.right.grip, this.mirrored || !this.missing.handR));
       placeArm(r, v3(A.right.elbow), v3(A.right.wrist), A.right.roll);
       this.arms.add(r);
+      this.gripArm = r;
+      this.gripWrist.copy(r.position);
     }
-    if (!this.missing.armL) {
+    if (!this.mirrored && !this.missing.armL) {
       const L = this.hold === 'pistola' ? A.pistolLeft : A.left;
       const l = armMesh(this.sex, -1, opts(L.grip, !this.missing.handL));
       placeArm(l, v3(L.elbow), v3(L.wrist), L.roll);
@@ -364,6 +389,12 @@ export class Viewmodel {
     this.knife.rotation.set(r0[0] + (r1[0] - r0[0]) * f, r0[1] + (r1[1] - r0[1]) * f, r0[2] + (r1[2] - r0[2]) * f);
   }
 
+  /** The sight's center in main-camera space (fully aimed: on the view's axis, x = y = 0, mirrored or not). */
+  sightCameraSpace(out: THREE.Vector3): THREE.Vector3 {
+    this.gun.updateWorldMatrix(true, false);
+    return out.set(0, this.kit.sightY, 0).applyMatrix4(this.gun.matrixWorld);
+  }
+
   /** Muzzle position in main-camera space, for tracers and the muzzle light. */
   muzzleCameraSpace(out: THREE.Vector3): THREE.Vector3 {
     this.gun.updateWorldMatrix(true, false);
@@ -416,7 +447,9 @@ export class Viewmodel {
     const sway = 1 - ads * (1 - F.sway.adsKeep);
     this.swayX.target = THREE.MathUtils.clamp(-s.mouseDX * F.sway.perPixel, -F.sway.max, F.sway.max);
     this.swayY.target = THREE.MathUtils.clamp(s.mouseDY * F.sway.perPixel, -F.sway.max, F.sway.max);
-    const sx = this.swayX.update(dt);
+    // (A mirrored gun takes back the mirror on what follows the view's side: the sway and the strafe tilt.)
+    const ms = this.mirrored ? -1 : 1;
+    const sx = this.swayX.update(dt) * ms;
     const sy = this.swayY.update(dt);
     pos.x += sx * F.sway.pos * sway;
     pos.y += sy * F.sway.pos * sway;
@@ -425,7 +458,7 @@ export class Viewmodel {
 
     // Strafe tilt (2–4°).
     this.tiltS.target = -THREE.MathUtils.clamp(s.strafe / F.tilt.atSpeed, -1, 1) * F.tilt.max * (1 - ads * (1 - F.tilt.adsKeep));
-    rz += this.tiltS.update(dt);
+    rz += this.tiltS.update(dt) * ms;
 
     // Reload: tilt the gun, drop the mag out of frame and bring it back.
     if (s.reload !== null) {
@@ -436,8 +469,18 @@ export class Viewmodel {
       pos.y -= tiltIn * 0.03;
       const out = THREE.MathUtils.smoothstep(r, 0.12, 0.3) * (1 - THREE.MathUtils.smoothstep(r, 0.45, 0.62));
       this.kit.mag.position.y = this.kit.magY - out * 0.35;
+      // One hand: the gun rests against the body (lower, turned further) while that hand leaves the grip,
+      // takes the magazine down out of view and brings the new one.
+      if (this.oneHand && this.gripArm) {
+        rx += tiltIn * 0.2;
+        pos.y -= tiltIn * 0.05;
+        const toMag = THREE.MathUtils.smoothstep(r, 0.04, 0.12) * (1 - THREE.MathUtils.smoothstep(r, 0.62, 0.78));
+        const mag = this.kit.mag.position;
+        this.gripArm.position.copy(this.gripWrist).lerp(this.tmpMag.set(mag.x, mag.y - 0.05, mag.z), toMag);
+      }
     } else {
       this.kit.mag.position.y = this.kit.magY;
+      this.gripArm?.position.copy(this.gripWrist);
     }
 
     // Draw after a switch: the gun comes up from below, tilted, easing in.
@@ -486,10 +529,12 @@ export class Viewmodel {
     // Grenade: the rifle ducks while the left hand holds the grenade up, then a quick overhand throw.
     const cooking = s.grenadeCook !== null;
     const throwing = s.grenadeThrow !== null && s.grenadeThrow < 0.4;
+    let nadeDuck = 0;
     if (cooking || throwing) {
       const inT = cooking ? Math.min(1, s.grenadeCook! / 0.15) : 1;
       const outT = throwing ? THREE.MathUtils.smoothstep(s.grenadeThrow!, 0.15, 0.4) : 0;
       const duck = inT * (1 - outT);
+      nadeDuck = duck;
       pos.y -= duck * 0.15;
       pos.x += duck * 0.05;
       rx -= duck * 0.55;
@@ -510,6 +555,10 @@ export class Viewmodel {
     } else {
       this.grenadeArm.visible = false;
     }
+    // One hand: it holds the knife or the grenade, so the gun goes away (on the back) meanwhile.
+    const away = this.oneHand ? Math.max(this.meleeDuck, nadeDuck) : 0;
+    pos.y -= away * 0.25;
+    this.gunSide.visible = away < 0.7;
 
     this.gun.position.copy(pos);
     this.gun.rotation.set(rx, ry, rz);
