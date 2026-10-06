@@ -37,7 +37,7 @@ Efeitos temporários ligados a pontos do mapa, que criam disputas e momentos cô
 | 🎯 **Mira afiada (tiro ao alvo)** | derrubar o último dos 7 alvos da barraca — Vila Assombrada | igual à carpa | 60 s ou morte | **só cliente** (quem dispara localmente) |
 | 💨 **Poção veloz** | bruxa — Vila Assombrada | velocidade × 1,3 | 60 s ou morte | servidor sorteia; efeito no cliente |
 | 🐌 **Poção lerda** (debuff) | bruxa | velocidade × 0,7 | 60 s ou morte | idem |
-| 💀 **Poção do crítico** | bruxa | todo tiro calculado como cabeça (×2,5) | 60 s ou morte | **servidor aplica no dano** |
+| 💀 **Poção do crítico** | bruxa | todo tiro calculado como cabeça (×2,5), **menos a virilha**, que continua morte instantânea (`critRegion`) | 60 s ou morte | **servidor aplica no dano** |
 | 🍺 **Poção do bêbado** (debuff) | bruxa | dispersão × 2,5, recuo × 1,8, visão balançando | 60 s ou morte | idem (cliente) |
 | 🦆 **Poção do pato** | bruxa | granadas viram patos de borracha (só visual/sonoro, todos veem) | até a morte | servidor sorteia; retransmitido em cada `grenade` |
 
