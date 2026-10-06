@@ -95,10 +95,10 @@ export const gardenPieces: Record<string, Adapter> = {
     lanternPost(gardenCtx(c), x, z, ax, az);
   },
 
-  /** The jade dragon fountain on its islet: spits water, roars fire when shot ("dragao"). */
+  /** The jade dragon fountain on its islet: spits water, roars fire when shot (``prop``, default "dragao"). */
   fonteDragao(c, p) {
     const [x, , z] = at(p);
-    dragonFountain(gardenCtx(c), x, z);
+    dragonFountain(gardenCtx(c), x, z, p.prop);
   },
 
   /** Bianzhong: five bronze bells on a frame from ``de`` to ``ate`` along X at z (p), dó to sol ("carrilhao:N"). */
@@ -153,16 +153,16 @@ export const gardenPieces: Record<string, Adapter> = {
     bellFrame(gardenCtx(c), x, y, z, propIndex(p.prop, 0));
   },
 
-  /** A great bell hung from a beam whose top is at ``p`` ("sino:2"). */
+  /** A great bell hung from a beam whose top is at ``p`` (``prop``, default "sino:2"). */
   sinoSuspenso(c, p) {
     const [x, top, z] = at(p);
-    hangingBell(gardenCtx(c), x, top, z);
+    hangingBell(gardenCtx(c), x, top, z, p.prop);
   },
 
-  /** Big drum on a stand at ``p``: booms when shot ("tambor:0"). */
+  /** Big drum on a stand at ``p``: booms when shot (``prop``, default "tambor:0"). */
   tamborGrande(c, p) {
     const [x, y, z] = at(p);
-    bigDrum(gardenCtx(c), x, y, z);
+    bigDrum(gardenCtx(c), x, y, z, p.prop);
   },
 
   /** The war drum on its stand (centre of the drum at x, z): booms when shot ("tambor:N"). */

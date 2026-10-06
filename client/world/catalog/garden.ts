@@ -1,18 +1,10 @@
-// "Jardim do Dragão" pieces: the estate's sectors (each one a piece: the main house, the ring around it, the
-// Bonsai Garden, the Lotus Lake, the Lantern Court, the Warriors' Court, the Bamboo Valley and the Ancestral
-// Sanctuary, see jardim/kit.ts), the garden walls with their gates, and the oriental building blocks
-// (oriental.ts and the kit) for the editor: pavilions, curved roofs, railings, columns, paper walls, moon
-// gates, bridges, decks, open pavilions, ponds, rocks, pines, bonsai, bamboo, hedges, lanterns, the gong.
+// "Jardim do Dragão" pieces: the garden walls with their gates and the oriental building blocks (oriental.ts and
+// the kit) for the editor: pavilions, curved roofs, railings, columns, paper walls, moon gates, bridges, decks,
+// open pavilions, ponds, rocks, pines, bonsai, bamboo, hedges, lanterns, the gong. The pieces that only the
+// estate's sectors use (the cherry, the fountain, the market, the bells and drums...) are in gardenPieces.ts.
 import { bamboo, Bell, bonsai, column, curvedRoof, Gong, moonGateWall, paperWall, pavilion, pine, railing, rock, stoneLantern, wallCap, type PavilionSpec, type Rect } from '../oriental';
 import type { Opening } from '../mapBuilder';
 import { archBridge, basin, bambooGrove, deck, gardenWall, hedge as gardenHedge, inscription, plaque, signBoard, ting, type Ctx, type Gate } from '../jardim/kit';
-import { buildCasa, buildRing } from '../jardim/casa';
-import { buildBonsai } from '../jardim/bonsai';
-import { buildLago } from '../jardim/lago';
-import { buildLanternas } from '../jardim/lanternas';
-import { buildGuerreiros } from '../jardim/guerreiros';
-import { buildBambu } from '../jardim/bambu';
-import { buildSantuario } from '../jardim/santuario';
 import { at, P, scaleOf, V, yawOf, type Adapter, type BuildCtx } from './types';
 
 /** The garden kit's context for a piece: its builder, scene and randomness, the map's lanterns, glow and water. */
@@ -41,33 +33,9 @@ export function gardenCtx(c: BuildCtx): Ctx {
   };
 }
 
-const SECTORS: Record<string, (c: Ctx, out: BuildCtx['out']) => void> = {
-  casa: (g, out) => {
-    const { cherry, fruit } = buildCasa(g);
-    out.pickups.push(cherry);
-    out.fruit.push(fruit);
-  },
-  anel: (g) => buildRing(g),
-  bonsai: (g) => buildBonsai(g),
-  lago: (g) => buildLago(g),
-  lanternas: (g, out) => {
-    out.fruit.push(buildLanternas(g));
-  },
-  guerreiros: (g) => buildGuerreiros(g),
-  bambu: (g) => buildBambu(g),
-  santuario: (g) => buildSantuario(g),
-};
-
 type Side = 'n' | 's' | 'e' | 'w';
 
 export const garden: Record<string, Adapter> = {
-  /** A whole sector of the estate, as laid out in its jardim/ file (seeded: rocks, trees and bamboo). */
-  setor(c, p) {
-    const build = SECTORS[P<{ setor: string }>(p).setor];
-    if (!build) throw new Error(`setor desconhecido "${String(p.params.setor)}"`);
-    build(gardenCtx(c), c.out);
-  },
-
   muroJardim(c, p) {
     const q = P<{ eixo: 'x' | 'z'; fixo: number; de: number; ate: number; portoes: Gate[]; altura?: number; espessura?: number }>(p);
     gardenWall(gardenCtx(c), q.eixo, q.fixo, q.de, q.ate, q.portoes, q.altura, q.espessura);

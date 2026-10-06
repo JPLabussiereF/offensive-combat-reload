@@ -1,4 +1,4 @@
-// The panda of the bamboo valley: sitting against the gardener's house (jardim/bambu.ts), legs out in
+// The panda of the bamboo valley: sitting against the gardener's house (conversao/jardimSetores.ts), legs out in
 // front, chewing on a stalk of bamboo it holds in both paws. Now and then it lifts the stalk to its mouth and
 // bites, its head nodding as it chews. One vertex-colored mesh for the body and two moving parts (the head,
 // the arms with the bamboo); it collides as one box.

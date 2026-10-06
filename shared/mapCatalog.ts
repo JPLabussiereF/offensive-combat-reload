@@ -184,7 +184,6 @@ const DEFS: Record<string, Def> = {
     },
   },
   barraca: { categoria: 'construcoes', nome: { pt: 'Barraca de feira', en: 'Market stall' }, ...livre(), params: { cor: cor(0xb02a2a) } },
-  setor: { categoria: 'construcoes', nome: { pt: 'Setor do jardim', en: 'Garden sector' }, ...fixa, params: { setor: opt(['casa', 'anel', 'bonsai', 'lago', 'lanternas', 'guerreiros', 'bambu', 'santuario']) }, semente: true },
   ponteArco: { categoria: 'construcoes', nome: { pt: 'Ponte em arco', en: 'Arched bridge' }, ...linear, params: { eixo, de: num(), ate: num(), atravessa: num(), largura: pos(2.4), pico: pos(1), y0: o(num(0)), cor: o(cor()), superficie: o(surf('pedra')) } },
   deck: { categoria: 'construcoes', nome: { pt: 'Deque', en: 'Deck' }, ...fixa, params: { area: rect, y: num(0.5), postesAte: o(num(-0.8)), cor: o(cor()) } },
   ting: { categoria: 'construcoes', nome: { pt: 'Quiosque oriental', en: 'Open pavilion' }, ...livre(false), params: { metade: pos(2.2), base: o(pos(0)), altura: o(pos(2.8)), degraus: o(list(opt(['n', 's', 'e', 'w']), 4)), corrimao: o(bool(false)), corTelhado: o(cor()), lanternas: o(pos()) } },
