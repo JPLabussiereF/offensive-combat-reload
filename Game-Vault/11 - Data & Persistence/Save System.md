@@ -26,7 +26,7 @@ Não existe "save game" no sentido tradicional (slots, checkpoints): as partidas
 ## 1. Progresso da conta (servidor → PostgreSQL)
 
 ### O que é salvo
-O `ProgressDelta` de cada `LiveAccount` (XP de conta e de armas, abates, mortes, tipos de abate, humilhações, segundos jogados, pontos) e a **escolha do Arsenal** atual (`profile.arsenal`). Detalhes em [[Player Data]].
+O `ProgressDelta` de cada `LiveAccount` (XP de conta e de armas, abates, mortes, tipos de abate, humilhações, segundos jogados, pontos e, à parte, as estatísticas do modo zumbi em `delta.zumbi`) e a **escolha do Arsenal** atual (`profile.arsenal`). Detalhes em [[Player Data]].
 
 ### Quando
 | Gatilho | Fecha a participação? | Código |
@@ -39,9 +39,10 @@ O `ProgressDelta` de cada `LiveAccount` (XP de conta e de armas, abates, mortes,
 ### Como
 `flushProgress()` (`server/accounts.ts`) roda **numa transação**:
 1. `UPDATE player_stats SET xp = xp + ..., kills = kills + ..., ...` e recalcula `level`.
-2. Para cada arma com XP no delta, um *upsert* em `weapon_progress` (`INSERT ... ON CONFLICT (profile_id, weapon) DO UPDATE SET xp = xp + ...`): uma arma criada depois da conta pode ainda não ter a linha.
-3. `UPDATE player_profile SET loadout = <escolha do Arsenal>` (o servidor sempre a passa no flush).
-4. `UPDATE session_participation SET kills = kills + ..., ..., left_at = CASE WHEN <fechar> ...`.
+2. Se `delta.zumbi` tem algo, um *upsert* em `zombie_stats` que soma cada coluna e guarda `best_wave = GREATEST(...)`. No `mergeDelta` de uma gravação que falhou, `bestWave` também fica com o maior valor em vez de somar.
+3. Para cada arma com XP no delta, um *upsert* em `weapon_progress` (`INSERT ... ON CONFLICT (profile_id, weapon) DO UPDATE SET xp = xp + ...`): uma arma criada depois da conta pode ainda não ter a linha.
+4. `UPDATE player_profile SET loadout = <escolha do Arsenal>` (o servidor sempre a passa no flush).
+5. `UPDATE session_participation SET kills = kills + ..., ..., left_at = CASE WHEN <fechar> ...`.
 
 O delta é trocado por um vazio **antes** da escrita; se ela falhar, `mergeDelta` devolve os valores ao delta atual e o próximo ciclo tenta de novo (log `[progresso] gravação falhou, tento de novo no próximo ciclo`). Ver [[ADR - Progresso gravado em lotes por delta]].
 

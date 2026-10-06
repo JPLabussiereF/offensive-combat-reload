@@ -37,7 +37,9 @@ import {
   type ZItems,
   type ZKind,
 } from '@shared/zombies';
-import { ZombieMatch, type ZombieHost } from '@shared/zombieMatch';
+import { ZombieMatch, type ZombieHost, type ZStat } from '@shared/zombieMatch';
+import { emptyDelta } from '../accounts';
+import { addZombieStat, deltaIsEmpty, mergeDelta, type LiveAccount } from '../progress';
 import { LETHAL_DAMAGE } from '@shared/weapons';
 import type { GameServer } from '../app';
 import { Browser, Player, setWeaponXp, sleep, startTestServer } from './helpers';
@@ -138,6 +140,8 @@ interface Fake {
   xp: Map<number, number>;
   loadouts: Map<number, unknown>;
   feet: Map<number, Vec3>;
+  /** What the match reported for each player's zumbi stats. */
+  stats: Map<number, ZStat[]>;
   step(seconds: number, each?: () => void): void;
   /** Steps until `done` (at most 10 minutes of game time). */
   until(done: () => boolean, each?: () => void): void;
@@ -146,7 +150,7 @@ interface Fake {
 
 /** A match with players standing at `spots`, on a fake clock; damage takes host-side health like Session does. */
 function fakeMatch(spots: Vec3[], seed = 1): Fake {
-  const f = { t: 0, events: [] as ServerMsg[], hp: new Map<number, number>(), xp: new Map<number, number>(), loadouts: new Map<number, unknown>(), feet: new Map<number, Vec3>() } as Fake;
+  const f = { t: 0, events: [] as ServerMsg[], hp: new Map<number, number>(), xp: new Map<number, number>(), loadouts: new Map<number, unknown>(), feet: new Map<number, Vec3>(), stats: new Map<number, ZStat[]>() } as Fake;
   const dead = new Set<number>();
   const host: ZombieHost = {
     now: () => f.t,
@@ -172,6 +176,7 @@ function fakeMatch(spots: Vec3[], seed = 1): Fake {
       f.hp.set(id, 100);
     },
     newMatch: (ids) => ids.forEach((id) => (dead.delete(id), f.hp.set(id, 100))),
+    stat: (id, s) => f.stats.set(id, [...(f.stats.get(id) ?? []), s]),
   };
   f.match = new ZombieMatch(host, navMesh, ZOMBIE.mapas.cemiterio!);
   spots.forEach((p, i) => {
@@ -238,6 +243,44 @@ describe('partida zumbi (motor, relógio falso)', () => {
     expect(f.match.info(1)).toMatchObject({ money: ZOMBIE.dinheiroInicial, kills: 0, state: 'up' });
   });
 
+  it('as estatísticas de cada jogador: abates, onda sobrevivida, queda e o fim da partida', () => {
+    quick();
+    const f = fakeMatch([STREET]);
+    f.until(() => f.match.phase === 'break', killAll(f));
+    const mine = () => f.stats.get(1) ?? [];
+    expect(mine().filter((s) => s.e === 'kill')).toHaveLength(waveSpec(1, 1).total);
+    expect(mine()).toContainEqual({ e: 'kill', kind: 'comum', how: 'head' });
+    expect(mine().filter((s) => s.e === 'wave')).toHaveLength(1);
+    // Wave 2 with nobody shooting: down, and alone nobody revives them: a death, and the end.
+    f.until(() => f.of('zend').length > 0);
+    expect(mine().slice(-3)).toEqual([{ e: 'down' }, { e: 'death' }, { e: 'end', won: false, wave: 2 }]);
+  });
+
+  it('a conta soma os eventos: chefe pelo nome, abate pelo golpe e a melhor onda como máximo', () => {
+    const a = { delta: emptyDelta() } as LiveAccount;
+    const events: ZStat[] = [
+      { e: 'kill', kind: 'comum', how: 'groin' },
+      { e: 'kill', kind: 'noiva', how: 'knife' },
+      { e: 'kill', kind: 'inchado', how: 'blast' },
+      { e: 'revive' },
+      { e: 'coffin' },
+      { e: 'death' },
+      { e: 'end', won: false, wave: 5 },
+      { e: 'end', won: true, wave: 12 },
+    ];
+    for (const s of events) addZombieStat(a, s);
+    expect(a.delta.zumbi).toMatchObject({ kills: 3, groinKills: 1, knifeKills: 1, headshots: 0, bosses: 1, noivaKills: 1, coveiroKills: 0, revives: 1, coffinRolls: 1, deaths: 1, matches: 2, wins: 1, bestWave: 12 });
+    // Zombies aren't players: the player-vs-player numbers don't move.
+    expect(a.delta.kills).toBe(0);
+    // A write that failed comes back: the totals add up, the best wave stays the highest.
+    const retry = emptyDelta();
+    expect(deltaIsEmpty(retry)).toBe(true);
+    addZombieStat({ delta: retry } as LiveAccount, { e: 'end', won: false, wave: 3 });
+    expect(deltaIsEmpty(retry)).toBe(false);
+    mergeDelta(a.delta, retry);
+    expect(a.delta.zumbi).toMatchObject({ matches: 3, wins: 1, bestWave: 12 });
+  });
+
   it('em dupla, quem cai é reanimado pelo outro (que ganha dinheiro), ou sangra até morrer e volta no intervalo', () => {
     quick();
     Object.assign(ZOMBIE.jogador, { caidoSegundos: 5 });
@@ -261,6 +304,10 @@ describe('partida zumbi (motor, relógio falso)', () => {
     f.step(ZOMBIE.jogador.caidoSegundos + 0.2);
     expect(f.match.info(1)!.state).toBe('dead');
     expect(f.match.phase).toBe('wave');
+    // Stats: two downs and a death for 1, a revive for 2.
+    expect(f.stats.get(1)!.filter((s) => s.e === 'down')).toHaveLength(2);
+    expect(f.stats.get(1)!.filter((s) => s.e === 'death')).toHaveLength(1);
+    expect(f.stats.get(2)).toContainEqual({ e: 'revive' });
     f.step(90, killAll(f, 2));
     expect(f.match.wave).toBeGreaterThanOrEqual(2);
     // Came back for the break with the starting weapons.
@@ -376,9 +423,9 @@ async function enter(name: string, session = 'zumbi-cemiterio', lobby: object[] 
   for (const m of lobby) p.send(m);
   p.send({ t: 'join', session });
   const joined = await p.next('joined');
-  return { p, joined, id: joined.you };
+  return { b, p, joined, id: joined.you };
 }
-type In = Awaited<ReturnType<typeof enter>>;
+type In = Omit<Awaited<ReturnType<typeof enter>>, 'b'>;
 
 /** Respawns at `at` and keeps reporting that position (standing, on the ground). */
 async function stand(who: In, at: Vec3) {
@@ -456,6 +503,12 @@ describe('modo zumbi no servidor', () => {
     // The Arsenal can't change mid-match.
     a.p.send({ t: 'loadout', lo: { secundaria: 'pistola', ligadas: {} } });
     await expect(a.p.next('playerLoadout', (m) => m.id === a.id, 300)).rejects.toThrow();
+    // Leaving writes the zumbi stats on the profile, apart from the player-vs-player ones.
+    a.p.send({ t: 'leave' });
+    await sleep(300);
+    const profile = await a.b.req('GET', '/api/perfil');
+    expect(profile.body.totais.zumbi).toMatchObject({ abates: 1, passaro: 1, cabeca: 0, chefes: 0 });
+    expect(profile.body.totais.abates).toBe(0);
     a.p.close();
     await sleep(100);
   }, 40_000);
@@ -531,6 +584,12 @@ describe('modo zumbi no servidor', () => {
     expect(end.players.find((p) => p.id === a.id)).toMatchObject({ downs: 2 });
     const start = await a.p.next('roundStart', () => true, 10_000);
     expect(start.players.find((p) => p.id === a.id)).toMatchObject({ alive: false, zumbi: { money: ZOMBIE.dinheiroInicial, state: 'up' } });
+    // On the profiles: both were down when the match was lost, so each counts a death.
+    a.p.send({ t: 'leave' });
+    b.p.send({ t: 'leave' });
+    await sleep(300);
+    expect((await a.b.req('GET', '/api/perfil')).body.totais.zumbi).toMatchObject({ partidas: 1, vitorias: 0, quedas: 2, reanimacoes: 0, mortes: 1 });
+    expect((await b.b.req('GET', '/api/perfil')).body.totais.zumbi).toMatchObject({ partidas: 1, quedas: 1, reanimacoes: 1, mortes: 1 });
     a.p.close();
     b.p.close();
     await sleep(100);

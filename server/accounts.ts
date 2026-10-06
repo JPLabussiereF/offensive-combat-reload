@@ -1,7 +1,7 @@
 // Accounts, profiles, progress and audit: every SQL query about players lives here.
 import { accountLevel } from '@shared/accountLevel';
 import { sanitizeAppearance, type Appearance } from '@shared/appearance';
-import { DELETION_GRACE_DAYS, formatTag, NAME_COOLDOWN_DAYS, type Participation, type ProfileResponse, type Totals } from '@shared/account';
+import { DELETION_GRACE_DAYS, formatTag, NAME_COOLDOWN_DAYS, type Participation, type ProfileResponse, type Totals, type ZombieTotals } from '@shared/account';
 import { legacyChoice, levelForXp, PROG_WEAPONS, sanitizeChoice, type ArsenalChoice, type Levels, type ProgWeapon } from '@shared/progression';
 import type { Sex } from '@shared/protocol';
 import { transaction, type Db, type Queryable } from './db';
@@ -206,10 +206,32 @@ async function weapons(db: Queryable, profile: Pick<ProfileRow, 'id' | 'loadout'
 
 const levelsOf = (armas: Record<ProgWeapon, { nivel: number }>) => Object.fromEntries(PROG_WEAPONS.map((w) => [w, armas[w].nivel])) as Levels;
 
+/** A zombie_stats row (or none yet: all zero) as the API sends it. */
+const zombieTotals = (z: Record<string, number | undefined>): ZombieTotals => ({
+  partidas: z.matches ?? 0,
+  vitorias: z.wins ?? 0,
+  melhorOnda: z.best_wave ?? 0,
+  ondas: z.waves ?? 0,
+  abates: z.kills ?? 0,
+  cabeca: z.headshots ?? 0,
+  passaro: z.groin_kills ?? 0,
+  facadas: z.knife_kills ?? 0,
+  granadas: z.grenade_kills ?? 0,
+  chefes: z.bosses ?? 0,
+  coveiro: z.coveiro_kills ?? 0,
+  noiva: z.noiva_kills ?? 0,
+  prefeito: z.prefeito_kills ?? 0,
+  quedas: z.downs ?? 0,
+  reanimacoes: z.revives ?? 0,
+  mortes: z.deaths ?? 0,
+  caixao: z.coffin_rolls ?? 0,
+});
+
 export async function fullProfile(db: Db, accountId: string): Promise<ProfileResponse> {
   const [account, profile, prov] = await Promise.all([getAccount(db, accountId), profileOf(db, accountId), providers(db, accountId)]);
-  const [stats, { armas, arsenal }, parts] = await Promise.all([
+  const [stats, zstats, { armas, arsenal }, parts] = await Promise.all([
     db.query('SELECT * FROM player_stats WHERE profile_id = $1', [profile.id]),
+    db.query('SELECT * FROM zombie_stats WHERE profile_id = $1', [profile.id]),
     weapons(db, profile),
     db.query(
       `SELECT session_name, joined_at, left_at, kills, deaths, score, humiliations, account_xp
@@ -231,6 +253,7 @@ export async function fullProfile(db: Db, accountId: string): Promise<ProfileRes
     opressoes: s.humiliations ?? 0,
     segundosJogados: Number(s.seconds_played ?? 0),
     participacoes: s.matches_played ?? 0,
+    zumbi: zombieTotals(zstats.rows[0] ?? {}),
   };
   const participacoes: Participation[] = parts.rows.map((r) => ({
     sessao: r.session_name,
@@ -390,7 +413,50 @@ export interface ProgressDelta {
   humiliations: number;
   secondsPlayed: number;
   score: number;
+  /** Zumbi mode, apart from the player-vs-player numbers above (table zombie_stats). */
+  zumbi: ZombieDelta;
 }
+
+/** Zumbi stats since the last write. `bestWave` is the highest wave reached (kept as a maximum, not added). */
+export interface ZombieDelta {
+  matches: number;
+  wins: number;
+  bestWave: number;
+  waves: number;
+  kills: number;
+  headshots: number;
+  groinKills: number;
+  knifeKills: number;
+  grenadeKills: number;
+  bosses: number;
+  coveiroKills: number;
+  noivaKills: number;
+  prefeitoKills: number;
+  downs: number;
+  revives: number;
+  deaths: number;
+  coffinRolls: number;
+}
+
+export const emptyZombieDelta = (): ZombieDelta => ({
+  matches: 0,
+  wins: 0,
+  bestWave: 0,
+  waves: 0,
+  kills: 0,
+  headshots: 0,
+  groinKills: 0,
+  knifeKills: 0,
+  grenadeKills: 0,
+  bosses: 0,
+  coveiroKills: 0,
+  noivaKills: 0,
+  prefeitoKills: 0,
+  downs: 0,
+  revives: 0,
+  deaths: 0,
+  coffinRolls: 0,
+});
 
 export const emptyDelta = (): ProgressDelta => ({
   accountXp: 0,
@@ -405,6 +471,7 @@ export const emptyDelta = (): ProgressDelta => ({
   humiliations: 0,
   secondsPlayed: 0,
   score: 0,
+  zumbi: emptyZombieDelta(),
 });
 
 export async function openParticipation(db: Db, profileId: string, sessionName: string): Promise<string> {
@@ -435,6 +502,26 @@ export async function flushProgress(db: Db, profileId: string, participationId: 
         `INSERT INTO weapon_progress (profile_id, weapon, xp) VALUES ($1, $2, $3)
          ON CONFLICT (profile_id, weapon) DO UPDATE SET xp = weapon_progress.xp + EXCLUDED.xp`,
         [profileId, w, d.weaponXp[w]],
+      );
+    }
+    const z = d.zumbi;
+    if (Object.values(z).some((v) => v !== 0)) {
+      // An upsert: the row is made on the first zumbi write.
+      await c.query(
+        `INSERT INTO zombie_stats AS s (profile_id, matches, wins, best_wave, waves, kills, headshots, groin_kills, knife_kills,
+                grenade_kills, bosses, coveiro_kills, noiva_kills, prefeito_kills, downs, revives, deaths, coffin_rolls)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+         ON CONFLICT (profile_id) DO UPDATE SET
+                matches = s.matches + EXCLUDED.matches, wins = s.wins + EXCLUDED.wins,
+                best_wave = GREATEST(s.best_wave, EXCLUDED.best_wave), waves = s.waves + EXCLUDED.waves,
+                kills = s.kills + EXCLUDED.kills, headshots = s.headshots + EXCLUDED.headshots,
+                groin_kills = s.groin_kills + EXCLUDED.groin_kills, knife_kills = s.knife_kills + EXCLUDED.knife_kills,
+                grenade_kills = s.grenade_kills + EXCLUDED.grenade_kills, bosses = s.bosses + EXCLUDED.bosses,
+                coveiro_kills = s.coveiro_kills + EXCLUDED.coveiro_kills, noiva_kills = s.noiva_kills + EXCLUDED.noiva_kills,
+                prefeito_kills = s.prefeito_kills + EXCLUDED.prefeito_kills, downs = s.downs + EXCLUDED.downs,
+                revives = s.revives + EXCLUDED.revives, deaths = s.deaths + EXCLUDED.deaths,
+                coffin_rolls = s.coffin_rolls + EXCLUDED.coffin_rolls, updated_at = now()`,
+        [profileId, z.matches, z.wins, z.bestWave, z.waves, z.kills, z.headshots, z.groinKills, z.knifeKills, z.grenadeKills, z.bosses, z.coveiroKills, z.noivaKills, z.prefeitoKills, z.downs, z.revives, z.deaths, z.coffinRolls],
       );
     }
     if (arsenal) await c.query('UPDATE player_profile SET loadout = $2 WHERE id = $1', [profileId, JSON.stringify(arsenal)]);

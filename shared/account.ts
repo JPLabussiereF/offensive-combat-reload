@@ -57,6 +57,28 @@ export interface Totals {
   opressoes: number;
   segundosJogados: number;
   participacoes: number;
+  /** Zumbi mode, counted apart: zombies aren't players, co-op deaths aren't a player's kill. */
+  zumbi: ZombieTotals;
+}
+
+export interface ZombieTotals {
+  partidas: number;
+  vitorias: number;
+  melhorOnda: number;
+  ondas: number;
+  abates: number;
+  cabeca: number;
+  passaro: number;
+  facadas: number;
+  granadas: number;
+  chefes: number;
+  coveiro: number;
+  noiva: number;
+  prefeito: number;
+  quedas: number;
+  reanimacoes: number;
+  mortes: number;
+  caixao: number;
 }
 
 /** GET /api/perfil */
