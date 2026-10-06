@@ -8,8 +8,10 @@
 //   or both; even a legendary one can come broken);
 // - what everyone starts with: the Rifle Padrão with no upgrades and the plain knife, whatever the account
 //   has unlocked (the coffin is this mode's progression).
-// The barricades' rules (shared/barricades.ts) use the numbers here too.
+// The barricades' rules (shared/barricades.ts) use the numbers here too. Each zumbi map's layout (the wall, where
+// the horde rises, the gaps, the coffin) lives in the map's own data (shared/data/mapas/<map>.json, "zumbi").
 import data from './data/zumbi.json';
+import cemiterio from './data/mapas/cemiterio.json';
 import { isGun, upgradeOf, type GunId, type ProgWeapon } from './progression';
 import { damageAtDistance, LETHAL_DAMAGE, type HitRegion, type WeaponData } from './weapons';
 import { WEAPON_FLAWS, type GunStats, type Loadout, type WeaponFlaw } from './arsenal';
@@ -109,10 +111,10 @@ export interface ZombieMapData {
 }
 
 /**
- * Every number of the mode. A plain object loaded from the JSON: the server tests shorten its times and
- * prices to play a whole match in seconds.
+ * Every number of the mode. A plain object loaded from the JSON (and the zumbi maps' layouts from their data):
+ * the server tests shorten its times and prices to play a whole match in seconds.
  */
-export const ZOMBIE = data as unknown as {
+export const ZOMBIE = { ...data, mapas: { cemiterio: cemiterio.zumbi } } as unknown as {
   inicioSegundos: number;
   intervaloSegundos: number;
   intervaloChefeSegundos: number;
