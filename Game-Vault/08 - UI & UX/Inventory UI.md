@@ -7,6 +7,7 @@ source_paths:
   - shared/modes.ts
   - client/ui/ladder.ts
   - client/ui/arsenal.ts
+  - client/ui/arsenalTree.ts
   - client/ui/hud.ts
   - client/ui/home.ts
   - client/ui/strings.ts
@@ -23,30 +24,40 @@ updated: 2026-10-06
 
 # Inventory UI
 
-Não há mochila nem roda de armas: o jogador carrega sempre **uma primária, uma secundária, a faca e granadas** ([[Inventory]]). A "tela de inventário" é o **Arsenal**, onde se escolhe a secundária e se ligam as melhorias opcionais; em partida, o [[HUD]] mostra as duas armas e a troca é por tecla ([[Weapons]]).
+Não há mochila nem roda de armas: o jogador carrega sempre **uma primária, uma secundária, a faca e granadas** ([[Inventory]]). A "tela de inventário" é o **Arsenal**, uma árvore onde se vê o que cada arma tem e o que falta liberar, se equipa a secundária e se liga ou desliga qualquer melhoria liberada; em partida, o [[HUD]] mostra as duas armas e a troca é por tecla ([[Weapons]]).
 
-## Arsenal
+## Arsenal (árvore)
 
-Painel do menu de início/pausa (`#arsenal-grid`) e da aba **Arsenal** da tela inicial (`#home-arsenal`), os dois montados pela classe `Arsenal` (`client/ui/arsenal.ts`). Um cartão por arma, na ordem rifle, pistola, submetralhadora, faca, granada:
+Painel do menu de início/pausa (`#arsenal-grid`) e da aba **Arsenal** da tela inicial (`#home-arsenal`), os dois montados pela classe `Arsenal` (`client/ui/arsenal.ts`) a partir do modelo puro `arsenalTree` (`client/ui/arsenalTree.ts`). Decisão em [[ADR - Árvore do Arsenal e armas liberadas por nível]].
 
-| Parte do cartão | O que mostra |
+```text
+PRINCIPAL   [Rifle ✓ Equipada]
+             painel do rifle → melhorias em cadeia: [Ponto vermelho]─[Empunhadura]─[Luneta]─[Pente 🔒]─[Silenciador 🔒]
+SECUNDÁRIA  [Pistola ✓ Equipada]──[Submetralhadora 🔒 faltam N pts com a Pistola]
+             painel da arma clicada (começa na equipada)
+FACA        [Faca ✓]        painel com as formas (frango, sabre…)
+GRANADA     [Granada ✓]     painel com mina e dose dupla
+```
+
+| Parte | O que mostra |
 | --- | --- |
-| Cabeçalho | Ícone, espaço ("Primária", "Secundária", "Corpo a corpo", "Arremesso"), "Nível N/total" e o nome da arma |
-| Secundária | Nas secundárias: o selo "✓ Sua secundária" ou o botão **"Levar como secundária"**; a secundária não escolhida fica esmaecida |
-| Pontos | Barra laranja e "X / Y pontos para o nível N" (ou "Nível máximo!") |
+| Linha | Uma por espaço: **Principal** (`PRIMARIES`, hoje só o rifle), **Secundária** (`SECONDARIES`, na ordem em que liberam: pistola, depois submetralhadora), **Faca** e **Granada**. No celular, as cadeias rolam para o lado |
+| Nó de arma | Botão com ícone, nome e "✓ Equipada", "Nível N/total" ou, se trancada, "🔒 faltam N pts com {arma}" (borda tracejada). Clicar mostra o painel dela, **inclusive de uma trancada** (ver o que vem) |
+| Painel | Ícone, "Nível N/total", nome e: selo **✓ Equipada**, botão **Equipar** (arma liberada e não equipada) ou "Trancada: libera com {arma} no nível N. Faltam X pontos com {arma}." |
+| Pontos | Barra laranja e **"Faltam X pontos para o nível N"** (ou "Nível máximo!") |
 | Atributos | Nas armas de fogo: barras de Dano, Cadência, Precisão, Alcance e Mobilidade e "Pente N / reserva M", **já com as melhorias em efeito** (`gunStats`) |
-| Melhorias | Uma linha por melhoria: ícone, nível, nome e o estado — 🔒 com os pontos que faltam (bloqueada), "✓ Ativa" (comum liberada), "Substituída" (comum trocada por uma opcional do mesmo grupo) ou um **interruptor Ligada/Desligada** (opcional liberada). Abaixo, fichas com o que ela muda: verdes para o ganho, vermelhas para a troca, amarela "Opcional: tem troca" |
+| Melhorias | Uma **cadeia em ordem de nível**: ícone, nível, nome e o estado — 🔒 com **os pontos que faltam** (trancada) ou um **interruptor Ligada/Desligada** (liberada, comum ou opcional). Uma comum desligada por causa de uma opcional do grupo mostra "Substituída por {opcional}". Abaixo, fichas com o que ela muda: verdes para o ganho, vermelhas para a troca, amarela "Opcional: tem troca" |
 | Descrição | A descrição engraçada da melhoria sob o mouse ou com foco; sem nenhuma, a da arma |
 
-- **Ligar uma opcional** desliga a outra do mesmo grupo (luneta × ponto vermelho do rifle; frango × sabre; mina × dose dupla).
-- Cada mudança chama `progress.toggle(arma, id, ligada)` ou `progress.setSecondary(arma)`, que grava na conta (`PATCH /api/perfil {arsenal}`). Ao entrar numa sessão, a home manda a escolha ao servidor (`loadout` no saguão).
-- **Na partida o Arsenal é só leitura** em todo modo de jogo (mata-mata online e contra bots): interruptores desabilitados, sem o botão de secundária, e o aviso "Equipamento travado durante a partida…" (`new Arsenal(..., readOnly = true)`). Só no **campo de tiro** ele segue editável, com `applyLoadout(progress.loadout, true)` pondo as armas novas na mão. Ver [[ADR - Equipamento travado no mata-mata]].
-- Na **corrida armada** o menu de pausa mostra a **escada** no lugar do Arsenal (`renderLadder`, `client/ui/ladder.ts`). Ver [[Gun Game]].
-- Sem conta, só a secundária pode ser trocada (no campo de tiro), e vale só para a partida.
+- **Uma por grupo**: ligar uma opcional substitui as comuns do grupo e desliga a outra opcional (luneta × ponto vermelho do rifle; frango × sabre; mina × dose dupla); ligar a comum desliga a opcional do grupo.
+- Cada mudança chama `progress.toggle(arma, id, ligada)` ou `progress.setSecondary(arma)` (botão Equipar), que grava na conta (`PATCH /api/perfil {arsenal}`) **um salvamento por vez** (cliques rápidos: só a última escolha que esperava é enviada). Se o salvamento falha (sem internet, servidor recusou), a tela **volta à última escolha que a conta tem** e avisa "Não foi possível salvar o Arsenal" (na tela inicial, na linha de status; no campo de tiro, num aviso do HUD, e as armas na mão voltam junto). Ao entrar numa sessão, a home manda a escolha ao servidor (`loadout` no saguão).
+- **Na partida o Arsenal é só leitura** em todo modo de jogo (mata-mata online e contra bots): dá para clicar nas armas e ver as árvores, mas os interruptores ficam desabilitados, não há botão Equipar e aparece o aviso "Equipamento travado durante a partida: aqui você só consulta a árvore…" (`new Arsenal(..., readOnly = true)`). Só no **campo de tiro** ele segue editável, com `applyLoadout(progress.loadout, true)` pondo as armas novas na mão. Ver [[ADR - Equipamento travado no mata-mata]].
+- Na **corrida armada** o menu de pausa mostra a **escada** no lugar do Arsenal (`renderLadder`, `client/ui/ladder.ts`) e no **zumbi** o caixão. Ver [[Gun Game]].
+- Sem conta, tudo fica no nível 1 e a **submetralhadora aparece trancada** (como numa conta nova); a aba Arsenal da tela inicial é só de quem tem conta, e o visitante vê o Arsenal no menu do campo de tiro, sem salvar nada.
 - Na tela inicial, a aba usa um `Progress` próprio montado do perfil; o cartão do personagem mostra os ícones do que vai para a partida (primária, secundária, faca e granada na forma escolhida — `weaponIcon`).
-- O foco é preservado entre redesenhos (controle e teclado podem navegar pelos botões; ver [[Menus]]).
+- O foco é preservado entre redesenhos (`data-key`): controle e teclado navegam pelos botões (nós de arma, Equipar e interruptores; ver [[Menus]]).
 
-Textos: nomes, descrições e fichas vêm de `client/ui/strings.ts` (`arma_*`, `upg_<arma>_<id>`, `upgDesc_*`, `fx_*`), em pt-BR e inglês; `client/tests/arsenalText.test.ts` confere que nenhuma melhoria fica sem texto.
+Textos: nomes, descrições e fichas vêm de `client/ui/strings.ts` (`arma_*`, `upg_<arma>_<id>`, `upgDesc_*`, `fx_*`, `treeRow_*`, `treeEquip`, `treeWeaponLocked*`, `upgradeReplacedBy`, `arsenalSaveFailed`), em pt-BR e inglês; `client/tests/arsenalText.test.ts` confere que nenhuma arma, melhoria ou linha da árvore fica sem texto, e `client/tests/arsenalTree.test.ts` confere o modelo da árvore.
 
 ## Em partida
 
@@ -60,7 +71,8 @@ Textos: nomes, descrições e fichas vêm de `client/ui/strings.ts` (`arma_*`, `
 
 ## Código relacionado
 
-- `client/ui/arsenal.ts` — classe `Arsenal`; `weaponName`, `upgradeName`, `weaponLabel`, `weaponIcon`, `effectChips` (usados também no kill feed e na tela inicial).
-- `client/gameplay/progress.ts` — `Progress` (XP, níveis, `choice`, `loadout`, `toggle`, `setSecondary`, `applyServer`).
+- `client/ui/arsenal.ts` — classe `Arsenal` (desenha a árvore); `weaponName`, `upgradeName`, `weaponLabel`, `weaponIcon`, `effectChips` (usados também no kill feed e na tela inicial).
+- `client/ui/arsenalTree.ts` — `TREE_ROWS`, `arsenalTree`, `weaponNode`, `upgradeNodes`: o modelo puro da árvore (linhas, armas, estados e pontos que faltam).
+- `client/gameplay/progress.ts` — `Progress` (XP, níveis, `unlocked`, `toUnlock`, `choice`, `loadout`, `toggle`, `setSecondary`, fila de salvamento, `onSaveError`, `settled`, `applyServer`).
 - `client/main.ts` — `applyLoadout`, `switchTo`, `holdSlot`.
 - `shared/progression.ts`, `shared/arsenal.ts` — dados e atributos ([[Progression]], [[Shared Systems]]).

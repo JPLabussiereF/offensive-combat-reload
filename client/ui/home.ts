@@ -260,6 +260,8 @@ export function showHome(): Promise<HomeChoice> {
     grid.replaceWith(fresh);
     if (progress) {
       new Arsenal(progress, () => {}, fresh);
+      // A change the server didn't save is already undone on screen; say so.
+      progress.onSaveError(() => setStatus(t('arsenalSaveFailed'), true));
       progress.onChange(renderEquipped);
       renderEquipped();
     }

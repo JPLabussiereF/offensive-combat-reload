@@ -4,7 +4,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import type { GameServer } from '../app';
 import { outbox } from '../email';
 import { anonymizeExpired } from '../accounts';
-import { Browser, startTestServer, uniqueEmail, uniqueIp } from './helpers';
+import { xpForLevel } from '@shared/progression';
+import { Browser, setWeaponXp, startTestServer, uniqueEmail, uniqueIp } from './helpers';
 
 let game: GameServer;
 beforeAll(async () => {
@@ -161,10 +162,25 @@ describe('perfil', () => {
     const b = new Browser(game);
     await b.register();
     expect((await b.req('PATCH', '/api/perfil', { arsenal: { secundaria: 'pistola', ligadas: { rifle: ['luneta'] } } })).body.erro).toBe('nivel_bloqueado');
+    // A submetralhadora ainda está trancada (pistola abaixo do nível 3): recusada inteira.
+    const locked = await b.req('PATCH', '/api/perfil', { arsenal: { secundaria: 'smg', ligadas: {} } });
+    expect(locked.status).toBe(400);
+    expect(locked.body.erro).toBe('nivel_bloqueado');
+    await setWeaponXp(b, { pistola: xpForLevel('pistola', 3) });
     const ok = await b.req('PATCH', '/api/perfil', { arsenal: { secundaria: 'smg', ligadas: {} } });
     expect(ok.status).toBe(200);
-    expect(ok.body.arsenal).toEqual({ secundaria: 'smg', ligadas: {} });
+    expect(ok.body.arsenal).toEqual({ secundaria: 'smg', ligadas: {}, desligadas: {} });
     expect((await b.req('GET', '/api/perfil')).body.armas.smg).toEqual({ xp: 0, nivel: 1 });
+  });
+
+  it('guarda as melhorias comuns desligadas, só as já liberadas', async () => {
+    const b = new Browser(game);
+    await b.register();
+    await setWeaponXp(b, { rifle: xpForLevel('rifle', 2) });
+    expect((await b.req('PATCH', '/api/perfil', { arsenal: { secundaria: 'pistola', ligadas: {}, desligadas: { rifle: ['empunhadura'] } } })).body.erro).toBe('nivel_bloqueado');
+    const ok = await b.req('PATCH', '/api/perfil', { arsenal: { secundaria: 'pistola', ligadas: {}, desligadas: { rifle: ['pontoVermelho'] } } });
+    expect(ok.status).toBe(200);
+    expect((await b.req('GET', '/api/perfil')).body.arsenal).toEqual({ secundaria: 'pistola', ligadas: {}, desligadas: { rifle: ['pontoVermelho'] } });
   });
 });
 

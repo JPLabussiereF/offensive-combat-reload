@@ -2,7 +2,7 @@
 // server validated (kills, humiliations, time alive). The delta since the last write is flushed to the
 // database every minute and when the player leaves a session (app.ts).
 import { ACCOUNT_XP, accountLevel } from '@shared/accountLevel';
-import { levelForXp, PROG_WEAPONS, sanitizeChoice, type ArsenalChoice, type Levels, type ProgWeapon } from '@shared/progression';
+import { levelForXp, PROG_WEAPONS, sanitizeChoice, type ArsenalChoice, type Levels, type ProgWeapon, type WeaponXp } from '@shared/progression';
 import { resolveLoadout, type Loadout } from '@shared/arsenal';
 import type { ServerMsg } from '@shared/protocol';
 import { emptyDelta, type GameProfile, type ProgressDelta } from './accounts';
@@ -22,6 +22,9 @@ export interface LiveAccount {
 export const liveAccount = (profile: GameProfile, chatMutedUntil = 0): LiveAccount => ({ profile, delta: emptyDelta(), participation: null, aliveCarry: 0, chatMutedUntil });
 
 export const accountLevelOf = (a: LiveAccount) => accountLevel(a.profile.xp).level;
+
+/** The points earned with every weapon. */
+export const xpOf = (a: LiveAccount): WeaponXp => Object.fromEntries(PROG_WEAPONS.map((w) => [w, a.profile.weapons[w].xp])) as WeaponXp;
 
 /** The level of every weapon, from the points earned with it. */
 export const levelsOf = (a: LiveAccount): Levels => Object.fromEntries(PROG_WEAPONS.map((w) => [w, levelForXp(w, a.profile.weapons[w].xp)])) as Levels;
@@ -62,9 +65,9 @@ export function addTime(a: LiveAccount, dt: number, alive: boolean): LevelUp | n
   return addAccountXp(a, ACCOUNT_XP.perMinuteAlive);
 }
 
-/** A new Arsenal choice from the player: upgrades not unlocked yet are dropped. */
+/** A new Arsenal choice from the player: a locked secondary and upgrades not unlocked yet are dropped. */
 export function equip(a: LiveAccount, raw: unknown): ArsenalChoice {
-  a.profile.arsenal = sanitizeChoice(raw, levelsOf(a));
+  a.profile.arsenal = sanitizeChoice(raw, xpOf(a));
   return a.profile.arsenal;
 }
 

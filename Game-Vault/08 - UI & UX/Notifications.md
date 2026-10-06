@@ -51,7 +51,7 @@ Exemplos confirmados em `main.ts`/`strings.ts`: "{nome} entrou", "{nome} saiu", 
 | --- | --- |
 | `bird` | "NO PÁSSARO!" (tiro na virilha) — ver [[Humiliation]] |
 | `taunt` | "OPRIMIDO!" (fim de uma humilhação) |
-| `level` | "{ícone} {arma} nível {n}: {melhoria}!" (ex.: "🔭 Rifle Padrão nível 4: Luneta do Vovô (3x)!"; chave `upgradeUnlocked`), seguido do aviso "Ligue no Arsenal" quando a melhoria é opcional (`upgradeTurnOn`); "🏅 Conta nível {n}!", biscoito Scooby, humanidade, efeito da poção, mira afiada (carpa dourada / tiro ao alvo) — ver [[Progression]] e [[Buffs & Debuffs]] |
+| `level` | "{ícone} {arma} nível {n}: {melhoria}!" (ex.: "🔭 Rifle Padrão nível 4: Luneta do Vovô (3x)!"; chave `upgradeUnlocked`), seguido do aviso "Ligue no Arsenal" quando a melhoria é opcional (`upgradeTurnOn`) e, quando o nível libera uma arma (a pistola no nível 3 libera a submetralhadora), do aviso "{arma} liberada: equipe no Arsenal" (`weaponUnlocked`; a arma não entra sozinha no espaço); "🏅 Conta nível {n}!", biscoito Scooby, humanidade, efeito da poção, mira afiada (carpa dourada / tiro ao alvo) — ver [[Progression]] e [[Buffs & Debuffs]] |
 
 ## Pop-ups de pontos
 

@@ -65,7 +65,7 @@ export const DEFAULT_LOADOUT: Loadout = { primaria: 'rifle', secundaria: DEFAULT
 /** The account's choice at its weapon levels, as the loadout it plays with. */
 export function resolveLoadout(choice: ArsenalChoice, levels: Levels = START_LEVELS): Loadout {
   const ativas = noUpgrades();
-  for (const w of PROG_WEAPONS) ativas[w] = activeUpgrades(w, levels[w], choice.ligadas[w] ?? []);
+  for (const w of PROG_WEAPONS) ativas[w] = activeUpgrades(w, levels[w], choice.ligadas[w] ?? [], choice.desligadas?.[w] ?? []);
   return { primaria: 'rifle', secundaria: choice.secundaria, ativas };
 }
 

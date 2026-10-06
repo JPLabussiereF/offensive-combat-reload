@@ -1,6 +1,7 @@
 // Offline play with the weapon progression. The training range and the matches against bots arm the player with
-// the account's Arsenal through Progress (client/gameplay/progress.ts: levels from the profile, the choice cleaned
-// against them, toggles and the secondary saved to the account; level 1 and nothing saved without an account);
+// the account's Arsenal through Progress (client/gameplay/progress.ts: levels and weapon locks from the profile,
+// the choice cleaned against them, toggles and the secondary saved to the account one save at a time, a failed
+// save undone; level 1, the SMG locked and nothing saved without an account);
 // the bots draw guns without upgrades or take corrida armada's ladder; the solo zombie game (client/zombies/local.ts)
 // runs the shared match engine and damage rules with the starting rifle and the coffin's weapons, and no XP.
 // What needs the browser (BotManager and Bot build meshes, physics and canvas nameplates; main.ts picks the
@@ -60,21 +61,22 @@ afterAll(() => {
 });
 
 describe('treino e contra bots: o Arsenal da conta (Progress)', () => {
-  it('sem conta: rifle e pistola sem melhorias, nada liga, e a secundária escolhida vale só para a partida', () => {
+  it('sem conta: rifle e pistola sem melhorias, nada liga, a submetralhadora fica trancada e nada é salvo', () => {
     saved = [];
     const pr = new Progress(null);
     expect(pr.signedIn).toBe(false);
     expect(pr.loadout).toEqual(DEFAULT_LOADOUT);
-    for (const w of PROG_WEAPONS) for (const u of optionals(w)) expect(pr.toggle(w, u.id, true)).toBe(false);
-    for (const g of SECONDARIES) {
-      pr.setSecondary(g);
-      expect(pr.loadout).toEqual({ ...DEFAULT_LOADOUT, secundaria: g });
-      expect(armedOk(pr.loadout)).toBe(true);
-    }
+    for (const w of PROG_WEAPONS) for (const u of PROGRESSION[w].melhorias) expect(pr.toggle(w, u.id, !u.opcional)).toBe(false);
+    // Level 1 everywhere: the SMG waits for the pistol's level 3, like on a new account.
+    expect(pr.unlocked('smg')).toBe(false);
+    expect(pr.toUnlock('smg')).toBe(xpForLevel('pistola', 3));
+    expect(pr.setSecondary('smg')).toBe(false);
+    expect(pr.loadout).toEqual(DEFAULT_LOADOUT);
+    expect(armedOk(pr.loadout)).toBe(true);
     expect(saved).toEqual([]);
   });
 
-  it('com conta: cada arma em cada nível dá o equipamento da conta, e só liga o que o nível liberou', () => {
+  it('com conta: cada arma em cada nível dá o equipamento da conta, e só liga o que o nível liberou', async () => {
     for (const w of PROG_WEAPONS) {
       for (let lvl = 1; lvl <= levelCount(w); lvl++) {
         saved = [];
@@ -82,6 +84,8 @@ describe('treino e contra bots: o Arsenal da conta (Progress)', () => {
         const pr = new Progress(profileAt({ [w]: xpForLevel(w, lvl) }, { secundaria: SECONDARIES.includes(w as never) ? w : DEFAULT_SECONDARY, ligadas: { [w]: optionals(w).map((u) => u.id) } }));
         const label = `${w} nível ${lvl}`;
         expect({ label, level: pr.level(w) }).toEqual({ label, level: lvl });
+        // A locked secondary from the database is put back to the pistol.
+        if (!pr.unlocked(w)) expect(pr.choice.secundaria).toBe(DEFAULT_SECONDARY);
         // Only what the level unlocked is on, one per group.
         const groups = new Set<string>();
         for (const id of pr.choice.ligadas[w] ?? []) {
@@ -109,16 +113,82 @@ describe('treino e contra bots: o Arsenal da conta (Progress)', () => {
             expect(armedOk(pr.loadout)).toBe(true);
           }
         }
+        // Common upgrades: only the unlocked ones, off and back on; turning one on turns its group's optional off.
+        for (const u of PROGRESSION[w].melhorias.filter((x) => !x.opcional)) {
+          for (const on of [false, true]) {
+            const changed = pr.toggle(w, u.id, on);
+            if (u.nivel > lvl) {
+              expect({ label, id: u.id, changed }).toEqual({ label, id: u.id, changed: false });
+              continue;
+            }
+            expect({ label, id: u.id, on: pr.isOn(w, u.id) }).toEqual({ label, id: u.id, on });
+            expect(pr.loadout.ativas[w].includes(u.id)).toBe(on);
+            if (on && u.grupo) for (const o of optionals(w)) if (o.grupo === u.grupo) expect(pr.isOn(w, o.id)).toBe(false);
+            expect(armedOk(pr.loadout)).toBe(true);
+          }
+        }
+        let swapped = false;
         for (const g of SECONDARIES) {
-          pr.setSecondary(g);
-          expect(pr.loadout.secundaria).toBe(g);
+          const before = pr.loadout.secundaria;
+          swapped = pr.setSecondary(g) || swapped;
+          expect(pr.loadout.secundaria).toBe(pr.unlocked(g) ? g : before);
           expect(armedOk(pr.loadout)).toBe(true);
         }
-        expect(saved.length).toBeGreaterThan(0);
+        // Saves go one at a time; once they settle, the account holds the last choice. (A weapon at level 1 with
+        // the SMG still locked has nothing to change, so nothing to save.)
+        await pr.settled();
+        const anyUnlocked = PROGRESSION[w].melhorias.some((u) => u.nivel <= lvl);
+        expect({ label, saved: saved.length > 0 }).toEqual({ label, saved: anyUnlocked || swapped });
         for (const s of saved) expect(s).toMatchObject({ method: 'PATCH', url: '/api/perfil' });
-        expect(saved.at(-1)!.body).toEqual({ arsenal: pr.choice });
+        if (saved.length) expect(saved.at(-1)!.body).toEqual({ arsenal: pr.choice });
       }
     }
+  });
+
+  it('a submetralhadora libera com a pistola no nível 3, ou para quem já fez pontos com ela', () => {
+    const almost = new Progress(profileAt({ pistola: xpForLevel('pistola', 3) - 1 }, { secundaria: 'smg', ligadas: {} }));
+    expect(almost.choice.secundaria).toBe('pistola');
+    expect(almost.toUnlock('smg')).toBe(1);
+    expect(almost.setSecondary('smg')).toBe(false);
+    const ready = new Progress(profileAt({ pistola: xpForLevel('pistola', 3) }, { secundaria: 'pistola', ligadas: {} }));
+    expect(ready.unlocked('smg')).toBe(true);
+    expect(ready.setSecondary('smg')).toBe(true);
+    expect(ready.loadout.secundaria).toBe('smg');
+    const veteran = new Progress(profileAt({ smg: 1 }, { secundaria: 'smg', ligadas: {} }));
+    expect(veteran.choice.secundaria).toBe('smg');
+  });
+
+  it('um salvamento que falha volta para a escolha da conta e avisa', async () => {
+    const pr = new Progress(profileAt({ pistola: xpForLevel('pistola', 3) }, { secundaria: 'pistola', ligadas: {} }));
+    let heard = 0;
+    let errors = 0;
+    pr.onChange(() => heard++);
+    pr.onSaveError(() => errors++);
+    const ok = globalThis.fetch;
+    globalThis.fetch = (async () => new Response('{"erro":"nivel_bloqueado"}', { status: 400, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch;
+    try {
+      expect(pr.setSecondary('smg')).toBe(true);
+      expect(pr.choice.secundaria).toBe('smg');
+      await pr.settled();
+    } finally {
+      globalThis.fetch = ok;
+    }
+    expect(pr.choice.secundaria).toBe('pistola');
+    expect(heard).toBe(2);
+    expect(errors).toBe(1);
+  });
+
+  it('cliques rápidos: um salvamento por vez, e só a última escolha que esperava é enviada', async () => {
+    saved = [];
+    const pr = new Progress(profileAt({ pistola: xpForLevel('pistola', 3), rifle: xpForLevel('rifle', 3) }, { secundaria: 'pistola', ligadas: {} }));
+    pr.setSecondary('smg');
+    pr.toggle('rifle', 'pontoVermelho', false);
+    pr.toggle('rifle', 'empunhadura', false);
+    expect(saved).toHaveLength(1);
+    await pr.settled();
+    expect(saved).toHaveLength(2);
+    expect(saved[1].body).toEqual({ arsenal: { secundaria: 'smg', ligadas: {}, desligadas: { rifle: ['pontoVermelho', 'empunhadura'] } } });
+    expect(pr.loadout.ativas.rifle).toEqual([]);
   });
 
   it('o progresso que chega do servidor é limpo contra os níveis novos', () => {
@@ -129,8 +199,9 @@ describe('treino e contra bots: o Arsenal da conta (Progress)', () => {
     armas.rifle = { xp: xpForLevel('rifle', levelCount('rifle')), nivel: levelCount('rifle') };
     pr.applyServer({ armas, escolha: { secundaria: 'smg', ligadas: { rifle: ['silenciador'], faca: ['sabre'] } } });
     expect(heard).toBe(1);
-    // The rifle's silencer is unlocked now; the knife is still at level 1 (no saber).
-    expect(pr.choice).toEqual({ secundaria: 'smg', ligadas: { rifle: ['silenciador'] } });
+    // The rifle's silencer is unlocked now; the knife is still at level 1 (no saber), and the SMG still waits
+    // for the pistol.
+    expect(pr.choice).toEqual({ secundaria: 'pistola', ligadas: { rifle: ['silenciador'] }, desligadas: {} });
     expect(pr.loadout.ativas.rifle).toContain('silenciador');
     expect(pr.loadout.ativas.faca).toEqual([]);
     expect(armedOk(pr.loadout)).toBe(true);

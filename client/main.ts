@@ -60,7 +60,7 @@ import { closeReason, gameModeName, showHome } from './ui/home';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
 import { Arsenal, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
-import { upgradeAt, type KnifeForm, type ProgWeapon } from '@shared/progression';
+import { PROG_WEAPONS, upgradeAt, type KnifeForm, type ProgWeapon } from '@shared/progression';
 import { DEFAULT_LOADOUT, grenadeStats, gunIn, meleeStats, sanitizeLoadout, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import { MODE_RULES, type GameModeId } from '@shared/modes';
 import { FINAL_STEP, GUN_GAME, killsForStep, ladderLoadout, type LadderPos } from '@shared/gunGame';
@@ -902,6 +902,7 @@ async function boot() {
   // Points only come from the server (online kills, humiliations, time alive): it pushes the new progress.
   // With a locked loadout (every online mode) what we hold doesn't change: new upgrades wait for the next match.
   conn?.on('progresso', (m) => {
+    const lockedBefore = PROG_WEAPONS.filter((w) => !progress.unlocked(w));
     progress.applyServer(m);
     if (!lockedLoadout && rules?.weapons !== 'mode') applyLoadout(progress.loadout);
     if (!m.subiu) return;
@@ -914,6 +915,8 @@ async function boot() {
       hud.showBanner(`${u?.icone ?? ''} ${t('upgradeUnlocked', { weapon: weaponName(w), level: m.subiu.nivel, upgrade: u ? upgradeName(w, u.id) : '' })}`, 'level');
       if (u?.opcional) hud.notice(t(lockedLoadout ? 'upgradeTurnOnNext' : 'upgradeTurnOn'));
       else if (lockedLoadout) hud.notice(t('upgradeNextMatch'));
+      // The level also unlocked a weapon (the pistol's frees the SMG): it waits in the Arsenal, not in our hands.
+      for (const freed of lockedBefore.filter((x) => progress.unlocked(x))) hud.notice(t('weaponUnlocked', { weapon: weaponName(freed) }));
     }
     sfx.levelUp();
   });
@@ -933,6 +936,12 @@ async function boot() {
   } else {
     if (lockedLoadout) document.getElementById('arsenal-hint')!.textContent = t('arsenalLockedHint');
     new Arsenal(progress, () => applyLoadout(progress.loadout, true), arsenalGrid, lockedLoadout);
+    // Training range: a change the account didn't save is undone, in the Arsenal and in our hands.
+    if (!lockedLoadout)
+      progress.onSaveError(() => {
+        applyLoadout(progress.loadout, true);
+        hud.notice(t('arsenalSaveFailed'));
+      });
   }
   applyLoadout(startLoadout);
   // Zumbi: the bigger reserve from the start.

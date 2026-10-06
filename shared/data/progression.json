@@ -1,5 +1,5 @@
 {
-  "_doc": "Evolução das armas por melhorias. Cada arma começa no nível 1 (só os atributos base do seu JSON) e cada nível seguinte libera UMA melhoria. xp = pontos acumulados COM ESSA ARMA para liberar o nível (cada abate rende os pontos do abate, bônus incluídos, só para a arma que matou). Melhorias comuns ficam ativas assim que liberadas; as 'opcionais' (com troca: perdem algo para ganhar algo) o jogador liga e desliga no Arsenal. Num mesmo 'grupo' só uma opcional fica ligada, e ela substitui as comuns do grupo. Efeitos: números são multiplicadores, exceto pente/golpe/investida/granadas (somam) e zoom/mira/visual/forma/tipo (substituem). Nomes e descrições ficam em client/ui/strings.ts (upg_<arma>_<id>).",
+  "_doc": "Evolução das armas por melhorias. Cada arma começa no nível 1 (só os atributos base do seu JSON) e cada nível seguinte libera UMA melhoria. xp = pontos acumulados COM ESSA ARMA para liberar o nível (cada abate rende os pontos do abate, bônus incluídos, só para a arma que matou). Melhorias comuns ligam sozinhas assim que liberadas; as 'opcionais' (com troca: perdem algo para ganhar algo) começam desligadas. O jogador liga e desliga qualquer melhoria liberada no Arsenal. Num mesmo 'grupo' só uma fica ligada: uma opcional ligada substitui as comuns do grupo, e ligar a comum desliga a opcional. 'libera' trava uma arma até a arma anterior do mesmo slot chegar a um nível ({ arma, nivel }); quem já fez pontos com a arma travada fica com ela liberada. Efeitos: números são multiplicadores, exceto pente/golpe/investida/granadas (somam) e zoom/mira/visual/forma/tipo (substituem). Nomes e descrições ficam em client/ui/strings.ts (upg_<arma>_<id>).",
   "rifle": {
     "icone": "🔫",
     "melhorias": [
@@ -21,6 +21,7 @@
   },
   "smg": {
     "icone": "🌀",
+    "libera": { "arma": "pistola", "nivel": 3 },
     "melhorias": [
       { "nivel": 2, "xp": 800, "id": "motor", "icone": "⚡", "efeitos": { "cadencia": 1.12 } },
       { "nivel": 3, "xp": 2000, "id": "holo", "icone": "😊", "efeitos": { "mira": "holo", "zoom": 0.82, "mirando": 0.6, "dispersao": 0.9 } },
