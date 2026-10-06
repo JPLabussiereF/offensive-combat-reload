@@ -44,6 +44,7 @@ export interface BuiltMap extends GameMap {
 
 const OFFICIAL: Record<string, () => Promise<{ default: unknown }>> = {
   rua: () => import('@shared/data/mapas/rua.json'),
+  jardim: () => import('@shared/data/mapas/jardim.json'),
   cemiterio: () => import('@shared/data/mapas/cemiterio.json'),
 };
 
