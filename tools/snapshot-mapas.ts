@@ -110,7 +110,10 @@ function geometrySig(obj: THREE.Mesh | THREE.Points | THREE.Line | THREE.Sprite,
     return s;
   };
   const parts: string[] = [];
-  if ((obj as THREE.Points).isPoints || (obj as THREE.Sprite).isSprite) {
+  // Point clouds are the night's stars (Math.random: anywhere on the dome, different on every load) and the
+  // lanterns' halos: their count is the map, where each point falls isn't.
+  if ((obj as THREE.Points).isPoints) return { n: pos.count, parts: [] };
+  if ((obj as THREE.Sprite).isSprite) {
     for (let i = 0; i < pos.count; i++) parts.push(vert(i));
     return { n: pos.count, parts };
   }

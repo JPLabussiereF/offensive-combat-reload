@@ -1828,8 +1828,8 @@
     {"tipo":"PointLight","nome":"","material":"ffa24e,0,10,1.7","sombra":false,"n":0,"hash":"0,0,0"},
     {"tipo":"PointLight","nome":"","material":"ffa24e,0,10,1.7","sombra":false,"n":0,"hash":"0,0,0"},
     {"tipo":"PointLight","nome":"","material":"ffa24e,0,10,1.7","sombra":false,"n":0,"hash":"0,0,0"},
-    {"tipo":"Points","nome":"","material":"PointsMaterial,,ff9a3c,-,tex,-,t0.6,0,-,2","sombra":false,"n":193,"hash":"fe7f86c95175d8ce"},
-    {"tipo":"Points","nome":"","material":"PointsMaterial,,ffa046,-,tex,-,t0.75,0,-,2","sombra":false,"n":650,"hash":"cd663650277712a1"},
-    {"tipo":"Points","nome":"","material":"PointsMaterial,,fff4dc,-,-,-,t0.45,0,-,1","sombra":false,"n":260,"hash":"b7cad9bba98dfc17"}
+    {"tipo":"Points","nome":"","material":"PointsMaterial,,ff9a3c,-,tex,-,t0.6,0,-,2","sombra":false,"n":193,"hash":"409638ee2bde459"},
+    {"tipo":"Points","nome":"","material":"PointsMaterial,,ffa046,-,tex,-,t0.75,0,-,2","sombra":false,"n":650,"hash":"409638ee2bde459"},
+    {"tipo":"Points","nome":"","material":"PointsMaterial,,fff4dc,-,-,-,t0.45,0,-,1","sombra":false,"n":260,"hash":"409638ee2bde459"}
   ]
 }
