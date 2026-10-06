@@ -18,7 +18,7 @@ import { FISH, PICKUPS, RATS, WITCHES, type MapId, type PickupKind } from '@shar
 import { isGun, weaponOfKill, type GunId, type ProgWeapon } from '@shared/progression';
 import { DEFAULT_LOADOUT, grenadeStats, meleeStats, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import type { GameModeId } from '@shared/modes';
-import { accountLevelOf, addAccountXp, addTime, addWeaponXp, equip, loadoutOf, progressMsg, type LevelUp, type LiveAccount } from './progress';
+import { accountLevelOf, addAccountXp, addTime, addWeaponXp, equip, loadoutOf, progressMsg, stickerAdd, stickerMax, stickerUps, type LevelUp, type LiveAccount } from './progress';
 import { createMode, type SessionMode } from './modes';
 import { FLAG, NET, sanitizeChat, type Award, type ClientMsg, type CorpseInfo, type KillKind, type NetState, type PlayerInfo, type ServerMsg, type Sex, type SessionInfo, type Vec3 } from '@shared/protocol';
 
@@ -76,7 +76,8 @@ export interface SPlayer {
   chatAt: number;
   /** Live grenades and mines, with the blast they had when thrown (upgrades can't grow it afterwards). */
   grenades: Map<number, { thrownAt: number; fuse: number; impact: boolean; mine: boolean; origin: Vec3; speed: number; blast: GrenadeLevel }>;
-  dance: { corpse: number; since: number } | null;
+  /** The dance going on: on which corpse, since when, and how much of the corpse's window was left then. */
+  dance: { corpse: number; since: number; left: number } | null;
   /** Server time when the cherry's extra health runs out (0: none). */
   boostUntil: number;
   /** Carries a giant rat's humanity: extra max health until death. */
@@ -89,12 +90,35 @@ export interface SPlayer {
   /** The witch's potion being felt (until: server time) and when the next one can be drunk. */
   potion: { kind: PotionKind; until: number } | null;
   potionReady: number;
+  // For the sticker album (shared/achievements.ts):
+  /** Kills since the last death, kills in a row at most COMBO_MS apart, and when the last one was. */
+  streak: number;
+  combo: number;
+  lastKillAt: number;
+  /** Who killed this player last and who last danced on their body (null: nobody, or it was paid back). */
+  lastKiller: number | null;
+  lastOppressor: number | null;
+  /** When the biscuit was last eaten, and whether health was low (30 or less) right before. */
+  biscuitAt: number;
+  biscuitLow: boolean;
 }
+
+/** Sticker album: the longest gap between two kills of a combo, and how long after the biscuit a kill counts. */
+const COMBO_MS = 4000;
+const SCOOBY_MS = 10_000;
+const SCOOBY_HEALTH = 30;
+/** Sticker album: a killing spree worth breaking, and how many kills ahead in the match make a Goliath. */
+const SPREE = 5;
+const GOLIATH_KILLS = 10;
+/** Sticker album: deaths with nobody to blame. */
+const SELF_DEATH_STICKERS: Partial<Record<KillKind, string>> = { fall: 'gravidade', void: 'fora-do-mapa', dog: 'amora-mandou-lembrancas', explosion: 'tiro-no-pe' };
 
 interface Corpse extends CorpseInfo {
   createdAt: number;
   humiliated: boolean;
   claimedBy: number | null;
+  /** Who made it (null: a fall, the dog, their own grenade); the album's stickers ask. */
+  killer: number | null;
 }
 
 /** How far (m) the server lets a pickup be from the player's last reported feet (latency). */
@@ -242,6 +266,13 @@ export class Session {
       downed: false,
       potion: null,
       potionReady: 0,
+      streak: 0,
+      combo: 0,
+      lastKillAt: 0,
+      lastKiller: null,
+      lastOppressor: null,
+      biscuitAt: 0,
+      biscuitLow: false,
     };
     // Fixed for the match in modes with a locked loadout (mata-mata: the account's Arsenal as it is now).
     p.loadout = p.loadoutBefore = this.mode.joinLoadout(p);
@@ -415,6 +446,8 @@ export class Session {
     if (Math.hypot(x - k.p[0], z - k.p[2]) > radius + PICKUP_SLACK || Math.abs(y - k.p[1]) > 2) return;
     if (k.kind === 'biscoito') {
       k.ready = now + BISCUIT.respawn * 1000;
+      p.biscuitAt = now;
+      p.biscuitLow = p.health <= SCOOBY_HEALTH;
       p.health = this.maxHealth(p, now);
       this.broadcast({ t: 'pickup', id: id as string, by: p.id, ready: k.ready, until: 0 });
       return;
@@ -434,6 +467,7 @@ export class Session {
     const until = kind === 'pato' ? 0 : now + POTION.duration * 1000;
     p.potionReady = now + POTION.cooldown * 1000;
     p.potion = kind === 'pato' ? null : { kind, until };
+    stickerAdd(p.conn.account, `provador-da-bruxa:${kind}`);
     this.broadcast({ t: 'potion', by: p.id, kind, until });
   }
 
@@ -462,6 +496,8 @@ export class Session {
     const [min, max] = KOI.respawn;
     f.ready = now + Math.round((min + Math.random() * (max - min)) * 1000);
     f.golden = Math.random() < KOI.goldenChance;
+    stickerAdd(p.conn.account, 'pescador');
+    if (prize === 'dourada') stickerAdd(p.conn.account, 'peixe-de-ouro');
     this.progress(p, [addAccountXp(p.conn.account, prize === 'dourada' ? KOI.goldenXp : KOI.xp)]);
     const until = prize === 'dourada' ? now + KOI.goldenDuration * 1000 : undefined;
     this.broadcast({ t: 'fish', id: id as string, by: p.id, prize, ready: f.ready, golden: f.golden, ...(until ? { until } : {}) });
@@ -574,7 +610,7 @@ export class Session {
     if (!c || !p.alive || p.dance || c.humiliated || c.claimedBy !== null || now > c.until || c.victim === p.id) return;
     if (Math.hypot(p.state.p[0] - c.p[0], p.state.p[2] - c.p[2]) > HUMILIATION.radius + 1.5) return;
     c.claimedBy = p.id;
-    p.dance = { corpse: c.id, since: now };
+    p.dance = { corpse: c.id, since: now, left: c.until - now };
     this.broadcast({ t: 'taunt', id: p.id, corpse: c.id });
   }
 
@@ -582,6 +618,7 @@ export class Session {
     const c = this.corpses.get(corpseId);
     if (!p.dance || p.dance.corpse !== corpseId || !c) return;
     const completed = done && now - p.dance.since >= HUMILIATION.duration * 1000 - 400;
+    const left = p.dance.left;
     p.dance = null;
     c.claimedBy = null;
     const awards: Award[] = [];
@@ -594,6 +631,7 @@ export class Session {
       d.humiliations++;
       d.score += SCORE.humiliation;
       this.progress(p, [addAccountXp(p.conn.account, ACCOUNT_XP.perHumiliation)]);
+      this.albumHumiliation(p, c, left);
     } else {
       c.until = Math.max(c.until, now + 1500);
     }
@@ -629,11 +667,17 @@ export class Session {
     victim.deaths++;
     victim.deadAt = now;
     victim.grenades.clear();
+    const dancing = !!victim.dance;
+    const spree = victim.streak;
+    victim.streak = victim.combo = 0;
     // Only death ends a dance (damage doesn't): the corpse is released without points.
     if (victim.dance) this.onTauntEnd(victim, victim.dance.corpse, false, now);
     const awards: Award[] = [];
     // A co-op death isn't another player's kill: the account's kill/death stats don't change.
     if (!this.mode.rules.coop) victim.conn.account.delta.deaths++;
+    // Sticker album: dying on your own (a fall, the void, the dog, your own grenade).
+    const own = attacker && attacker !== victim ? null : SELF_DEATH_STICKERS[kind];
+    if (own) stickerAdd(victim.conn.account, own);
     if (attacker && attacker !== victim) {
       awards.push({ label: 'kill', value: SCORE.kill }, ...bonus);
       const points = awards.reduce((s, a) => s + a.value, 0);
@@ -652,6 +696,8 @@ export class Session {
       // Weapon points only where players fight with their own Arsenal (not with a mode's ladder).
       const w = this.mode.rules.weaponXp ? weaponOfKill(kind, isGun(weapon) ? weapon : null) : null;
       this.progress(attacker, [w ? addWeaponXp(acct, w, points) : null, addAccountXp(acct, ACCOUNT_XP.perKill)]);
+      this.albumKill(attacker, victim, spree, dancing, now);
+      victim.lastKiller = attacker.id;
     }
     // The mode's rules for the kill (ladder steps, the end of the round), before the players are announced.
     const after = this.mode.onKill(victim, attacker && attacker !== victim ? attacker : null, kind, weapon);
@@ -667,12 +713,56 @@ export class Session {
       createdAt: now,
       humiliated: false,
       claimedBy: null,
+      killer: attacker && attacker !== victim ? attacker.id : null,
     };
     this.corpses.set(corpse.id, corpse);
     const players = [this.playerInfo(victim), ...(attacker && attacker !== victim ? [this.playerInfo(attacker)] : [])];
     const { id, victim: v, name, sex, ap, p, yaw, until } = corpse;
     this.broadcast({ t: 'kill', victim: victim.id, attacker: attacker?.id ?? null, kind, ...(weapon && attacker && attacker !== victim ? { arma: weapon } : {}), awards, corpse: { id, victim: v, name, sex, ap, p, yaw, until }, players });
     for (const m of after) this.broadcast(m);
+  }
+
+  /** The sticker album's counters for a player's kill of another (`spree`: the victim's kills before dying). */
+  private albumKill(a: SPlayer, victim: SPlayer, spree: number, dancing: boolean, now: number) {
+    const acct = a.conn.account;
+    a.streak++;
+    a.combo = now - a.lastKillAt <= COMBO_MS ? a.combo + 1 : 1;
+    a.lastKillAt = now;
+    stickerMax(acct, 'embalado', a.streak);
+    stickerMax(acct, 'combo', a.combo);
+    if (a.lastKiller === victim.id) {
+      stickerAdd(acct, 'vinganca');
+      a.lastKiller = null;
+    }
+    if (spree >= SPREE) stickerAdd(acct, 'estraga-sequencia');
+    if (dancing) stickerAdd(acct, 'estraga-prazer');
+    if (a.humanity) stickerAdd(acct, 'humanidade-restaurada');
+    if (a.boostUntil > now) stickerAdd(acct, 'cereja-do-bolo');
+    if (a.potion?.kind === 'bebado' && a.potion.until > now) stickerAdd(acct, 'saude-hic');
+    // The biscuit saved them: counts once per biscuit.
+    if (a.biscuitLow && now - a.biscuitAt <= SCOOBY_MS) {
+      stickerAdd(acct, 'scooby-dooby-doo');
+      a.biscuitLow = false;
+    }
+  }
+
+  /** The sticker album's counters for a dance completed on corpse `c` (`left`: the window it started with). */
+  private albumHumiliation(p: SPlayer, c: Corpse, left: number) {
+    const acct = p.conn.account;
+    const victim = this.players.get(c.victim);
+    if (victim) {
+      stickerAdd(victim.conn.account, 'oprimido');
+      if (victim.kills - p.kills >= GOLIATH_KILLS) stickerAdd(acct, 'davi-contra-golias');
+    }
+    if (p.lastOppressor === c.victim) {
+      stickerAdd(acct, 'troco');
+      p.lastOppressor = null;
+    }
+    if (victim) victim.lastOppressor = p.id;
+    if (c.killer === null) stickerAdd(acct, 'chutando-cachorro-morto');
+    else if (c.killer !== p.id) stickerAdd(acct, 'oportunista');
+    if (left <= 1000) stickerAdd(acct, 'no-ultimo-segundo');
+    stickerAdd(acct, `pe-de-valsa:${this.map}`);
   }
 
   private tick() {
@@ -709,6 +799,8 @@ export class Session {
     if (this.scoreTimer >= 1) {
       this.scoreTimer = 0;
       this.broadcast({ t: 'scores', players: [...this.players.values()].map((p) => this.playerInfo(p)) });
+      // Album stickers that went up (from anything: kills, dances, the zumbi stats, time played), to their owner.
+      for (const p of this.players.values()) for (const up of stickerUps(p.conn.account)) p.conn.send({ t: 'figurinha', ...up });
     }
   }
 
@@ -749,5 +841,6 @@ export class Session {
     p.potion = null;
     p.potionReady = 0;
     p.grenades.clear();
+    p.streak = p.combo = 0;
   }
 }

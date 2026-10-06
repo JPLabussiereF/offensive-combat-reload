@@ -2,7 +2,7 @@
 // finish (common → gold, then repeats for counters), pages and the album count what's stuck in, and the
 // numbers come out of the profile the API already sends.
 import { describe, expect, it } from 'bun:test';
-import { album, albumCount, albumProblems, FINISHES, PAGES, SOURCES, STICKERS, stickerState, sourcesFromProfile, tierOf, type Sources, type Sticker } from '@shared/achievements';
+import { album, albumCount, albumProblems, fillHow, FINISHES, finishOf, itemProgress, PAGES, SOURCES, STICKERS, stickerState, sourcesFromProfile, tierOf, tiersOf, type Sources, type Sticker } from '@shared/achievements';
 import type { ProfileResponse, ZombieTotals } from '@shared/account';
 import { MAX_LEVELS, PROG_WEAPONS } from '@shared/progression';
 
@@ -14,6 +14,25 @@ describe('dados do álbum', () => {
   it('ids únicos, páginas e fontes que existem, 4 metas crescentes, textos nas duas línguas', () => {
     expect(albumProblems()).toEqual([]);
     expect(FINISHES).toHaveLength(4);
+  });
+
+  it('figurinhas próprias: contador pelo id, coleção pelo item menos juntado', () => {
+    const potions = STICKERS.find((s) => s.id === 'provador-da-bruxa')!;
+    expect(potions.itens).toHaveLength(5);
+    const own = { 'provador-da-bruxa:pato': 4, 'provador-da-bruxa:veloz': 3, 'provador-da-bruxa:lerdo': 9, 'provador-da-bruxa:critico': 3, oprimido: 21 };
+    // One potion never drunk: nothing yet; all five at least 3 times: the second finish.
+    expect(stickerState(potions, zero, own)).toMatchObject({ progress: 0, tier: 0 });
+    expect(stickerState(potions, zero, { ...own, 'provador-da-bruxa:bebado': 3 })).toMatchObject({ progress: 3, tier: 3, repeats: 0 });
+    expect(itemProgress(potions, own).map((i) => [i.item.id, i.progress])).toEqual([
+      ['pato', 4],
+      ['veloz', 3],
+      ['lerdo', 9],
+      ['critico', 3],
+      ['bebado', 0],
+    ]);
+    const tiers = tiersOf(zero, own);
+    expect(tiers.oprimido).toBe(2);
+    expect(Object.keys(tiers)).toHaveLength(STICKERS.length);
   });
 
   it('toda página tem figurinhas, e toda fonte é usada por alguma figurinha', () => {
@@ -45,6 +64,24 @@ describe('do número ao acabamento', () => {
     expect(at(80)).toMatchObject({ tier: 4, repeats: 0, next: null });
   });
 
+  it('com menos metas, a última é sempre a Dourada; meta única é Dourada de cara e sem repetidas', () => {
+    const three: Sticker = { ...counter, metas: [1, 2, 3] };
+    expect([0, 1, 2, 3].map((tier) => finishOf(three, tier))).toEqual([null, 'brilhante', 'holografica', 'dourada']);
+    expect(finishOf(counter, 1)).toBe('comum');
+    const once: Sticker = { ...record, metas: [1] };
+    expect(stickerState(once, { ...zero, nivel: 0 })).toMatchObject({ tier: 0, next: 1 });
+    expect(stickerState(once, { ...zero, nivel: 7 })).toMatchObject({ tier: 1, repeats: 0, next: null });
+    expect(finishOf(once, 1)).toBe('dourada');
+    for (const id of ['volta-olimpica', 'fora-do-mapa', 'caca-chefes']) expect(STICKERS.find((s) => s.id === id)).toMatchObject({ metas: [1], tipo: 'recorde' });
+  });
+
+  it('o texto de como pegar escolhe singular ou plural pela meta', () => {
+    expect(fillHow('Morra de queda {meta} {vez|vezes}', 1, '1')).toBe('Morra de queda 1 vez');
+    expect(fillHow('Morra de queda {meta} {vez|vezes}', 10, '10')).toBe('Morra de queda 10 vezes');
+    expect(fillHow('Mate {meta} {jogador|jogadores} ({meta})', 2, '2')).toBe('Mate 2 jogadores (2)');
+    expect(fillHow('Play {meta} online', 3600, '1 h')).toBe('Play 1 h online');
+  });
+
   it('número negativo ou quebrado não vira acabamento', () => {
     expect(stickerState(counter, { ...zero, abates: -5 })).toMatchObject({ progress: 0, tier: 0 });
     expect(stickerState(counter, { ...zero, abates: 9.9 })).toMatchObject({ progress: 9, tier: 0 });
@@ -55,7 +92,7 @@ describe('do número ao acabamento', () => {
     expect(albumCount(states, 'matar')).toMatchObject({ stuck: 2, finishes: 2 + 1 });
     const all = albumCount(states);
     expect(all.total).toBe(STICKERS.length);
-    expect(all.finishesTotal).toBe(STICKERS.length * 4);
+    expect(all.finishesTotal).toBe(STICKERS.reduce((n, s) => n + s.metas.length, 0));
     expect(all.stuck).toBe(2);
   });
 });

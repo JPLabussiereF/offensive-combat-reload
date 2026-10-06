@@ -1,5 +1,6 @@
 // Accounts, profiles, progress and audit: every SQL query about players lives here.
 import { accountLevel } from '@shared/accountLevel';
+import type { Own } from '@shared/achievements';
 import { sanitizeAppearance, type Appearance } from '@shared/appearance';
 import { DELETION_GRACE_DAYS, formatTag, NAME_COOLDOWN_DAYS, type Participation, type ProfileResponse, type Totals, type ZombieTotals } from '@shared/account';
 import { legacyChoice, levelForXp, PROG_WEAPONS, sanitizeChoice, type ArsenalChoice, type Levels, type ProgWeapon } from '@shared/progression';
@@ -227,9 +228,33 @@ const zombieTotals = (z: Record<string, number | undefined>): ZombieTotals => ({
   caixao: z.coffin_rolls ?? 0,
 });
 
+/** A player_stats row and a zombie_stats row (either may be missing: all zero) as the API sends them. */
+const totalsOf = (s: Record<string, number | string | undefined>, z: Record<string, number | undefined>): Totals => ({
+  abates: Number(s.kills ?? 0),
+  mortes: Number(s.deaths ?? 0),
+  cabeca: Number(s.headshots ?? 0),
+  passaro: Number(s.groin_kills ?? 0),
+  facadas: Number(s.knife_kills ?? 0),
+  pelasCostas: Number(s.backstabs ?? 0),
+  granadas: Number(s.grenade_kills ?? 0),
+  opressoes: Number(s.humiliations ?? 0),
+  segundosJogados: Number(s.seconds_played ?? 0),
+  participacoes: Number(s.matches_played ?? 0),
+  zumbi: zombieTotals(z),
+});
+
+/** An account that never played: every total at zero. */
+export const emptyTotals = () => totalsOf({}, {});
+
+/** The stickers' own counters (achievement_progress), by key. */
+async function ownCounters(db: Queryable, profileId: string): Promise<Own> {
+  const { rows } = await db.query<{ sticker: string; progress: string }>('SELECT sticker, progress FROM achievement_progress WHERE profile_id = $1', [profileId]);
+  return Object.fromEntries(rows.map((r) => [r.sticker, Number(r.progress)]));
+}
+
 export async function fullProfile(db: Db, accountId: string): Promise<ProfileResponse> {
   const [account, profile, prov] = await Promise.all([getAccount(db, accountId), profileOf(db, accountId), providers(db, accountId)]);
-  const [stats, zstats, { armas, arsenal }, parts] = await Promise.all([
+  const [stats, zstats, { armas, arsenal }, parts, album] = await Promise.all([
     db.query('SELECT * FROM player_stats WHERE profile_id = $1', [profile.id]),
     db.query('SELECT * FROM zombie_stats WHERE profile_id = $1', [profile.id]),
     weapons(db, profile),
@@ -238,23 +263,12 @@ export async function fullProfile(db: Db, accountId: string): Promise<ProfileRes
          FROM session_participation WHERE profile_id = $1 ORDER BY joined_at DESC LIMIT 10`,
       [profile.id],
     ),
+    ownCounters(db, profile.id),
   ]);
   const s = stats.rows[0] ?? {};
   const xp = Number(s.xp ?? 0);
   const lvl = accountLevel(xp);
-  const totais: Totals = {
-    abates: s.kills ?? 0,
-    mortes: s.deaths ?? 0,
-    cabeca: s.headshots ?? 0,
-    passaro: s.groin_kills ?? 0,
-    facadas: s.knife_kills ?? 0,
-    pelasCostas: s.backstabs ?? 0,
-    granadas: s.grenade_kills ?? 0,
-    opressoes: s.humiliations ?? 0,
-    segundosJogados: Number(s.seconds_played ?? 0),
-    participacoes: s.matches_played ?? 0,
-    zumbi: zombieTotals(zstats.rows[0] ?? {}),
-  };
+  const totais = totalsOf(s, zstats.rows[0] ?? {});
   const participacoes: Participation[] = parts.rows.map((r) => ({
     sessao: r.session_name,
     entrada: r.joined_at.toISOString(),
@@ -278,6 +292,7 @@ export async function fullProfile(db: Db, accountId: string): Promise<ProfileRes
     armas,
     arsenal,
     totais,
+    album,
     participacoes,
     nomeLiberaEm: libera && libera.getTime() > Date.now() ? libera.toISOString() : null,
     provedores: prov,
@@ -380,11 +395,20 @@ export interface GameProfile {
   weapons: Record<ProgWeapon, { xp: number }>;
   /** The Arsenal choice (sanitized against the levels whenever it's used). */
   arsenal: ArsenalChoice;
+  /** Totals as of the last write (plus the delta, they are the live numbers the album reads). */
+  totals: Totals;
+  /** The stickers' own counters as of the last write. */
+  album: Own;
 }
 
 export async function loadGameProfile(db: Db, accountId: string): Promise<GameProfile> {
   const profile = await profileOf(db, accountId);
-  const [stats, { armas, arsenal }] = await Promise.all([db.query<{ xp: string }>('SELECT xp FROM player_stats WHERE profile_id = $1', [profile.id]), weapons(db, profile)]);
+  const [stats, zstats, { armas, arsenal }, album] = await Promise.all([
+    db.query('SELECT * FROM player_stats WHERE profile_id = $1', [profile.id]),
+    db.query('SELECT * FROM zombie_stats WHERE profile_id = $1', [profile.id]),
+    weapons(db, profile),
+    ownCounters(db, profile.id),
+  ]);
   const w = {} as GameProfile['weapons'];
   for (const k of PROG_WEAPONS) w[k] = { xp: armas[k].xp };
   return {
@@ -396,6 +420,8 @@ export async function loadGameProfile(db: Db, accountId: string): Promise<GamePr
     xp: Number(stats.rows[0]?.xp ?? 0),
     weapons: w,
     arsenal,
+    totals: totalsOf(stats.rows[0] ?? {}, zstats.rows[0] ?? {}),
+    album,
   };
 }
 
@@ -415,6 +441,8 @@ export interface ProgressDelta {
   score: number;
   /** Zumbi mode, apart from the player-vs-player numbers above (table zombie_stats). */
   zumbi: ZombieDelta;
+  /** The stickers' own counters (table achievement_progress): totals to add, and records to keep the highest of. */
+  album: { add: Own; max: Own };
 }
 
 /** Zumbi stats since the last write. `bestWave` is the highest wave reached (kept as a maximum, not added). */
@@ -472,6 +500,7 @@ export const emptyDelta = (): ProgressDelta => ({
   secondsPlayed: 0,
   score: 0,
   zumbi: emptyZombieDelta(),
+  album: { add: {}, max: {} },
 });
 
 export async function openParticipation(db: Db, profileId: string, sessionName: string): Promise<string> {
@@ -522,6 +551,20 @@ export async function flushProgress(db: Db, profileId: string, participationId: 
                 revives = s.revives + EXCLUDED.revives, deaths = s.deaths + EXCLUDED.deaths,
                 coffin_rolls = s.coffin_rolls + EXCLUDED.coffin_rolls, updated_at = now()`,
         [profileId, z.matches, z.wins, z.bestWave, z.waves, z.kills, z.headshots, z.groinKills, z.knifeKills, z.grenadeKills, z.bosses, z.coveiroKills, z.noivaKills, z.prefeitoKills, z.downs, z.revives, z.deaths, z.coffinRolls],
+      );
+    }
+    // The stickers' own counters, a row per key (made on the first write): totals added, records the highest.
+    for (const [counts, set] of [
+      [d.album.add, 'progress = a.progress + EXCLUDED.progress'],
+      [d.album.max, 'progress = GREATEST(a.progress, EXCLUDED.progress)'],
+    ] as const) {
+      const keys = Object.keys(counts);
+      if (!keys.length) continue;
+      await c.query(
+        `INSERT INTO achievement_progress AS a (profile_id, sticker, progress)
+         SELECT $1, k, v FROM unnest($2::text[], $3::bigint[]) AS t(k, v)
+         ON CONFLICT (profile_id, sticker) DO UPDATE SET ${set}, updated_at = now()`,
+        [profileId, keys, keys.map((k) => counts[k])],
       );
     }
     if (arsenal) await c.query('UPDATE player_profile SET loadout = $2 WHERE id = $1', [profileId, JSON.stringify(arsenal)]);

@@ -3221,9 +3221,37 @@ input[type='range'] {
   margin: 0;
   font-weight: 800;
 }
+.fig-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.fig-progress .fig-bar {
+  flex: 1;
+}
+.fig-progress b {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.fig-items {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.fig-items li {
+  display: grid;
+  grid-template-columns: minmax(90px, 140px) 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 12px;
+}
 .fig-tiers {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(var(--n, 4), 1fr);
   gap: 6px;
   margin: 10px 0 0;
   padding: 0;

@@ -2,6 +2,8 @@
 // server validated (kills, humiliations, time alive). The delta since the last write is flushed to the
 // database every minute and when the player leaves a session (app.ts).
 import { ACCOUNT_XP, accountLevel } from '@shared/accountLevel';
+import type { Totals } from '@shared/account';
+import { sourcesFromTotals, tiersOf, type Own } from '@shared/achievements';
 import { levelForXp, PROG_WEAPONS, sanitizeChoice, type ArsenalChoice, type Levels, type ProgWeapon } from '@shared/progression';
 import { resolveLoadout, type Loadout } from '@shared/arsenal';
 import type { ServerMsg } from '@shared/protocol';
@@ -19,9 +21,16 @@ export interface LiveAccount {
   aliveCarry: number;
   /** Chat mute (accounts.chatMutedUntil): ms since the epoch, 0 = can chat. Reloaded on MUTE_CHANNEL. */
   chatMutedUntil: number;
+  /** Each sticker's finish as the player last heard it: a higher one is news (stickerUps). */
+  stickerTiers: Record<string, number>;
 }
 
-export const liveAccount = (profile: GameProfile, chatMutedUntil = 0): LiveAccount => ({ profile, delta: emptyDelta(), participation: null, aliveCarry: 0, chatMutedUntil });
+export function liveAccount(profile: GameProfile, chatMutedUntil = 0): LiveAccount {
+  const a: LiveAccount = { profile, delta: emptyDelta(), participation: null, aliveCarry: 0, chatMutedUntil, stickerTiers: {} };
+  // What the account already had when it connected isn't news.
+  a.stickerTiers = tiersOf(liveSources(a), liveOwn(a));
+  return a;
+}
 
 export const accountLevelOf = (a: LiveAccount) => accountLevel(a.profile.xp).level;
 
@@ -84,6 +93,10 @@ export function mergeDelta(into: ProgressDelta, d: ProgressDelta) {
   for (const k of Object.keys(d) as (keyof ProgressDelta)[]) {
     if (k === 'weaponXp') for (const w of PROG_WEAPONS) into.weaponXp[w] += d.weaponXp[w];
     else if (k === 'zumbi') mergeZombie(into.zumbi, d.zumbi);
+    else if (k === 'album') {
+      for (const [key, n] of Object.entries(d.album.add)) into.album.add[key] = (into.album.add[key] ?? 0) + n;
+      for (const [key, n] of Object.entries(d.album.max)) into.album.max[key] = Math.max(into.album.max[key] ?? 0, n);
+    }
     else into[k] += d[k];
   }
 }
@@ -94,8 +107,99 @@ function mergeZombie(into: ZombieDelta, d: ZombieDelta) {
 
 export const deltaIsEmpty = (d: ProgressDelta) =>
   Object.entries(d).every(([k, v]) =>
-    k === 'weaponXp' ? PROG_WEAPONS.every((w) => (v as Record<ProgWeapon, number>)[w] === 0) : k === 'zumbi' ? Object.values(v as ZombieDelta).every((n) => n === 0) : v === 0,
+    k === 'weaponXp'
+      ? PROG_WEAPONS.every((w) => (v as Record<ProgWeapon, number>)[w] === 0)
+      : k === 'zumbi'
+        ? Object.values(v as ZombieDelta).every((n) => n === 0)
+        : k === 'album'
+          ? !Object.keys(d.album.add).length && !Object.keys(d.album.max).length
+          : v === 0,
   );
+
+// --- Sticker album (shared/achievements.ts) ---------------------------------------------------------------
+
+/** One more for a sticker's own counter (a running total; "id:item" for a collection). */
+export function stickerAdd(a: LiveAccount, key: string, n = 1) {
+  const add = a.delta.album.add;
+  add[key] = (add[key] ?? 0) + n;
+}
+
+/** A sticker's own record: kept if it beats what's there. */
+export function stickerMax(a: LiveAccount, key: string, n: number) {
+  const max = a.delta.album.max;
+  if (n > (max[key] ?? 0)) max[key] = n;
+}
+
+/** Totals with a delta in them. */
+function withDelta(t: Totals, d: ProgressDelta): Totals {
+  const z = t.zumbi;
+  const dz = d.zumbi;
+  return {
+    abates: t.abates + d.kills,
+    mortes: t.mortes + d.deaths,
+    cabeca: t.cabeca + d.headshots,
+    passaro: t.passaro + d.groinKills,
+    facadas: t.facadas + d.knifeKills,
+    pelasCostas: t.pelasCostas + d.backstabs,
+    granadas: t.granadas + d.grenadeKills,
+    opressoes: t.opressoes + d.humiliations,
+    segundosJogados: t.segundosJogados + Math.round(d.secondsPlayed),
+    participacoes: t.participacoes,
+    zumbi: {
+      partidas: z.partidas + dz.matches,
+      vitorias: z.vitorias + dz.wins,
+      melhorOnda: Math.max(z.melhorOnda, dz.bestWave),
+      ondas: z.ondas + dz.waves,
+      abates: z.abates + dz.kills,
+      cabeca: z.cabeca + dz.headshots,
+      passaro: z.passaro + dz.groinKills,
+      facadas: z.facadas + dz.knifeKills,
+      granadas: z.granadas + dz.grenadeKills,
+      chefes: z.chefes + dz.bosses,
+      coveiro: z.coveiro + dz.coveiroKills,
+      noiva: z.noiva + dz.noivaKills,
+      prefeito: z.prefeito + dz.prefeitoKills,
+      quedas: z.quedas + dz.downs,
+      reanimacoes: z.reanimacoes + dz.revives,
+      mortes: z.mortes + dz.deaths,
+      caixao: z.caixao + dz.coffinRolls,
+    },
+  };
+}
+
+/** Own counters with a delta in them. */
+function withOwn(own: Own, d: ProgressDelta): Own {
+  const out = { ...own };
+  for (const [k, n] of Object.entries(d.album.add)) out[k] = (out[k] ?? 0) + n;
+  for (const [k, n] of Object.entries(d.album.max)) out[k] = Math.max(out[k] ?? 0, n);
+  return out;
+}
+
+/** The album's numbers right now: what was written plus what is still in the delta. */
+export const liveSources = (a: LiveAccount) => sourcesFromTotals(accountLevelOf(a), levelsOf(a), withDelta(a.profile.totals, a.delta));
+export const liveOwn = (a: LiveAccount) => withOwn(a.profile.album, a.delta);
+
+/** A delta made it to the database: it joins what the live numbers start from. */
+export function settle(a: LiveAccount, d: ProgressDelta) {
+  a.profile.totals = withDelta(a.profile.totals, d);
+  a.profile.album = withOwn(a.profile.album, d);
+}
+
+/** Joining a session counts an entry (player_stats.matches_played, written by openParticipation). */
+export function countEntry(a: LiveAccount) {
+  a.profile.totals.participacoes++;
+}
+
+/** The stickers whose finish went up since the player last heard (each one told once). */
+export function stickerUps(a: LiveAccount): { id: string; nivel: number }[] {
+  const ups: { id: string; nivel: number }[] = [];
+  for (const [id, tier] of Object.entries(tiersOf(liveSources(a), liveOwn(a)))) {
+    if (tier <= (a.stickerTiers[id] ?? 0)) continue;
+    a.stickerTiers[id] = tier;
+    ups.push({ id, nivel: tier });
+  }
+  return ups;
+}
 
 /** One zumbi event (shared/zombieMatch.ts ZStat) into the account's zumbi stats. */
 export function addZombieStat(a: LiveAccount, s: ZStat) {
