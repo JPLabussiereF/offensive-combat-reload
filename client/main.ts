@@ -7,7 +7,6 @@ import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { pickSafeSpawn } from './gameplay/spawnPicker';
 import { BISCUIT, CHERRY, GROUP, groups, HEALTH, HUMILIATION, KOI, MOVE, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
-import { PICKUPS } from '@shared/maps';
 import { clampExplosionDamage, computeDamage, explosionDamage, idealTtk, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
 import { eyeHeight, type MoveInput } from '@shared/movement';
 import { CLOSE, FLAG, NET, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
@@ -27,10 +26,8 @@ import { ANIM } from './character/animator';
 import { TuningPanel } from './ui/tuning';
 import { QualityManager } from './render/quality';
 import { createPhysics } from './world/physics';
-import { buildBlockoutMap, type CritterHit, type SpawnPoint } from './world/blockoutMap';
-import { buildDragonGardenMap } from './world/dragonGarden';
-import { buildHauntedTownMap } from './world/hauntedTown';
-import { buildCemeteryMap } from './world/cemetery';
+import type { CritterHit, SpawnPoint } from './world/gameMap';
+import { buildMapFromData, loadOfficialMap } from './world/mapLoader';
 import { loadTextureOverrides } from './world/surfaces';
 import { buildGltfMap } from './world/gltfMap';
 import { MapBuilder } from './world/mapBuilder';
@@ -140,15 +137,9 @@ async function boot() {
   const tMap = performance.now();
   // ?mapa=/maps/arquivo.glb loads a map made in Blender over whatever was picked (map makers' preview).
   const mapUrl = new URLSearchParams(location.search).get('mapa');
-  const buildMap = mapUrl
-    ? buildGltfMap(mapUrl, new MapBuilder(physics, ctx.scene), ctx.renderer)
-    : choice.map === 'jardim'
-      ? buildDragonGardenMap(physics, ctx.scene, sfx)
-      : choice.map === 'halloween'
-        ? buildHauntedTownMap(physics, ctx.scene, sfx)
-        : choice.map === 'cemiterio'
-          ? buildCemeteryMap(physics, ctx.scene, sfx)
-          : buildBlockoutMap(physics, ctx.scene, ctx.renderer, sfx);
+  // The official maps' data ship with the client (shared/data/mapas): training and bots work without the server.
+  const mapData = mapUrl ? null : await loadOfficialMap(choice.map);
+  const buildMap = mapData ? buildMapFromData(mapData, { physics, scene: ctx.scene, renderer: ctx.renderer, sfx, modo: 'jogo' }) : buildGltfMap(mapUrl!, new MapBuilder(physics, ctx.scene), ctx.renderer);
   const [map] = await Promise.all([buildMap, textures]);
   const mapBuildMs = performance.now() - tMap;
   if (map.atmosphere) applyAtmosphere(ctx, map.atmosphere);
@@ -295,7 +286,7 @@ async function boot() {
   let bots: BotManager | null = null;
   // Bots route around Amora's bite zone (a little wider than the zone itself). The solo zumbi game builds the
   // mesh the server bakes: the wall's gaps as polygons of their own, for its barricades (shared/barricades.ts).
-  const zombieNavMap = zombieMode ? ZOMBIE.mapas[choice.map] : undefined;
+  const zombieNavMap = zombieMode ? (mapData?.zumbi ?? ZOMBIE.mapas[choice.map]) : undefined;
   const nav = botMode ? await NavMap.build(physics, map.dog ? [map.dog.zone.clone().expandByScalar(0.3)] : [], zombieNavMap ? gateAreas(zombieNavMap) : []) : null;
   const playerPos = new THREE.Vector3();
   const playerTarget: Combatant & { yaw: number } = {
@@ -329,7 +320,7 @@ async function boot() {
   let zombies: ZombieClient | null = null;
   let localZombies: LocalZombies | null = null;
   if (zombieMode) {
-    const zmap = ZOMBIE.mapas[choice.map] ?? ZOMBIE.mapas.cemiterio!;
+    const zmap = mapData?.zumbi ?? ZOMBIE.mapas[choice.map] ?? ZOMBIE.mapas.cemiterio!;
     let link: ZombieLink | null = null;
     if (conn) {
       link = { online: true, send: (m) => conn.send(m), on: (type, fn) => conn.on(type, fn), now: () => conn.serverNow(), renderTime: () => conn.serverNow() - NET.interpDelayMs };
@@ -456,8 +447,8 @@ async function boot() {
   let boostEnds = 0;
   /** Online: when we last asked the server for a pickup (once is enough while it answers). */
   let pickupAsked = 0;
-  /** What each collectible does (cherry or biscuit), from the map's table. */
-  const pickupKind = (id: string) => (mapUrl ? undefined : PICKUPS[choice.map].find((k) => k.id === id)?.kind);
+  /** What each collectible does (cherry or biscuit), from the map's objects. */
+  const pickupKind = (id: string) => mapData?.objetos.coletaveis.find((k) => k.id === id)?.tipo;
   /** A giant rat's humanity (RAT): extra max health until we die. */
   let humanity = false;
   /** Max health: the body's, the cherry's while it lasts and the humanity's. */

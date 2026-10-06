@@ -14,8 +14,9 @@
 //   bun tools/snapshot-mapas.ts            writes the golden of the 4 maps
 //   bun tools/snapshot-mapas.ts rua        just one
 //
-// The golden was written from the maps as they were built in code, before they became data (PF-6), and
-// client/tests/mapConversion.test.ts checks the map data's loader against it.
+// The golden was written from the maps as they were built in code, before they became data (PF-6: the builders
+// of commit 1487b57), and client/tests/mapConversion.test.ts checks the map data's loader against it. Run now, it
+// snapshots the maps from their data: rewrite the golden only when a map is meant to change.
 import { join } from 'node:path';
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
@@ -270,21 +271,12 @@ export async function buildHeadless(build: (physics: any, scene: THREE.Scene) =>
   }
 }
 
-/** The map builders in code (before the map data). */
-const BUILDERS: Record<OfficialMap, [module: string, fn: string]> = {
-  rua: ['client/world/blockoutMap.ts', 'buildBlockoutMap'],
-  jardim: ['client/world/dragonGarden.ts', 'buildDragonGardenMap'],
-  halloween: ['client/world/hauntedTown.ts', 'buildHauntedTownMap'],
-  cemiterio: ['client/world/cemetery.ts', 'buildCemeteryMap'],
-};
-
-/** The map as the game builds it today. */
+/** The official map as the game builds it: its data (shared/data/mapas/<id>.json) through the loader. */
 export async function buildOfficial(slug: OfficialMap): Promise<Built> {
-  const [module, fn] = BUILDERS[slug];
-  const build = (await loadClient(module))[fn];
-  return buildHeadless((physics, scene) => (slug === 'rua' ? build(physics, scene, fakeRenderer, silentSfx) : build(physics, scene, silentSfx)));
+  const { loadOfficialMap, buildMapFromData } = await loadClient('client/world/mapLoader.ts');
+  const data = await loadOfficialMap(slug);
+  return buildHeadless((physics, scene) => buildMapFromData(data, { physics, scene, renderer: fakeRenderer, sfx: silentSfx, modo: 'jogo' }));
 }
-
 /** Differences between a golden and a fresh snapshot (numbers within `tol`); empty when they match. */
 export function compareSnapshots(golden: MapSnapshot, fresh: MapSnapshot, tol = 1e-6): string[] {
   const out: string[] = [];

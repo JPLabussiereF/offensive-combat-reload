@@ -24,7 +24,7 @@ import { toonGradient } from '../render/materials';
 import { boxProjectUVs, type MapBuilder } from './mapBuilder';
 import { isSurfaceKey, SURFACES, surfaceMaterial } from './surfaces';
 import type { SurfaceMaterial } from './physics';
-import type { DummySpot, GameMap, SpawnPoint } from './blockoutMap';
+import type { DummySpot, GameMap, SpawnPoint } from './gameMap';
 import { PropBus } from './props';
 
 export interface GltfMarkers {

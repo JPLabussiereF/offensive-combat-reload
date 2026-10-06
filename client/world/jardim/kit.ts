@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { fitText } from '../canvasText';
 import { toon, toonGradient } from '../../render/materials';
 import type { SpatialKindName, SpatialSfx, Vec } from '../../audio/spatial';
-import type { MapFrame } from '../blockoutMap';
+import type { MapFrame } from '../gameMap';
 import type { WaterDrops } from '../hydrant';
 import { MapBuilder, stairRun, worldUVs } from '../mapBuilder';
 import type { PropBus } from '../props';
