@@ -173,4 +173,4 @@ Lanternas que balançam, gongo, sinos, tambores, carrilhão de 5 notas, fonte do
 - `client/world/jardim/kit.ts` — `W`, `MID_X`, `MID_Z`, `HOUSE`, `WALL_H`, `SECTOR`, `gardenWall`, `basin`, `bambooGrove`, `struck`.
 - `client/world/jardim/*.ts` — as peças de cada setor que o catálogo usa (`casa`: estantes e a paisagem a nanquim; `bonsai`; `lago`: postes de lanterna e a fonte do dragão; `lanternas`: sinos bianzhong, barracas, cestos, carrinho; `guerreiros`: suportes de armas, bonecos de treino, armaduras; `santuario`: túmulos, sinos, tambor grande, estela, retratos) e um arquivo por elemento (`cereja`, `cerejeira`, `frutas`, `peixes`, `panda`, `luzes`).
 - `client/world/oriental.ts` — `pavilion`, `curvedRoof`, `paperWall`, `moonGateWall`, `Lanterns`, `Gong`, `Bell`, `FireBreath`, `seeded`.
-- `shared/maps.ts` — `PICKUPS.jardim`, `FISH.jardim`.
+- `shared/data/mapas/jardim.json` — `objetos.coletaveis` (a cereja) e `objetos.peixes`.

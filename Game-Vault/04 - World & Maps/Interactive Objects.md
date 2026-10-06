@@ -103,7 +103,7 @@ Catálogo **espacial** dos objetos de cada mapa que reagem ao jogador: onde est�
 | Sino do parque | `sinoparque` | medidor de força (44,5, altura 5,5, 26,5) | tiro | toca |
 | Armário da cozinha | `armario` | cozinha da mansão (~−43,4, 9) | tiro/faca | abre as portas e mostra o biscoito |
 | Biscoito Scooby (coletável) | `biscoito` | (−44,4, 0, 9), dentro do armário | passar perto com o armário aberto | vida cheia (ver [[Pickups]]) |
-| Rato gigante | `rato` (tabela `RATS`) | fim da rua sem saída do esgoto (7,5, −4, 47,5) | tiro (conta 1) / faca (conta 4); cai com 14 | "humanidade" para quem derruba (ver [[Buffs & Debuffs]]) |
+| Rato gigante | `rato` (`objetos.ratos`) | fim da rua sem saída do esgoto (7,5, −4, 47,5) | tiro (conta 1) / faca (conta 4); cai com 14 | "humanidade" para quem derruba (ver [[Buffs & Debuffs]]) |
 | Máquina de refrigerante | — | (58,9, −2) | — | só visual ("a gag for later") |
 
 > [!info]

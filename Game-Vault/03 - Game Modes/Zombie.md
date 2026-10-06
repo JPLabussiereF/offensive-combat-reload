@@ -4,6 +4,7 @@ type: mode
 status: documented
 area: game-modes
 source_paths:
+  - server/maps.ts
   - shared/data/zumbi.json
   - shared/zombies.ts
   - shared/zombieMatch.ts
@@ -56,7 +57,7 @@ updated: 2026-10-06
 
 ## Ambientação
 
-- **Onde:** só no Cemitério da Capela (`MODE_RULES.zumbi.maps = ['cemiterio']`), e o cemitério só neste modo (`MAPS.cemiterio.exclusivo = 'zumbi'`: fora das salas, dos seletores e do campo de tiro dos outros modos). Pátio murado de 40 × 36 m em volta de uma capela num pedestal, campo de covas antigas fora do muro, sebe e mata seca em volta. Feito para **ler a horda**: muro de pedra baixa (0,6 m) com grades até 2,4 m (vê-se e atira-se através), covas baixas, lanternas em cada brecha.
+- **Onde:** só em mapas feitos para o modo (`MODE_RULES.zumbi.ownMaps`; o oficial é o Cemitério da Capela, ou uma cópia dele na comunidade), e o cemitério só neste modo (`exclusivo: 'zumbi'` nos dados: fora das salas, dos seletores e do campo de tiro dos outros modos; `modeAllowsMap`). Pátio murado de 40 × 36 m em volta de uma capela num pedestal, campo de covas antigas fora do muro, sebe e mata seca em volta. Feito para **ler a horda**: muro de pedra baixa (0,6 m) com grades até 2,4 m (vê-se e atira-se através), covas baixas, lanternas em cada brecha.
 - **Clima** (o próprio mapa e `client/zombies/ambience.ts`): noite de lua, **névoa verde `#2c3a30` afastada (18–85 m)** para as brechas e o campo continuarem visíveis de qualquer ponto do pátio; numa **onda de chefe** a névoa vai ficando vermelho-sangue.
 - **Som** ([[SFX]], Web Audio procedural): o **sino da capela** toca três vezes a cada onda (mais grave numa onda de chefe), um acorde de órgão quando ela acaba, gemidos dos 6 zumbis mais próximos, **terra rachando e um gemido alto no ponto onde um zumbi vai sair** (3D), o "ka-ching" da caixa registradora a cada dinheiro, a caixinha de música do caixão e um **acorde azedo** quando sai arma danificada, **serrote e martelo** ao erguer barricada, martelada a cada tábua, pancadas e madeira estalando quando a horda bate, rugidos e telegrafias dos chefes, batimento cardíaco quando você está caído.
 - **Os zumbis são os vizinhos** (`client/zombies/looks.ts`), montados com o mesmo sistema de personagens dos jogadores ([[Character Customization]]): pele verde-acinzentada, olhos amarelos ou vermelhos e caídos, cicatrizes, roupas do catálogo. O vizinho de pijama, o turista de camisa havaiana, o mecânico **sem um braço** (modo PCD: sem braço e sem a hitbox dele), o executivo de gravata, a roqueira, a vovó de cardigã. Os chefes ganham adereços próprios: a pá do Coveiro, o véu da Noiva, a faixa de prefeito.
@@ -298,7 +299,7 @@ Tudo em `shared/data/zumbi.json`, menos os dados do mapa, que ficam no campo `zu
 
 ## Limites e próximos passos
 
-- Só um mapa. Outro mapa precisa de `mapas.<id>` no JSON (com o muro e as brechas), de uma navmesh pré-gerada (`BUILDERS` em `tools/bake-navmesh.ts`, `BAKED` em `server/navmesh.ts`), de entrar em `MODE_RULES.zumbi.maps` e de `exclusivo: 'zumbi'` em `MAPS` se for só do modo.
+- Um mapa oficial só. Desde a PF-6 (fase 2), qualquer mapa salvo com `exclusivo: 'zumbi'` e o campo `zumbi` (muro, brechas, caixão, surgimentos) vira mapa do modo: o servidor gera a navmesh ao salvar (`server/mapWorker.ts`) e a guarda com a versão; o editor que monta esses dados é da fase 3.
 - O "não há caminho aberto" é decidido pela caixa `dentro` do mapa: vale porque o muro é fechado e as brechas são a única ligação.
 - Zumbis não sobem em lugares fora da navmesh; o caixão e as tábuas têm colisão só para os jogadores (as tábuas são regra do motor). Ver [[Navigation]].
 - Arranhão sem linha de visão: um zumbi encostado no muro alcança um jogador colado do outro lado das grades ("braço pela grade").

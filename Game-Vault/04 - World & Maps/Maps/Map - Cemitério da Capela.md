@@ -32,7 +32,7 @@ O mapa **exclusivo do [[Zombie|modo zumbi]]**: um cemitério murado e compacto e
 
 | Campo | Valor |
 | --- | --- |
-| Id interno | `cemiterio` (`MAPS.cemiterio`, `exclusivo: 'zumbi'`) |
+| Id interno | `cemiterio` (`exclusivo: 'zumbi'` nos dados) |
 | Sessão fixa | `zumbi-cemiterio` (só do modo zumbi) |
 | Dados | `shared/data/mapas/cemiterio.json` (339 peças; montado por `client/world/mapLoader.ts`), com o muro e os pilares em `client/world/catalog/cemetery.ts` e peças de `halloween.ts` (lápides, árvores secas, sebe, arco do portão, lampiões, névoa rasteira, morcegos, céu) e `furniture.ts` (velas). Os dados do modo zumbi do mapa estão no campo `zumbi` do mesmo JSON. Até a PF-6 era construído em código por `buildCemeteryMap`; os comentários de design estão em `client/world/conversao/cemiterio.ts` |
 | Tamanho | **68 × 64 m** de chão (x −34..34, z −32..32); área jogável dentro da sebe: 64 × 60 m. O pátio murado tem **40 × 36 m**. Cerca de um terço da área da [[Map - Vila Assombrada]] (120 × 110 m) |

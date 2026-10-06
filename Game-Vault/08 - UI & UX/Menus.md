@@ -46,7 +46,7 @@ Página rolável com duas caras, conforme a conta (`/api/me`). Enquanto a consul
 - **Aba Jogar:**
   - *Modo:* três cartões, **Online**, **Contra bots** e **Campo de tiro**.
   - *Tipo de partida* (Online e Contra bots): **Mata-mata** ou **Corrida armada**, com uma linha sobre o modo ([[Free For All]], [[Gun Game]]). Na landing (sem conta) o mesmo seletor aparece para o jogo contra bots.
-  - *Mapas:* no Online, os mapas são um **filtro** (vários marcados) e mostram quantas sessões cada um tem depois de conectar. Em Contra bots escolhe-se um mapa. No Campo de tiro, **clicar no mapa já começa** o treino ([[Training]]). Fora do modo zumbi só aparecem os mapas abertos (`PVP_MAPS`): o Cemitério da Capela é só do zumbi.
+  - *Mapas:* no Online, os mapas são um **filtro** (vários marcados) e mostram quantas sessões cada um tem depois de conectar. Em Contra bots escolhe-se um mapa. No Campo de tiro, **clicar no mapa já começa** o treino ([[Training]]). Fora do modo zumbi só aparecem os mapas oficiais abertos (sem `exclusivo`): o Cemitério da Capela é só do zumbi.
   - *Contra bots:* dificuldade (Fácil/Normal/Difícil), 3/5/7/9 bots e o botão **CONTRA N BOTS** ([[Versus Bots]]).
   - *Online:* lista de sessões **já carregada** ao abrir a aba (6 por vez, **VER MAIS** quando há mais), filtrada pelos mapas marcados, e a criação de sessão. A conexão de jogo só abre ao entrar. Ver [[Matchmaking UI]].
 - **Aba Arsenal:** o mesmo painel do menu de pausa (`Arsenal`, `client/ui/arsenal.ts`) sobre a progressão da conta. Escolher a secundária ou ligar/desligar uma melhoria grava na conta na hora (`PATCH /api/perfil {arsenal}`). Ver [[Inventory UI]].

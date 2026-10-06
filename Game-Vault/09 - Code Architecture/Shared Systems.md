@@ -4,6 +4,7 @@ type: architecture
 status: documented
 area: code-architecture
 source_paths:
+  - shared/roles.ts
   - shared/data/corrida_armada.json
   - shared/gunGame.ts
   - shared/modes.ts
@@ -55,12 +56,13 @@ updated: 2026-10-06
 | --- | --- | --- | --- |
 | `protocol.ts` | `NET` (tick 20 Hz, 10 jogadores, atraso de interpolação 100 ms, chat, respawn 5 s, porta 8787, caminho `/ws`), `FLAG` (bits de animação, inclusive `secondary`: a arma na mão), `ClientMsg`/`ServerMsg` (uniões discriminadas por `t`), `CLOSE` (4001/4002), `sanitizeName`, `sanitizeChat` | sim | sim |
 | `constants.ts` | `MOVE`, `HEALTH`, `CHERRY`, `BISCUIT`, `POTION`, `RAT`, `KOI`, `SCORE`, `HUMILIATION`, `SIM` (dt 1/60), `GROUP` + `groups()` (grupos de colisão Rapier) | sim | sim (regras) |
-| `maps.ts` | `MAPS` (ids `rua`, `jardim`, `halloween`, `cemiterio`; `exclusivo` marca um mapa feito para um modo só), `MAP_IDS`, `PVP_MAPS` (os mapas sem `exclusivo`), `DEFAULT_MAP`, `PICKUPS`, `WITCHES`, `RATS`, `FISH`, `isMapId` — só posições que o servidor confere | sim | sim |
+| `maps.ts` | `MapId` (string), `OFFICIAL_MAPS` (`rua`, `jardim`, `halloween`, `cemiterio`), `DEFAULT_MAP`, `isMapId`, `isOfficialMap`, `PickupKind`; os mapas e o que o servidor confere neles vêm dos dados (`mapData.ts`) | sim | sim |
+| `roles.ts` | Regras dos papéis da equipe: `podeAgirSobre`, `podePunir`, `podeConceder`, `podePromover`, `podeRebaixar` ([[ADR - Papéis da equipe conferidos no servidor]]) | sim (tela de Gerenciamento, fase 4) | sim (`server/gestao.ts`) |
 | `weapons.ts` | Esquema `WeaponData`/`MeleeData`/`GrenadeData` (atributos **base**), carrega os JSON (`WEAPONS`: rifle, pistola, smg), `HIT_REGIONS`, `computeDamage`, `explosionDamage`, `clampExplosionDamage`, `idealTtk`, `minPenetrationKeep` | sim | sim |
 | `movement.ts` | `stepMovement` (passo de movimento em primeira pessoa sobre o Rapier), `createMoveState`, `configureController`, `eyeHeight` | sim (jogador e bots) | não (ainda) |
 | `progression.ts` | Ids das armas (`GunId`, `ProgWeapon`, `PRIMARIES`, `SECONDARIES`), árvores de melhorias de `data/progression.json` (`PROGRESSION`), níveis (`levelForXp`, `xpForLevel`, `levelCount`), melhorias em efeito (`activeUpgrades`), escolha do Arsenal (`ArsenalChoice`, `sanitizeChoice`, `legacyChoice`), `weaponOfKill` | sim | sim |
 | `arsenal.ts` | O que o jogador leva e os atributos **efetivos** (base + melhorias): `Loadout` (com `soFaca?`: só a faca na mão; `danificadas?`: armas danificadas do caixão do zumbi, por arma), `WeaponFlaw`, `resolveLoadout`, `gunStats`, `meleeStats`, `grenadeStats`, `slotStats`, `gunIn`, `sanitizeLoadout`, `DEFAULT_LOADOUT` | sim | sim |
-| `modes.ts` | Modos de jogo: `GameModeId` (`mata-mata`, `corrida-armada`, `zumbi`), `MODE_RULES` (armas do Arsenal ou do modo, `lockedLoadout`, granadas, XP de arma, rodadas, bots, `coop`, `maps`), `isGameModeId`, `modeMaps` (a lista do modo ou `PVP_MAPS`) | sim (home, regras do cliente) | sim (`server/modes.ts`, lobby) |
+| `modes.ts` | Modos de jogo: `GameModeId` (`mata-mata`, `corrida-armada`, `zumbi`), `MODE_RULES` (armas do Arsenal ou do modo, `lockedLoadout`, granadas, XP de arma, rodadas, bots, `coop`, `ownMaps`), `isGameModeId`, `modeAllowsMap(modo, exclusivo)` | sim (home, regras do cliente) | sim (`server/modes.ts`, lobby) |
 | `mapData.ts` | Os mapas como dados: `MapData`, `Peca`, `MAP_FORMAT`, `MAP_BUDGET` (400 chamadas de desenho, 750 mil triângulos) e `validateMapData` (pura). Os oficiais estão em `data/mapas/*.json` | sim (`mapLoader.ts`) | ainda não (fase 2 da PF-6) |
 | `mapCatalog.ts` | O esquema de cada tipo de peça (`MAP_CATALOG`: parâmetros com tipo, faixa e padrão, transformação, limite por mapa, prefixo do `PropBus`), `SUPERFICIES`, `checkParam`, `checkPieceParams` | sim | ainda não |
 | `zombies.ts` | Modo zumbi: os números de `data/zumbi.json` e os dados de zumbi de cada mapa, lidos do campo `zumbi` do JSON do mapa (`ZOMBIE`, `ZOMBIE.mapas`, conferidos por `checkZombieMap`) e as regras puras — ondas (`waveSpec`, `pickType`), vida e golpe por tipo, dano das armas nos zumbis com a raridade e o defeito (`gunDamageToZombie`, `knifeDamageToZombie`, `grenadeDamageToZombie`, `weaponMul`), dinheiro e XP por abate, o sorteio do caixão (`rollBox`, `rollFlaw`, `flawChance`), as penalidades de arma danificada (`flawDamageMul`, `flawAmmo`, `zombieGunData`), o que se carrega (`startItems`, `withItem`, `zombieLoadout`), flags `ZF` e o formato de rede `ZNet` | sim (`client/zombies/*`) | sim (`ZombieMode`) |

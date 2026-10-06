@@ -85,7 +85,7 @@ Cada efeito guarda o fim (relógio do jogo: simulação offline, servidor online
 - `client/main.ts` — `startBoost`/`endBoost`, `gainHumanity`/`loseHumanity`, `applyPotion`/`drinkPotion`/`endPotion`, `startAim`/`endAim`, `hitCritter`, `buffs()`, `POTION_BUFFS`.
 - `client/weapons/weapon.ts` — `spreadMul`, `recoilMul`.
 - `server/session.ts` — `onPickup`, `onRat`, `onFish`, `onPotion`, `onHit` (crítico), `kill` (limpa efeitos).
-- `shared/maps.ts` — `WITCHES`, `RATS`, `FISH`.
+- `objetos` dos dados do mapa (`shared/mapData.ts`; online, da versão da sala) — bruxa, ratos e peixes.
 - `client/world/catalog/objects.ts` — galeria de tiro (`aimBonus`), rato, bruxa.
 
 ## Configurações relacionadas

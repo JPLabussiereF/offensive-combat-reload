@@ -113,7 +113,7 @@ Mansão (2 andares + porão), casas da vila, capela, mausoléu, cabana da bruxa,
 
 ## Modos
 
-Mapa **versus**: mata-mata, corrida armada, contra bots e campo de tiro (`PVP_MAPS`). Foi o mapa do [[Zombie|modo zumbi]] até 2026-10-06; o modo ganhou um mapa só dele, o [[Map - Cemitério da Capela]] (este era grande demais para ler de onde vinha a horda), e os dados e a navmesh do modo para a Vila Assombrada (`mapas.halloween`, `shared/data/navmesh/halloween.json`) saíram ([[ADR - Mapa exclusivo e barricadas no modo zumbi]]).
+Mapa **versus**: mata-mata, corrida armada, contra bots e campo de tiro (um mapa sem `exclusivo`). Foi o mapa do [[Zombie|modo zumbi]] até 2026-10-06; o modo ganhou um mapa só dele, o [[Map - Cemitério da Capela]] (este era grande demais para ler de onde vinha a horda), e os dados e a navmesh do modo para a Vila Assombrada (`mapas.halloween`, `shared/data/navmesh/halloween.json`) saíram ([[ADR - Mapa exclusivo e barricadas no modo zumbi]]).
 
 ## Objetivos
 
@@ -151,5 +151,5 @@ Fantasma da cova, sino da capela, buzina do carro, abóboras, postes, caldeirão
 - `client/world/conversao/halloween.ts` — o construtor antigo (`buildHauntedTownMap`) gravado como peças, com os comentários de design.
 - `client/world/halloween.ts` — peças e objetos vivos (ver [[Interactive Objects]]), `LightPool`, `ironFence`, `hedge`, `slabWithHoles`.
 - `client/world/furniture.ts` — móveis (`crate`, `hayBale`, `barrel`, `pew`, `coffin`, `bookshelf`, `Place`...).
-- `shared/maps.ts` — `PICKUPS.halloween`, `WITCHES.halloween`, `RATS.halloween`.
+- `shared/data/mapas/halloween.json` — `objetos` (o biscoito, a bruxa, o rato).
 - `shared/constants.ts` — `POTION`, `RAT`, `BISCUIT`.

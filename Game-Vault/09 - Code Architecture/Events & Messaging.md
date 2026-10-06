@@ -4,6 +4,7 @@ type: architecture
 status: documented
 area: code-architecture
 source_paths:
+  - server/gestao.ts
   - client/main.ts
   - client/net/connection.ts
   - client/world/props.ts
@@ -122,12 +123,13 @@ Ver [[Replication]] e [[ADR - Bun como runtime único]].
 
 ## 7. Redis pub/sub — eventos entre processos
 
-`server/redis.ts` define dois canais; `startServer` assina com uma segunda conexão (`sub`):
+`server/redis.ts` define três canais; `startServer` assina com uma segunda conexão (`sub`):
 
 | Canal | Publicado por | Efeito no servidor de jogo |
 | --- | --- | --- |
 | `oc:revogacao` (`REVOCATION_CHANNEL`) | `auth/sessions.ts` (`revokeSession`, `revokeAll`), `api.ts` (`DELETE /api/conta`) | Fecha a conexão da conta com `CLOSE.revoked` (4001) |
-| `oc:silencio` (`MUTE_CHANNEL`) | `moderacao.ts` (`mute`, `unmute`, chamados por `tools/admin.ts`) | Recarrega `chatMutedUntil` da conexão viva |
+| `oc:silencio` (`MUTE_CHANNEL`) | `moderacao.ts` (`mute`, `unmute`, chamados por `tools/admin.ts` e pela API de Gerenciamento) | Recarrega `chatMutedUntil` da conexão viva |
+| `oc:perfil` (`PROFILE_CHANNEL`) | `server/gestao.ts` (`PATCH /api/gestao/contas/:id`) | Recarrega o perfil da conexão viva: o progresso novo (com o que a partida ainda não gravou) chega na hora (`progresso`); nome e aparência valem na próxima sala |
 
 Isso permite que o console de moderação (outro processo) afete uma partida em andamento. Ver [[Moderation]].
 

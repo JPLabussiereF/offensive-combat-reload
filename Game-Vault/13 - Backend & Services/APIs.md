@@ -5,6 +5,11 @@ status: documented
 area: backend
 source_paths:
   - server/api.ts
+  - server/route.ts
+  - server/mapRoutes.ts
+  - server/gestao.ts
+  - server/roles.ts
+  - server/glb.ts
   - server/app.ts
   - server/http.ts
   - server/auth/password.ts
@@ -30,11 +35,12 @@ A API HTTP do jogo vive sob `/api/` e é atendida pelo próprio servidor do jogo
 
 | Aspecto | Regra (código confirmado) |
 | --- | --- |
-| Formato | JSON de entrada e saída; respostas com `cache-control: no-store`. |
+| Formato | JSON de entrada e saída; respostas com `cache-control: no-store`, menos as que nunca mudam (versões de mapa e modelos GLB: `public, max-age=31536000, immutable`). |
 | Erros | Corpo `{ "erro": "<código>" }` (+ campos extras, ex.: `ate` na suspensão). Códigos em `ApiErrorCode` (`shared/account.ts`). Erro inesperado → `500 { erro: "erro_interno" }`. |
-| Roteamento | Mapa `"MÉTODO /caminho"` → handler. Rota desconhecida → `404 nao_encontrado`. |
+| Roteamento | Mapa `"MÉTODO /caminho"` → handler; um segmento `:nome` casa qualquer segmento e chega em `ctx.params` (a rota exata ganha da com parâmetros). Rota desconhecida → `404 nao_encontrado`. Rotas em `server/api.ts` (contas), `server/mapRoutes.ts` (mapas) e `server/gestao.ts` (gerenciamento); o contexto comum (`Ctx`, `requireSession`, `reply`) em `server/route.ts`. |
 | Origem | Métodos `POST/PATCH/PUT/DELETE` exigem `Origin` do mesmo host ou listado em `ORIGENS_PERMITIDAS`; senão `403 origem_invalida` (proteção CSRF). |
-| Corpo | Máximo de **16 KiB** (`readJson`): acima disso `413 corpo_grande_demais`; JSON que não é objeto → `400 json_invalido`. |
+| Corpo | `readJson(req, max)`: **16 KiB** por padrão, **2 MiB** para os dados de um mapa; acima disso `413 corpo_grande_demais`; JSON que não é objeto → `400 json_invalido`. Corpo binário (modelo GLB) por `readBinary(req, max)`. |
+| Papéis | Rotas da equipe leem os papéis do banco a cada pedido (`requireRole`, `server/roles.ts`); sem o papel → `403 sem_permissao`. |
 | Sessão | Cookie `oc_sessao` (HttpOnly). Rotas autenticadas usam `requireSession`, que também renova a validade e recusa contas banidas (`403 conta_suspensa`). |
 | Log | O servidor **nunca** registra a requisição (pode ter senha/cookie); só `[api] MÉTODO caminho: mensagem`. |
 
@@ -43,7 +49,7 @@ A API HTTP do jogo vive sob `/api/` e é atendida pelo próprio servidor do jogo
 | Método e caminho | Sessão? | O que faz | Respostas principais |
 | --- | --- | --- | --- |
 | `GET /api/sessoes` | não | Lista pública das salas abertas (`SessionInfo[]`, mesma ordem do lobby), sem cache. Respondida direto em `server/app.ts`, onde as salas vivem. A tela inicial a usa para mostrar quantas salas cada mapa tem antes de conectar. | 200 |
-| `GET /api/me` | sim | Dados resumidos da conta (tag `Nome#1234`, data de exclusão, etc.). | 200, 401 |
+| `GET /api/me` | sim | Dados resumidos da conta (tag `Nome#1234`, data de exclusão, `papeis` da equipe, etc.). | 200, 401 |
 | `GET /api/auth/provedores` | não | `{ discord: boolean }` — se o botão do Discord deve aparecer para o endereço atual. | 200 |
 | `POST /api/auth/cadastro` | não | Cria conta por e-mail/senha/nome e já abre sessão. | 201 + Set-Cookie; 400 `email_invalido`/`senha_invalida`/`nome_invalido`; 409 `email_em_uso`; 429 |
 | `POST /api/auth/entrar` | não | Login por e-mail/senha. | 204 + Set-Cookie; 401 `credenciais_invalidas`; 403 `conta_suspensa`; 429 |
@@ -61,6 +67,39 @@ A API HTTP do jogo vive sob `/api/` e é atendida pelo próprio servidor do jogo
 
 Detalhes de cada fluxo de conta: [[Authentication]]. Regras de nome, aparência e escolha do Arsenal: [[Player Data]], [[Character Customization]] e [[Progression]].
 
+### Mapas (PF-6, `server/mapRoutes.ts`)
+
+Equipe = admin ou moderador. Ver [[World Structure]] e [[ADR - Sessões sob demanda por versão do mapa]].
+
+| Método e caminho | Quem | O que faz | Respostas principais |
+| --- | --- | --- | --- |
+| `GET /api/mapas?tipo=oficial\|comunidade&q=&autor=&ordem=jogados\|recentes&pagina=` | todos | Lista os mapas visíveis (nem ocultos nem apagados), 20 por página, com busca por nome ou autor (nome ou tag). Cada item é um `MapaResumo` (com `pode`: o que quem pergunta pode fazer). | 200 `{ mapas, pagina, mais }` |
+| `GET /api/mapas/:id` | todos | Um mapa. Oculto: só o autor e a equipe o veem. | 200; 404 `nao_encontrado` / `mapa_oculto` |
+| `GET /api/mapas/:id/versoes` | todos | As versões salvas (`VersaoMapa`: número, data, quem salvou, chamadas e triângulos, qual é a atual). | 200 |
+| `GET /api/mapas/:id/versoes/:v` | todos | Os dados (`MapData`) de uma versão: imutável, com cache longo. | 200; 404 |
+| `POST /api/mapas` | conta | `{ tipo, dados }`: cria o mapa com a versão 1. `oficial` só a equipe. | 201 `{ id, versao, drawCalls, triangulos }`; 403 `sem_permissao`; 400 `mapa_invalido` (+ `erros`) ou `orcamento_excedido` (+ `drawCalls`, `triangulos`, `limite`, `excedeu`) |
+| `PUT /api/mapas/:id` | autor (comunidade) ou equipe | `{ dados, baseVersao }`: salva uma versão nova. | 200 `{ id, versao, ... }`; 409 `versao_desatualizada` (+ `atual`); 403; 400 |
+| `POST /api/mapas/:id/restaurar` | autor ou equipe | `{ versao }`: volta a jogar uma versão antiga (só troca a versão atual). | 200; 404 |
+| `POST` / `DELETE /api/mapas/:id/ocultar` | equipe | Oculta (`{ motivo? }`) ou mostra de novo. | 204 |
+| `DELETE /api/mapas/:id` | autor ou equipe | Apaga (exclusão lógica). | 204 |
+| `POST /api/mapas/:id/duplicar` | conta | Cópia da versão atual como mapa da comunidade da conta (`copiaDe`). | 201 `{ id, versao: 1 }` |
+| `POST /api/mapas/:id/jogadas` | todos | Uma partida offline (treino, bots): conta uma jogada por conta (ou IP) e mapa por hora (Redis). | 204 |
+| `POST /api/mapas/arquivos?nome=` | conta | O modelo GLB no corpo (`model/gltf-binary`, até 10 MB): validado (`server/glb.ts`) e guardado pelo SHA-256 em `MAPAS_DIR`. Limite de envios por hora e cota por conta. | 201 `{ sha256, url, bytes, triangulos, primitivas }`; 413 `arquivo_grande_demais` / `cota_excedida`; 400 `glb_invalido` (+ `motivo`); 429 `muitas_tentativas` |
+| `GET /api/mapas/arquivos/:sha256.glb` | todos | O modelo (`model/gltf-binary`, `nosniff`, cache longo). | 200; 404 |
+
+### Gerenciamento (PF-6, `server/gestao.ts`)
+
+Admin e moderador, com as regras de `shared/roles.ts`. Ver [[Moderation]].
+
+| Método e caminho | O que faz |
+| --- | --- |
+| `GET /api/gestao/contas?q=&pagina=` | Busca contas por nome ou tag. |
+| `GET /api/gestao/contas/:id` | Detalhes e `permissoes` de quem pergunta. |
+| `PATCH /api/gestao/contas/:id` | `{ nome?, sexo?, aparencia?, xp?, armas? }` (nome sem o tempo de espera). |
+| `POST /api/gestao/contas/:id/sancoes` | `{ tipo: banimento \| silencio, motivo, duracao }`. |
+| `DELETE /api/gestao/contas/:id/sancoes/:tipo` | Revoga as sanções ativas do tipo. |
+| `PUT` / `DELETE /api/gestao/contas/:id/papeis/:papel` | Concede / tira um papel. |
+
 ## Limites de taxa
 
 Há duas camadas:
@@ -70,12 +109,13 @@ Há duas camadas:
 
 ## Cliente
 
-O cliente chama a API por `api()` em `client/net/api.ts`, sempre na **mesma origem** (`credentials: 'same-origin'`). Falha de rede, resposta não-JSON ou 5xx do proxy do Vite viram o código `offline` (o menu mostra "Servidor fora do ar").
+O cliente chama a API por `api()` (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`) e `apiBinary()` (corpo em bytes, para o GLB) em `client/net/api.ts`, sempre na **mesma origem** (`credentials: 'same-origin'`). Falha de rede, resposta não-JSON ou 5xx do proxy do Vite viram o código `offline` (o menu mostra "Servidor fora do ar").
 
 ## Código relacionado
 
-- `server/api.ts` — tabela de rotas e `handleApi`.
-- `server/http.ts` — `readJson`, `json`, `redirect`, `cookie`, `clientIp`, `originAllowed`.
+- `server/api.ts` — rotas de conta, roteador com parâmetros e `handleApi`; `server/route.ts` — `Ctx`, `requireSession`, `optionalSession`, `reply`.
+- `server/mapRoutes.ts`, `server/gestao.ts`, `server/roles.ts`, `server/glb.ts`.
+- `server/http.ts` — `readJson`, `readBinary`, `json`, `redirect`, `cookie`, `clientIp`, `originAllowed`.
 - `server/auth/*.ts` — handlers de autenticação.
 - `shared/account.ts` — `ApiErrorCode`, validações de nome/e-mail/senha.
 - `client/net/api.ts` — cliente da API.

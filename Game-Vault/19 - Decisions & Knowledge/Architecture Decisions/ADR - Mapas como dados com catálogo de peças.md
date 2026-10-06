@@ -74,7 +74,7 @@ Reaproveita todo o código de construção que já existe (os construtores viram
 - O JSON é a fonte da verdade dos mapas; os scripts de conversão só documentam e reproduzem a conversão.
 - A ordem das peças continua definindo os lotes e a ordem dos colisores, mas o golden e a navmesh não dependem dela (testado), e as sementes por peça tornam cada peça independente das outras.
 - Um tipo de peça novo precisa do esquema em `shared/mapCatalog.ts` e do adaptador em `client/world/catalog/` (um teste confere que os dois casam).
-- O servidor ainda lê as posições de `shared/maps.ts` (`PICKUPS`, `WITCHES`, `RATS`, `FISH`); um teste confere que batem com `objetos` dos JSON. Na fase 2 ele passa a ler os dados do mapa.
+- **Fase 2 (feita):** o servidor guarda cada versão salva do mapa no banco (`map_version`) e lê `objetos`, `zumbi` e a navmesh dela; `PICKUPS`, `WITCHES`, `RATS`, `FISH` e `MAPS` saíram de `shared/maps.ts`. Salvar monta o mapa numa thread (`server/mapWorker.ts`) e confere `MAP_BUDGET`. Ver [[ADR - Sessões sob demanda por versão do mapa]].
 - Os dados de zumbi do Cemitério saíram de `shared/data/zumbi.json` e estão no campo `zumbi` de `cemiterio.json` (`ZOMBIE.mapas` continua igual).
 
 ## Código afetado

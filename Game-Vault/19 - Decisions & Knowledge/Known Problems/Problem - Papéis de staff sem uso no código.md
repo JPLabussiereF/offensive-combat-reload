@@ -1,19 +1,24 @@
 ---
 title: Problem - Papéis de staff sem uso no código
 type: problem
-status: documented
+status: resolved
 area: backend
 source_paths:
   - server/moderacao.ts
   - tools/admin.ts
   - server/migrations/001_contas.sql
+  - server/roles.ts
+  - shared/roles.ts
 tags:
   - problem
   - moderacao
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Problem - Papéis de staff sem uso no código
+
+> [!success] Resolvido na PF-6 (fase 2, 2026-10-06)
+> Os papéis agora dão poder e são conferidos no servidor a cada pedido: a API de Gerenciamento (`/api/gestao`) e os mapas oficiais (`/api/mapas`) os exigem, com as regras de `shared/roles.ts`; a auditoria guarda quem agiu (`auth_event.actor_id`, `sanction.issued_by`, `account_role.granted_by`). O console continua gravando `by = null`. Ver [[ADR - Papéis da equipe conferidos no servidor]]. O texto abaixo descreve a situação anterior.
 
 ## Sintoma
 

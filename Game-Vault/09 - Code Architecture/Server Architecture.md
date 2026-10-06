@@ -4,6 +4,10 @@ type: architecture
 status: documented
 area: code-architecture
 source_paths:
+  - server/gestao.ts
+  - server/mapRoutes.ts
+  - server/mapWorker.ts
+  - server/maps.ts
   - server/modes.ts
   - server/navmesh.ts
   - server/index.ts
@@ -56,7 +60,7 @@ flowchart TB
     S --> R2["createRedis (assinante)"]
     S --> J["scheduleJobs (partições + anonimização, 24 h)"]
     S --> LOB["Lobby: Map sessions, Set conns, Map byAccount"]
-    LOB --> PERM["3 sessões permanentes: principal (rua), jardim, halloween"]
+    LOB --> PERM["salas sob demanda: uma versão de mapa e um modo cada (MapStore)"]
     S --> FL["setInterval flush do progresso (60 s)"]
     R2 --> SUB["subscribe oc:revogacao, oc:silencio"]
     S --> BS["Bun.serve fetch + websocket"]
@@ -108,7 +112,7 @@ Detalhes de protocolo em [[Remote Calls]] e [[Sessions]].
 - Mensagens que a `Session` não conhece vão para `mode.handle`; granadas validadas também passam pelo `mode.blast`; vida a zero pergunta ao `mode.onLethal` antes de matar (zumbi: caído).
 - `broadcast()` serializa uma vez e publica no tópico; quando a ação veio de um jogador, usa `ws.publish` desse jogador para não ecoar para ele.
 - Validações: posição (`vec`), regiões de acerto, cadência (`hitTimes`), distância servidor × relatada (`LAG_SLACK = 4 m` + 10%), alcance da faca, alcance físico da granada, janela da opressão, distância a coletáveis (`PICKUP_SLACK = 1,5 m`). Ver [[Validation]] e [[Anti Cheat]].
-- Sessões não permanentes vazias são descartadas no `sessionsChanged()` (coalescido em 100 ms).
+- Toda sessão vazia é descartada no `sessionsChanged()` (coalescido em 100 ms). Salvar um mapa monta-o numa thread própria (`server/mapWorker.ts`, Bun Worker), para não atrasar o tick de 20 Hz das sessões.
 
 ## Persistência de progresso
 

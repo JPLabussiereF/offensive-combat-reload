@@ -16,7 +16,7 @@ tags:
   - infra
   - deploy
   - docker
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Infrastructure Overview
@@ -31,6 +31,7 @@ flowchart LR
     subgraph Rede interna do compose
       W -->|/api, /ws| J["jogo: Bun (build/server.js) :8787"]
       J --> B[("banco: postgres:18-alpine<br/>volume oc-pg")]
+      J --> M[("volume oc-mapas<br/>GLB dos mapas (MAPAS_DIR)")]
       J --> R[("redis: redis:8-alpine<br/>sem persistência")]
     end
     Dev[Host local] -. "127.0.0.1:5442 / 6392" .-> B
@@ -40,7 +41,7 @@ flowchart LR
 | Serviço compose | Imagem | Exposição | Observações |
 | --- | --- | --- | --- |
 | `web` | `Dockerfile` alvo `web` (nginx 1.27-alpine) | `${PORTA:-8080}:80` — única porta pública | Serve `dist/`, repassa `/api` e `/ws`. |
-| `jogo` | `Dockerfile` alvo `server` (oven/bun:1.4-alpine) | só `expose 8787` (rede interna) | Usuário `bun`, `NODE_ENV=production`. Depende de `banco` saudável. |
+| `jogo` | `Dockerfile` alvo `server` (oven/bun:1.4-alpine) | só `expose 8787` (rede interna) | Usuário `bun`, `NODE_ENV=production`. Depende de `banco` saudável. Volume `oc-mapas` em `/app/dados/mapas` (`MAPAS_DIR`: os GLB enviados para os mapas). A imagem leva também `client/`, `shared/`, `tools/headless.ts`, `server/mapWorker.ts` e `tsconfig.json`: a thread que monta os mapas ao salvar roda do código-fonte. |
 | `banco` | `postgres:18-alpine` | `127.0.0.1:${PG_PORTA:-5442}` | Volume `oc-pg`; healthcheck `pg_isready`. |
 | `redis` | `redis:8-alpine` | `127.0.0.1:${REDIS_PORTA:-6392}` | `--save '' --appendonly no`: nada sobrevive a reinício (por decisão). |
 

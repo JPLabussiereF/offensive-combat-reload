@@ -17,7 +17,7 @@ tags:
   - game
   - security
   - trust
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Trust Boundaries
@@ -56,7 +56,7 @@ flowchart LR
 
 ### 1. Navegador → servidor (HTTP `/api`)
 - Tudo que vem do navegador é não confiável: corpo JSON, cookies, cabeçalhos.
-- Checagens: `Origin` em métodos que mudam estado; cookie de sessão validado contra o hash no banco; banimento ativo; corpo ≤ 16 KiB; validação de campo. Ver [[Validation]] e [[Authentication]].
+- Checagens: `Origin` em métodos que mudam estado; cookie de sessão validado contra o hash no banco; banimento ativo; corpo ≤ 16 KiB (2 MiB nos dados de mapa, 10 MB no GLB); validação de campo. Ver [[Validation]] e [[Authentication]].
 
 ### 2. Navegador → servidor (WebSocket `/ws`)
 - O handshake só aceita: `Upgrade: websocket`, `Origin` permitido, ticket válido de uso único, conta `active` e não banida.

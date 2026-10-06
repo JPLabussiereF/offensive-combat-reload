@@ -18,7 +18,7 @@ tags:
   - data
   - redis
   - cache
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Cache
@@ -54,7 +54,8 @@ Tokens nunca são guardados em claro: a chave é o SHA-256 do token ([[Sensitive
 | Canal | Mensagem | Publicado por | Efeito no servidor do jogo |
 |---|---|---|---|
 | `oc:revogacao` | id da conta | logout, `revokeAll` (redefinição de senha, banimento), `DELETE /api/conta` | fecha a conexão de jogo da conta com `4001` |
-| `oc:silencio` | id da conta | `mute`/`unmute` (`tools/admin.ts`) | recarrega `chatMutedUntil` da conexão viva |
+| `oc:silencio` | id da conta | `mute`/`unmute` (`tools/admin.ts`, API de Gerenciamento) | recarrega `chatMutedUntil` da conexão viva |
+| `oc:perfil` | id da conta | `PATCH /api/gestao/contas/:id` | recarrega o perfil da conexão viva e manda o progresso novo |
 
 Permite que o console de administração (outro processo) aja sobre partidas em andamento. Ver [[Moderation]] e [[Sessions]].
 
@@ -71,7 +72,8 @@ Permite que o console de administração (outro processo) aja sobre partidas em 
 
 ## Código relacionado
 
-- `server/redis.ts` — `createRedis`, `hit`, `REVOCATION_CHANNEL`, `MUTE_CHANNEL`.
+- `server/redis.ts` — `createRedis`, `hit`, `REVOCATION_CHANNEL`, `MUTE_CHANNEL`, `PROFILE_CHANNEL`.
+- Chaves dos mapas (PF-6): `mapa:envios:<conta>` (envios de GLB por hora, `hit`) e `mapa:jogada:<mapa>:<conta ou ip>` (uma jogada offline por hora, `SET NX EX 3600`).
 - `server/api.ts` — `ticketKey`, `TICKET_TTL_SECONDS`.
 - `server/auth/password.ts` — `LIMITS`, `limitIp`.
 - `server/app.ts` — `GETDEL` do ticket, assinatura dos canais.

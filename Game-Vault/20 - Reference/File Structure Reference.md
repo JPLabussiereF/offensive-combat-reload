@@ -185,7 +185,8 @@ server/
 shared/
 ├── protocol.ts             NET, FLAG, ClientMsg/ServerMsg, CLOSE, sanitizeName/Chat
 ├── constants.ts            MOVE, HEALTH, SCORE, HUMILIATION, SIM, GROUP, CHERRY, BISCUIT, POTION, RAT, KOI
-├── maps.ts                 Ids de mapa e posições de coletáveis/bruxa/ratos/peixes
+├── maps.ts                 Ids de mapa (MapId), OFFICIAL_MAPS, DEFAULT_MAP
+├── roles.ts                Regras dos papéis da equipe (admin, moderador)
 ├── weapons.ts              Esquema e fórmulas de armas
 ├── movement.ts             Passo de movimento sobre o Rapier
 ├── progression.ts          Níveis e melhorias das armas, ArsenalChoice, PRIMARIES/SECONDARIES

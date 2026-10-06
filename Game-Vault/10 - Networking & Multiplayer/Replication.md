@@ -59,7 +59,7 @@ Ao entrar, o jogador recebe tudo o que precisa para montar a sala:
 
 | Campo | Conteúdo |
 |---|---|
-| `session` | `SessionInfo` (id, nome, mapa, jogadores, máx., permanente) |
+| `session` | `SessionInfo` (id, nome, mapa, `versao` e `mapaNome` do mapa, modo, jogadores, máx.) |
 | `you` | id do jogador |
 | `players` | `PlayerInfo` de todos, **com aparência** (`ap`) |
 | `corpses` | corpos ainda não humilhados (posição, aparência, `until`) |

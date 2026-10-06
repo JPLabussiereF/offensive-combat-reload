@@ -15,13 +15,13 @@ tags:
   - game
   - gameplay
   - pickups
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Pickups
 
 > [!info] Evidência
-> Código confirmado: `PICKUPS` (`shared/maps.ts`), `CHERRY`/`BISCUIT` (`shared/constants.ts`), `updatePickups` (`client/main.ts`), `Session.onPickup` (`server/session.ts`). Testes em `server/tests/game.test.ts` ("cereja do jardim", "vila assombrada").
+> Código confirmado: `objetos.coletaveis` nos dados do mapa (`shared/mapData.ts`; o servidor lê os da versão da sala), `CHERRY`/`BISCUIT` (`shared/constants.ts`), `updatePickups` (`client/main.ts`), `Session.onPickup` (`server/session.ts`). Testes em `server/tests/game.test.ts` ("cereja do jardim", "vila assombrada").
 
 ## Objetivo
 
@@ -34,7 +34,7 @@ Coletáveis fixos do mapa que dão vantagem de vida e criam **pontos de disputa*
 | **Cereja do Dragão** (`cereja`) | [[Map - Jardim do Dragão]] (pátio, sob a cerejeira) | (0; 0,36; 2,1) | 1,2 m | **+50 de vida máxima por 30 s** e +50 de vida na hora | 45 s (cai da árvore) |
 | **Biscoito Scooby** (`biscoito`) | [[Map - Vila Assombrada]] (armário da cozinha da mansão) | (−44,4; 0; 9) | 1,1 m | **cura até a vida máxima** | 60 s |
 
-A [[Map - Rua dos Vizinhos]] e a [[Map - Arena Teste (glTF)]] não têm coletáveis (mapas via `?mapa=` não consultam `PICKUPS`).
+A [[Map - Rua dos Vizinhos]] e a [[Map - Arena Teste (glTF)]] não têm coletáveis (mapas via `?mapa=` não têm dados).
 
 ## Como o jogador interage
 
@@ -71,7 +71,7 @@ Entrada: posição dos pés. Saída: efeito de vida, som (cereja / "scooby snack
 
 ## Código relacionado
 
-- `shared/maps.ts` — `PICKUPS`, `PickupKind`.
+- `shared/mapData.ts` — `ObjetosMapa.coletaveis`; `shared/maps.ts` — `PickupKind`.
 - `client/main.ts` — `updatePickups`, `startBoost`, `endBoost`, `eatBiscuit`, handler `pickup`.
 - `client/world/jardim/cereja.ts` — modelo/animação da cereja.
 - `client/world/halloween.ts` — `KitchenCabinet`, `ScoobyBiscuit` (`available` exige armário aberto).

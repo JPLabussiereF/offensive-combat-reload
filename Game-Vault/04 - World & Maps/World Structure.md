@@ -4,6 +4,9 @@ type: system
 status: documented
 area: world
 source_paths:
+  - client/net/maps.ts
+  - server/mapWorker.ts
+  - server/maps.ts
   - shared/mapData.ts
   - shared/mapCatalog.ts
   - shared/data/mapas/rua.json
@@ -38,7 +41,7 @@ Como o "mundo" de uma partida é organizado: unidades, eixos, o contrato que tod
 
 - O mundo é **um mapa por partida**, montado inteiramente no cliente a partir do id do mapa (`rua`, `jardim`, `halloween`, `cemiterio`) ou de um arquivo `.glb`.
 - Desde a PF-6 (fase 1), um mapa oficial é **um arquivo de dados**, não código: `shared/data/mapas/<id>.json`, no formato `MapData` (`shared/mapData.ts`). O cliente monta o mapa lendo esse arquivo com o carregador (`client/world/mapLoader.ts`), peça por peça, cada uma pelo seu adaptador no catálogo (`client/world/catalog/`). Ver [[ADR - Mapas como dados com catálogo de peças]].
-- O servidor **não conhece a geometria**: ele só carrega o id do mapa na sessão e algumas tabelas de posições em `shared/maps.ts` (coletáveis, bruxa, ratos, carpas) para validar ações (ver [[Validation]] e [[Trust Boundaries]]). As mesmas posições também estão em `objetos` do JSON do mapa, e um teste confere que as duas fontes batem; o servidor passa a ler o JSON na fase 2.
+- Na partida o servidor **não monta a geometria**: cada sala guarda a versão salva do mapa (`MapRuntime`, `server/maps.ts`) e lê dela as posições de `objetos` (coletáveis, bruxa, ratos, carpas) para validar ações, os dados de zumbi e a navmesh (ver [[Validation]] e [[Trust Boundaries]]). Quem monta o mapa no servidor é a thread de salvamento (`server/mapWorker.ts`), uma vez por versão salva, com o mesmo carregador do cliente: mede o orçamento de desenho, conta os colisores e gera a navmesh dos mapas zumbi.
 - Todos os clientes da mesma sessão constroem a mesma geometria e os mesmos colisores porque a montagem é determinística: cada peça que sorteia guarda a própria semente (`Peca.semente`; ver [[Map Design Rules]] e [[ADR - Aleatoriedade com semente na construção dos mapas]]).
 
 ## Unidades e eixos
@@ -129,7 +132,7 @@ flowchart TB
     Vivos -->|"register Peca.prop"| Bus[PropBus]
     Loader --> Meta["Metadados: spawns, dummies,<br/>killY, pickups, atmosphere"]
     Glb["buildGltfMap (.glb)"] --> MB
-    Shared["shared/maps.ts<br/>(PICKUPS, WITCHES, RATS, FISH)"] --> Servidor["Servidor valida ações"]
+    Versao["map_version (banco)<br/>objetos, zumbi, navmesh"] --> Servidor["Servidor valida ações"]
 ```
 
 1. **Geometria estática** — cada peça usa uma **superfície da biblioteca** (`SURFACES` em `client/world/surfaces.ts`: `grama`, `asfalto`, `calcada`, `concreto`, `tijolo`, `reboco`, `madeira`, `piso`, `telhado`, `azulejo`, `metal`, `vidro`, `papel`, `pedra`, `lataria`, `folhagem`, `casca`, `feno`, `tecido`, `pintura`). A cor vem de um *tint* por vértice. O `MapBuilder` funde a geometria por material e por célula quadrada (40 m por padrão; o Jardim usa 45 m e a Vila 60 m). Detalhes visuais em [[Materials]], [[Texture System]], [[Procedural Textures]].
@@ -137,7 +140,7 @@ flowchart TB
 3. **Grupos de colisão** — `WORLD` (tudo que é mapa) e `BLOCKER` (cercas de ferro e grades da Vila: param jogadores e projéteis, mas não balas). Constantes em `GROUP` (`shared/constants.ts`).
 4. **Objetos vivos** — peças com estado e animação (lanternas, sinos, gongo, abóboras, bruxa, rato...). Os que precisam ser vistos por todos registram no `PropBus` o id gravado na peça (`Peca.prop`, ver [[Interactive Objects]]).
 5. **Metadados** — spawns, bonecos, `killY`, coletáveis, atmosfera (no JSON do mapa).
-6. **Tabelas compartilhadas** — `shared/maps.ts` guarda as posições que o servidor precisa conhecer (até a fase 2 da PF-6, quando o servidor passa a ler `objetos` do JSON).
+6. **Versões no servidor** — desde a PF-6 (fase 2) o servidor guarda cada versão salva do mapa (`map_version`, imutável) e lê de lá `objetos`, `zumbi` e a navmesh; o cliente online baixa os dados da versão da sala (`GET /api/mapas/:id/versoes/:v`). Ver [[ADR - Sessões sob demanda por versão do mapa]].
 
 ## Dois caminhos de construção
 

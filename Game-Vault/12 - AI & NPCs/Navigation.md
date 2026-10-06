@@ -4,6 +4,7 @@ type: system
 status: documented
 area: ai
 source_paths:
+  - server/mapWorker.ts
   - client/ai/navmesh.ts
   - client/ai/bot.ts
   - client/main.ts
@@ -95,7 +96,7 @@ Detalhes das decisões em [[AI Decisions]].
 
 O servidor não monta mapas; para mover os zumbis online ele carrega uma navmesh **gerada em tempo de desenvolvimento** ([[ADR - Zumbis simulados no servidor sobre navmesh pré-gerada]]):
 
-- `tools/bake-navmesh.ts` (`bun run navmesh`) monta o mapa **headless em Bun** com o próprio código do cliente (`client/world/*`, com um canvas que não desenha) e chama `NavMap.build`: as mesmas configurações e os mesmos colisores dos bots. Exporta com `exportNavMesh` para `shared/data/navmesh/<mapa>.json` (base64, com tamanho e hash). Hoje: só `cemiterio` (~116 KB, 781 polígonos), o mapa do modo zumbi (`modeMaps('zumbi')`).
+- `tools/bake-navmesh.ts` (`bun run navmesh`) monta o mapa **headless em Bun** com o próprio código do cliente (`client/world/*`, com um canvas que não desenha) e chama `NavMap.build`: as mesmas configurações e os mesmos colisores dos bots. Exporta com `exportNavMesh` para `shared/data/navmesh/<mapa>.json` (base64, com tamanho e hash). Hoje: só `cemiterio` (~116 KB, 781 polígonos), o mapa oficial do modo zumbi (`exclusivo: 'zumbi'`). Esse arquivo semeia a versão 1 do mapa no banco (`seedOfficialMaps`); daí em diante o servidor guarda a navmesh **com cada versão salva** (`map_version.navmesh`) e a gera ao salvar um mapa zumbi, na thread de montagem (`server/mapWorker.ts`, o mesmo `NavMap.build` com as brechas). `server/navmesh.ts` carrega a de cada versão uma vez por processo (chave `mapa@versão`).
 - `server/navmesh.ts` carrega a malha uma vez por processo (`importNavMesh`, depois de iniciar o WebAssembly do Recast), compartilhada por todas as sessões do mapa.
 - `ZombieMatch` (`shared/zombieMatch.ts`) usa uma `Crowd` do Detour por sessão (até 64 agentes) para seguir caminho e espaçar a horda, `findClosestPoint`/`findRandomPointAroundCircle` para pontos de surgimento (pontos além de 1,5× o raio são recusados: o Detour pode devolver um ponto qualquer de um polígono grande que só toca o círculo) e `raycast` na malha como linha de visão (cuspe da Tia da Fofoca, investida do Prefeito).
 - A geração é determinística (o mapa usa aleatoriedade com semente): `server/tests/zombies.test.ts` refaz a malha e compara o hash. **Mudou o mapa do cemitério (`shared/data/mapas/cemiterio.json`, inclusive as brechas no campo `zumbi`), rode `bun run navmesh`** (a malha é feita a partir do JSON), senão o teste falha.

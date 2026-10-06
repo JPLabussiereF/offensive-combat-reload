@@ -31,7 +31,7 @@ Como um mapa é escolhido, montado e entra em jogo, e o que acontece com o mapa 
 | Criar sessão online | seletor de mapa da criação de sessão | mensagem `create` com `map`; o servidor aceita só ids válidos (`isMapId`), senão usa `rua` |
 | Prévia de mapa Blender | parâmetro de URL `?mapa=/maps/arquivo.glb` | **sobrepõe** qualquer escolha acima (ver abaixo) |
 
-O servidor cria **uma sessão permanente por mapa** ao iniciar (`principal` → Rua dos Vizinhos, `jardim`, `halloween`). Não há rotação de mapas, votação nem fim de partida: o README do projeto lista "fim de partida (limite de abates e tempo) e votação de mapa" como ainda não feitos. Ver [[Sessions]] e [[Matchmaking]].
+As salas online abrem sob demanda (`play {map, mode}`), cada uma presa à versão do mapa com que abriu; o cliente baixa os dados dessa versão antes de montar o mapa. Não há rotação de mapas, votação nem fim de partida: o README do projeto lista "fim de partida (limite de abates e tempo) e votação de mapa" como ainda não feitos. Ver [[Sessions]] e [[Matchmaking]].
 
 ## Montagem (carregamento)
 
@@ -79,6 +79,6 @@ Tempos de construção medidos (de `docs/MAPAS.md`, não reverificados): Rua ~50
 
 - `client/main.ts` — trecho "Map: the session's (online) or the one picked on the home screen".
 - `client/ui/home.ts` — `mapSel`, `newMapSel`, `pickedMap`, `BOTS_KEY`, `join`.
-- `server/app.ts` — `createSession`, sessões permanentes por mapa.
-- `shared/maps.ts` — `MAPS`, `DEFAULT_MAP`, `isMapId`.
+- `server/app.ts` — `createSession`, salas sob demanda (`sessionFor`).
+- `shared/maps.ts` — `OFFICIAL_MAPS`, `DEFAULT_MAP`, `isMapId`; `client/net/maps.ts` — `fetchMapVersion`.
 - Fluxos de UI relacionados: [[Flow - First Access]], [[Flow - Join Online Match]], [[Menus]].

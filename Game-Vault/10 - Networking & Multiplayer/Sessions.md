@@ -9,6 +9,7 @@ source_paths:
   - shared/zombieMatch.ts
   - shared/modes.ts
   - server/app.ts
+  - server/maps.ts
   - server/session.ts
   - server/progress.ts
   - server/api.ts
@@ -32,7 +33,7 @@ No código, "sessão" tem **três sentidos** — não confundir:
 |---|---|---|---|
 | Sessão de login | Cookie `oc_sessao` (30 dias, renovado) + linha na tabela `session` | `server/auth/sessions.ts` | [[Authentication]] |
 | Conexão de jogo (`Conn`) | Um WebSocket aberto com ticket, ligado a uma conta | `server/app.ts` | esta nota |
-| Sessão de jogo / sala (`Session`) | Uma partida FFA com até 10 jogadores | `server/session.ts` | esta nota |
+| Sessão de jogo / sala (`Session`) | Uma partida de um modo, numa versão de um mapa, com até 10 jogadores | `server/session.ts` | esta nota |
 
 Ver também a "participação" persistida (`session_participation`) em [[Player Data]].
 
@@ -64,7 +65,7 @@ Ver também a "participação" persistida (`session_participation`) em [[Player 
 | Servidor desligando (SIGTERM/SIGINT) | 1001 | `GameServer.close()` |
 | Rede / navegador fechado | — | evento `close` |
 
-O servidor assina os canais Redis `oc:revogacao` e `oc:silencio` numa **segunda conexão Redis** (uma conexão em modo subscribe não executa outros comandos). Silêncio não fecha a conexão: recarrega `chatMutedUntil` na conexão viva. Ver [[Moderation]].
+O servidor assina os canais Redis `oc:revogacao`, `oc:silencio` e `oc:perfil` numa **segunda conexão Redis** (uma conexão em modo subscribe não executa outros comandos). Silêncio não fecha a conexão: recarrega `chatMutedUntil` na conexão viva. `oc:perfil` (`PROFILE_CHANNEL`, publicado quando a equipe muda nome, corpo, aparência ou progresso de uma conta pelo Gerenciamento) recarrega o perfil: o progresso novo (somado ao que a partida ainda não gravou) chega na hora com uma mensagem `progresso`; nome e aparência valem a partir da próxima sala. Ver [[Moderation]].
 
 Ao fechar: sai da sala (grava o progresso com `close = true`), remove do conjunto de conexões e do mapa `byAccount` (só se ainda for a conexão registrada).
 
@@ -74,23 +75,25 @@ Ao fechar: sai da sala (grava o progresso com `close = true`), remove do conjunt
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Ativa: createSession (início do servidor ou create)
+    [*] --> Ativa: createSession (play sem sala com vaga, ou create)
     Ativa --> Ativa: join / leave / tick 20 Hz
-    Ativa --> Removida: vazia, não permanente e o mapa tem vaga em outra sala do mesmo modo (sessionsChanged)
+    Ativa --> Removida: vazia (sessionsChanged)
     Ativa --> Removida: servidor desligando (dispose)
     Removida --> [*]
 ```
 
 - Cada sala tem seu próprio `setInterval` de 50 ms (`tick`) e um tópico pub/sub `sessao:<id>`.
 - Cada sala tem um **modo de jogo** (`mata-mata`, `corrida-armada` ou `zumbi`, `SessionInfo.mode`), fixo desde a criação: a `Session` recebe o id e cria o seu `SessionMode` (`server/modes.ts`), que decide o loadout de quem entra, campos extras do jogador, se há dano agora (`combatOpen`), o que um abate faz (`onKill`) e o que roda no tick. Ver [[ADR - Modos de jogo com regras declaradas e ganchos no servidor]].
-- Salas permanentes (uma por mapa **e por modo**, só nos mapas em que o modo é jogado: `modeMaps`) nunca são removidas, e todo par mapa/modo sempre tem uma sala com vaga (o servidor abre `<Mapa> 2` quando as do par lotam). Ver [[Matchmaking]]. O **zumbi** só existe no Cemitério da Capela (sala fixa `zumbi-cemiterio`), mapa que nenhum outro modo usa: `create` com `mode: 'zumbi'` num outro mapa cria a sala no cemitério, e `create` de outro modo no cemitério cai no primeiro mapa aberto (`PVP_MAPS`). `GET /api/sessoes` só mostra o cemitério em salas do modo zumbi.
-- Uma sala **zumbi** carrega a navmesh do mapa ao ser criada (`server/navmesh.ts`; a primeira do processo espera o WebAssembly do Recast) e roda a partida da horda no tick da sala (`ZombieMode`); quem entra recebe o estado da partida no `joined` (`zumbi`). Esvaziou, a partida volta a esperar e os zumbis somem. Ver [[Zombie]].
+- **Sob demanda** (PF-6): não há sala fixa. `play {map, mode}` entra numa sala da versão atual do mapa com vaga ou abre uma; toda sala fecha quando esvazia. Ver [[Matchmaking]] e [[ADR - Sessões sob demanda por versão do mapa]].
+- Cada sala joga **uma versão salva de um mapa** (`Session.mapa`, um `MapRuntime` de `server/maps.ts`: os dados da versão, o nome, `exclusivo` e a navmesh), até o fim. `SessionInfo` traz `map`, `versao` e `mapaNome`; o cliente baixa os dados dessa versão (`GET /api/mapas/:id/versoes/:v`) antes de montar o mapa.
+- Um mapa feito para um modo (`exclusivo` nos dados) só é jogado nele, e o modo **zumbi** só em mapas feitos para ele (`modeAllowsMap`): `play` fora disso é recusado com `error`; `create` cai no primeiro mapa oficial do modo.
+- Uma sala **zumbi** carrega a navmesh **da versão** do mapa ao ser criada (`server/navmesh.ts`, uma vez por processo e versão; a primeira do processo espera o WebAssembly do Recast) e roda a partida da horda no tick da sala (`ZombieMode`, com o `zumbi` dos dados da versão); quem entra recebe o estado da partida no `joined` (`zumbi`). Ver [[Zombie]].
 
 ### Estado mantido por sala
 
 - `players: Map<id, SPlayer>` — por jogador: estado de rede, vivo, vida, `lastDamageAt`, `deadAt`, kills/deaths/score/humiliations, ping, histórico de acertos (`hitTimes`), últimos tempos de facada/tiro/prop, tokens de chat, granadas vivas, dança, bônus (cereja, humanidade do rato, poção), loadout (armas e melhorias: do modo — o Arsenal da conta ao entrar, ou o degrau da corrida armada), o loadout anterior e quando mudou (`loadoutBefore`/`loadoutAt`: tiros em voo da arma tirada pelo modo contam por 1 s), arma em mãos (`held`/`heldBefore`/`heldAt`, da `FLAG.secondary`) e `body` (`bodyStats` da aparência: altura, vida máxima).
 - `corpses` — corpos com janela de humilhação (`NET.corpseWindow` = 6 s), dono da dança (`claimedBy`); removidos 2 s após a janela se ninguém estiver dançando.
-- `pickups`, `fish`, `rats` — estado dos itens/criaturas do mapa (de `PICKUPS`, `FISH`, `RATS` em `shared/maps.ts`), com `ready` em tempo do servidor.
+- `pickups`, `fish`, `rats` — estado dos itens/criaturas do mapa (de `objetos` nos dados da versão: `coletaveis`, `peixes`, `ratos`; a bruxa em `objetos.bruxa`), com `ready` em tempo do servidor.
 
 ### Entrada e saída
 
@@ -100,7 +103,7 @@ stateDiagram-v2
 - Entra **morto**, com `deadAt` no passado para poder nascer na hora.
 - O loadout é o do modo (`mode.joinLoadout`). No mata-mata é o Arsenal da conta **naquele momento** e fica travado até sair: `loadout` dentro da sala é recusado e subir de nível não muda as armas ([[ADR - Equipamento travado no mata-mata]]). A escolha é enviada no saguão, antes do `join`.
 - Ao sair: libera corpos que estava humilhando, avisa `playerLeft`.
-- Em `join` o servidor abre uma linha em `session_participation` (assíncrono) e incrementa `matches_played`. Ver [[Save System]].
+- Em `join` o servidor abre uma linha em `session_participation` (assíncrono, com `map_id`) e incrementa `matches_played`; na primeira entrada da conta na sala, soma uma jogada ao mapa (`map.play_count`). Ver [[Save System]].
 
 ### Tick (20 Hz)
 
@@ -117,7 +120,7 @@ stateDiagram-v2
 
 ## Limitações conhecidas
 
-- **Perfil carregado só no handshake**: troca de nome ou aparência via API durante a conexão só vale ao reconectar (o `LiveAccount` não é recarregado; inferência a partir de `upgrade()` ser o único ponto que chama `loadGameProfile`).
+- **Perfil carregado no handshake**: a troca de nome ou aparência pelo próprio jogador (`PATCH /api/perfil`) durante a conexão só vale ao reconectar. Só as mudanças da equipe pelo Gerenciamento recarregam o perfil na conexão viva (`oc:perfil`).
 - **"Uma conexão por conta" é por processo**: o mapa `byAccount` é local. Com mais de uma instância, a mesma conta poderia jogar em duas (hoje o deploy tem uma instância). Ver [[Problem - Estado das partidas só em memória de um processo]].
 - Sem reconexão: cair da rede perde o lugar na sala; o progresso até ali é gravado.
 
@@ -126,6 +129,7 @@ stateDiagram-v2
 - `server/app.ts` — `Peer`, `upgrade()`, `open/message/close`, `byAccount`, `leaveSession()`, `flush()`, revogação.
 - `server/session.ts` — `Session`, `SPlayer`, `join()`, `leave()`, `tick()`, `dispose()`.
 - `server/progress.ts` — `LiveAccount`.
-- `server/redis.ts` — `REVOCATION_CHANNEL`, `MUTE_CHANNEL`.
+- `server/redis.ts` — `REVOCATION_CHANNEL`, `MUTE_CHANNEL`, `PROFILE_CHANNEL`.
+- `server/maps.ts` — `MapRuntime`, `MapStore` (cache das versões por `mapa@versão`).
 - `client/net/connection.ts`, `client/ui/home.ts` (`closeReason`).
 - Ver também [[Server Architecture]], [[State Management]], [[Flow - Join Online Match]].
