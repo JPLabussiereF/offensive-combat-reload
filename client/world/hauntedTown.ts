@@ -764,7 +764,7 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     const carMesh = new THREE.Mesh(carGeo, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() }));
     carMesh.castShadow = true;
     scene.add(carMesh);
-    for (const [x, z, , , yaw] of cars) b.cuboidCollider(V(x, 0.5, z), V(0.85, 0.5, 0.62), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0)), 'metal');
+    for (const [x, z, , , yaw] of cars) b.cuboidCollider(V(x, 0.5, z), V(0.85, 0.5, 0.62), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0)), 'metal', undefined, 'vehicle');
     // The ceiling grid the poles run on, and a few colored bulbs around its edge.
     b.span(26.3, 2.9, 20.8, 39.7, 3.02, 28.7, 'metal', { tint: 0x3a2a4a, collide: false });
     b.room({ x: 26.7, y: 0, z: 21.2 }, { x: 39.3, y: 2.9, z: 28.3 }, 0.3); // roofed, open all around

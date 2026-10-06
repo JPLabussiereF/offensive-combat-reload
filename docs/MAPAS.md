@@ -97,7 +97,10 @@ O som sabe se um lugar é fechado pelas **salas marcadas à mão**: `b.room(min,
 - Fora de toda caixa, o jogo mede o lugar com raios (teto até 8 m e só com paredes em pelo menos 3 de 6 direções). Isso é uma **reserva**: marque todo lugar coberto onde se pode entrar.
 - Helpers que constroem lugares cobertos já marcam a própria caixa: `pavilion` (cada andar, sacadas e alpendre), `ting`, `gateway`, `house` da Vila Assombrada e a casa da Rua.
 
-Para a oclusão (sons atrás de obstáculos), cada colisor pesa pelo material, pela espessura atravessada (cheia a partir de 0,3 m) e pelo tipo. Carros e troncos de árvore abafam pouco: marque com `occluder: 'vehicle'` ou `'trunk'` (opção de `b.box`/`b.cylinder`, último argumento de `cuboidCollider`).
+Para a oclusão (sons atrás de obstáculos), cada colisor pesa pelo material, pela espessura atravessada (cheia a partir de 0,3 m) e pelo tipo. Carros e troncos de árvore abafam pouco: marque com `occluder: 'vehicle'` ou `'trunk'` (opção de `b.box`/`b.cylinder`, último argumento de `cuboidCollider`). Hoje são `vehicle`: carros, van, caminhão de sorvete, carrinhos de bate-bate e trailers de circo.
+
+- A espessura vem dos dois raios da oclusão (ida e volta) quando os dois acertam o **mesmo** colisor. Quando acertam colisores diferentes, cada um conta com **espessura cheia** (vale para obstáculos feitos de várias caixas, como o caminhão de sorvete: separe em colisores só quando precisar).
+- O abafamento leve e o eco de um som seguem o **lugar de onde o som sai** (a sala onde ele está); os sons do próprio jogador seguem o lugar onde ele está.
 
 ### Peças orientais
 
