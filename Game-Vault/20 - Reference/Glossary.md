@@ -52,7 +52,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Investida | `lunge` | Avanço da faca até o alvo próximo | [[Melee]] |
 | Kill feed | `hud.killfeed` | Linhas "Matador [arma] ícone Vítima" | [[HUD]] |
 | Mata-mata (livre) | `'mata-mata'` (`GameModeId`), `DeathmatchMode` | Modo todos contra todos com o Arsenal da conta, escolhido antes e travado durante a partida | [[Free For All]] · [[Versus Bots]] |
-| Corrida armada (en: Gun game) | `'corrida-armada'`, `GunGameMode`, `shared/gunGame.ts` | Modo em que todos sobem a mesma escada de armas: 3 abates sobem, facada desce, abate com o Sabre de Luz vence a rodada | [[Gun Game]] |
+| Corrida armada (en: Gun game) | `'corrida-armada'`, `GunGameMode`, `shared/gunGame.ts` | Modo em que todos sobem a mesma escada de armas: 3 abates sobem, facada tira um abate, abate com o Sabre de Luz vence a rodada | [[Gun Game]] |
 | Escada / degrau | `LADDER`, `LadderPos {step, kills}`, `PlayerInfo.ladder`, `ladder_<id>` | Sequência de 7 armas fixas da corrida armada e a posição de cada jogador nela ("ARMA N/7") | [[Gun Game]] |
 | Zumbi (en: Zombies) | `'zumbi'`, `ZombieMode`, `ZombieMatch`, `shared/zombies.ts` | Modo cooperativo de 12 ondas de zumbis e 3 chefes no Cemitério da Capela (mapa só dele); dinheiro da partida, armas do caixão e barricadas | [[Zombie]] |
 | Onda / intervalo | `ZPhase` (`countdown`, `wave`, `break`, `over`), `zwave` | Uma leva de zumbis do modo zumbi; o intervalo de 20–25 s entre ondas (munição e granadas cheias, caídos levantam, mortos voltam) | [[Zombie]] |
