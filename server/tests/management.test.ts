@@ -125,16 +125,28 @@ describe('matriz de papéis', () => {
     expect((await other.req('DELETE', `/api/gestao/contas/${otherId}/papeis/admin`)).body.motivo).toBe('ultimo_admin');
   });
 
-  it('o nome trocado pela equipe não espera nem mexe no tempo de espera do jogador', async () => {
+  it('o nome trocado pela equipe não espera, e a espera do jogador recomeça a partir da troca', async () => {
     const mod = await staff('Cartorio', 'moderador');
     const user = await signedIn('Primeiro');
     const userId = await accountOf(user);
-    // The player's own free change, then the waiting time.
+    // The player's own free change, then the waiting time; the staff changes it anyway.
     expect((await user.req('PATCH', '/api/perfil', { nome: 'Segundo' })).status).toBe(200);
     expect((await user.req('PATCH', '/api/perfil', { nome: 'Terceiro' })).body.erro).toBe('cooldown_nome');
     expect((await mod.req('PATCH', `/api/gestao/contas/${userId}`, { nome: 'Quarto' })).status).toBe(200);
-    expect((await user.req('GET', '/api/perfil')).body.nome).toBe('Quarto');
-    expect((await user.req('PATCH', '/api/perfil', { nome: 'Quinto' })).body.erro).toBe('cooldown_nome');
+    expect((await mod.req('PATCH', `/api/gestao/contas/${userId}`, { nome: 'Sexto' })).status).toBe(200);
+    expect((await user.req('GET', '/api/perfil')).body.nome).toBe('Sexto');
+
+    // A player who never used the free change: after the staff's change, 7 days from it.
+    const fresh = await signedIn('Ofensivo');
+    const freshId = await accountOf(fresh);
+    const before = Date.now();
+    expect((await mod.req('PATCH', `/api/gestao/contas/${freshId}`, { nome: 'Educado' })).status).toBe(200);
+    const refused = await fresh.req('PATCH', '/api/perfil', { nome: 'Ofensivo' });
+    expect(refused.body.erro).toBe('cooldown_nome');
+    const until = Date.parse(refused.body.liberaEm);
+    expect(until - before).toBeGreaterThanOrEqual(7 * 86400_000 - 5000);
+    expect(until - before).toBeLessThanOrEqual(7 * 86400_000 + 60_000);
+    expect((await fresh.req('GET', '/api/perfil')).body.nome).toBe('Educado');
   });
 });
 

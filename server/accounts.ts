@@ -271,8 +271,8 @@ export async function fullProfile(db: Db, accountId: string): Promise<ProfileRes
 
 /**
  * Changes the display name: the first change is free, then one every NAME_COOLDOWN_DAYS days. A staff member
- * (`staffId`, the Management screen) changes it without the wait, and their change doesn't count as the player's
- * (the player's own waiting time stays as it was).
+ * (`staffId`, the Management screen) changes it without the wait, and the player's wait starts again from that
+ * change (P35: a name taken away for being offensive can't be put back at once).
  */
 export async function changeName(db: Db, accountId: string, name: string, info: AuditInfo, staffId: string | null = null) {
   await transaction(db, async (c) => {
@@ -287,7 +287,7 @@ export async function changeName(db: Db, accountId: string, name: string, info: 
     const sameName = p.display_name.toLowerCase() === name.toLowerCase();
     const disc = sameName ? p.discriminator : await pickDiscriminator(c, name, p.discriminator);
     if (disc === null) throw new HttpError(409, 'nome_esgotado');
-    await c.query(`UPDATE player_profile SET display_name = $2, discriminator = $3${staffId ? '' : ', name_changed_at = now()'} WHERE id = $1`, [p.id, name, disc]);
+    await c.query('UPDATE player_profile SET display_name = $2, discriminator = $3, name_changed_at = now() WHERE id = $1', [p.id, name, disc]);
     await c.query('INSERT INTO display_name_history (profile_id, display_name, discriminator) VALUES ($1, $2, $3)', [p.id, name, disc]);
     await audit(c, accountId, 'name_change', info, `${formatTag(p.display_name, p.discriminator)} -> ${formatTag(name, disc)}`, staffId);
   });
