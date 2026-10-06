@@ -31,7 +31,7 @@ updated: 2026-10-06
 
 # Gun Game
 
-**Corrida armada** (`'corrida-armada'` em [[Shared Systems|shared/modes.ts]]): todos sobem a **mesma escada de armas**. Cada degrau é uma arma com atributos fixos; quem faz **3 abates com a arma do degrau** sobe um degrau, quem **morre por facada desce um**, e o **abate com o Sabre de Luz**, no último degrau, vence a rodada. Existe online (servidor com autoridade) e contra bots (o `BotManager` aplica as mesmas regras).
+**Corrida armada** (`'corrida-armada'` em [[Shared Systems|shared/modes.ts]]): todos sobem a **mesma escada de armas**. Cada degrau é uma arma com atributos fixos; quem faz **3 abates com a arma do degrau** sobe um degrau, quem **morre por facada perde um abate** (e, sem abates no degrau, volta uma arma), e o **abate com o Sabre de Luz**, no último degrau, vence a rodada. Existe online (servidor com autoridade) e contra bots (o `BotManager` aplica as mesmas regras).
 
 > As regras globais (vida, dano, opressão, coletáveis, respawn) são as de [[Game Rules]], [[Combat]] e [[Respawn]]. Esta nota só registra o que difere. Decisão: [[ADR - Corrida armada]].
 
@@ -74,7 +74,7 @@ Nenhum: todos contra todos.
 
 - `afterKill(pos, kind, arma)`: o abate só conta se foi **com a arma do degrau** (`gun`/`head`/`groin` com a mesma `GunId`; no último degrau, `knife`). Ao completar 3, o jogador sobe com 0 abates e recebe a arma nova **na hora**, com pente cheio.
 - Facada (faca comum) em outros degraus **não conta** para quem esfaqueou.
-- `afterDeath(pos, kind)`: morrer por **facada** (`kind: 'knife'`, faca ou sabre) desce **um degrau** e zera os abates do degrau. No primeiro degrau só zera os abates. Quedas, cachorro, a própria granada e tiros não fazem descer.
+- `afterDeath(pos, kind)`: morrer por **facada** (`kind: 'knife'`, faca ou sabre) tira **um abate** (sem abates no degrau, volta à arma anterior com um abate a menos que o necessário; no começo da escada, nada). Ex.: degrau 3 com 2 abates → degrau 3 com 1; degrau 3 com 0 → degrau 2 com 2 de 3; do sabre → última arma com 2 de 3. Até 2026-10-06 a facada descia o degrau inteiro e zerava os abates. Quedas, cachorro, a própria granada e tiros não fazem descer.
 - Quem entra no meio da rodada começa no primeiro degrau.
 
 ### O Sabre de Luz na mão
@@ -92,7 +92,7 @@ No último degrau o loadout é `{ soFaca: true, faca: 'sabre' }` (a faca Sabre d
 stateDiagram-v2
     [*] --> Rodada: entrar (degrau 1)
     Rodada --> Rodada: 3 abates com a arma do degrau → sobe
-    Rodada --> Rodada: morte por facada → desce
+    Rodada --> Rodada: morte por facada → perde um abate
     Rodada --> Intervalo: abate com o sabre (roundEnd)
     Intervalo --> Rodada: GUN_GAME.restartSeconds (6 s) → roundStart
 ```
@@ -142,7 +142,7 @@ Nenhum limite de rodada. Só o intervalo de 6 s entre rodadas.
 
 ## UI relacionada
 
-- [[HUD]]: faixa "ARMA N/7 · nome · ●●○" sob o placar (rosa no sabre), banners "Próxima arma!", "Esfaqueado! Voltou para…", cartão do vencedor.
+- [[HUD]]: faixa "ARMA N/7 · nome · ●●○" sob o placar (rosa no sabre), banners "Próxima arma!", "Esfaqueado! Perdeu um abate (n/3)", "Esfaqueado! Voltou para…", cartão do vencedor.
 - [[Menus]]: na pausa, a escada inteira (degrau atual em amarelo) no lugar do Arsenal.
 - [[Scoreboard]]: coluna Arma e ordem pela escada.
 - [[Matchmaking UI]]: "Tipo de partida" e etiqueta do modo na lista de sessões.

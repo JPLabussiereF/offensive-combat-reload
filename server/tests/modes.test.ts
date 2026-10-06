@@ -89,11 +89,14 @@ describe('escada da corrida armada (regras puras)', () => {
     expect(up).toEqual({ pos: { step: 1, kills: 0 }, event: 'advanced' });
   });
 
-  it('a facada desce um degrau e zera os abates; o primeiro degrau não desce', () => {
-    expect(afterDeath({ step: 3, kills: 2 }, 'knife')).toEqual({ step: 2, kills: 0 });
-    expect(afterDeath({ step: 0, kills: 2 }, 'knife')).toEqual({ step: 0, kills: 0 });
+  it('a facada tira um abate; sem abates no degrau, volta uma arma com um a menos; no começo não há o que perder', () => {
+    expect(afterDeath({ step: 3, kills: 2 }, 'knife')).toEqual({ step: 3, kills: 1 });
+    expect(afterDeath({ step: 0, kills: 2 }, 'knife')).toEqual({ step: 0, kills: 1 });
+    expect(afterDeath({ step: 3, kills: 0 }, 'knife')).toEqual({ step: 2, kills: killsForStep(2) - 1 });
+    expect(afterDeath({ step: 0, kills: 0 }, 'knife')).toEqual({ step: 0, kills: 0 });
     expect(afterDeath({ step: 3, kills: 2 }, 'head')).toEqual({ step: 3, kills: 2 });
-    expect(afterDeath({ step: FINAL_STEP, kills: 0 }, 'knife').step).toBe(FINAL_STEP - 1);
+    // From the saber (no kills there: one wins), back to the last gun, one kill from the saber again.
+    expect(afterDeath({ step: FINAL_STEP, kills: 0 }, 'knife')).toEqual({ step: FINAL_STEP - 1, kills: killsForStep(FINAL_STEP - 1) - 1 });
   });
 
   it('no último degrau só o sabre vence', () => {
@@ -217,13 +220,14 @@ describe('corrida armada (online)', () => {
     // The others draw the new weapon too.
     expect((await knifer.p.next('playerLoadout', (m) => m.id === a.id)).lo).toEqual(ladderLoadout(1));
 
-    // A stab: down one step, the step's kills lost; the knife kill doesn't count for the one who stabbed.
+    // A stab with no kills on the step: one kill lost, so back to the first gun one kill short of climbing again;
+    // the knife kill doesn't count for the one who stabbed.
     const back = a.p.next('playerLoadout', (m) => m.id === a.id);
     const kill = a.p.next('kill', (m) => m.victim === a.id);
     knifer.p.send({ t: 'stab', target: a.id, behind: false });
     const k = await kill;
     expect(k.kind).toBe('knife');
-    expect(ladderOf(k.players, a.id)).toEqual({ step: 0, kills: 0 });
+    expect(ladderOf(k.players, a.id)).toEqual({ step: 0, kills: killsForStep(0) - 1 });
     expect(ladderOf(k.players, knifer.id)).toEqual({ step: 0, kills: 0 });
     expect((await back).lo).toEqual(ladderLoadout(0));
 

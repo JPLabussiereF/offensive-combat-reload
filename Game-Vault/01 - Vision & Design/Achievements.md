@@ -83,7 +83,7 @@ Figurinhas com `fonte: "propria"`: o servidor conta no momento do evento (`stick
 | Cardápio | Peixe de Ouro | carpas douradas acertadas | contador | 1 · 2 · 3 · 5 |
 | Corrida Armada | Corredor | rodadas vencidas | contador | 1 · 5 · 20 · 50 |
 | Corrida Armada | Volta Olímpica | vencer a rodada sem ter morrido nela | recorde | 1 |
-| Corrida Armada | Esfaqueador | rebaixar alguém um degrau na faca | contador | 5 · 25 · 100 · 400 |
+| Corrida Armada | Esfaqueador | tirar um abate de alguém na faca (desde 2026-10-06; antes, rebaixar de arma) | contador | 5 · 25 · 100 · 400 |
 | Vexames | Gravidade 1 × 0 Você | morrer de queda | contador | 1 · 3 · 5 · 10 |
 | Vexames | Fora do Mapa | cair no vazio | recorde | 1 |
 | Vexames | Amora Mandou Lembranças | mordido pela Amora | contador | 1 · 3 · 5 · 10 |

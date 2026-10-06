@@ -148,7 +148,8 @@ class GunGameMode implements SessionMode {
     this.ladder.set(victim.id, down);
     if (down.step !== before.step) this.host.setLoadout(victim, ladderLoadout(down.step));
     if (!attacker || attacker === victim) return [];
-    if (down.step < before.step) stickerAdd(attacker.conn.account, 'esfaqueador');
+    // A kill taken away with the knife (album: Esfaqueador).
+    if (down.step < before.step || down.kills < before.kills) stickerAdd(attacker.conn.account, 'esfaqueador');
     const from = this.pos(attacker);
     const { pos, event } = afterKill(from, kind, weapon);
     this.ladder.set(attacker.id, pos);

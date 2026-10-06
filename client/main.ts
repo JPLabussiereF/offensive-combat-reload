@@ -1515,7 +1515,12 @@ async function boot() {
     shownLadder = l;
     if (before?.step === l.step && before.kills === l.kills) return;
     renderLadder(arsenalGrid, l);
-    if (!before || before.step === l.step) return;
+    if (!before) return;
+    // A stab on a step with kills: one of them lost, same weapon.
+    if (before.step === l.step) {
+      if (l.kills === before.kills - 1) hud.showBanner(t('ladderLostKill', { n: l.kills, total: killsForStep(l.step) }), 'bird');
+      return;
+    }
     if (l.step > before.step) {
       hud.showBanner(l.step === FINAL_STEP ? t('ladderFinal') : t('ladderNext', { weapon: stepName(l.step) }), 'level');
       sfx.levelUp();

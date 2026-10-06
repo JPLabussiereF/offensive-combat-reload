@@ -213,7 +213,7 @@
     {
       "id": "esfaqueador", "pagina": "corrida", "icone": "🔪", "tipo": "contador", "fonte": "propria", "metas": [5, 25, 100, 400],
       "nome": { "pt": "Esfaqueador", "en": "Demoter" },
-      "como": { "pt": "Rebaixe {meta} jogadores na faca", "en": "Knock {meta} players down a step with the knife" }
+      "como": { "pt": "Tire {meta} abates de outros jogadores na faca", "en": "Take {meta} kills away from other players with the knife" }
     },
     {
       "id": "sobrevivente", "pagina": "zumbi", "icone": "🏆", "tipo": "contador", "fonte": "zumbiVitorias", "metas": [1, 5, 20, 50],
