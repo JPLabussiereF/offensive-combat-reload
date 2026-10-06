@@ -4,10 +4,39 @@ Guia para quem vai construir mapas e props do Offensive Combat. Existem dois cam
 
 | Caminho | Quando usar | Onde |
 | --- | --- | --- |
-| **Código** (`MapBuilder`) | Blockout rápido com caixas, paredes com vãos, escadas e telhados | [client/world/blockoutMap.ts](../client/world/blockoutMap.ts) |
+| **Dados** (peças do catálogo, montadas pelo `MapBuilder`) | Os mapas oficiais e, com o editor (PF-6), os mapas da comunidade: caixas, paredes com vãos, escadas, telhados, construções, móveis, veículos, piadas e modelos `.glb` | [shared/data/mapas/](../shared/data/mapas/) (formato na seção 0) |
 | **Blender → glTF (.glb)** | Qualquer forma que não seja caixa: prédios, props, terreno, arte final | `public/maps/*.glb` (mapa inteiro) ou `public/models/*.glb` (props) |
 
 Para ver um mapa .glb, abra o jogo com `?mapa=`: `http://localhost:5173/?mapa=/maps/arena_teste.glb`.
+
+---
+
+## 0. Mapas como dados
+
+Desde a PF-6 um mapa é um arquivo de dados, não código. Os quatro oficiais estão em `shared/data/mapas/{rua,jardim,halloween,cemiterio}.json`, com uma peça por linha.
+
+### Formato (`MapData`, [shared/mapData.ts](../shared/mapData.ts))
+
+- `formato` (hoje `1`: um arquivo de formato mais novo é recusado), `nome`, `exclusivo` (`zumbi` para um mapa só desse modo) e `cartao` (emoji e cor nos seletores).
+- `ambiente`: `ceu` (`atmosfera`: fundo, névoa, hemisfério, sol e as luzes da arma; `cupula`: `nuvens`, `lua` com a direção, ou `oriental`), `celula` (tamanho da célula de lote em metros), `sombra` (meia-largura da sombra do sol, quando o mapa é maior que o padrão), `killY` e `sons` (pássaro, corvo ou uivo: o primeiro depois de `primeiro` segundos, os outros a cada `intervalo`).
+- `pecas`: a lista de peças, montadas **em ordem**. Cada uma tem `id` (único no mapa), `tipo`, `p`/`yaw`/`escala` quando o tipo é livre, `params`, `semente` (o estado do gerador de onde a peça começa, nos tipos que sorteiam: a peça monta igual em qualquer lugar da lista), `prop` (o id da piada no `PropBus`, explícito) e `coletavel`.
+- `arquivos` (modelos `.glb` que as peças `glb` usam, por `id` e `url`), `spawns` (`a`, `b`, `ffa`), `bonecos` (com `patrulha`), `objetos` (coletáveis, bruxa, ratos e peixes: o que o servidor acompanha, com os ids da rede), `zumbi` (o muro, os surgimentos, o caixão, os chefes e as brechas, no Cemitério) e `servicos` (quantas luzes reais).
+
+`validateMapData` confere tudo isso contra o catálogo e devolve a lista de erros; roda igual no cliente e no servidor.
+
+### Catálogo de peças
+
+[shared/mapCatalog.ts](../shared/mapCatalog.ts) descreve cada tipo de peça (cerca de 110): nome em português e inglês, categoria, parâmetros com tipo, faixa e padrão, como o editor o move (`livre`: posição, giro e escala; `linear`: corre num eixo entre duas pontas, como muros, cercas e escadas; `fixa`: o layout inteiro em coordenadas do mundo), quantos cabem num mapa (uma bruxa, por exemplo) e o prefixo da piada no `PropBus`. Inclui as primitivas do `MapBuilder` (`caixa`, `cilindro`, `parede` com vãos e moldura, `escada`, `telhado`, `sala` do som, `forma`, `brilho`, `luz`), as construções, os kits do Jardim e da Vila, móveis, veículos, piadas e o `glb`.
+
+No cliente, cada tipo tem um adaptador em [client/world/catalog/](../client/world/catalog/) que chama os construtores de sempre (`MapBuilder`, `furniture.ts`, `vehicles.ts`, `halloween.ts`, `oriental.ts`, `jardim/kit.ts`). Um tipo novo precisa do esquema e do adaptador (`client/tests/mapData.test.ts` confere que os dois casam).
+
+### Montagem
+
+[client/world/mapLoader.ts](../client/world/mapLoader.ts): `loadOfficialMap(id)` carrega o JSON oficial (vai no pacote do cliente, para treino e bots funcionarem sem servidor) e `buildMapFromData(data, { ..., modo })` monta as peças em ordem, fecha os sistemas que várias peças compartilham (o brilho, os postes, as abóboras, as lanternas, as luzes reais), desenha o céu e liga os sons. No modo `jogo` a geometria parada é fundida entre peças; no modo `editor` cada peça fica no seu grupo, com os seus colisores, para o editor reconstruí-la sozinha.
+
+### Golden e conversão
+
+Os mapas feitos em código foram convertidos uma vez, sem perder nada: `bun tools/snapshot-mapas.ts` gravou, do código original, o retrato de cada mapa (`shared/data/mapas/<id>.golden.json`: colisores, piadas, vãos, salas, spawns, bonecos, céu, lotes e objetos da cena); `bun tools/converter-mapas.ts` roda os construtores antigos com cada chamada gravada como peça ([client/world/conversao/](../client/world/conversao/)), escreve o JSON e confere com o golden. `client/tests/mapConversion.test.ts` monta os quatro JSON e compara com o golden (tolerância de 1e-6). **O JSON é a fonte da verdade**; só regrave o golden quando um mapa mudar de propósito.
 
 ---
 
@@ -78,7 +107,7 @@ Para um objeto com arte própria (uma placa com letreiro, um carro modelado, um 
 
 ---
 
-### Paredes com portas e janelas (mapas feitos em código)
+### Paredes com portas e janelas
 
 `b.wall(...)` recebe os vãos como `[início, fim, base, topo]` e **aceita vãos empilhados**, como uma porta sob uma janela ou janelas nos dois andares. A parede é cortada em colunas nas bordas de cada vão, e cada coluna fica maciça em tudo, menos nos vãos que a cobrem. Com a opção `frame`, cada vão ganha moldura (e peitoril nas janelas) sem estreitar o buraco. A textura usa coordenadas do mundo, então tábuas e tijolos continuam de um pedaço para o outro.
 
@@ -87,9 +116,9 @@ Regras de medida que o jogo checa automaticamente:
 - **Janela do térreo** que deve dar para atravessar pulando agachado: peitoril a até **0,9 m** e topo a **2,3 m** ou mais.
 - Todo vão fica registrado em `map.openings`. O teste de estrutura passa um raio por cada vão e tenta atravessar cada porta andando.
 
-### Salas para o som (mapas feitos em código)
+### Salas para o som
 
-O som sabe se um lugar é fechado pelas **salas marcadas à mão**: `b.room(min, max, grau)` registra uma caixa alinhada aos eixos, do piso ao teto e por dentro das paredes. Dentro dela, os sons (tiros, passos, granadas, explosões) ficam levemente abafados e com eco de sala; fora, soam claros e com um eco aberto curto.
+O som sabe se um lugar é fechado pelas **salas marcadas à mão**: a peça `sala` (`b.room(min, max, grau)` no `MapBuilder`) registra uma caixa alinhada aos eixos, do piso ao teto e por dentro das paredes. Dentro dela, os sons (tiros, passos, granadas, explosões) ficam levemente abafados e com eco de sala; fora, soam claros e com um eco aberto curto.
 
 - **Grau de fechamento** de 0 a 1. Use **1** para sala fechada (portas e janelas não contam como abertura). Use **0,3 a 0,6** para lugares cobertos e abertos dos lados. Os mapas atuais usam: **0,6** com um lado aberto (garagem, barraca de tiro ao alvo), **0,5** com dois (portões cobertos do Jardim), **0,4** com três (varandas, alpendres, sacadas, barracas de feira) e **0,3** com os quatro (pavilhões, coreto, mirante).
 - Onde caixas se sobrepõem vale o **maior grau**, então a caixa de uma varanda pode encostar na da casa sem problema.
@@ -167,11 +196,11 @@ A Vila é noturna: devolve `atmosphere` (lua azulada, névoa roxa) e `shadowExte
 
 ### Mapas por sessão
 
-Os mapas jogáveis estão em [shared/maps.ts](../shared/maps.ts). Cada sessão online leva o id do mapa, e o servidor mantém uma sessão fixa por mapa. Para adicionar um mapa: registre o id ali, crie o `build...Map` em `client/world/` e ligue o id na escolha do mapa em [client/main.ts](../client/main.ts).
+Os mapas jogáveis estão em [shared/maps.ts](../shared/maps.ts). Cada sessão online leva o id do mapa, e o servidor mantém uma sessão fixa por mapa. Para adicionar um mapa oficial hoje: registre o id ali, escreva `shared/data/mapas/<id>.json` (seção 0) e ligue o arquivo em `OFFICIAL` de [client/world/mapLoader.ts](../client/world/mapLoader.ts). Com o editor da PF-6, mapas novos passam a ser criados no jogo.
 
 ### Piadas do cenário sincronizadas
 
-Hidrantes, o caminhão de sorvete, os flamingos, as lanternas, o gongo e o dragão são registrados com `props.register('nome:indice', efeito)`, e isso devolve o `onShot` do colisor. Online, disparar uma piada avisa o servidor, que repassa aos outros, e todos veem o mesmo. Para criar uma nova, é o mesmo padrão; veja os hidrantes em [blockoutMap.ts](../client/world/blockoutMap.ts) e [hydrant.ts](../client/world/hydrant.ts).
+Hidrantes, o caminhão de sorvete, os flamingos, as lanternas, o gongo e o dragão são registrados com `props.register('nome:indice', efeito)`, e isso devolve o `onShot` do colisor. Online, disparar uma piada avisa o servidor, que repassa aos outros, e todos veem o mesmo. Para criar uma nova, é o mesmo padrão; veja o adaptador `hidrante` em [client/world/catalog/objects.ts](../client/world/catalog/objects.ts) e [hydrant.ts](../client/world/hydrant.ts). No mapa, cada piada guarda o seu id na peça (`prop`).
 
 ## 2. Blender → .glb
 
@@ -223,14 +252,14 @@ Coloque o arquivo em `public/maps/` (mapa inteiro) ou `public/models/` (prop).
 ### Usando o arquivo
 
 - **Mapa inteiro:** abra `?mapa=/maps/seu_mapa.glb`. O arquivo precisa de pelo menos um `SPAWN_A_*` (ou `SPAWN_FFA_*`).
-- **Prop dentro de um mapa feito em código:**
+- **Prop dentro de um mapa:** liste o arquivo em `arquivos` e use a peça `glb`:
 
-```ts
-const gltf = await gltfLoader(renderer).loadAsync('/models/casinha_cachorro.glb');
-addGltfToMap(gltf, b, { position: new THREE.Vector3(36, 0, 14.5), yaw: 0, scale: 1.6 });
+```json
+"arquivos": [{ "id": "casinha_cachorro", "url": "/models/casinha_cachorro.glb" }],
+{ "id": "glb-1", "tipo": "glb", "p": [36, 0, 14.5], "yaw": 3.14159, "escala": 1.6, "params": { "arquivo": "casinha_cachorro" } }
 ```
 
-Veja o exemplo em [blockoutMap.ts](../client/world/blockoutMap.ts), procurando `casinha_cachorro`.
+Veja o exemplo em [shared/data/mapas/rua.json](../shared/data/mapas/rua.json), procurando `casinha_cachorro` (o adaptador é [client/world/catalog/glb.ts](../client/world/catalog/glb.ts), que chama `addGltfToMap`).
 
 ### Exemplos prontos
 
@@ -253,7 +282,20 @@ Eles fazem o papel de arquivos exportados do Blender; abra-os no Blender (File �
 - **Sombras:** só a luz do sol projeta. O chão recebe mas não projeta. O mapa de sombras é redesenhado a cada quadro na qualidade Alta, a cada 2 na Média e fica desligado na Baixa.
 - **Qualidade automática:** reduz a resolução (até 50%) e depois as sombras quando o FPS cai abaixo de 45.
 
-### Metas por mapa (seção 3 do documento de design)
+### Orçamento por mapa (PF-6)
+
+Um mapa pode custar no máximo **400 chamadas de desenho e 750 mil triângulos** por quadro (`MAP_BUDGET`); no editor, um mapa acima disso não salva e a tela diz o que passou. [client/world/budget.ts](../client/world/budget.ts) mede sem placa de vídeo, como o F3 contaria: a pior câmera de amostra (em cada spawn e numa grade sobre o mapa, olhando em 8 direções) mais a passada de sombra do sol. Os oficiais hoje:
+
+| Mapa | Chamadas de desenho | Triângulos |
+| --- | --- | --- |
+| Rua dos Vizinhos | 164 | 115.670 |
+| Jardim do Dragão | 310 | 704.428 |
+| Vila Assombrada | 265 | 642.603 |
+| Cemitério da Capela | 80 | 122.322 |
+
+### Metas antigas (seção 3 do documento de design)
+
+Antes do orçamento da PF-6, as metas eram estas (medidas à mão, com o F3):
 
 | Item | Meta | "Rua dos Vizinhos" hoje | "Jardim do Dragão" hoje | "Vila Assombrada" hoje |
 | --- | --- | --- | --- | --- |
@@ -269,7 +311,7 @@ Aperte **F3** no jogo para ver FPS, draw calls, triângulos, tempo de CPU e a GP
 1. **Reutilize superfícies da biblioteca** em vez de criar materiais novos. Cada material diferente custa pelo menos um draw call.
 2. **Colisão mais simples que o visual:** uma parede cheia de detalhes colide como `COL_parede_BOX`.
 3. **Detalhes pequenos sem colisão** (`NOCOL`): calhas, fios, maçanetas.
-4. **Até ~50 mil triângulos por mapa pequeno** nesta fase. Props repetidos (caixotes, cercas) devem ter poucos polígonos.
+4. **Respeite o orçamento** (400 chamadas de desenho e 750 mil triângulos no pior ponto, contando a sombra). Props repetidos (caixotes, cercas) devem ter poucos polígonos.
 5. **Otimize o .glb antes de colocar no jogo:**
 
 ```bash

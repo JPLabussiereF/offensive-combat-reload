@@ -5,10 +5,11 @@ status: documented
 area: world
 source_paths:
   - client/world/props.ts
-  - client/world/blockoutMap.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
   - client/world/hydrant.ts
   - client/world/dog.ts
-  - client/world/dragonGarden.ts
+  - shared/data/mapas/jardim.json
   - client/world/oriental.ts
   - client/world/jardim/kit.ts
   - client/world/jardim/lago.ts
@@ -18,7 +19,7 @@ source_paths:
   - client/world/jardim/frutas.ts
   - client/world/jardim/peixes.ts
   - client/world/jardim/cereja.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/world/halloween.ts
   - shared/maps.ts
   - shared/constants.ts
@@ -28,7 +29,7 @@ tags:
   - maps
   - interaction
   - gags
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Interactive Objects
@@ -115,7 +116,7 @@ Nenhum objeto interativo. O marcador `GAG_*` existe no carregador, mas a ligaç�
 ## Código relacionado
 
 - `client/world/props.ts` — `PropBus`, `PropTrigger`.
-- `client/world/blockoutMap.ts` — caminhão, hidrantes, flamingos, Amora, latido.
+- `client/world/catalog/objects.ts`, `catalog/vehicles.ts`, `catalog/glb.ts` — hidrantes, flamingos, Amora, caminhão e latido (Rua dos Vizinhos); cada piada guarda o seu id do `PropBus` na peça (`Peca.prop`).
 - `client/world/oriental.ts` — `Lanterns`, `Gong`, `Bell`, `FireBreath`.
 - `client/world/jardim/kit.ts` — `struck` (tambores).
 - `client/world/halloween.ts` — `GraveGhost`, `Bell`, `Pumpkins`, `LampPosts`, `Cauldron`, `Scarecrows`, `TargetRow`, `GiantPumpkin`, `GrandfatherClock`, `GlowShrooms`, `KitchenCabinet`, `ScoobyBiscuit`, `GiantRat`, `Witch`.

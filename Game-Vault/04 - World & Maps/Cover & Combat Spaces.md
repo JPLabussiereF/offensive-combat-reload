@@ -7,8 +7,9 @@ source_paths:
   - client/world/surfaces.ts
   - client/weapons/hitscan.ts
   - shared/data/weapons/rifle_padrao.json
-  - client/world/blockoutMap.ts
-  - client/world/dragonGarden.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
+  - shared/data/mapas/jardim.json
   - client/world/jardim/kit.ts
   - client/world/jardim/casa.ts
   - client/world/jardim/bonsai.ts
@@ -17,7 +18,7 @@ source_paths:
   - client/world/jardim/guerreiros.ts
   - client/world/jardim/bambu.ts
   - client/world/jardim/santuario.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/world/halloween.ts
   - shared/data/weapons/pistola.json
   - shared/data/weapons/smg.json
@@ -47,7 +48,7 @@ A bala é um raio (*hitscan*) contra os colisores do mapa. Se a superfície atin
 No máximo **2 superfícies** atravessadas por tiro. Tiros oblíquos percorrem mais material e podem parar onde um tiro reto passaria.
 
 > [!info]
-> As paredes das casas de madeira da Vila Assombrada têm 0,3 m e, pela regra acima, são atravessáveis por tiros quase perpendiculares. Conclusão derivada da combinação de `house()` (`hauntedTown.ts`) com `traceShot` (`hitscan.ts`), não de um comentário explícito.
+> As paredes das casas de madeira da Vila Assombrada têm 0,3 m e, pela regra acima, são atravessáveis por tiros quase perpendiculares. Conclusão derivada da combinação de `house()` (`client/world/catalog/haunted.ts`) com `traceShot` (`hitscan.ts`), não de um comentário explícito.
 
 Coisas que **escondem mas não param** a bala:
 

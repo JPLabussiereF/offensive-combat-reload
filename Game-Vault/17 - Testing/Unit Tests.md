@@ -18,6 +18,12 @@ source_paths:
   - client/zombies/local.ts
   - client/zombies/link.ts
   - server/tests/progression-modes.test.ts
+  - client/tests/mapConversion.test.ts
+  - client/tests/mapData.test.ts
+  - client/tests/budget.test.ts
+  - client/tests/seeded.test.ts
+  - tools/snapshot-mapas.ts
+  - tools/headless.ts
 tags:
   - testes
   - unitarios
@@ -95,6 +101,17 @@ Não rodam aqui (precisam do navegador): `BotManager` e `Bot` (malhas, física R
 ## `server/tests/progression-modes.test.ts` → [[Weapons]], [[Progression]], [[Game Modes Index]]
 
 A matriz progressão × modos (descrita em [[Integration Tests]]) também é, em parte, unitária: toda combinação de melhorias de toda arma de fogo, da faca e da granada dá atributos finitos e positivos, e todo equipamento que um modo entrega no meio da partida (degraus da escada, combinações de itens do caixão) é válido.
+
+## Mapas como dados (PF-6) → [[World Structure]], [[ADR - Mapas como dados com catálogo de peças]]
+
+Os mapas são montados **sem tela** no Bun (`tools/headless.ts`: canvas falso, `.glb` lidos de `public/` no disco, `Math.random` fixo durante a montagem; os módulos do cliente entram por caminho variável, para o typecheck do servidor não segui-los).
+
+- `client/tests/mapConversion.test.ts`: cada um dos 4 mapas oficiais, montado a partir do JSON pelo carregador, é igual ao seu golden (`shared/data/mapas/<id>.golden.json`, gravado do código original antes da conversão), com tolerância de 1e-6: colisores (forma, posição, giro, tamanho, material, oclusor, `onShot`), ids do `PropBus`, vãos, salas, spawns, bonecos, `killY`, sombra, céu, luzes, lotes e objetos da cena (hash dos triângulos, independente da ordem). E o modo editor: uma peça por grupo, os colisores repartidos entre as peças, nenhum lote fora delas.
+- `client/tests/mapData.test.ts`: `validateMapData` (os oficiais passam; mapas quebrados são recusados com o motivo: tipo desconhecido, parâmetro fora do esquema, id repetido, id do `PropBus` inválido ou repetido, limite por mapa, bruxa sem posição, coletável, rato e arquivo sem par, mapa zumbi sem dados), o esquema do catálogo, um adaptador para cada tipo, as superfícies iguais às do cliente, e os objetos dos JSON iguais a `PICKUPS`, `WITCHES`, `RATS`, `FISH` e aos dados de zumbi.
+- `client/tests/budget.test.ts`: contagem de chamadas e triângulos (câmera, sombra, grupos de material, instâncias) e os 4 oficiais dentro de 400 chamadas e 750 mil triângulos (o teste imprime os números).
+- `client/tests/seeded.test.ts`: `seeded()` dá os mesmos números de antes e `seeded(r.state)` continua a sequência de `r`.
+
+O hash da navmesh do Cemitério (`server/tests/zombies.test.ts`) é refeito a partir do JSON e continua igual.
 
 ## Typecheck
 

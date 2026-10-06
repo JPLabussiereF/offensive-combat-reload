@@ -18,7 +18,7 @@ source_paths:
   - server/navmesh.ts
   - server/app.ts
   - tools/bake-navmesh.ts
-  - client/world/cemetery.ts
+  - shared/data/mapas/cemiterio.json
   - client/zombies/client.ts
   - client/zombies/view.ts
   - client/zombies/coffin.ts
@@ -114,7 +114,7 @@ Zumbis por onda para 1 jogador; com mais gente, × (1 + 0,6 × (jogadores − 1)
 
 ### De onde vem a horda
 
-- Os zumbis **sobem só no campo de covas fora do muro** (24 pontos, `mapas.cemiterio.surgir`), nos 6 mais próximos de alguém que estão a pelo menos 14 m de todo jogador de pé (a altura conta dobrado). Nunca dentro do muro (`zombieProblems` confere os dados; o motor confere o ponto sorteado).
+- Os zumbis **sobem só no campo de covas fora do muro** (24 pontos, `zumbi.surgir` em `shared/data/mapas/cemiterio.json`), nos 6 mais próximos de alguém que estão a pelo menos 14 m de todo jogador de pé (a altura conta dobrado). Nunca dentro do muro (`zombieProblems` confere os dados; o motor confere o ponto sorteado).
 - **Telegrafia** (`zfx 'rise'`): **0,9 s antes** de cada zumbi aparecer, o ponto se acende — disco verde no chão, **duas mãos saindo da terra**, um **feixe de luz verde** de 3,2 m que se vê por cima do muro, terra rachando e um **gemido alto** (3D). Depois o zumbi sai do chão (1,2 s; já pode levar tiro).
 - Eles entram **só pelas brechas** do muro, pela aberta mais curta até o alvo (ver Barricadas).
 - **Setas no HUD**: em volta da mira, uma seta para cada brecha com zumbis chegando (até 10 m fora dela), verde/laranja/vermelha por quantos (1–2 / 3–5 / 6+), com o número, ou o símbolo de tábuas se a brecha está barricada.
@@ -251,7 +251,7 @@ Nenhum limite por onda. Contagem de 15 s, intervalos de 20/25 s, resumo de 15 s.
 
 ## Configurações
 
-Tudo em `shared/data/zumbi.json` (lido por `shared/zombies.ts` como o objeto `ZOMBIE`; os testes encurtam os tempos e preços nele):
+Tudo em `shared/data/zumbi.json`, menos os dados do mapa, que ficam no campo `zumbi` do JSON do mapa (lido por `shared/zombies.ts` como o objeto `ZOMBIE`; os testes encurtam os tempos e preços nele):
 
 | Chave | Valor | O que é |
 |---|---|---|
@@ -269,7 +269,7 @@ Tudo em `shared/data/zumbi.json` (lido por `shared/zombies.ts` como o objeto `ZO
 | `caixa.danificada` | chance por raridade 25/18/12/6%; defeitos 45/45/10%; pente ×0,6, reserva ×0,5, dano ×0,75 | armas danificadas |
 | `barricadas` | 5 tábuas × 150, $300, erguer 2,5 s, repregar 0,8 s, +$10 até $150/onda, alcance 2,4 m, `dano` por tipo | barricadas |
 | `raridades`, `itens`, `inicial` | | o caixão |
-| `mapas.cemiterio` | `dentro` (o muro), 24 pontos de surgimento (fora do muro), o lugar do caixão, onde cada chefe surge, as 5 brechas (`barricadas`: eixo, centro, largura) | o mapa (o construtor do mapa corta o muro com estes dados) |
+| `zumbi` (em `shared/data/mapas/cemiterio.json`) | `dentro` (o muro), 24 pontos de surgimento (fora do muro), o lugar do caixão, onde cada chefe surge, as 5 brechas (`barricadas`: eixo, centro, largura) | o mapa (o muro foi cortado nas brechas na conversão; `ZOMBIE.mapas.cemiterio`; `checkZombieMap`) |
 | `MODE_RULES.zumbi` | `weapons: 'mode'`, `lockedLoadout`, `grenades`, sem XP de arma, `rounds`, `bots` (jogo solo), `coop`, `maps: ['cemiterio']` | `shared/modes.ts` |
 | Sala fixa | `zumbi-cemiterio` | `server/app.ts` |
 
@@ -284,7 +284,7 @@ Tudo em `shared/data/zumbi.json` (lido por `shared/zombies.ts` como o objeto `ZO
 - `shared/barricades.ts`: as brechas (geometria: `gapFrame`, `inGap`, `atGap`, `inReach`, `insideWall`; as caixas e flags da navmesh: `gateAreas`, `gateFlag`, `WALK_FLAG`) e as regras das tábuas (`buildBarricade`, `nailBoard`, `hitBarricade`, `boardDamage`, `smashesThrough`).
 - `shared/zombieMatch.ts`: o motor da partida (`ZombieMatch`): ondas com telegrafia de surgimento, zumbis numa `Crowd` do Detour com dois filtros (contornar / atravessar barricadas), ataques e arrombamento, chefes, cuspes e ondas de choque, o caixão, as barricadas (`barricadeWork`, `tickWork`), caído/reanimar, resumo. Roda no servidor e no navegador (solo).
 - `server/modes.ts` (`ZombieMode`): liga o motor à `Session`, valida `zhit`/`zstab`/granadas contra as posições do servidor (dano com a raridade e o defeito da arma), repassa `barricade`, dá o XP. `server/navmesh.ts`: carrega a navmesh pré-gerada. `server/session.ts`: ganchos e o estado `downed`.
-- `client/world/cemetery.ts`: o mapa ([[Map - Cemitério da Capela]]). `tools/bake-navmesh.ts` (`bun run navmesh`) e `shared/data/navmesh/cemiterio.json`: a navmesh do servidor, com as brechas marcadas ([[ADR - Barricadas como polígonos próprios na navmesh]]); `client/ai/navmesh.ts` (`soloNavMeshWithAreas`).
+- `shared/data/mapas/cemiterio.json` (peças em `client/world/catalog/cemetery.ts`): o mapa ([[Map - Cemitério da Capela]]). `tools/bake-navmesh.ts` (`bun run navmesh`) e `shared/data/navmesh/cemiterio.json`: a navmesh do servidor, com as brechas marcadas ([[ADR - Barricadas como polígonos próprios na navmesh]]); `client/ai/navmesh.ts` (`soloNavMeshWithAreas`).
 - `client/zombies/`: `client.ts` (eventos, HUD, `E` no caixão, nas barricadas e para reanimar, setas das brechas, caído, renascimento), `view.ts` (zumbis desenhados e interpolados, hitboxes, telegrafias, a de surgimento com mãos e feixe), `coffin.ts` (o caixão fixo, a placa de danificada), `barricades.ts` (as tábuas, o colisor delas, sons), `looks.ts` (visuais), `local.ts` (o jogo solo: o mesmo motor no navegador), `link.ts` (a interface `ZombieLink`), `ambience.ts` (névoa e a página do caixão na pausa, `flawText`).
 - `client/character/animator.ts`, `client/entities/rig.ts`, `client/entities/avatar.ts`, `client/net/remote.ts`: poses, hitboxes com escala, colega caído.
 - Testes: `server/tests/zombies.test.ts` (regras, motor, servidor real, progressão de armas, chefes, entrar no meio, arma danificada na validação do servidor, barricadas no servidor e sincronia de quem entra no meio), `server/tests/zombieBarricades.test.ts` (mapa exclusivo, brechas na navmesh, barricadas no motor, armas danificadas), `server/tests/progression-modes.test.ts` (matriz com todas as combinações do caixão, danificadas incluídas) e `client/tests/offlineModes.test.ts` (jogo solo, arma danificada e barricada). Ver [[Integration Tests]].

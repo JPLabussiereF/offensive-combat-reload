@@ -23,6 +23,10 @@ source_paths:
   - server/tests/zombieBarricades.test.ts
   - server/tests/progression-modes.test.ts
   - client/tests/offlineModes.test.ts
+  - client/tests/mapConversion.test.ts
+  - client/tests/mapData.test.ts
+  - client/tests/budget.test.ts
+  - client/tests/seeded.test.ts
 tags:
   - testes
 updated: 2026-10-06
@@ -49,8 +53,12 @@ Os testes usam o executor nativo **`bun test`** (`bun:test`: `describe`, `it`, `
 | `client/tests/arsenalText.test.ts` | Unitário | 4 (dois `it` repetidos por idioma) | textos de armas, melhorias e modos nos dois idiomas |
 | `client/tests/offlineModes.test.ts` | Unitário | 5 | treino e bots com o Arsenal da conta (`Progress`), armas dos bots e da escada, zumbi sozinho (`LocalZombies`) |
 | `client/tests/spatial.test.ts` | Unitário | 6 | som espacial |
+| `client/tests/mapConversion.test.ts` | Unitário (monta os mapas sem tela) | 5 | os 4 mapas oficiais a partir do JSON iguais ao golden (1e-6) e o modo editor ([[ADR - Mapas como dados com catálogo de peças]]) |
+| `client/tests/mapData.test.ts` | Unitário | 18 | formato dos mapas (`validateMapData`), esquema e adaptadores das peças, coerência com as tabelas do servidor |
+| `client/tests/budget.test.ts` | Unitário (monta os mapas sem tela) | 5 | orçamento de desenho (400 chamadas, 750 mil triângulos) e os números dos oficiais |
+| `client/tests/seeded.test.ts` | Unitário | 4 | `seeded()` e o estado exposto (`Peca.semente`) |
 
-(Contagem dos casos em 2026-10-06; `bun test` roda 178 casos em 13 arquivos em ~95 s, dos quais ~25 s são esperas reais dos testes do modo zumbi e da corrida armada. Os testes de motor com relógio falso, como os de barricada, simulam minutos de jogo em poucos décimos de segundo.)
+(Contagem dos casos em 2026-10-06. Na branch da PF-6, `bun test` roda 404 testes em 30 arquivos em ~200 s; antes era 178 casos em 13 arquivos em ~95 s, dos quais ~25 s são esperas reais dos testes do modo zumbi e da corrida armada. Os testes de motor com relógio falso, como os de barricada, simulam minutos de jogo em poucos décimos de segundo.)
 
 ## Configuração (`bunfig.toml`)
 

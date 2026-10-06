@@ -7,7 +7,8 @@ source_paths:
   - client/ai/bot.ts
   - client/ai/bots.ts
   - client/entities/dummy.ts
-  - client/world/blockoutMap.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
   - client/world/dog.ts
   - client/world/jardim/panda.ts
   - client/world/jardim/peixes.ts
@@ -15,7 +16,7 @@ source_paths:
   - shared/zombieMatch.ts
   - shared/barricades.ts
   - client/zombies/view.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/main.ts
   - shared/constants.ts
   - shared/maps.ts
@@ -56,7 +57,7 @@ O jogador local entra no `BotManager` como mais um `Combatant` (`playerTarget` e
 ## 2. Bonecos de treino (`client/entities/dummy.ts`)
 
 - Personagens padrão com aparência variada e a arma da vida na mão (com uma secundária na mão, o rifle aparece nas costas; a pose da mão de apoio segue `holdOf`), com as **mesmas hitboxes** dos jogadores (`CharacterRig`).
-- Alguns **patrulham**: deslocamento senoidal ao longo de um eixo (`patrol: { axis, amplitude, speed }` nos `DummySpot` de cada mapa, ex.: `client/world/blockoutMap.ts`). Não atiram nem perseguem.
+- Alguns **patrulham**: deslocamento senoidal ao longo de um eixo (`patrol: { axis, amplitude, speed }` nos bonecos de cada mapa, `bonecos[].patrulha` no JSON, ex.: `shared/data/mapas/rua.json`). Não atiram nem perseguem.
 - Mostram vida numa placa; regeneram 4 s depois do último dano (`HEALTH.regenDelay`, `regenPerSecond`).
 - Ao morrer, caem (`back`/`forward`), mostram o temporizador de opressão (`CorpseTimer`), podem ser oprimidos uma vez, afundam e renascem — **só quando o lugar está livre** (`occupied`), para não nascer dentro do jogador.
 - Nomes de 12 opções (`NAMES`: "Sr. Alvo", "Zé Palha", "Cara do Tutorial"...).
@@ -121,6 +122,6 @@ A horda do [[Zombie|modo zumbi]]. Online o **servidor** a simula (`ZombieMode` e
 - `client/entities/dummy.ts` (`Dummy`, `DummyManager`)
 - `client/world/dog.ts` (`ChowChow`), `client/main.ts` (`dogTick`, `biteOnce`)
 - `client/world/jardim/panda.ts`, `client/world/jardim/peixes.ts` (`KoiSchool`)
-- `client/world/halloween.ts` (`GraveGhost`, `Witch`, `GiantRat`, `Cauldron`, `Scarecrows`, `Bats`), `client/world/hauntedTown.ts`
+- `client/world/halloween.ts` (`GraveGhost`, `Witch`, `GiantRat`, `Cauldron`, `Scarecrows`, `Bats`), `client/world/catalog/objects.ts`, `shared/data/mapas/halloween.json`
 
 Ver também: [[Map - Rua dos Vizinhos]], [[Map - Jardim do Dragão]], [[Map - Vila Assombrada]], [[Humiliation]], [[Respawn]].

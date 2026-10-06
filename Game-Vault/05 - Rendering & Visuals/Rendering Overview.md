@@ -14,12 +14,12 @@ source_paths:
   - client/world/surfaces.ts
   - client/character/material.ts
   - client/world/jardim/luzes.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
 tags:
   - game
   - rendering
   - threejs
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Rendering Overview
@@ -80,7 +80,7 @@ Cada mapa pode devolver um `atmosphere` (`GameMap.atmosphere`), aplicado por `ap
 | --- | --- | --- |
 | [[Map - Rua dos Vizinhos]] | padrão (dia) | cor sólida `0x6ec3ff` + nuvens instanciadas (`skyClouds`) |
 | [[Map - Jardim do Dragão]] | `NIGHT` (`jardim/luzes.ts`) | cúpula com shader, 260 estrelas, 650 lanternas subindo |
-| [[Map - Vila Assombrada]] | lua azulada, névoa roxa (`hauntedTown.ts`) | cúpula com degradê por vértice, 700 estrelas, lua com halo |
+| [[Map - Vila Assombrada]] | lua azulada, névoa roxa (`ambiente.ceu` em `halloween.json`) | cúpula com degradê por vértice, 700 estrelas, lua com halo |
 | [[Map - Arena Teste (glTF)]] | padrão (o carregador glTF não define atmosfera) | cor sólida |
 
 ## Nível 3: implementação
@@ -108,7 +108,7 @@ Detalhes em [[Performance Rendering]] e [[GPU]].
 - `client/render/renderer.ts`
 - `client/render/quality.ts`
 - `client/main.ts` (função `render` dentro de `boot`)
-- `client/world/blockoutMap.ts` (`GameMap.atmosphere`, `GameMap.shadowExtent`)
+- `client/world/gameMap.ts` (`GameMap.atmosphere`, `GameMap.shadowExtent`), `client/world/mapLoader.ts` (`atmosphereOf`: a atmosfera vem de `ambiente.ceu` no JSON do mapa)
 
 ## Ver também
 

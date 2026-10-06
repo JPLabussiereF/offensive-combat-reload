@@ -7,8 +7,9 @@ source_paths:
   - shared/protocol.ts
   - server/session.ts
   - client/main.ts
-  - client/world/blockoutMap.ts
-  - client/world/dragonGarden.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
+  - shared/data/mapas/jardim.json
   - client/world/gltfMap.ts
   - client/render/materials.ts
   - client/character/palette.ts
@@ -17,7 +18,7 @@ tags:
   - game
   - modes
   - stub
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Team Deathmatch
@@ -31,7 +32,7 @@ Existe **infraestrutura de dados e arte** que sugere times planejados, mas nenhu
 
 | Elemento | Onde | Uso atual |
 | --- | --- | --- |
-| `spawnsA` / `spawnsB` (pontos de nascimento por lado) | `client/world/blockoutMap.ts` (A a oeste, x≈−38; B a leste, x≈38), `client/world/dragonGarden.ts`, `client/world/gltfMap.ts` | `spawnsA` é usado **só no treino**; `spawnsB` não é usado por nenhum modo |
+| `spawnsA` / `spawnsB` (pontos de nascimento por lado) | `shared/data/mapas/rua.json` (`spawns.a` a oeste, x≈−38; `spawns.b` a leste, x≈38), `shared/data/mapas/jardim.json`, `client/world/gltfMap.ts` | `spawnsA` é usado **só no treino**; `spawnsB` não é usado por nenhum modo |
 | Convenção glTF `SPAWN_A_*`, `SPAWN_B_*`, `SPAWN_FFA_*` | `docs/MAPAS.md`, `client/world/gltfMap.ts` | sem `SPAWN_FFA_*`, o mata-mata livre usa A + B juntos |
 | Cores `teamA` (laranja `#ff7a1a`) e `teamB` (azul `#2f9bff`) | `client/render/materials.ts` | decorativas: faixa do rifle, van de mudança, marcações e paredes nas pontas da Rua dos Vizinhos |
 | Canal de cor `team` nos personagens | `client/character/palette.ts` (`TINT.team = 7`), `client/character/character.ts` | sempre a cor padrão `#e8e2d6`; nenhum código define a cor por time |

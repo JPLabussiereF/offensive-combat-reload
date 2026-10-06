@@ -14,7 +14,7 @@ tags:
   - world
   - maps
   - flow
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Level Flow
@@ -44,7 +44,7 @@ sequenceDiagram
     participant Server as Servidor (online)
     Home->>Main: escolha (modo, mapa, conexão)
     Note over Main: o mapa só é montado depois da escolha
-    Main->>Builder: buildBlockoutMap / buildDragonGardenMap / buildHauntedTownMap / buildGltfMap
+    Main->>Builder: loadOfficialMap + buildMapFromData / buildGltfMap
     Main->>Main: loadTextureOverrides (em paralelo)
     Builder-->>Main: GameMap (geometria, colisores, spawns, props)
     Main->>Render: applyAtmosphere (se o mapa tiver) e área de sombra (shadowExtent)
@@ -55,7 +55,7 @@ sequenceDiagram
 ```
 
 1. A tela de carregamento aparece, a física e o renderizador são criados e a home é mostrada.
-2. Depois da escolha, `client/main.ts` decide o construtor pelo id (`jardim` → `buildDragonGardenMap`; `halloween` → `buildHauntedTownMap`; qualquer outro → `buildBlockoutMap`). Com `?mapa=`, usa `buildGltfMap`.
+2. Depois da escolha, `client/main.ts` carrega os dados do mapa pelo id (`loadOfficialMap`: `shared/data/mapas/<id>.json`, no pacote do cliente) e os monta com `buildMapFromData` (`client/world/mapLoader.ts`). Com `?mapa=`, usa `buildGltfMap`.
 3. As texturas reais de `public/textures/manifest.json` são carregadas em paralelo (ver [[Texture System]]).
 4. Se o mapa define `atmosphere`, o céu, a névoa e as luzes são trocados (Jardim e Vila são noturnos). Se define `shadowExtent`, a câmera de sombra do sol é ampliada (profundidade 150 m). Ver [[Lighting]].
 5. Bonecos de treino (`dummies`) só são criados no modo offline. No modo bots, a malha de navegação é gerada a partir dos colisores do mapa, excluindo a zona de mordida da Amora ampliada em 0,3 m (ver [[Navigation]]).

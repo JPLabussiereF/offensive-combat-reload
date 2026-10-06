@@ -88,7 +88,7 @@ Convenções **observadas** no código (não há guia de estilo escrito nem lint
 ## Arquivos e pastas
 
 - Pastas do cliente em inglês minúsculo (`core`, `render`, `world`, `entities`, `weapons`, `gameplay`, `ai`, `net`, `ui`).
-- Arquivos TypeScript em **camelCase inglês** (`blockoutMap.ts`, `hauntedTown.ts`, `spawnPicker.ts`), **exceto** o domínio do Jardim do Dragão, em português (`client/world/jardim/bambu.ts`, `cerejeira.ts`, `peixes.ts`, `santuario.ts`), e `server/moderacao.ts`.
+- Arquivos TypeScript em **camelCase inglês** (`mapLoader.ts`, `gameMap.ts`, `spawnPicker.ts`), **exceto** o domínio do Jardim do Dragão, em português (`client/world/jardim/bambu.ts`, `cerejeira.ts`, `peixes.ts`, `santuario.ts`), e `server/moderacao.ts`.
 - Ferramentas em pt kebab-case: `tools/gerar-props-exemplo.mjs`, `tools/lab-personagens.html`; `tools/admin.ts`, `tools/offensive.ts` em inglês.
 - Documentação humana em MAIÚSCULAS pt: `docs/MAPAS.md`, `docs/PERSONAGENS.md`, `docs/DEPLOY.md`.
 - Nomes no Blender/glTF por prefixo: `COL_`, `SPAWN_`, `MAT_`, `DUMMY_`, `GAG_`, `KILLVOLUME` (`client/world/gltfMap.ts`, `docs/MAPAS.md`). Ver [[Asset Pipeline]].
@@ -106,7 +106,7 @@ Convenções **observadas** no código (não há guia de estilo escrito nem lint
 
 ## Referências internas a documento de design
 
-Comentários citam "section N" (ex.: "section 14", "section 6") e "style guide" — referências a um documento de design e a um guia de estilo de personagens que **não estão no repositório** (ver [[Documentation Status]]). `client/world/hauntedTown.ts` cita `README_Halloween.md`, também ausente.
+Comentários citam "section N" (ex.: "section 14", "section 6") e "style guide" — referências a um documento de design e a um guia de estilo de personagens que **não estão no repositório** (ver [[Documentation Status]]). `client/world/conversao/halloween.ts` (antes `hauntedTown.ts`) cita `README_Halloween.md`, também ausente.
 
 ## Commits e branches
 

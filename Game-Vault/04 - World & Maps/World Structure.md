@@ -4,7 +4,14 @@ type: system
 status: documented
 area: world
 source_paths:
-  - client/world/blockoutMap.ts
+  - shared/mapData.ts
+  - shared/mapCatalog.ts
+  - shared/data/mapas/rua.json
+  - client/world/mapLoader.ts
+  - client/world/gameMap.ts
+  - client/world/catalog/index.ts
+  - client/world/catalog/types.ts
+  - client/world/catalog/services.ts
   - client/world/mapBuilder.ts
   - client/world/gltfMap.ts
   - client/world/surfaces.ts
@@ -20,35 +27,36 @@ tags:
   - world
   - maps
   - architecture
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # World Structure
 
-Como o "mundo" de uma partida é organizado: unidades, eixos, o contrato que todo mapa cumpre e as camadas que compõem um mapa (geometria estática, colisão, objetos vivos, metadados para o jogo e para o servidor).
+Como o "mundo" de uma partida é organizado: unidades, eixos, o contrato que todo mapa cumpre, como um mapa é descrito em dados e montado, e as camadas que compõem um mapa (geometria estática, colisão, objetos vivos, metadados para o jogo e para o servidor).
 
 ## Visão geral (nível 1)
 
-- O mundo é **um mapa por partida**, montado inteiramente no cliente a partir do id do mapa (`rua`, `jardim`, `halloween`) ou de um arquivo `.glb`.
-- O servidor **não conhece a geometria**: ele só carrega o id do mapa na sessão e algumas tabelas de posições em `shared/maps.ts` (coletáveis, bruxa, ratos, carpas) para validar ações (ver [[Validation]] e [[Trust Boundaries]]).
-- Todos os clientes da mesma sessão constroem a mesma geometria e os mesmos colisores porque a montagem é determinística (aleatoriedade com semente, ver [[Map Design Rules]]).
+- O mundo é **um mapa por partida**, montado inteiramente no cliente a partir do id do mapa (`rua`, `jardim`, `halloween`, `cemiterio`) ou de um arquivo `.glb`.
+- Desde a PF-6 (fase 1), um mapa oficial é **um arquivo de dados**, não código: `shared/data/mapas/<id>.json`, no formato `MapData` (`shared/mapData.ts`). O cliente monta o mapa lendo esse arquivo com o carregador (`client/world/mapLoader.ts`), peça por peça, cada uma pelo seu adaptador no catálogo (`client/world/catalog/`). Ver [[ADR - Mapas como dados com catálogo de peças]].
+- O servidor **não conhece a geometria**: ele só carrega o id do mapa na sessão e algumas tabelas de posições em `shared/maps.ts` (coletáveis, bruxa, ratos, carpas) para validar ações (ver [[Validation]] e [[Trust Boundaries]]). As mesmas posições também estão em `objetos` do JSON do mapa, e um teste confere que as duas fontes batem; o servidor passa a ler o JSON na fase 2.
+- Todos os clientes da mesma sessão constroem a mesma geometria e os mesmos colisores porque a montagem é determinística: cada peça que sorteia guarda a própria semente (`Peca.semente`; ver [[Map Design Rules]] e [[ADR - Aleatoriedade com semente na construção dos mapas]]).
 
 ## Unidades e eixos
 
 | Convenção | Valor | Fonte |
 | --- | --- | --- |
-| Unidade | 1 unidade = 1 metro | `docs/MAPAS.md`, todos os construtores |
+| Unidade | 1 unidade = 1 metro (ângulos em radianos, cores `0xRRGGBB`) | `docs/MAPAS.md`, `shared/mapCatalog.ts` |
 | Eixo vertical | +Y para cima | Three.js / glTF |
 | Norte | −Z (comentário do layout do Jardim: "North is -Z") | `client/world/jardim/kit.ts` |
-| Yaw 0 | olha para −Z (mesma convenção da câmera) | `DummySpot` em `blockoutMap.ts`, `yawOf` em `gltfMap.ts` |
-| Origem | centro do mapa; o mapa se estende de −W a +W em X e −D a +D em Z | construtores dos mapas |
+| Yaw 0 | olha para −Z (mesma convenção da câmera) | `DummySpot` em `gameMap.ts`, `yawOf` em `gltfMap.ts` |
+| Origem | centro do mapa; o mapa se estende de −W a +W em X e −D a +D em Z | dados dos mapas (`shared/data/mapas/*.json`) |
 | Jogador | cilindro de 0,35 m de raio, 1,8 m de altura (1,2 m agachado), olho a 1,65 m (1,05 m agachado) | `MOVE` em `shared/constants.ts` |
 | Gravidade | 22 m/s² | `MOVE.gravity`, `createPhysics` |
 | Inclinação máxima andável | 45° | `MOVE.maxSlopeDeg` |
 
 ## O contrato `GameMap`
 
-Todo construtor de mapa devolve um objeto `GameMap` (interface em `client/world/blockoutMap.ts`). É o que o resto do jogo sabe sobre o mundo:
+Todo mapa montado é um objeto `GameMap` (interface em `client/world/gameMap.ts`; antes da PF-6 ficava em `blockoutMap.ts`), venha dos dados (`buildMapFromData`) ou de um `.glb` (`buildGltfMap`). É o que o resto do jogo sabe sobre o mundo:
 
 | Campo | O que é | Usado por |
 | --- | --- | --- |
@@ -70,47 +78,99 @@ Todo construtor de mapa devolve um objeto `GameMap` (interface em `client/world/
 
 O `MapFrame` passado a `update` traz os pés do jogador local, a posição do ouvinte (câmera), uma função `launch` (o hidrante arremessa o jogador) e o relógio do jogo (`time`: o da simulação offline, o do servidor online — é ele que sincroniza as carpas).
 
+## O mapa como dados (`MapData`)
+
+Formato em `shared/mapData.ts` (`MAP_FORMAT = 1`; um mapa de formato mais novo é recusado, um mais antigo será migrado). Os 4 mapas oficiais estão em `shared/data/mapas/{rua,jardim,halloween,cemiterio}.json`, com uma peça por linha (diferenças legíveis no git).
+
+| Campo | O que é |
+| --- | --- |
+| `formato`, `nome`, `exclusivo?` | versão do formato, nome exibido e o modo a que o mapa pertence (ex.: `zumbi`) |
+| `cartao` | emoji e cor do cartão do mapa |
+| `ambiente` | `ceu` (`atmosfera?`: fundo, névoa, hemisfério, sol e luzes da arma; `cupula?`: `nuvens`, `lua` ou `oriental`), `celula` do lote, `sombra?` (meia-largura da sombra do sol), `killY`, `sons?` (pássaro, corvo, uivo, com o primeiro e o intervalo) |
+| `pecas` | a lista de peças (`Peca`), montadas **em ordem** |
+| `arquivos` | modelos `.glb` usados pelo mapa (`id` e `url`) |
+| `spawns` | `a`, `b`, `ffa` (posição e yaw) |
+| `bonecos` | bonecos de treino, com `patrulha` opcional |
+| `objetos` | o que o servidor acompanha: `coletaveis`, `bruxa`, `ratos`, `peixes` (os ids são os da rede) |
+| `zumbi?` | dados do modo zumbi do mapa (muro, surgimentos, caixão, chefes, brechas); só no Cemitério ([[Zombie]]) |
+| `servicos?` | `luzes`: quantas luzes reais o pool do mapa tem |
+
+Uma **peça** (`Peca`) tem `id` único no mapa, `tipo` (um tipo do catálogo), `p`/`yaw`/`escala` quando o tipo é livre, `params`, `semente` (estado do gerador sorteado de onde a peça começa, nos tipos que sorteiam), `prop` (o id do `PropBus` da piada, explícito: online, todos disparam a mesma) e `coletavel` (o coletável que ela guarda).
+
+`validateMapData(raw)` é pura e devolve `{ ok, erros }`: confere formato, nome, cartão, ambiente, tipos e parâmetros das peças contra o catálogo, ids repetidos, ids do `PropBus` (o formato que o servidor aceita, sem repetir), limite por mapa (ex.: uma bruxa), ligações entre peças, `objetos` e `arquivos`, spawns, bonecos e, num mapa exclusivo do zumbi, os dados de zumbi (`checkZombieMap`). `MAP_BUDGET` (400 chamadas de desenho, 750 mil triângulos) é o teto de custo de desenho ([[Performance Rendering]]).
+
+### O catálogo de peças
+
+`shared/mapCatalog.ts` descreve cada tipo de peça (~110 tipos): `id`, categoria (`primitivas`, `estrutura`, `construcoes`, `natureza`, `moveis`, `veiculos`, `objetos`, `luzes`, `ambiente`, `importado`), nome em pt e en, parâmetros com tipo, faixa e padrão, a **transformação** (`livre`: `p`/`yaw`/`escala`; `linear`: corre num eixo entre duas pontas dadas nos parâmetros, como muros, cercas e escadas; `fixa`: o layout inteiro em coordenadas do mundo, como um telhado sobre um retângulo ou um setor do jardim), o limite por mapa, o prefixo do `PropBus`, se usa semente e se guarda coletável. Inclui a peça `sala` (a sala do som, com `fechamento` de 0 a 1; ver [[Spatial Audio]]).
+
+No cliente, `client/world/catalog/` tem **um adaptador por tipo** (`CATALOG` em `index.ts`; um teste confere que casam um a um com o esquema), agrupados por arquivo: `primitives` (caixas, cilindros, paredes com vãos, escadas, telhados, salas, formas e brilhos), `street` (casa da Rua, árvores, postes, placas), `garden` (setores do Jardim e as peças orientais), `haunted` (casas, barracas, retratos, árvores secas, lápides, cercas), `cemetery` (muro e pilares), `furniture`, `vehicles`, `objects` (piadas, bruxa, rato, carpas, cachorro, luzes, morcegos, névoa), `glb` (modelo do Blender) e `services`. Cada adaptador recebe `(ctx, peca)` e chama os construtores de sempre (`MapBuilder`, `furniture.ts`, `vehicles.ts`, `halloween.ts`, `oriental.ts`, `jardim/kit.ts` e os setores do jardim).
+
+`services.ts` cria **sob demanda** os sistemas que várias peças compartilham e os finaliza uma vez no fim: brilho (`Glow`), postes (`LampPosts`), abóboras, espantalhos, lanternas de papel, cabeças dos postes da Rua, o pool de luzes reais (`LightPool`), `Puffs`, `Debris`, `WaterDrops` e a água do jardim.
+
+### Montagem: `loadOfficialMap` e `buildMapFromData`
+
+- `loadOfficialMap(id)` carrega o JSON oficial, que vai no pacote do cliente (import dinâmico por mapa): treino e bots continuam funcionando sem servidor.
+- `buildMapFromData(data, { physics, scene, renderer, sfx, modo })` monta as peças em ordem (cada uma com o gerador na sua `semente`), fecha os sistemas compartilhados, desenha o céu (atmosfera e cúpula: nuvens na Rua, lua sobre a cúpula estrelada na Vila e no Cemitério, a noite oriental com lanternas no Jardim) e liga os sons ambientes do `ambiente.sons`.
+- **Modo `jogo`**: o que se joga. A geometria estática é fundida **entre peças** em lotes por material e célula (`MapBuilder`).
+- **Modo `editor`**: cada peça no seu próprio grupo da cena (sem lotes entre peças), com a lista de colisores dela (`BuiltMap.pieces`), para o editor de mapas selecionar e reconstruir uma peça sozinha (fases 3 e 4 da PF-6).
+
 ## Camadas de um mapa
 
 ```mermaid
 flowchart TB
-    subgraph Construtor["build...Map (código) ou buildGltfMap (.glb)"]
-      MB[MapBuilder]
-    end
+    Dados["shared/data/mapas/*.json<br/>(MapData: ambiente, peças, spawns, objetos)"] --> Loader["mapLoader.ts<br/>buildMapFromData"]
+    Loader -->|"uma peça por vez"| Cat["catalog/*: adaptador do tipo"]
+    Cat --> MB[MapBuilder]
+    Cat --> Serv["services.ts<br/>(Glow, LampPosts, LightPool...)"]
     MB -->|"peças com superfície + tint"| Lotes["Lotes estáticos<br/>(material × célula)"]
     MB -->|"caixas, cilindros, convexos, trimesh"| Fisica["Colisores Rapier<br/>no corpo estático"]
     MB -->|"vãos de parede"| Openings[map.openings]
-    Construtor -->|"objetos animados"| Vivos["Props vivos<br/>(lanternas, sinos, abóboras, bruxa...)"]
-    Vivos -->|"register id"| Bus[PropBus]
-    Construtor --> Meta["Metadados: spawns, dummies,<br/>killY, pickups, atmosphere"]
-    Shared["shared/maps.ts<br/>(PICKUPS, WITCHES, RATS, FISH)"] --> Construtor
-    Shared --> Servidor["Servidor valida ações"]
+    Cat -->|"objetos animados"| Vivos["Props vivos<br/>(lanternas, sinos, abóboras, bruxa...)"]
+    Vivos -->|"register Peca.prop"| Bus[PropBus]
+    Loader --> Meta["Metadados: spawns, dummies,<br/>killY, pickups, atmosphere"]
+    Glb["buildGltfMap (.glb)"] --> MB
+    Shared["shared/maps.ts<br/>(PICKUPS, WITCHES, RATS, FISH)"] --> Servidor["Servidor valida ações"]
 ```
 
 1. **Geometria estática** — cada peça usa uma **superfície da biblioteca** (`SURFACES` em `client/world/surfaces.ts`: `grama`, `asfalto`, `calcada`, `concreto`, `tijolo`, `reboco`, `madeira`, `piso`, `telhado`, `azulejo`, `metal`, `vidro`, `papel`, `pedra`, `lataria`, `folhagem`, `casca`, `feno`, `tecido`, `pintura`). A cor vem de um *tint* por vértice. O `MapBuilder` funde a geometria por material e por célula quadrada (40 m por padrão; o Jardim usa 45 m e a Vila 60 m). Detalhes visuais em [[Materials]], [[Texture System]], [[Procedural Textures]].
 2. **Colisão** — colisores simples (caixa, cilindro, bola, casco convexo) ou malha de triângulos, todos num único corpo rígido fixo do Rapier. Cada colisor registra um **material físico** (`grass`, `concrete`, `wood`, `metal`, `glass`, `tile`, `paper`) que decide som de passos/impacto e penetração de bala (ver [[Cover & Combat Spaces]]). Um colisor pode ter `onShot`, chamado quando leva tiro (base das piadas de cenário).
 3. **Grupos de colisão** — `WORLD` (tudo que é mapa) e `BLOCKER` (cercas de ferro e grades da Vila: param jogadores e projéteis, mas não balas). Constantes em `GROUP` (`shared/constants.ts`).
-4. **Objetos vivos** — peças com estado e animação (lanternas, sinos, gongo, abóboras, bruxa, rato...). Os que precisam ser vistos por todos registram um id no `PropBus` (ver [[Interactive Objects]]).
-5. **Metadados** — spawns, bonecos, `killY`, coletáveis, atmosfera.
-6. **Tabelas compartilhadas** — `shared/maps.ts` guarda as posições que o servidor precisa conhecer.
+4. **Objetos vivos** — peças com estado e animação (lanternas, sinos, gongo, abóboras, bruxa, rato...). Os que precisam ser vistos por todos registram no `PropBus` o id gravado na peça (`Peca.prop`, ver [[Interactive Objects]]).
+5. **Metadados** — spawns, bonecos, `killY`, coletáveis, atmosfera (no JSON do mapa).
+6. **Tabelas compartilhadas** — `shared/maps.ts` guarda as posições que o servidor precisa conhecer (até a fase 2 da PF-6, quando o servidor passa a ler `objetos` do JSON).
 
 ## Dois caminhos de construção
 
 | Caminho | Quando | Peças disponíveis |
 | --- | --- | --- |
-| **Código** (`MapBuilder`) | os três mapas jogáveis | primitivas `box`/`span`/`cylinder`, `wall` com vãos empilháveis e moldura, `stairs` (degraus visuais + rampa sólida), `gableRoof`; kits temáticos: `oriental.ts` + `jardim/kit.ts` (pavilhões, telhados curvos, muros de jardim com portões, pontes, bambuzais...), `halloween.ts` (árvores secas, lápides, cercas de ferro, cercas vivas...), `furniture.ts` (móveis montados com `Place`) e `vehicles.ts` |
-| **Blender → glTF** (`gltfMap.ts`) | [[Map - Arena Teste (glTF)]] e props como a casinha da Amora | convenções de nome `COL_`, `SPAWN_`, `DUMMY_`, `KILLVOLUME`, `GAG_`, `MAT_`, `NOCOL` (ver [[Asset Pipeline]] e [[Map - Arena Teste (glTF)]]) |
+| **Dados + catálogo** (`mapLoader.ts`, `MapBuilder`) | os quatro mapas oficiais | os ~110 tipos de `shared/mapCatalog.ts`: primitivas (caixa, cilindro, parede com vãos empilháveis e moldura, escada com degraus visuais + rampa sólida, telhado de duas águas, sala do som), construções e kits temáticos (pavilhões, telhados curvos, muros de jardim com portões, pontes, bambuzais, setores do Jardim; árvores secas, lápides, cercas de ferro, cercas vivas, casas da Vila; casa da Rua), móveis, veículos, piadas e objetos, luzes e o modelo `glb` |
+| **Blender → glTF** (`gltfMap.ts`) | [[Map - Arena Teste (glTF)]] (mapa inteiro, `?mapa=`) e props dentro de um mapa de dados (peça `glb`, como a casinha da Amora) | convenções de nome `COL_`, `SPAWN_`, `DUMMY_`, `KILLVOLUME`, `GAG_`, `ROOM_`, `MAT_`, `NOCOL` (ver [[Asset Pipeline]] e [[Map - Arena Teste (glTF)]]) |
 
 Os dois caminhos usam a mesma biblioteca de superfícies, os mesmos lotes e a mesma física (`docs/MAPAS.md`).
+
+## Como os mapas oficiais viraram dados (PF-6, fase 1)
+
+Até 2026-10-06 cada mapa era uma função em código (`buildBlockoutMap`, `buildDragonGardenMap`, `buildHauntedTownMap`, `buildCemeteryMap`). A conversão foi feita uma vez e conferida:
+
+- `tools/snapshot-mapas.ts` gravou, **do código original e antes da conversão**, um golden de cada mapa (`shared/data/mapas/<id>.golden.json`): colisores, piadas do `PropBus`, vãos, salas, spawns, bonecos, `killY`, sombra, céu, lotes e objetos da cena, comparados sem depender da ordem (com `Math.random` fixo durante a montagem).
+- `client/world/conversao/{rua,jardim,halloween,cemiterio}.ts` são os construtores antigos com cada chamada gravada como peça (`place()`, `recorder.ts`); os comentários de design dos construtores estão preservados ali. `tools/converter-mapas.ts` roda esses scripts sem tela (`tools/headless.ts`), escreve o JSON e confere contra o golden tanto a montagem gravada quanto uma montagem nova a partir do JSON escrito.
+- Daqui em diante **o JSON é a fonte da verdade**; os scripts de conversão só documentam e reproduzem a conversão. O teste `client/tests/mapConversion.test.ts` confere os 4 mapas contra o golden (tolerância 1e-6) e o modo editor ([[Unit Tests]]).
+- Nesta fase, cada setor do Jardim (casa, anel, bonsai, lago, lanternas, guerreiros, bambu, santuário) é **uma peça só** (`setor`), montada pelo arquivo do setor em `client/world/jardim/`.
 
 ## Fora do mapa
 
 - Tudo é cercado por um **muro perimetral** (4 m na Rua; 4,5 m no Jardim e na Vila). Na Vila há árvores secas sem colisão além do muro, só como silhueta.
-- Cair abaixo de `killY` (−20 m) mata. Os mapas feitos em código não têm buracos até essa altura; o nível mais baixo é o esgoto da Vila (piso a −4 m).
+- Cair abaixo de `killY` (−20 m; −10 no Cemitério) mata. Os mapas oficiais não têm buracos até essa altura; o nível mais baixo é o esgoto da Vila (piso a −4 m).
 
 ## Código relacionado
 
-- `client/world/blockoutMap.ts` — interfaces `GameMap`, `SpawnPoint`, `DummySpot`, `MapFrame`, `MapCritters`, `MapFish`, `MapRats`, `MapPotion`, `MapRewards`, `MapPickup`.
+- `shared/mapData.ts` — `MapData`, `Peca`, `MAP_FORMAT`, `MAP_BUDGET`, `validateMapData`.
+- `shared/mapCatalog.ts` — `MAP_CATALOG`, `TipoPeca`, `SUPERFICIES`, `checkPieceParams`.
+- `shared/data/mapas/*.json` — os 4 mapas oficiais (e os `*.golden.json` da conversão).
+- `client/world/mapLoader.ts` — `loadOfficialMap`, `buildMapFromData`, `startBuild`, `runPiece`, `atmosphereOf`.
+- `client/world/catalog/` — adaptadores por tipo (`CATALOG`), `BuildCtx` (`types.ts`), `Services` (`services.ts`).
+- `client/world/gameMap.ts` — interfaces `GameMap`, `SpawnPoint`, `DummySpot`, `MapFrame`, `MapCritters`, `MapFish`, `MapRats`, `MapPotion`, `MapRewards`, `MapPickup`, `MapSfx`.
+- `client/world/budget.ts` — `measureBudget`, `measureMapBudget` (custo de desenho sem GPU).
 - `client/world/mapBuilder.ts` — `MapBuilder`, `stairRun`, `stairSteps`, `worldUVs`, `boxProjectUVs`.
 - `client/world/physics.ts` — `createPhysics`, `SurfaceMaterial`, `WORLD_GROUPS`.
 - `client/world/surfaces.ts` — `SURFACES`, `surfaceMaterial`, `loadTextureOverrides`.

@@ -7,7 +7,8 @@ source_paths:
   - client/main.ts
   - client/net/connection.ts
   - client/world/props.ts
-  - client/world/blockoutMap.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
   - client/world/halloween.ts
   - client/entities/localPlayer.ts
   - client/weapons/weapon.ts
@@ -49,7 +50,7 @@ Objetos expõem propriedades `onX` com uma função padrão vazia; o `boot()` (o
 | `chat.onSend(text)` | `client/ui/chat.ts` | `main.ts` | Enviar `{ t: 'chat' }` |
 | `PropBus.onLocal(id)`, `PropBus.shooter()` | `client/world/props.ts` | `main.ts` | Reportar gag local ao servidor; posição do olho do atirador |
 | `Bot.onShoot(spread)` | `client/ai/bot.ts` | `BotManager` | Resolver o tiro do bot com os serviços do mundo |
-| `map.rewards.ratDown`, `map.rewards.aimBonus` | `MapRewards` (`client/world/blockoutMap.ts`) | `main.ts` | O mapa avisa; o jogo decide o efeito (online, via servidor) |
+| `map.rewards.ratDown`, `map.rewards.aimBonus` | `MapRewards` (`client/world/gameMap.ts`) | `main.ts` | O mapa avisa; o jogo decide o efeito (online, via servidor) |
 
 Exceção com vários ouvintes: `Progress.onChange(f)` (`client/gameplay/progress.ts`) guarda um `Set` de ouvintes e os chama quando o progresso das armas muda (mensagem `progresso` do servidor) ou quando o jogador muda a escolha do Arsenal (secundária, melhorias opcionais).
 

@@ -15,7 +15,7 @@ tags:
   - game
   - gameplay
   - objectives
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Objectives
@@ -50,7 +50,7 @@ Os mapas têm **alvos e coletáveis opcionais** que dão vantagem temporária ou
 ## Segredos planejados
 
 > [!info] Planejado, não implementado
-> `docs/MAPAS.md` diz que as gags animadas da Vila Assombrada contam o que aconteceu com elas (`activations`, `rings`, `stirs`, `clears`, `laughs`, `hour`, `lit(i)`). Isso é a "base para os segredos do documento de design" (seção 23, citada em `client/world/hauntedTown.ts`). Nenhum segredo usa esses contadores ainda.
+> `docs/MAPAS.md` diz que as gags animadas da Vila Assombrada contam o que aconteceu com elas (`activations`, `rings`, `stirs`, `clears`, `laughs`, `hour`, `lit(i)`). Isso é a "base para os segredos do documento de design" (seção 23, citada em `client/world/conversao/halloween.ts`). Nenhum segredo usa esses contadores ainda.
 
 ## Dependências
 

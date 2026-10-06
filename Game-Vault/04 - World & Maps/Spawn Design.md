@@ -7,9 +7,10 @@ source_paths:
   - client/gameplay/spawnPicker.ts
   - client/main.ts
   - client/ai/bots.ts
-  - client/world/blockoutMap.ts
-  - client/world/dragonGarden.ts
-  - client/world/hauntedTown.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
+  - shared/data/mapas/jardim.json
+  - shared/data/mapas/halloween.json
   - client/world/gltfMap.ts
   - server/session.ts
   - shared/protocol.ts
@@ -18,7 +19,7 @@ tags:
   - world
   - maps
   - spawn
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Spawn Design
@@ -36,7 +37,7 @@ Cada mapa (`GameMap`) define três listas de `SpawnPoint` (posição dos pés + 
 | `spawnsFFA` | pontos neutros espalhados para o mata-mata livre (meta: 16–20) | **online** e **contra bots** |
 
 > [!info]
-> Os spawns de time (A/B) e as pinturas/cores de time da Rua (faixa laranja na van de mudança a oeste, garagem azul a leste) indicam que o design previa um modo por times. Não existe modo por times no código atual (ver [[Team Deathmatch]]). Inferência a partir dos comentários "team A (orange) west... team B (blue) east" em `blockoutMap.ts`.
+> Os spawns de time (A/B) e as pinturas/cores de time da Rua (faixa laranja na van de mudança a oeste, garagem azul a leste) indicam que o design previa um modo por times. Não existe modo por times no código atual (ver [[Team Deathmatch]]). Inferência a partir dos comentários "team A (orange) west... team B (blue) east" no antigo `blockoutMap.ts` (hoje em `client/world/conversao/rua.ts`).
 
 ## Distribuição por mapa
 

@@ -17,7 +17,7 @@ source_paths:
   - shared/zombies.ts
   - shared/zombieMatch.ts
   - client/zombies/client.ts
-  - client/world/cemetery.ts
+  - shared/data/mapas/cemiterio.json
 tags:
   - game
   - modes

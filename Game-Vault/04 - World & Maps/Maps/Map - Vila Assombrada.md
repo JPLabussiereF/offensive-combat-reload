@@ -4,7 +4,10 @@ type: map
 status: documented
 area: world
 source_paths:
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
+  - client/world/catalog/haunted.ts
+  - client/world/catalog/objects.ts
+  - client/world/conversao/halloween.ts
   - client/world/halloween.ts
   - client/world/furniture.ts
   - client/world/vehicles.ts
@@ -27,7 +30,7 @@ updated: 2026-10-06
 | --- | --- |
 | Id interno | `halloween` |
 | Sessão fixa | id `halloween` |
-| Construtor | `buildHauntedTownMap` (`client/world/hauntedTown.ts`), peças em `halloween.ts` e `furniture.ts` |
+| Dados | `shared/data/mapas/halloween.json` (1.010 peças, o maior arquivo; montado por `client/world/mapLoader.ts`), peças do catálogo sobre `halloween.ts` e `furniture.ts`. Até a PF-6 era construído em código por `buildHauntedTownMap`; os comentários de design estão em `client/world/conversao/halloween.ts` |
 | Tamanho | 120 × 110 m (x −60..60, z −55..55) — o maior mapa |
 | Atmosfera | **noite** com lua cheia (luz azulada vinda da lua), névoa roxa de 55 a 210 m, neblina rasteira fraca; 10 luzes reais distribuídas às velas/lampiões mais próximos da câmera (ver [[Lighting]]) |
 | Célula de lote | 60 m |
@@ -138,12 +141,14 @@ Fantasma da cova, sino da capela, buzina do carro, abóboras, postes, caldeirão
 ## Problemas conhecidos
 
 - Os **segredos** que usariam os contadores dos objetos (fantasma, sinos, caldeirão, alvos, abóbora gigante, relógio, cogumelos) **não estão implementados**; vários elementos estão marcados "para depois" (máquina de refrigerante, esqueleto do palco, olhos dos retratos).
-- Mapa mais pesado: ~130–520 mil triângulos visíveis (pode passar da meta de 500 mil) e construção de ~400–500 ms (`docs/MAPAS.md`). Ver [[Performance Rendering]].
+- Mapa pesado: ~130–520 mil triângulos visíveis (pode passar da meta antiga de 500 mil) e construção de ~400–500 ms (`docs/MAPAS.md`). Pela medição de `client/world/budget.ts` (pior câmera + sombra do sol): **265 chamadas de desenho e 642.603 triângulos**, dentro do teto do editor (400 e 750 mil). Ver [[Performance Rendering]].
 - Correções recentes de geometria (commit `0fac263`): parede da torre do sino, paredes coladas às escadas do porão e da sala de manutenção, móveis fora da linha de portas — indicam que a checagem de colisões/vãos é manual (ver [[Problem - Teste de estrutura de vãos ausente]]).
 
 ## Código relacionado
 
-- `client/world/hauntedTown.ts` — `buildHauntedTownMap`, `house`, `stall`, regiões, esgoto, spawns, atmosfera.
+- `shared/data/mapas/halloween.json` — o mapa: regiões, esgoto, spawns, bonecos, atmosfera, sons (corvo e uivo), objetos (biscoito, bruxa, rato), 10 luzes reais (`servicos.luzes`).
+- `client/world/catalog/haunted.ts` — `casaAssombrada` (`house`), `barraca` (`stall`), `retrato`, árvores secas, lápides, placas, cercas, `HauntedSfx`; `client/world/catalog/objects.ts` — piadas, bruxa, rato, armário.
+- `client/world/conversao/halloween.ts` — o construtor antigo (`buildHauntedTownMap`) gravado como peças, com os comentários de design.
 - `client/world/halloween.ts` — peças e objetos vivos (ver [[Interactive Objects]]), `LightPool`, `ironFence`, `hedge`, `slabWithHoles`.
 - `client/world/furniture.ts` — móveis (`crate`, `hayBale`, `barrel`, `pew`, `coffin`, `bookshelf`, `Place`...).
 - `shared/maps.ts` — `PICKUPS.halloween`, `WITCHES.halloween`, `RATS.halloween`.

@@ -6,12 +6,12 @@ area: liveops
 source_paths:
   - shared/maps.ts
   - server/app.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/world/halloween.ts
 tags:
   - liveops
   - eventos
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Events
@@ -34,4 +34,4 @@ Sem infraestrutura de eventos, uma ação temporária exigiria alterar o código
 
 ## Código relacionado
 
-- `shared/maps.ts`, `server/app.ts`, `client/world/hauntedTown.ts`, `client/world/halloween.ts`
+- `shared/maps.ts`, `server/app.ts`, `shared/data/mapas/halloween.json`, `client/world/halloween.ts`

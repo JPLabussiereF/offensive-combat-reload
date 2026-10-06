@@ -7,9 +7,10 @@ source_paths:
   - client/audio/sfx.ts
   - client/main.ts
   - client/ai/bots.ts
-  - client/world/blockoutMap.ts
-  - client/world/dragonGarden.ts
-  - client/world/hauntedTown.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
+  - shared/data/mapas/jardim.json
+  - shared/data/mapas/halloween.json
   - client/world/jardim/santuario.ts
   - client/world/jardim/lanternas.ts
   - client/world/jardim/lago.ts

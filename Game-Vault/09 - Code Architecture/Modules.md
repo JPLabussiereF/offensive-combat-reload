@@ -28,7 +28,7 @@ tags:
   - architecture
   - modules
   - dependencies
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Modules
@@ -72,7 +72,7 @@ flowchart LR
 | `world/physics.ts` | `createPhysics`, `Physics`, `SurfaceInfo` | `World` Rapier, corpo estático, mapa `handle → superfície` | Rapier, `GROUP` |
 | `world/mapBuilder.ts` | `MapBuilder` | Constrói geometria estática + colisores (código e glTF) | `world/surfaces`, `render` |
 | `world/props.ts` | `PropBus` | Gags sincronizados (ver [[Events & Messaging]]) | — |
-| `world/blockoutMap.ts` etc. | `build*Map` → `GameMap` | Um construtor por mapa | `MapBuilder`, `PropBus`, NPCs |
+| `world/mapLoader.ts`, `world/catalog/*` | `buildMapFromData` → `GameMap` | Um carregador para todos os mapas de dados (`shared/data/mapas/*.json`); um adaptador por tipo de peça | `MapBuilder`, `PropBus`, NPCs |
 | `entities/localPlayer.ts` | `LocalPlayer` | Corpo cinemático + `stepMovement` + regras de vida/queda | `@shared/movement` |
 | `entities/rig.ts` | `CharacterRig` | 15 hitboxes + bloqueador que seguem o personagem | `entities/hitboxes` |
 | `entities/dummy.ts` | `Dummy`, `DummyManager` | Bonecos de treino | `rig`, `avatar` |
@@ -111,7 +111,7 @@ flowchart LR
 ## Padrões de módulo observados
 
 - **Classes com estado** para sistemas de vida longa (`Session`, `BotManager`, `Bot`, `Weapon`, `Hud`, `Connection`, `PropBus`, `MapBuilder`).
-- **Funções construtoras** para mapas (`buildBlockoutMap`, `buildDragonGardenMap`, `buildHauntedTownMap`, `buildGltfMap`) que devolvem um objeto `GameMap` com closures (`update`, `props`).
+- **Funções construtoras** para mapas (`buildMapFromData` para os mapas de dados, `buildGltfMap` para um `.glb`) que devolvem um objeto `GameMap` com closures (`update`, `props`); cada peça é montada por um adaptador `(ctx, peca)` do catálogo (`client/world/catalog/`).
 - **Funções puras testáveis** isoladas de DOM/física onde houve teste: `core/keybinds.ts`, `audio/spatial.ts`, `gameplay/aimAssist.ts` (testados em `client/tests/`).
 - **Tabelas de dados** em vez de herança: `BOT_SKILLS`, `SURFACES`, `CATALOG`, `PROGRESSION`.
 

@@ -6,7 +6,8 @@ area: world
 source_paths:
   - docs/MAPAS.md
   - client/world/mapBuilder.ts
-  - client/world/blockoutMap.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
   - client/tests/aimAssist.test.ts
   - client/tests/keybinds.test.ts
   - client/tests/spatial.test.ts
@@ -14,7 +15,7 @@ tags:
   - problem
   - testing
   - level-design
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Problem - Teste de estrutura de vãos ausente
@@ -48,5 +49,5 @@ Desconhecido (o teste pode ter existido fora do repositório ou nunca ter sido v
 ## Código afetado
 
 - `client/world/mapBuilder.ts` — `WallOpening`, `openings`.
-- `client/world/blockoutMap.ts` — `GameMap.openings`.
+- `client/world/gameMap.ts` — `GameMap.openings`.
 - Ver [[Map Design Rules]], [[Gameplay Tests]], [[Technical Debt]].

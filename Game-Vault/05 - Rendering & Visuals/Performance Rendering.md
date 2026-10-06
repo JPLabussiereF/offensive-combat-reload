@@ -15,8 +15,10 @@ source_paths:
   - client/entities/avatar.ts
   - client/character/character.ts
   - client/world/halloween.ts
-  - client/world/dragonGarden.ts
-  - client/world/hauntedTown.ts
+  - client/world/budget.ts
+  - shared/mapData.ts
+  - shared/data/mapas/jardim.json
+  - shared/data/mapas/halloween.json
   - client/main.ts
   - client/core/settings.ts
   - docs/MAPAS.md
@@ -48,6 +50,19 @@ De `docs/MAPAS.md` ("seção 3 do documento de design"), medidas pelo autor (nã
 
 > [!warning]
 > A Vila Assombrada, pelos números do próprio doc, chega a ~520 mil triângulos em alguns pontos, acima da meta de 500 mil.
+
+## Orçamento de desenho dos mapas (PF-6)
+
+Desde a PF-6 o teto de um mapa é **400 chamadas de desenho e 750 mil triângulos** (`MAP_BUDGET` em `shared/mapData.ts`; decisão do plano da PF-6, que cabe a Vila Assombrada). No editor de mapas (fase 3), um mapa acima disso não salva. `client/world/budget.ts` mede sem GPU, como o `renderer.info` (F3) contaria: a **pior câmera de amostra** (em cada spawn e numa grade sobre o mapa, olhando em 8 direções, FOV 75°, alcance 400 m, com o *frustum culling* de cada objeto) **mais a passada de sombra** do sol (o que projeta sombra dentro da câmera de sombra). Malha com vários materiais conta uma chamada por grupo; malha instanciada, os triângulos vezes as instâncias. Os oficiais medidos (`client/tests/budget.test.ts`):
+
+| Mapa | Chamadas de desenho (câmera + sombra) | Triângulos (câmera + sombra) |
+| --- | --- | --- |
+| Rua dos Vizinhos | 164 (97 + 67) | 115.670 (75.526 + 40.144) |
+| Jardim do Dragão | 310 (233 + 77) | 704.428 (524.204 + 180.224) |
+| Vila Assombrada | 265 (187 + 78) | 642.603 (385.601 + 257.002) |
+| Cemitério da Capela | 80 (52 + 28) | 122.322 (70.978 + 51.344) |
+
+A medida é conservadora (pior direção em cada ponto, sombra somada); o Jardim usa 94% do teto de triângulos.
 
 Personagens: orçamento de 4.500 triângulos vestido (guia), 3,5–4,5 mil na prática, segundo `docs/PERSONAGENS.md`.
 
@@ -144,6 +159,7 @@ Ver [[ADR - Qualidade automática com resolução dinâmica]].
 - `client/character/character.ts` (`bake`, `LOD_DISTANCES`)
 - `client/entities/avatar.ts` (LOD de animação)
 - `client/main.ts` (overlay F3, `__oc.perf`)
+- `client/world/budget.ts` (`measureBudget`, `measureMapBudget`), `shared/mapData.ts` (`MAP_BUDGET`)
 
 ## Ver também
 

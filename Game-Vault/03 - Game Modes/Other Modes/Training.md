@@ -8,9 +8,10 @@ source_paths:
   - client/main.ts
   - client/entities/dummy.ts
   - client/entities/localPlayer.ts
-  - client/world/blockoutMap.ts
-  - client/world/dragonGarden.ts
-  - client/world/hauntedTown.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
+  - shared/data/mapas/jardim.json
+  - shared/data/mapas/halloween.json
   - client/ui/strings.ts
   - client/gameplay/progress.ts
 tags:
