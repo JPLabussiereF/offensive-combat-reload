@@ -146,6 +146,8 @@ describe('progresso', () => {
     expect(profileA.body.xp).toBe(25);
     expect(profileA.body.totais.abates).toBe(1);
     expect(profileA.body.totais.cabeca).toBe(1);
+    // Never played zumbi: no zombie_stats row yet, all zero.
+    expect(profileA.body.totais.zumbi).toMatchObject({ partidas: 0, abates: 0, melhorOnda: 0 });
     expect(profileA.body.participacoes[0]).toMatchObject({ sessao: 'Rua dos Vizinhos', abates: 1 });
     expect(profileA.body.participacoes[0].saida).not.toBeNull();
     const profileV = await v.req('GET', '/api/perfil');

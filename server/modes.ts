@@ -14,7 +14,7 @@ import { explosionDamage, HIT_REGIONS, minPenetrationKeep, type GrenadeLevel, ty
 import { afterDeath, afterKill, GUN_GAME, ladderLoadout, ladderStart, type LadderPos } from '@shared/gunGame';
 import { grenadeDamageToZombie, gunDamageToZombie, isBoss, kindScale, knifeDamageToZombie, startItems, weaponMul, ZOMBIE, zombieLoadout, type ZKind } from '@shared/zombies';
 import { ZombieMatch, type ZombieHost } from '@shared/zombieMatch';
-import { loadoutOf } from './progress';
+import { addZombieStat, loadoutOf } from './progress';
 import { loadNavmesh } from './navmesh';
 import { EYE, LAG_SLACK, type SPlayer } from './session';
 
@@ -222,6 +222,10 @@ class ZombieMode implements SessionMode {
       giveXp: (id, xp) => {
         const p = this.player(id);
         if (p) host.giveAccountXp(p, xp);
+      },
+      stat: (id, s) => {
+        const p = this.player(id);
+        if (p) addZombieStat(p.conn.account, s);
       },
       setLoadout: (id, lo) => {
         const p = this.player(id);

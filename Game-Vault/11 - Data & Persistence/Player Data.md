@@ -15,6 +15,8 @@ source_paths:
   - server/migrations/002_aparencia.sql
   - client/gameplay/progress.ts
   - server/migrations/003_melhorias.sql
+  - server/migrations/004_estatisticas_zumbi.sql
+  - shared/zombieMatch.ts
 tags:
   - game
   - data
@@ -37,6 +39,7 @@ erDiagram
     account ||--o{ sanction : "ban / chat_mute"
     account ||--o{ account_role : "admin / moderador"
     player_profile ||--|| player_stats : ""
+    player_profile ||--o| zombie_stats : "modo zumbi"
     player_profile ||--|{ weapon_progress : "rifle, pistola, smg, faca, granada"
     player_profile ||--o{ session_participation : "cada estadia numa sala"
     player_profile ||--o{ display_name_history : ""
@@ -64,6 +67,7 @@ Colunas e índices em [[Database]].
 | Escolha do Arsenal (`ArsenalChoice`: secundária + melhorias opcionais ligadas) | `player_profile.loadout` (jsonb) | `PATCH /api/perfil {arsenal}` (melhoria bloqueada → `400 nivel_bloqueado`) ou mensagem `loadout` (o servidor descarta o que não está liberado e grava no próximo flush). `NULL` = deriva uma vez do antigo `equipped_level` (`legacyChoice`) |
 | Nível equipado (legado) | `weapon_progress.equipped_level` | Não é mais escrito; só lido para derivar a escolha de contas antigas ([[Data Migrations]]) |
 | Totais | `player_stats` (kills, deaths, headshots, groin_kills, knife_kills, backstabs, grenade_kills, humiliations, seconds_played, matches_played) | Somados a partir do delta de cada gravação |
+| Totais do modo zumbi | `zombie_stats` (partidas, vitórias, melhor onda, ondas sobrevividas, abates por golpe, chefes por nome, quedas, reanimações, mortes, giros no caixão) | O motor (`ZombieMatch`) avisa cada evento pelo gancho `ZombieHost.stat`; `addZombieStat` soma em `delta.zumbi`; gravado no mesmo flush. Zumbis não contam em `player_stats` |
 | MMR | `player_stats.mmr` (padrão 1000) | **Não usado** ("unused until ranked play exists") |
 | Participações | `session_participation` (nome da sala, entrada/saída, kills, deaths, score, humiliations, account_xp) | Aberta no `join`; somada a cada gravação; `left_at` ao sair |
 
@@ -74,7 +78,7 @@ Regras de progressão: [[Progression]].
 Criado no handshake do WebSocket (`liveAccount(loadGameProfile(...), chatMutedUntil)`):
 
 - `profile: GameProfile` — `accountId`, `profileId`, `tag`, `sex`, `appearance`, `xp`, `weapons{xp}` por arma, `arsenal` (`ArsenalChoice`, sanitizada contra os níveis).
-- `delta: ProgressDelta` — o que foi ganho desde a última gravação (accountXp, weaponXp por arma, kills, deaths, headshots, groinKills, knifeKills, backstabs, grenadeKills, humiliations, secondsPlayed, score).
+- `delta: ProgressDelta` — o que foi ganho desde a última gravação (accountXp, weaponXp por arma, kills, deaths, headshots, groinKills, knifeKills, backstabs, grenadeKills, humiliations, secondsPlayed, score e `zumbi: ZombieDelta`).
 - `participation` — promessa do id da linha de participação atual.
 - `aliveCarry` — segundos vivos acumulados para o próximo "minuto vivo".
 - `chatMutedUntil` — ms epoch (0 = pode falar, `Infinity` = permanente).
@@ -84,7 +88,7 @@ O perfil em memória é a fonte de verdade durante a conexão; a gravação apli
 ## No cliente
 
 - `GET /api/me` → `MeResponse` (tag, nível, sexo, provedores, data de exclusão).
-- `GET /api/perfil` → `ProfileResponse` (tag, nome, sexo, aparência, nível/XP, `armas` (`{xp, nivel}` por arma), `arsenal` (a escolha, já conferida contra os níveis), totais, **últimas 10 participações**, `nomeLiberaEm`, provedores, `exclusaoEm`).
+- `GET /api/perfil` → `ProfileResponse` (tag, nome, sexo, aparência, nível/XP, `armas` (`{xp, nivel}` por arma), `arsenal` (a escolha, já conferida contra os níveis), totais (com `totais.zumbi`), **últimas 10 participações**, `nomeLiberaEm`, provedores, `exclusaoEm`).
 - `client/gameplay/progress.ts` (`Progress`) guarda o XP das armas e a escolha do Arsenal: inicia do perfil, é atualizado por `progresso` do servidor (`armas`, `escolha`) e salva as mudanças da escolha via `PATCH /api/perfil {arsenal}` (`toggle`, `setSecondary`). Nada disso vai para `localStorage` (as chaves antigas `oc.name`, `oc.sex`, `oc.profile` são apagadas na home).
 
 ## Ciclo de vida da conta (LGPD)

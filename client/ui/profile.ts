@@ -42,6 +42,26 @@ export async function showProfile(root: HTMLElement, o: Options) {
     ['statTime', duration(p.totais.segundosJogados)],
     ['statMatches', String(p.totais.participacoes)],
   ];
+  const z = p.totais.zumbi;
+  const zstats: [StringKey, string][] = [
+    ['zstatMatches', String(z.partidas)],
+    ['zstatWins', String(z.vitorias)],
+    ['zstatBestWave', String(z.melhorOnda)],
+    ['zstatWaves', String(z.ondas)],
+    ['zstatKills', String(z.abates)],
+    ['statHead', String(z.cabeca)],
+    ['statGroin', String(z.passaro)],
+    ['statKnife', String(z.facadas)],
+    ['statGrenade', String(z.granadas)],
+    ['zboss_coveiro', String(z.coveiro)],
+    ['zboss_noiva', String(z.noiva)],
+    ['zboss_prefeito', String(z.prefeito)],
+    ['zstatDowns', String(z.quedas)],
+    ['zstatRevives', String(z.reanimacoes)],
+    ['statDeaths', String(z.mortes)],
+    ['zstatCoffin', String(z.caixao)],
+  ];
+  const grid = (list: [StringKey, string][]) => `<div class="stat-grid">${list.map(([k, v]) => `<div><span>${t(k)}</span><b>${v}</b></div>`).join('')}</div>`;
   const rows = p.participacoes
     .map(
       (x) =>
@@ -66,7 +86,8 @@ export async function showProfile(root: HTMLElement, o: Options) {
       </div>
       <button id="pf-customize" class="small-btn wide-btn">${t('customize')}</button>
       <h3>${t('statsTitle')}</h3>
-      <div class="stat-grid">${stats.map(([k, v]) => `<div><span>${t(k)}</span><b>${v}</b></div>`).join('')}</div>
+      ${grid(stats)}
+      ${z.partidas || z.abates ? `<h3>${t('zstatsTitle')}</h3>${grid(zstats)}` : ''}
       <h3>${t('recentTitle')}</h3>
       ${rows ? `<table class="part-table"><thead><tr><th></th><th></th><th>${t('statKills')}</th><th>${t('statDeaths')}</th><th>${t('points')}</th><th>XP</th></tr></thead><tbody>${rows}</tbody></table>` : `<p class="hint">${t('noParticipations')}</p>`}
       <h3>${t('changeName')}</h3>

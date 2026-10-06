@@ -5,7 +5,9 @@ import { ACCOUNT_XP, accountLevel } from '@shared/accountLevel';
 import { levelForXp, PROG_WEAPONS, sanitizeChoice, type ArsenalChoice, type Levels, type ProgWeapon } from '@shared/progression';
 import { resolveLoadout, type Loadout } from '@shared/arsenal';
 import type { ServerMsg } from '@shared/protocol';
-import { emptyDelta, type GameProfile, type ProgressDelta } from './accounts';
+import type { ZStat } from '@shared/zombieMatch';
+import { isBoss } from '@shared/zombies';
+import { emptyDelta, type GameProfile, type ProgressDelta, type ZombieDelta } from './accounts';
 
 export interface LiveAccount {
   profile: GameProfile;
@@ -81,9 +83,54 @@ export function progressMsg(a: LiveAccount, subiu?: LevelUp | null): Extract<Ser
 export function mergeDelta(into: ProgressDelta, d: ProgressDelta) {
   for (const k of Object.keys(d) as (keyof ProgressDelta)[]) {
     if (k === 'weaponXp') for (const w of PROG_WEAPONS) into.weaponXp[w] += d.weaponXp[w];
+    else if (k === 'zumbi') mergeZombie(into.zumbi, d.zumbi);
     else into[k] += d[k];
   }
 }
 
+function mergeZombie(into: ZombieDelta, d: ZombieDelta) {
+  for (const k of Object.keys(d) as (keyof ZombieDelta)[]) into[k] = k === 'bestWave' ? Math.max(into[k], d[k]) : into[k] + d[k];
+}
+
 export const deltaIsEmpty = (d: ProgressDelta) =>
-  Object.entries(d).every(([k, v]) => (k === 'weaponXp' ? PROG_WEAPONS.every((w) => (v as Record<ProgWeapon, number>)[w] === 0) : v === 0));
+  Object.entries(d).every(([k, v]) =>
+    k === 'weaponXp' ? PROG_WEAPONS.every((w) => (v as Record<ProgWeapon, number>)[w] === 0) : k === 'zumbi' ? Object.values(v as ZombieDelta).every((n) => n === 0) : v === 0,
+  );
+
+/** One zumbi event (shared/zombieMatch.ts ZStat) into the account's zumbi stats. */
+export function addZombieStat(a: LiveAccount, s: ZStat) {
+  const z = a.delta.zumbi;
+  switch (s.e) {
+    case 'kill':
+      z.kills++;
+      if (s.how === 'head') z.headshots++;
+      else if (s.how === 'groin') z.groinKills++;
+      else if (s.how === 'knife') z.knifeKills++;
+      else if (s.how === 'grenade') z.grenadeKills++;
+      if (isBoss(s.kind)) {
+        z.bosses++;
+        z[`${s.kind}Kills`]++;
+      }
+      return;
+    case 'down':
+      z.downs++;
+      return;
+    case 'death':
+      z.deaths++;
+      return;
+    case 'revive':
+      z.revives++;
+      return;
+    case 'wave':
+      z.waves++;
+      return;
+    case 'coffin':
+      z.coffinRolls++;
+      return;
+    case 'end':
+      z.matches++;
+      if (s.won) z.wins++;
+      z.bestWave = Math.max(z.bestWave, s.wave);
+      return;
+  }
+}

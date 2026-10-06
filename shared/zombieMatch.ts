@@ -86,7 +86,19 @@ export interface ZombieHost {
   allowRespawn(id: number): void;
   /** A new match: everyone comes back at once with the starting weapons. */
   newMatch(ids: number[]): void;
+  /** Something for a player's zumbi stats (the server saves them; solo play has nowhere to). */
+  stat?(id: number, s: ZStat): void;
 }
+
+/** What counts toward a player's zumbi stats. */
+export type ZStat =
+  | { e: 'kill'; kind: ZKind; how: KillHow }
+  | { e: 'down' }
+  | { e: 'death' }
+  | { e: 'revive' }
+  | { e: 'wave' }
+  | { e: 'coffin' }
+  | { e: 'end'; won: boolean; wave: number };
 
 /** A player as the host sees them each tick. */
 export interface ZombieInput {
@@ -310,6 +322,7 @@ export class ZombieMatch {
     if (!p || p.state !== 'up' || this.phase !== 'wave') return false;
     p.state = 'down';
     p.downs++;
+    this.host.stat?.(id, { e: 'down' });
     p.downUntil = this.now + ZOMBIE.jogador.caidoSegundos * 1000;
     p.reviving = null;
     for (const o of this.parts.values()) if (o.reviving?.target === id) o.reviving = null;
@@ -325,6 +338,7 @@ export class ZombieMatch {
     p.state = 'dead';
     p.alive = false;
     p.reviving = null;
+    this.host.stat?.(id, { e: 'death' });
     this.checkLoss();
   }
 
@@ -359,6 +373,7 @@ export class ZombieMatch {
     if (this.box.state === 'offer' && this.box.by === id) return this.takeBox(p);
     if (this.box.state !== 'idle' || p.money < ZOMBIE.caixa.custo) return;
     p.money -= ZOMBIE.caixa.custo;
+    this.host.stat?.(id, { e: 'coffin' });
     const rng = () => this.host.rng();
     const it = rollBox(rng, p.items);
     this.box.pending = it.id;
@@ -539,6 +554,7 @@ export class ZombieMatch {
       this.pay(killer, award);
       killer.kills++;
       if (how === 'head') killer.headshots++;
+      this.host.stat?.(killer.id, { e: 'kill', kind: z.kind, how });
       this.xp(killer, killXp(z.kind));
     }
     this.host.emit({ t: 'zdie', id: z.id, by: killer ? by : null, how, ...(killer ? { award, money: killer.money } : {}) });
@@ -633,6 +649,7 @@ export class ZombieMatch {
       if (p.state !== 'dead') {
         this.pay(p, ZOMBIE.dinheiro.onda);
         this.xp(p, ZOMBIE.xp.onda);
+        this.host.stat?.(p.id, { e: 'wave' });
         money.push([p.id, p.money]);
       }
       if (p.state === 'down') this.standUp(p, null);
@@ -671,6 +688,11 @@ export class ZombieMatch {
   private finish(won: boolean) {
     const now = this.now;
     if (won) for (const p of this.parts.values()) this.xp(p, ZOMBIE.xp.vitoria);
+    for (const p of this.parts.values()) {
+      // Lost with nobody left to revive them: whoever is still down never gets up, so it's a death.
+      if (!won && p.state === 'down') this.host.stat?.(p.id, { e: 'death' });
+      this.host.stat?.(p.id, { e: 'end', won, wave: this.wave });
+    }
     this.phase = 'over';
     this.until = now + ZOMBIE.fimSegundos * 1000;
     this.clearZombies(true);
@@ -893,6 +915,7 @@ export class ZombieMatch {
       if (now - r.since < ZOMBIE.jogador.reanimarSegundos * 1000) continue;
       p.reviving = null;
       p.revives++;
+      this.host.stat?.(p.id, { e: 'revive' });
       this.pay(p, ZOMBIE.dinheiro.reanimar);
       this.xp(p, ZOMBIE.xp.reanimar);
       this.standUp(t, p.id);
