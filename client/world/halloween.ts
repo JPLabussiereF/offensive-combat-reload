@@ -1,4 +1,5 @@
-// Building blocks for the Halloween map ("Vila Assombrada", world/hauntedTown.ts): the night sky, ground
+// Building blocks for the Halloween maps (the "Vila Assombrada" and the zumbi cemetery, whose pieces are in
+// client/world/catalog): the night sky, ground
 // mist, dead trees, tombstones with epitaphs, wrought-iron fences, hedges, jack-o'-lanterns and the animated
 // gags: the grave's grumpy ghost, bells, pumpkins that smash, lamp posts that go out, the witch's cauldron
 // and its rubber ducks, scarecrows that fall and get up, the shooting gallery, the Ferris wheel, the
