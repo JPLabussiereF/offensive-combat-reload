@@ -3059,6 +3059,199 @@ input[type='range'] {
   font-weight: 800;
   font-size: 13px;
 }
+/* --- Album (sticker achievements): one drawing, four finishes, all in CSS ------------------------------ */
+.album-pages {
+  margin: 6px 0 12px;
+}
+.album-pages small {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 12px;
+}
+.fig {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 8px 10px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 3px 3px 0 var(--ink);
+  color: var(--ink);
+  font-family: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+.fig:hover {
+  transform: translateY(-2px) rotate(-1deg);
+}
+.fig[aria-pressed='true'] {
+  box-shadow: 4px 4px 0 var(--c);
+  transform: translateY(-2px);
+}
+.fig-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--c);
+  overflow: hidden;
+}
+.fig-icon {
+  font-size: 40px;
+  line-height: 1;
+  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.35));
+}
+.fig-rep {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  right: 4px;
+  padding: 0 6px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--warn);
+  font: 900 12px var(--body);
+}
+.fig-name {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.05;
+}
+.fig-pips {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+.fig-pips i {
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #fff;
+}
+.fig-pips i.on {
+  background: var(--c);
+}
+.fig-count {
+  font-weight: 800;
+  font-size: 12px;
+  opacity: 0.75;
+}
+/* Not stuck in yet: an empty, dashed slot with the drawing's shadow. */
+.fig-t0 {
+  border-style: dashed;
+  background: #f6f1e8;
+  box-shadow: none;
+}
+.fig-t0 .fig-art {
+  border-style: dashed;
+  background: #e4ddcf;
+}
+.fig-t0 .fig-icon {
+  filter: grayscale(1) brightness(0.3);
+  opacity: 0.35;
+}
+/* Shiny, holographic and gold: a light sweeping across the picture. */
+.fig-t2 .fig-art::after,
+.fig-t3 .fig-art::after,
+.fig-t4 .fig-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.75) 50%, transparent 65%) 0 0 / 250% 100%;
+  animation: fig-sheen 3s ease-in-out infinite;
+}
+/* Holographic: a rainbow foil turning over it. */
+@property --fig-a {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.fig-t3 .fig-art::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(from var(--fig-a), #ff4a3d, #ffd23f, #7dff5a, #2fe0ff, #2f9bff, #b04aff, #ff4a3d);
+  mix-blend-mode: color-dodge;
+  opacity: 0.55;
+  animation: fig-spin 6s linear infinite;
+}
+/* Gold: gold leaf on the picture and the card. */
+.fig-t4 {
+  background: linear-gradient(135deg, #fff3c4, #ffd23f 45%, #e0a21a);
+}
+.fig-t4 .fig-art {
+  background: linear-gradient(135deg, #ffe680, #d99a10 50%, #fff1a8 70%, #c78a0a);
+}
+@keyframes fig-sheen {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+@keyframes fig-spin {
+  to {
+    --fig-a: 360deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fig-art::before,
+  .fig-art::after {
+    animation: none;
+  }
+}
+.fig-detail {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+}
+.fig-detail p {
+  margin: 0;
+  font-weight: 800;
+}
+.fig-tiers {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.fig-tiers li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 12px;
+  opacity: 0.55;
+}
+.fig-tiers li.done {
+  background: var(--good);
+  opacity: 1;
+}
+@media (max-width: 560px) {
+  .fig-grid {
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  }
+  .fig-tiers {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 .part-table {
   width: 100%;
   margin-top: 8px;
