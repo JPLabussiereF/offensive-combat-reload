@@ -437,23 +437,36 @@ export function zombieProblems(): string[] {
   for (let i = 2; i < RARITIES.length; i++) if (d.chance[RARITIES[i]] > d.chance[RARITIES[i - 1]]) out.push(`${RARITIES[i]} quebra mais que ${RARITIES[i - 1]}`);
   if (!Z_FLAWS.every((f) => d.tipos[f] > 0)) out.push('todo defeito precisa de um peso');
   if (!(d.pente > 0 && d.pente < 1 && d.reserva > 0 && d.reserva < 1 && d.dano > 0 && d.dano < 1)) out.push('as penalidades de arma danificada devem ficar entre 0 e 1');
-  for (const [map, m] of Object.entries(ZOMBIE.mapas)) {
-    if (!m) continue;
-    const [x0, z0, x1, z1] = m.dentro;
-    const inside = (p: Vec3) => p[0] > x0 && p[0] < x1 && p[2] > z0 && p[2] < z1;
-    if (m.surgir.length < 6) out.push(`${map}: poucos pontos de surgimento`);
-    // The horde comes from outside the wall, through the gaps: never from inside.
-    for (const p of m.surgir) if (inside(p)) out.push(`${map}: ponto de surgimento dentro do muro ${p.join(',')}`);
-    if (!inside(m.caixa as unknown as Vec3)) out.push(`${map}: o caixão fica dentro do muro`);
-    for (const b of BOSS_IDS) if (!m.chefe[b]) out.push(`${map}: sem lugar para ${b}`);
-    if (m.barricadas.length < 2 || m.barricadas.length > 15) out.push(`${map}: de 2 a 15 brechas no muro`);
-    for (const g of m.barricadas) {
-      const [gx, , gz] = g.centro;
-      // On the wall's line: a wall along X sits on z0 or z1, one along Z on x0 or x1.
-      const onWall = g.eixo === 'x' ? (gz === z0 || gz === z1) && gx > x0 && gx < x1 : (gx === x0 || gx === x1) && gz > z0 && gz < z1;
-      if (!onWall) out.push(`${map}: a brecha ${g.id} não está no muro`);
-      if (!(g.largura >= 1.8 && g.largura <= 4)) out.push(`${map}: a brecha ${g.id} deve ter de 1,8 a 4 m`);
-    }
+  for (const [map, m] of Object.entries(ZOMBIE.mapas)) if (m) out.push(...checkZombieMap(map, m));
+  return out;
+}
+
+const isNums = (v: unknown, n: number) => Array.isArray(v) && v.length === n && v.every((x) => typeof x === 'number' && Number.isFinite(x));
+
+/**
+ * What's wrong with a map's zumbi layout (`map` names it in the messages): its shape (it may come from a map's
+ * data), the spawn spots outside the wall, the coffin inside it, a spot for every boss and the gaps on the wall.
+ */
+export function checkZombieMap(map: string, m: ZombieMapData): string[] {
+  const out: string[] = [];
+  const chefe = (m?.chefe ?? {}) as Record<string, unknown>;
+  if (!isNums(m?.dentro, 4) || !Array.isArray(m.surgir) || !m.surgir.every((p) => isNums(p, 3)) || !isNums(m.caixa, 4) || !Array.isArray(m.barricadas) || !Object.values(chefe).every((p) => isNums(p, 3)))
+    return [`${map}: { dentro: [x0, z0, x1, z1], surgir: [[x, y, z]], caixa: [x, y, z, giro], chefe, barricadas }`];
+  for (const g of m.barricadas) if (!g || typeof g.id !== 'string' || (g.eixo !== 'x' && g.eixo !== 'z') || !isNums(g.centro, 3) || typeof g.largura !== 'number') return [`${map}: brecha { id, eixo, centro, largura }`];
+  const [x0, z0, x1, z1] = m.dentro;
+  const inside = (p: Vec3) => p[0] > x0 && p[0] < x1 && p[2] > z0 && p[2] < z1;
+  if (m.surgir.length < 6) out.push(`${map}: poucos pontos de surgimento`);
+  // The horde comes from outside the wall, through the gaps: never from inside.
+  for (const p of m.surgir) if (inside(p)) out.push(`${map}: ponto de surgimento dentro do muro ${p.join(',')}`);
+  if (!inside(m.caixa as unknown as Vec3)) out.push(`${map}: o caixão fica dentro do muro`);
+  for (const b of BOSS_IDS) if (!m.chefe[b]) out.push(`${map}: sem lugar para ${b}`);
+  if (m.barricadas.length < 2 || m.barricadas.length > 15) out.push(`${map}: de 2 a 15 brechas no muro`);
+  for (const g of m.barricadas) {
+    const [gx, , gz] = g.centro;
+    // On the wall's line: a wall along X sits on z0 or z1, one along Z on x0 or x1.
+    const onWall = g.eixo === 'x' ? (gz === z0 || gz === z1) && gx > x0 && gx < x1 : (gx === x0 || gx === x1) && gz > z0 && gz < z1;
+    if (!onWall) out.push(`${map}: a brecha ${g.id} não está no muro`);
+    if (!(g.largura >= 1.8 && g.largura <= 4)) out.push(`${map}: a brecha ${g.id} deve ter de 1,8 a 4 m`);
   }
   return out;
 }
