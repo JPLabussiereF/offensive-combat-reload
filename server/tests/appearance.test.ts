@@ -226,14 +226,14 @@ describe('no online', () => {
     await pa.next('spawned', (m) => m.id === vId);
 
     // One chest shot: 100 minus the damage (the build is only a look).
-    pa.send({ t: 'hit', target: vId, region: 'peito', dist: 10 });
+    pa.send({ t: 'hit', target: vId, region: 'peito', dist: 10, w: 'rifle' });
     const dmg = await pa.next('damage', (m) => m.target === vId);
     expect(dmg.health).toBe(100 - dmg.amount);
 
     const kill = pa.next('kill', (m) => m.victim === vId, 8000);
     for (let i = 0; i < 10 && !pa.msgs.some((m) => m.t === 'kill'); i++) {
       await sleep(110);
-      pa.send({ t: 'hit', target: vId, region: 'peito', dist: 10 });
+      pa.send({ t: 'hit', target: vId, region: 'peito', dist: 10, w: 'rifle' });
     }
     const k = await kill;
     expect(k.corpse.ap?.biotipo).toBe('gordo');

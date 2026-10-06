@@ -9,10 +9,12 @@ source_paths:
   - client/main.ts
   - server/index.ts
   - shared/protocol.ts
+  - shared/arsenal.ts
+  - shared/progression.ts
 tags:
   - reference
   - file-structure
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # File Structure Reference
@@ -83,7 +85,7 @@ client/
 │   ├── avatar.ts           Personagem em 3ª pessoa (adaptador sobre character/)
 │   ├── rig.ts              CharacterRig: hitboxes + bloqueador que seguem o personagem
 │   ├── hitboxes.ts         As 15 formas de hitbox nos ossos
-│   ├── heldWeapons.ts      Armas vistas na mão dos outros
+│   ├── heldWeapons.ts      Armas vistas na mão dos outros (heldGun, heldKnife, heldGrenade)
 │   └── dummy.ts            Bonecos de treino
 ├── gameplay/
 │   ├── targets.ts          Contratos Target / Humiliable / HitboxRegistry
@@ -104,8 +106,8 @@ client/
 │   ├── springs.ts          Molas amortecidas da 1ª pessoa
 │   ├── viewmodel.ts        Braços + arma em 1ª pessoa (cena própria)
 │   ├── viewmodelArms.ts    Braços da 1ª pessoa
-│   └── weaponModels.ts     Modelos de cada nível de arma, faca e mina
-├── tests/                  Testes bun:test de lógica pura do cliente (aimAssist, keybinds, spatial)
+│   └── weaponModels.ts     Modelos das armas de fogo com as melhorias (gunParts), formas da faca e mina
+├── tests/                  Testes bun:test de lógica pura do cliente (aimAssist, arsenalText, keybinds, spatial)
 ├── ui/
 │   ├── home.ts             Home: conta, lobby online, bots, treino (HomeChoice)
 │   ├── auth.ts             Formulários de login/cadastro/senha
@@ -115,14 +117,14 @@ client/
 │   ├── hud.ts              HUD em DOM (Hud)
 │   ├── chat.ts             Chat da sessão
 │   ├── scoreboard.ts       Placar (Tab)
-│   ├── arsenal.ts          Painel de progressão das armas
+│   ├── arsenal.ts          Painel Arsenal: secundária, níveis e melhorias das armas
 │   ├── corpseTimer.ts      Contagem sobre corpos oprimíveis
 │   ├── touch.ts            Controles de toque estilo CoD Mobile
 │   ├── padNav.ts           Navegação de menus com controle
 │   ├── tuning.ts           Painel de ajuste ao vivo (F6)
 │   └── strings.ts          Todas as strings (pt-BR e en), t()
 ├── weapons/
-│   ├── weapon.ts           Lógica da arma de fogo (dados → comportamento)
+│   ├── weapon.ts           Lógica da arma de fogo (dados → comportamento); uma instância por espaço
 │   ├── hitscan.ts          Raio de tiro, penetração
 │   ├── melee.ts            Faca
 │   ├── grenades.ts         GrenadeThrower (mão) + GrenadeProjectiles (mundo)
@@ -171,8 +173,8 @@ server/
 │   ├── sessions.ts         Cookie oc_sessao, autenticação, revogação
 │   ├── password.ts         Cadastro, login com limites, recuperação de senha
 │   └── discord.ts          OAuth Discord (PKCE, arctic)
-├── migrations/             001_contas.sql, 002_aparencia.sql (+ .down.sql manuais)
-└── tests/                  bun:test de integração (auth, game, appearance) + helpers, preload, env
+├── migrations/             001_contas.sql, 002_aparencia.sql, 003_melhorias.sql (+ .down.sql manuais)
+└── tests/                  bun:test de integração (auth, game, appearance), unitário (arsenal) + helpers, preload, env
 ```
 
 ## `shared/`
@@ -184,16 +186,17 @@ shared/
 ├── maps.ts                 Ids de mapa e posições de coletáveis/bruxa/ratos/peixes
 ├── weapons.ts              Esquema e fórmulas de armas
 ├── movement.ts             Passo de movimento sobre o Rapier
-├── progression.ts          Níveis de rifle/faca/granada
+├── progression.ts          Níveis e melhorias das armas, ArsenalChoice, PRIMARIES/SECONDARIES
+├── arsenal.ts              Loadout e atributos com as melhorias (gunStats, meleeStats, grenadeStats)
 ├── accountLevel.ts         Nível da conta
 ├── account.ts              Regras e tipos da API de contas, ApiErrorCode
 ├── appearance.ts           Aparência e bodyStats
 ├── catalog.ts              Catálogo de itens do personagem
 ├── palette.ts              Paleta de cores
 └── data/
-    ├── progression.json    Níveis das armas
+    ├── progression.json    Melhorias de cada arma por nível
     ├── nivel_conta.json    Curva do nível da conta
-    └── weapons/            rifle_padrao.json, faca.json, granada_frag.json
+    └── weapons/            rifle_padrao.json, pistola.json, smg.json, faca.json, granada_frag.json
 ```
 
 ## Demais pastas

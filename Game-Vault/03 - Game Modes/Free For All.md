@@ -14,11 +14,12 @@ source_paths:
   - client/main.ts
   - client/gameplay/spawnPicker.ts
   - client/ui/scoreboard.ts
+  - shared/arsenal.ts
 tags:
   - game
   - modes
   - online
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Free For All
@@ -53,7 +54,8 @@ Nenhum: todos contra todos. Não há fogo amigo porque não há times ([[Team De
 - **Nomes repetidos** na mesma sessão ganham sufixo: "Nome (2)".
 - **Regras de combate e opressão:** as globais ([[Game Rules]], [[Combat]], [[Humiliation]]), validadas pelo servidor ([[Validation]]).
 - **Coletáveis e bônus do mapa** (cereja, biscoito, carpas, rato, poções): validados e aplicados pelo servidor ([[Objectives]], [[Buffs & Debuffs]]).
-- **Granadas:** o dano usa o nível 1 da granada (`ONLINE_GRENADE_LEVEL = 1`). O tipo (granada, mina ou dupla) segue o nível equipado ([[Grenades]]).
+- **Armas:** cada jogador entra com o loadout da conta (rifle, a secundária escolhida, faca e granada, com as melhorias liberadas), resolvido pelo servidor e enviado a todos (`playerLoadout`). Dano, cadência e alcance são os da arma que atirou com as melhorias do jogador ([[Weapons]], [[Validation]]).
+- **Granadas:** a explosão vem de `grenadeStats` (nível 1 do JSON, raio ×1,2 com a Pólvora). O tipo (granada, mina ou dupla) segue a melhoria opcional ligada ([[Grenades]]).
 
 ## Fluxo da partida
 
@@ -93,7 +95,7 @@ Detalhes de protocolo em [[Remote Calls]] e [[Sessions]]. Detalhes do fluxo de i
 
 - A tabela `SCORE`, calculada no servidor ([[Scoring]]).
 - O placar da sessão (pontos, abates, mortes, opressões) fica **em memória** e recomeça do zero a cada entrada.
-- Persistem na conta: XP das armas, XP da conta, estatísticas e a participação (pontos, abates e mortes daquela entrada). Ver [[Progression]] e [[Player Data]].
+- Persistem na conta: XP das armas, a escolha do Arsenal, XP da conta, estatísticas e a participação (pontos, abates e mortes daquela entrada). Ver [[Progression]] e [[Player Data]].
 
 ## Limites de tempo
 
@@ -108,7 +110,7 @@ Nenhum limite de partida. Os temporizadores existentes são de regra: janela de 
 | `NET.corpseWindow` | 6 s (= `HUMILIATION.window`) | `shared/protocol.ts` |
 | `NET.tickRate` / `stateRate` | 20 Hz | `shared/protocol.ts` |
 | `NET.sessionNameMax` | 24 | `shared/protocol.ts` |
-| `ONLINE_GRENADE_LEVEL` | 1 | `shared/protocol.ts` |
+| `SWITCH_GRACE_MS` | 1000 ms (acertos da arma guardada após a troca) | `server/session.ts` |
 | Sessões permanentes | `rua`, `jardim`, `halloween` | `server/app.ts` |
 | Gravação do progresso | a cada 60 s e ao sair | `server/app.ts` (`FLUSH_EVERY_MS`) |
 

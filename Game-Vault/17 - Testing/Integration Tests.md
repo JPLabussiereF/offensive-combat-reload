@@ -14,7 +14,7 @@ source_paths:
 tags:
   - testes
   - integracao
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Integration Tests
@@ -46,7 +46,7 @@ Como o servidor confia em `X-Forwarded-For` só vindo de endereço privado, e os
 - Validação de e-mail, senha e nome; e-mail repetido (maiúsculas) → `email_em_uso`.
 - Sair revoga a sessão (cópia antiga do cookie não vale); cookie forjado recusado; pedido de outro site → `403 origem_invalida` (inclusive sem `Origin`).
 - Recuperação de senha e limite de 3 e-mails/hora — ver [[Scenario - Login, bloqueio e recuperação de senha]].
-- Perfil: número `#1234` não se repete para o mesmo nome; primeira troca de nome livre, segunda antes de 7 dias → `cooldown_nome`; não equipa nível bloqueado.
+- Perfil: número `#1234` não se repete para o mesmo nome; primeira troca de nome livre, segunda antes de 7 dias → `cooldown_nome`; `PATCH /api/perfil {arsenal}` com melhoria bloqueada → `nivel_bloqueado`, e a secundária escolhida (`smg`) é guardada e devolvida (`armas.smg` = `{xp: 0, nivel: 1}`).
 - Exclusão de conta — ver [[Scenario - Exclusão de conta e anonimização]].
 
 ### `game.test.ts` — conexão de jogo

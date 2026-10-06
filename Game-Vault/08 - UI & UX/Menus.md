@@ -19,7 +19,7 @@ tags:
   - game
   - ui
   - menus
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Menus
@@ -39,13 +39,13 @@ Página rolável com duas caras, conforme a conta (`/api/me`). Enquanto a consul
 ### 2.1 Logado (`#home-in`)
 
 - **Cabeçalho:** logo, abas **JOGAR / ARSENAL / PERFIL / CONFIGURAÇÕES** (`role="tab"`, L1/R1 no controle) e um botão da conta com o retrato do personagem (`renderPortrait`, close no rosto), `Nome#1234`, selo de nível e barra de XP da conta (`xpNoNivel / xpProximo`). O botão abre a aba Perfil.
-- **Cartão do personagem** (lateral, fixo ao rolar no computador; empilhado no celular): o **personagem real** da conta em 3D (o mesmo palco `Stage` do editor, `client/ui/customize.ts`: parado, girando devagar, arrastar gira; sem zoom pela roda para não travar a rolagem), os ícones dos níveis equipados ("🌸 🐔 🧨 equipados"), abates e partidas, botão **PERSONALIZAR** (abre o editor de [[Character Customization]] no lugar do painel, que ocupa a largura toda) e, no modo Online, **JOGAR ONLINE** com a dica "Entra direto na sessão mais cheia dos mapas filtrados".
+- **Cartão do personagem** (lateral, fixo ao rolar no computador; empilhado no celular): o **personagem real** da conta em 3D (o mesmo palco `Stage` do editor, `client/ui/customize.ts`: parado, girando devagar, arrastar gira; sem zoom pela roda para não travar a rolagem), os ícones do que vai para a partida — primária, secundária escolhida, faca e granada, com a forma ligada (ex.: "🔫 🛎️ 🐔 🧨 equipados"; `weaponIcon`), abates e partidas, botão **PERSONALIZAR** (abre o editor de [[Character Customization]] no lugar do painel, que ocupa a largura toda) e, no modo Online, **JOGAR ONLINE** com a dica "Entra direto na sessão mais cheia dos mapas filtrados".
 - **Aba Jogar:**
   - *Modo:* três cartões, **Online**, **Contra bots** e **Campo de tiro**.
   - *Mapas:* no Online, os mapas são um **filtro** (vários marcados) e mostram quantas sessões cada um tem depois de conectar. Em Contra bots escolhe-se um mapa. No Campo de tiro, **clicar no mapa já começa** o treino ([[Training]]).
   - *Contra bots:* dificuldade (Fácil/Normal/Difícil), 3/5/7/9 bots e o botão **CONTRA N BOTS** ([[Versus Bots]]).
   - *Online:* lista de sessões **já carregada** ao abrir a aba (6 por vez, **VER MAIS** quando há mais), filtrada pelos mapas marcados, e a criação de sessão. A conexão de jogo só abre ao entrar. Ver [[Matchmaking UI]].
-- **Aba Arsenal:** o mesmo painel do menu de pausa (`Arsenal`, `client/ui/arsenal.ts`) sobre a progressão da conta. Equipar grava na conta na hora. Ver [[Inventory UI]].
+- **Aba Arsenal:** o mesmo painel do menu de pausa (`Arsenal`, `client/ui/arsenal.ts`) sobre a progressão da conta. Escolher a secundária ou ligar/desligar uma melhoria grava na conta na hora (`PATCH /api/perfil {arsenal}`). Ver [[Inventory UI]].
 - **Aba Perfil** (`client/ui/profile.ts`): tag e nível com barra de XP, aviso de exclusão pendente (com cancelar), corpo (masculino/feminino), **Personalizar personagem**, estatísticas totais, últimas sessões online, troca de nome (com carência), vincular/desvincular Discord, sair e excluir conta (com `confirm`). Ver [[Player Data]].
 - **Aba Configurações:** os mesmos controles do menu de pausa (teclas e [[Settings]]). O bloco `#menu-settings` é **emprestado** para a aba enquanto a tela inicial está aberta e devolvido ao `#menu` ao sair, por isso a mudança vale na hora. O editor de layout de toque fica escondido aqui (os controles de toque só existem na partida).
 - Uma aba extra sem botão (`#tab-auth`) mostra o formulário "Escolher nome" (primeiro login pelo Discord) e o editor de personagem.
@@ -76,7 +76,7 @@ Mesmo cartão para os dois modos (`showMenu('start' | 'pause')`):
 | --- | --- |
 | Cabeçalho | Logo, subtítulo ("Sessão: {nome} · mata-mata livre", "Contra N bots · mata-mata livre" ou "Protótipo de tiro · Fase 1"), aviso de GPU por software (se detectado). |
 | Botão principal | **JOGAR** (início) ou **VOLTAR AO JOGO** (pausa) + dica "Clique para voltar ao jogo" / "Toque…" / "Aperte ✕ ou Options…". |
-| **Arsenal** | Painel de progressão de armas (`client/ui/arsenal.ts`): um cartão por arma (rifle, faca, granada) com nível equipado, barra de XP até o próximo nível, fichas de cada nível (🔒 se bloqueado; clique equipa os desbloqueados) e descrição do nível sob o mouse. Ver [[Inventory UI]] e [[Progression]]. |
+| **Arsenal** | Painel de armas e melhorias (`client/ui/arsenal.ts`): um cartão por arma (rifle, pistola, submetralhadora, faca, granada) com espaço, nível, barra de XP até o próximo nível, barras de atributos das armas de fogo com as melhorias em efeito, a lista de melhorias (🔒 com os pontos se bloqueada; ativa; substituída; ou botão liga/desliga nas opcionais) e a descrição sob o mouse. Os cartões das secundárias têm o botão para levá-la no espaço secundário. Ver [[Inventory UI]] e [[Progression]]. |
 | **Controles** | Tabela de teclas remapeáveis (computador), tabela de botões do controle (PlayStation ou Xbox) ou ajuda de toque (celular). Ver [[Input & Controls]]. |
 | **Configurações** | Ver [[Settings]]. A coluna de controles e configurações (`#menu-settings`) é a mesma que a tela inicial empresta para a aba Configurações. |
 | Rodapé | Dica de depuração (F3/F4), botão **Sair para o início** (só na pausa; recarrega a página). |

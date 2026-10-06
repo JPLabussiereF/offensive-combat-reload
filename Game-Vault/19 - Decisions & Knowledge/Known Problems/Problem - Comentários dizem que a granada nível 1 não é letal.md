@@ -1,21 +1,27 @@
 ---
 title: Problem - Comentários dizem que a granada nível 1 não é letal
 type: problem
-status: documented
+status: outdated
 area: gameplay
 source_paths:
   - shared/protocol.ts
   - client/main.ts
   - shared/data/weapons/granada_frag.json
   - README.md
+  - shared/arsenal.ts
+  - server/session.ts
 tags:
   - problem
   - grenades
   - documentation-drift
-updated: 2026-10-05
+  - resolvido
+updated: 2026-10-06
 ---
 
 # Problem - Comentários dizem que a granada nível 1 não é letal
+
+> [!success] Resolvido (branch `feat/home-e-modos`, 2026-10-06)
+> A constante `ONLINE_GRENADE_LEVEL` e os dois comentários enganosos foram removidos de `shared/protocol.ts` e `client/main.ts`. A explosão agora vem de `grenadeStats(melhorias).explosao` (`shared/arsenal.ts`): o nível 1 de `granada_frag.json` (`podeMatar: true`), com os raios ×1,2 na melhoria Pólvora. O servidor guarda a explosão de cada granada no lançamento. O texto abaixo fica como registro histórico. Ver [[Grenades]] e [[ADR - Progressão por melhorias de arma]].
 
 ## Sintoma
 

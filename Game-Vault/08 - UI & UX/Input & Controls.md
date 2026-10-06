@@ -19,7 +19,7 @@ tags:
   - ui
   - input
   - controls
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Input & Controls
@@ -49,6 +49,8 @@ flowchart LR
 | Recarregar | R | □ / X | botão |
 | Faca | F | R1 / RB ou R3 | botão |
 | Granada (segurar = cozinhar) | G | L1 / LB | botão |
+| Primária / secundária | 1 / 2 | — | — |
+| Trocar de arma (a outra) | roda do mouse (para baixo; alternativa: para cima) | direcional ← / → | botão de troca (acima do pular) |
 | Oprimir / interagir | E | △ / Y | tocar no prompt |
 | Placar (segurar) | Tab | Share/View ou touchpad | botão (alterna) |
 | Chat | Enter, alternativa T | — | botão |
@@ -57,7 +59,7 @@ flowchart LR
 | Hitboxes/colisores | F4 (fixo) | — | — |
 | Painel de ajuste | F6 (fixo) | — | — |
 
-Mecânicas: [[Movement]], [[Combat]], [[Grenades]], [[Melee]], [[Humiliation]], [[Aim Assist]].
+Mecânicas: [[Movement]], [[Combat]], [[Weapons]] (troca de arma), [[Grenades]], [[Melee]], [[Humiliation]], [[Aim Assist]]. As ações de troca são `weapon1`, `weapon2` e `swapWeapon`.
 
 ## Teclas remapeáveis
 
@@ -67,7 +69,7 @@ Decisão em [[ADR - Teclas remapeáveis com primária e alternativa]]. Regras (`
 - No menu, clicar numa tecla da tabela espera a próxima tecla, botão do mouse (inclusive laterais) ou passo da roda; Esc cancela; "×" esvazia o espaço; "Restaurar padrão" volta tudo.
 - Uma tecla só pode estar num lugar: atribuí-la a uma ação a tira da outra, e o menu avisa ("{tecla} estava em "{ação}", que ficou sem tecla primária/alternativa.").
 - **Proibidas:** Ctrl (Ctrl+W fecha a aba e não pode ser interceptado fora da tela cheia) e as teclas fixas F3/F4/F6. Por isso agachar fica no **C**.
-- **Roda do mouse** só vale para ações de um toque (pular, atirar, recarregar, faca, granada, oprimir) — não para ações de segurar nem para o chat.
+- **Roda do mouse** só vale para ações de um toque (pular, atirar, recarregar, faca, granada, primária, secundária, trocar de arma, oprimir) — não para ações de segurar nem para o chat (`WHEEL_ACTIONS`).
 - Nomes das teclas: usa o mapa de layout do navegador (Chrome/Edge: AZERTY, Dvorak…); no Firefox, o caractere aprendido quando o jogador apertou a tecla (`keyLabels`); senão, QWERTY. Nomes em pt-BR/en.
 - Ao carregar, as teclas salvas são mescladas ação por ação com os padrões (ações novas ganham o padrão; inválidas, proibidas ou repetidas são descartadas).
 - Os prompts do HUD mostram a tecla atual (`screens.keyName('taunt')`).

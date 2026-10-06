@@ -12,11 +12,12 @@ source_paths:
   - client/world/dog.ts
   - client/world/hydrant.ts
   - shared/protocol.ts
+  - client/net/remote.ts
 tags:
   - game
   - audio
   - events
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Audio Events
@@ -40,7 +41,8 @@ flowchart TB
 | Evento | Som | Onde |
 | --- | --- | --- |
 | Clicar em JOGAR / fechar pausa com Esc | `unlock()` + `ui()` | `screens.onPlay`, handler de Esc |
-| Disparo | `gunshot()` | callback `shoot` da arma |
+| Disparo | `gunshot(1, voz)` (voz da arma em mãos, ou `silenciado`) | callback `shoot` da arma (`gunHooks`) |
+| Troca de arma | `weaponSwitch()` | `holdSlot` |
 | Gatilho vazio | `dryFire()` | callback `dryFire` da arma |
 | Início da recarga | `reload(duração, vazio)` | callback `reloadStart` |
 | Acerto (alvo, bot, jogador online) | `hitmarker(cabeça/virilha)` | resolução do tiro |
@@ -51,7 +53,7 @@ flowchart TB
 | Própria morte | `sadTrombone()` | morte local ou mensagem `kill` |
 | Começo de dança (humilhação) | `danceMusic(3,2 s)` | `taunt.start` — ver [[Music]] |
 | Fim da dança | `airHorn()` + `applause()` | `humiliationFx` |
-| Faca | `meleeSwing(tipo)` / `knifeHit()` | `startMelee`, `resolveMelee` |
+| Faca | `meleeSwing(forma)` / `knifeHit()` | `startMelee`, `resolveMelee` |
 | Granada: pino, bips do pavio, arremesso | `pinPull`, `fuseBeep`, `grenadeThrow` | `thrower.update` |
 | Mina plantada | `minePlant()` | `plantMine` |
 | Coletáveis | `cherry`, `cherryEnd`, `scoobySnack`, `humanity`, `potionGulp` | funções de bônus |
@@ -63,8 +65,8 @@ Mensagens do servidor (ver [[Remote Calls]] e [[Replication]]) que geram som no 
 
 | Mensagem | Som | Tipo espacial | Posição |
 | --- | --- | --- | --- |
-| `shot` | `gunshot()` | `gun` | boca da arma do avatar remoto |
-| `swing` | `knifeSwing()` | `step` | avatar remoto (+1,3 m) |
+| `shot` | `gunshot(1, voz)` da arma na mão dele (`RemotePlayer.gun`); silenciado: voz `silenciado` e sem traçante | `gun` (silenciado: `step`) | boca da arma do avatar remoto |
+| `swing` | `meleeSwing(forma)` da faca dele | `step` (frango e sabre: `normal`) | avatar remoto (+1,3 m) |
 | `grenade` (granada) | `grenadeThrow()` | `step` | lançador (+1,4 m) |
 | `grenade` (mina) | `minePlant()` | `normal` | posição da mina |
 | `boom` | `explosion()` (via `explosionFx`) | `boom` | centro da explosão |
@@ -79,7 +81,7 @@ Quiques de granadas (próprias e remotas) tocam a partir da simulação local de
 
 ## Bots (modo Versus Bots)
 
-`client/ai/bots.ts` toca `gunshot` (`gun`, boca da arma), `impact` de cada ponto atingido (`normal`) e `knifeHit` (`normal`). Ver [[Versus Bots]].
+`client/ai/bots.ts` toca `gunshot` com a voz da arma do bot (`gun`, boca da arma), `impact` de cada ponto atingido (`normal`) e `knifeHit` (`normal`). Ver [[Versus Bots]].
 
 ## Mapas e props
 

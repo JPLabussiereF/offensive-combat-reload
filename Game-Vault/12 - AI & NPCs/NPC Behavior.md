@@ -17,11 +17,12 @@ source_paths:
   - shared/constants.ts
   - shared/maps.ts
   - server/session.ts
+  - shared/arsenal.ts
 tags:
   - ai
   - npc
   - bots
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # NPC Behavior
@@ -36,7 +37,7 @@ Comportamento observável de cada personagem não humano. As regras de decisão 
 | --- | --- |
 | Corpo | Corpo cinemático Rapier + cilindro (`MOVE.radius`, `HALF_STAND`), o mesmo `KinematicCharacterController` do jogador, `CharacterRig` com as 15 hitboxes, `Avatar` com aparência aleatória (`randomAppearance`) e os mesmos efeitos de corpo (`bodyStats`: recarga e velocidade do modo PCD) |
 | Nome | Sorteado de 12 nomes engraçados (`BOT_NAMES`: "Bot Clebinho", "Sgt. Parafuso", "Vovó Turbo"...) com sexo; placa de nome em sprite |
-| Armas | `Weapon` com `WEAPONS.rifle_padrao` (cadência, pente, recarga, dispersão, recuo) e facada letal com `MELEE.faca` |
+| Armas | `Weapon` com a arma sorteada a cada vida (`pickGun`: rifle 60%, submetralhadora 25%, pistola 15%; `gunStats` sem melhorias: cadência, pente, recarga, dispersão, recuo) e facada letal com `MELEE.faca` |
 | Movimento | `stepMovement` de `@shared/movement` com `MoveInput` igual ao de um humano (anda, corre, agacha, pula, mira) |
 | Percepção | Campo de visão por dificuldade, linha de visão por raio, memória da última posição vista, vira para quem atirou |
 | Ações | Vagar, enfrentar (mirar, metralhar em rajadas, strafe, agachar), perseguir, fugir com pouca vida, faca de perto, dançar sobre corpos (opressão) |
@@ -51,7 +52,7 @@ O jogador local entra no `BotManager` como mais um `Combatant` (`playerTarget` e
 
 ## 2. Bonecos de treino (`client/entities/dummy.ts`)
 
-- Personagens padrão com aparência variada e rifle na mão, com as **mesmas hitboxes** dos jogadores (`CharacterRig`).
+- Personagens padrão com aparência variada e a arma da vida na mão (com uma secundária na mão, o rifle aparece nas costas; a pose da mão de apoio segue `holdOf`), com as **mesmas hitboxes** dos jogadores (`CharacterRig`).
 - Alguns **patrulham**: deslocamento senoidal ao longo de um eixo (`patrol: { axis, amplitude, speed }` nos `DummySpot` de cada mapa, ex.: `client/world/blockoutMap.ts`). Não atiram nem perseguem.
 - Mostram vida numa placa; regeneram 4 s depois do último dano (`HEALTH.regenDelay`, `regenPerSecond`).
 - Ao morrer, caem (`back`/`forward`), mostram o temporizador de opressão (`CorpseTimer`), podem ser oprimidos uma vez, afundam e renascem — **só quando o lugar está livre** (`occupied`), para não nascer dentro do jogador.

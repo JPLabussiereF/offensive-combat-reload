@@ -14,11 +14,16 @@ source_paths:
   - shared/appearance.ts
   - client/core/settings.ts
   - client/ui/home.ts
+  - server/migrations/003_melhorias.sql
+  - server/migrations/003_melhorias.down.sql
+  - shared/progression.ts
+  - server/accounts.ts
+  - server/tests/arsenal.test.ts
 tags:
   - game
   - data
   - migrations
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Data Migrations
@@ -41,7 +46,7 @@ O caminho resolve para `<repo>/server/migrations` tanto em dev (`server/db.ts`) 
 
 ### Rollback
 
-Os arquivos `.down.sql` são **rollbacks manuais** (não executados pelo código): `psql -f server/migrations/001_contas.down.sql`. Cada um também apaga sua linha de `schema_migrations`.
+Os arquivos `.down.sql` são **rollbacks manuais** (não executados pelo código): `psql -f server/migrations/001_contas.down.sql`. Cada um também apaga sua linha de `schema_migrations`. O `003_melhorias.down.sql` remove a coluna `loadout`, as linhas de `pistola`/`smg` e volta o CHECK, mas **não** desfaz o aumento de XP.
 
 ### Migrations existentes
 
@@ -49,6 +54,7 @@ Os arquivos `.down.sql` são **rollbacks manuais** (não executados pelo código
 |---|---|
 | `001_contas.sql` | Extensão `citext`; tabelas `account`, `password_credential`, `auth_identity`, `session`, `player_profile`, `display_name_history`, `player_stats`, `weapon_progress`, `session_participation`, `sanction`, `role` (com `admin` e `moderador`), `account_role`, `auth_event` (particionada) e índices |
 | `002_aparencia.sql` | `ALTER TABLE player_profile ADD COLUMN appearance jsonb` |
+| `003_melhorias.sql` | Progressão por melhorias e armas secundárias ([[ADR - Progressão por melhorias de arma]]): o CHECK de `weapon_progress.weapon` passa a aceitar `pistola` e `smg`; insere as linhas dessas armas para os perfis existentes; `ALTER TABLE player_profile ADD COLUMN loadout jsonb` (a escolha do Arsenal); **sobe o XP** de rifle, faca e granada para o limiar do nível novo equivalente ao antigo, para ninguém perder o que tinha (rifle e faca 2→2, 3–4→3, 5–6→4, 7→5; granada 2→2, 3→3; ex.: rifle com ≥ 5500 → 7000). A coluna `equipped_level` fica, só para leitura |
 
 Schema detalhado em [[Database]].
 
@@ -64,6 +70,8 @@ A aparência (`player_profile.appearance`, jsonb) tem campo de versão `v`. `san
 - qualquer valor inválido → escolha válida padrão.
 
 Não há migration SQL para isso: o dado antigo continua no banco até a próxima gravação. Coberto por `server/tests/appearance.test.ts`. Ver [[Character Customization]].
+
+A escolha do Arsenal (`player_profile.loadout`) também é convertida na leitura: `NULL` (conta de antes das melhorias) vira a escolha mais parecida com o antigo `equipped_level` de cada arma (`legacyChoice` em `shared/progression.ts`: rifle 5–7 → luneta ligada; faca 3 → frango, 7 → sabre; granada 2 → mina, 3 → Dose Dupla), e todo valor lido ou gravado passa por `sanitizeChoice` contra os níveis. Coberto por `server/tests/arsenal.test.ts` (que também confere os limiares da migração 003).
 
 ## Migração de dados locais (navegador)
 
@@ -84,5 +92,6 @@ Não há migration SQL para isso: o dado antigo continua no banco até a próxim
 - `server/migrations/*.sql`.
 - `server/jobs.ts` — `ensureAuditPartitions`.
 - `shared/appearance.ts` — `sanitizeAppearance`.
+- `shared/progression.ts` — `legacyChoice`, `sanitizeChoice`; `server/accounts.ts` — `weapons` (lê a escolha ou deriva a antiga).
 - `client/core/settings.ts`, `client/ui/home.ts`.
 - Ver também [[Build Pipeline]], [[Data Architecture]].

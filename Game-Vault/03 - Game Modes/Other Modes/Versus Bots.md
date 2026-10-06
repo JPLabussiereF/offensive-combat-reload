@@ -11,12 +11,14 @@ source_paths:
   - client/main.ts
   - client/gameplay/spawnPicker.ts
   - shared/constants.ts
+  - shared/arsenal.ts
+  - client/gameplay/progress.ts
 tags:
   - game
   - modes
   - offline
   - bots
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Versus Bots
@@ -37,9 +39,9 @@ Nenhum.
 
 ## Regras
 
-- **Sem servidor e sem conta.** Com conta, o jogador usa os níveis equipados. Sem conta, tudo fica no nível 1. **Não rende progresso** ([[Progression]]).
+- **Sem servidor e sem conta.** Com conta, o jogador usa os níveis e a escolha do Arsenal da conta. Sem conta, rifle e pistola sem melhorias (a escolha feita no Arsenal vale só para aquela partida). **Não rende progresso** ([[Progression]]).
 - **Quantidade:** 3, 5, 7 ou 9 (padrão 7). **Dificuldade:** fácil, normal ou difícil (padrão normal). A escolha e o mapa ficam salvos em `localStorage` (`oc.bots`).
-- **Bots:** recebem um nome sorteado de uma lista de 12 ("Bot Clebinho", "Sgt. Parafuso", "Dona Bateria", "Capitão Lag", "Recruta 404", "Vovó Turbo"…) e um visual aleatório com os mesmos efeitos de corpo. Usam o mesmo movimento, as mesmas hitboxes e o **Rifle Padrão base** (nível 1), e dão facadas letais de perto.
+- **Bots:** recebem um nome sorteado de uma lista de 12 ("Bot Clebinho", "Sgt. Parafuso", "Dona Bateria", "Capitão Lag", "Recruta 404", "Vovó Turbo"…) e um visual aleatório com os mesmos efeitos de corpo. Usam o mesmo movimento, as mesmas hitboxes e, a cada vida, sorteiam uma arma **sem melhorias**: rifle (60%), submetralhadora (25%) ou pistola (15%) (`pickGun` em `client/ai/bot.ts`). Com uma secundária na mão, o rifle aparece nas costas. Dão facadas letais de perto.
   - Os bots **não lançam granadas** e **não pegam a cereja** (README).
   - Andam por uma malha de navegação gerada dos colisores do mapa e contornam a área de mordida da Amora. O `F4` mostra a malha.
   - Comportamento em [[NPC Behavior]], [[AI Decisions]], [[States]] e [[Navigation]].
@@ -95,7 +97,7 @@ Nenhum.
 ## Limitações conhecidas
 
 - Os bots **só existem offline**. Bots nas sessões online precisam de simulação no servidor, que está no roadmap da Fase 2 (README).
-- Os bots não usam progressão de arma, granadas nem coletáveis.
+- Os bots não usam melhorias de arma, granadas nem coletáveis.
 
 ## Sistemas utilizados
 

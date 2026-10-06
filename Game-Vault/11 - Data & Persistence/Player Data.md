@@ -14,16 +14,17 @@ source_paths:
   - server/migrations/001_contas.sql
   - server/migrations/002_aparencia.sql
   - client/gameplay/progress.ts
+  - server/migrations/003_melhorias.sql
 tags:
   - game
   - data
   - player
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Player Data
 
-Tudo o que se sabe sobre um jogador, onde fica e quem altera. Jogar online **exige conta**; sem conta (treino e bots offline) tudo fica no nível 1 e nada é salvo além das [[Settings]] locais.
+Tudo o que se sabe sobre um jogador, onde fica e quem altera. Jogar online **exige conta**; sem conta (treino e bots offline) as armas ficam sem melhorias e nada é salvo além das [[Settings]] locais.
 
 ## Modelo
 
@@ -36,7 +37,7 @@ erDiagram
     account ||--o{ sanction : "ban / chat_mute"
     account ||--o{ account_role : "admin / moderador"
     player_profile ||--|| player_stats : ""
-    player_profile ||--|{ weapon_progress : "rifle, faca, granada"
+    player_profile ||--|{ weapon_progress : "rifle, pistola, smg, faca, granada"
     player_profile ||--o{ session_participation : "cada estadia numa sala"
     player_profile ||--o{ display_name_history : ""
 ```
@@ -59,8 +60,9 @@ Colunas e índices em [[Database]].
 | Dado | Onde | Como muda |
 |---|---|---|
 | XP e nível da conta | `player_stats.xp`, `level` | XP só online: 10/minuto vivo, 25/abate, 50/humilhação (`shared/data/nivel_conta.json`), +XP por carpa. Nível recalculado na gravação (`accountLevel`) |
-| XP por arma | `weapon_progress.xp` | Pontos do abate (com bônus) vão para a arma que matou (`weaponOfKill`) |
-| Nível equipado por arma | `weapon_progress.equipped_level` | `PATCH /api/perfil {equipado}` ou mensagem `loadout`; só níveis desbloqueados |
+| XP por arma (rifle, pistola, smg, faca, granada) | `weapon_progress.xp` | Pontos do abate (com bônus) vão para a arma que matou (`weaponOfKill(kind, arma)`: um abate de pistola vai para a pistola). O nível sai do XP (`levelForXp`) e não é guardado |
+| Escolha do Arsenal (`ArsenalChoice`: secundária + melhorias opcionais ligadas) | `player_profile.loadout` (jsonb) | `PATCH /api/perfil {arsenal}` (melhoria bloqueada → `400 nivel_bloqueado`) ou mensagem `loadout` (o servidor descarta o que não está liberado e grava no próximo flush). `NULL` = deriva uma vez do antigo `equipped_level` (`legacyChoice`) |
+| Nível equipado (legado) | `weapon_progress.equipped_level` | Não é mais escrito; só lido para derivar a escolha de contas antigas ([[Data Migrations]]) |
 | Totais | `player_stats` (kills, deaths, headshots, groin_kills, knife_kills, backstabs, grenade_kills, humiliations, seconds_played, matches_played) | Somados a partir do delta de cada gravação |
 | MMR | `player_stats.mmr` (padrão 1000) | **Não usado** ("unused until ranked play exists") |
 | Participações | `session_participation` (nome da sala, entrada/saída, kills, deaths, score, humiliations, account_xp) | Aberta no `join`; somada a cada gravação; `left_at` ao sair |
@@ -71,7 +73,7 @@ Regras de progressão: [[Progression]].
 
 Criado no handshake do WebSocket (`liveAccount(loadGameProfile(...), chatMutedUntil)`):
 
-- `profile: GameProfile` — `accountId`, `profileId`, `tag`, `sex`, `appearance`, `xp`, `weapons{xp, equipped}`.
+- `profile: GameProfile` — `accountId`, `profileId`, `tag`, `sex`, `appearance`, `xp`, `weapons{xp}` por arma, `arsenal` (`ArsenalChoice`, sanitizada contra os níveis).
 - `delta: ProgressDelta` — o que foi ganho desde a última gravação (accountXp, weaponXp por arma, kills, deaths, headshots, groinKills, knifeKills, backstabs, grenadeKills, humiliations, secondsPlayed, score).
 - `participation` — promessa do id da linha de participação atual.
 - `aliveCarry` — segundos vivos acumulados para o próximo "minuto vivo".
@@ -82,8 +84,8 @@ O perfil em memória é a fonte de verdade durante a conexão; a gravação apli
 ## No cliente
 
 - `GET /api/me` → `MeResponse` (tag, nível, sexo, provedores, data de exclusão).
-- `GET /api/perfil` → `ProfileResponse` (tag, nome, sexo, aparência, nível/XP, armas, totais, **últimas 10 participações**, `nomeLiberaEm`, provedores, `exclusaoEm`).
-- `client/gameplay/progress.ts` (`Progress`) guarda XP/equipado das armas: inicia do perfil, é atualizado por `progresso` do servidor e salva trocas de equipamento via `PATCH /api/perfil`. Nada disso vai para `localStorage` (as chaves antigas `oc.name`, `oc.sex`, `oc.profile` são apagadas na home).
+- `GET /api/perfil` → `ProfileResponse` (tag, nome, sexo, aparência, nível/XP, `armas` (`{xp, nivel}` por arma), `arsenal` (a escolha, já conferida contra os níveis), totais, **últimas 10 participações**, `nomeLiberaEm`, provedores, `exclusaoEm`).
+- `client/gameplay/progress.ts` (`Progress`) guarda o XP das armas e a escolha do Arsenal: inicia do perfil, é atualizado por `progresso` do servidor (`armas`, `escolha`) e salva as mudanças da escolha via `PATCH /api/perfil {arsenal}` (`toggle`, `setSecondary`). Nada disso vai para `localStorage` (as chaves antigas `oc.name`, `oc.sex`, `oc.profile` são apagadas na home).
 
 ## Ciclo de vida da conta (LGPD)
 
@@ -93,7 +95,8 @@ O perfil em memória é a fonte de verdade durante a conexão; a gravação apli
 
 ## Código relacionado
 
-- `server/accounts.ts` — `createAccount`, `pickDiscriminator`, `me`, `fullProfile`, `changeName`, `setSex`, `setAppearance`, `setEquipped`, `loadGameProfile`, `openParticipation`, `flushProgress`, `anonymizeExpired`.
-- `server/progress.ts` — `LiveAccount`, `addWeaponXp`, `addAccountXp`, `addTime`, `equip`, `progressMsg`, `mergeDelta`.
+- `server/accounts.ts` — `createAccount`, `pickDiscriminator`, `me`, `fullProfile`, `changeName`, `setSex`, `setAppearance`, `setArsenal`, `weapons`, `loadGameProfile`, `openParticipation`, `flushProgress`, `anonymizeExpired`.
+- `server/progress.ts` — `LiveAccount`, `levelsOf`, `loadoutOf`, `addWeaponXp`, `addAccountXp`, `addTime`, `equip`, `progressMsg`, `mergeDelta`.
+- `shared/progression.ts` — `ArsenalChoice`, `sanitizeChoice`, `legacyChoice`, `levelForXp`, `weaponOfKill`.
 - `shared/account.ts` — regras e tipos de resposta.
 - Ver também [[Authentication]], [[Moderation]], [[Data Architecture]].

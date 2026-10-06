@@ -11,7 +11,7 @@ import { CONFIG } from './config';
 import { createDb, migrate } from './db';
 import { originAllowed, setPeer } from './http';
 import { scheduleJobs } from './jobs';
-import { deltaIsEmpty, equippedOf, liveAccount, mergeDelta, progressMsg, type LiveAccount } from './progress';
+import { deltaIsEmpty, liveAccount, mergeDelta, progressMsg, type LiveAccount } from './progress';
 import { createRedis, MUTE_CHANNEL, REVOCATION_CHANNEL } from './redis';
 import { Session, type Conn } from './session';
 
@@ -123,7 +123,7 @@ export async function startServer(opts: Options): Promise<GameServer> {
     a.delta = emptyDelta();
     try {
       const pid = participation ? await participation : null;
-      await flushProgress(db, a.profile.profileId, pid, d, close, equippedOf(a));
+      await flushProgress(db, a.profile.profileId, pid, d, close, a.profile.arsenal);
     } catch (err) {
       mergeDelta(a.delta, d);
       console.error('[progresso] gravação falhou, tento de novo no próximo ciclo:', (err as Error).message);

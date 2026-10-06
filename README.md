@@ -46,7 +46,7 @@ O seletor **Mapa** da home vale para os bots e o treino; online, o mapa é o da 
 
 ### Contas
 
-Para jogar online é preciso entrar numa conta, com **e-mail e senha** ou com o **Discord**. Treino e contra bots funcionam sem conta, com todas as armas no nível 1.
+Para jogar online é preciso entrar numa conta, com **e-mail e senha** ou com o **Discord**. Treino e contra bots funcionam sem conta, com as armas sem melhorias.
 
 - O jogador aparece como **Nome#1234**: nomes podem repetir, o número diferencia. A primeira troca de nome é livre; depois, uma a cada 7 dias.
 - O **Perfil** (na home) tem a escolha do sexo do personagem e mostra o nível da conta, as estatísticas (abates, mortes, na cabeça, no pássaro, facadas, opressões, tempo jogado) e as últimas 10 participações. Ali também ficam "Vincular Discord", "Sair da conta" e "Excluir conta" (30 dias para desistir).
@@ -88,27 +88,27 @@ No mata-mata livre (online e contra bots) há **pontos de nascimento neutros** e
 
 ### O que é do servidor e o que é do cliente
 
-O servidor ([server/](server/)) é a autoridade sobre **contas, vida, dano, abates, pontos, progresso das armas, respawn e corpos oprimíveis**. Ele usa as mesmas regras de `shared/` que o cliente (dados das armas, níveis de granada, tabela de pontos). O cliente envia sua posição a 20 Hz e informa o que seus tiros, facadas e granadas acertaram. O servidor **confere cada informação** antes de aplicar: se os dois estão vivos, a cadência, a distância real entre os jogadores (com folga para a latência), o alcance, o raio da granada e a janela e distância da opressão. Os outros jogadores aparecem **interpolados 100 ms no passado** entre dois snapshots, com as mesmas hitboxes dos bonecos. O protocolo está em [shared/protocol.ts](shared/protocol.ts).
+O servidor ([server/](server/)) é a autoridade sobre **contas, vida, dano, abates, pontos, progresso das armas, respawn e corpos oprimíveis**. Ele usa as mesmas regras de `shared/` que o cliente (dados das armas e das melhorias, tabela de pontos). O cliente envia sua posição a 20 Hz e informa o que seus tiros, facadas e granadas acertaram. O servidor **confere cada informação** antes de aplicar: se os dois estão vivos, a cadência, a distância real entre os jogadores (com folga para a latência), o alcance, o raio da granada e a janela e distância da opressão. Os outros jogadores aparecem **interpolados 100 ms no passado** entre dois snapshots, com as mesmas hitboxes dos bonecos. O protocolo está em [shared/protocol.ts](shared/protocol.ts).
 
 **Ainda não feito** (próxima etapa da seção 14): predição e reconciliação com o servidor simulando o movimento (hoje a posição é confiada ao cliente); compensação de lag (rewind das hitboxes no servidor); mensagens binárias; fim de partida (limite de abates e tempo) e votação de mapa.
 
-## Progressão das armas
+## Armas e progressão
 
-Cada abate rende pontos (o abate mais os bônus: tiro na cabeça, "no pássaro", facada pelas costas…) **só para a arma que matou**. Quem só usa o rifle só evolui o rifle; para evoluir a faca e a granada é preciso matar com elas. O progresso fica **na conta**, no servidor: os pontos só vêm de abates online que o servidor validou, e ele avisa o jogador a cada mudança. No campo de tiro e contra bots vale o nível equipado da conta, mas esses modos não dão pontos. Sem conta, as armas ficam no nível 1.
+Todo jogador leva uma **primária** (o Rifle Padrão), uma **secundária** à escolha no Arsenal (a **Pistola do Porteiro**, semiautomática e rápida de sacar, ou a **Submetralhadora Liquidificador**, que cospe bala de perto e deixa você mais rápido), a faca e as granadas. Troque de arma com `1`/`2` ou a roda do mouse (teclas remapeáveis), com `←`/`→` no controle ou o botão de troca no celular; sacar leva um instante (a pistola é a mais rápida). Cada arma tem o seu pente, e os outros jogadores veem qual está na sua mão. Os atributos de cada arma ficam em [shared/data/weapons/](shared/data/weapons/).
 
-O **Arsenal**, no menu (início e pausa), mostra cada arma: nível equipado, barra de pontos até o próximo nível e todos os níveis (passe o mouse para ler o que cada um faz). Clique num nível liberado para equipá-lo; ao subir de nível, o novo é equipado automaticamente se você estava usando o seu melhor.
+Cada abate rende pontos (o abate mais os bônus: tiro na cabeça, "no pássaro", facada pelas costas…) **só para a arma que matou**, inclusive a secundária. O progresso fica **na conta**, no servidor: os pontos só vêm de abates online que o servidor validou. No campo de tiro e contra bots valem as melhorias da conta, mas esses modos não dão pontos. Sem conta, as armas ficam sem melhorias.
 
-| Nível | Rifle (mira e acabamento; dano, pente, cadência e recuo melhoram a cada nível) | Faca (o alcance cresce a cada nível) | Granada |
-|---|---|---|---|
-| 1 | Rifle Padrão: mira de ferro | Faca de Cozinha | Granada de Fragmentação (explode no contato) |
-| 2 | Remendado com Fita: ponto vermelho | Colher de Pau da Vó | **Mina Terrestre**: G planta; arma em 1 s e explode quando um inimigo pisa perto; some quando você renasce (continua no mapa enquanto você está morto); até 3 no mapa |
-| 3 | da Tia do Zap: holográfica de carinha feliz, rosa | **Frango de Borracha** (grita a cada golpe) | **Dose Dupla**: um G lança duas granadas gastando uma carga |
-| 4 | Pisca-Pisca de Natal: holográfica com lupa 1,5x | Baguete Amanhecida | |
-| 5 | Tunado com Adesivo de Chama: luneta 2x | Peixe Congelado | |
-| 6 | com Luneta do Vovô: luneta 3x, madeira e latão | Macarrão de Piscina | |
-| 7 | Dourado Ostentação: luneta 4x, pente de 40 | Sabre de Luz Paraguaio | |
+Cada nível libera **uma melhoria** que muda atributos de verdade. As comuns ligam sozinhas; as **opcionais** têm troca (o silenciador abafa o tiro mas tira dano) e você liga e desliga no **Arsenal** (menu de início e de pausa), que mostra o nível, a barra de pontos, os atributos atuais e o que cada melhoria muda.
 
-Pontos necessários: rifle 400 / 1000 / 1800 / 2800 / 4000 / 5500; faca 300 / 750 / 1350 / 2100 / 3000 / 4100; granada 500 / 1300. Com luneta, mirar mostra a visão da luneta. Tudo fica em [shared/data/progression.json](shared/data/progression.json). Online, o servidor aplica o dano, a cadência e o alcance do nível equipado e ignora níveis que a conta ainda não liberou.
+| Arma | Melhorias (nível: pontos) |
+|---|---|
+| Rifle | 2: Mira de Ponto Vermelho da Feira (1000) · 3: Empunhadura de Cabo de Vassoura (2500) · 4: Luneta do Vovô 3x, opcional (4500) · 5: Pente Duplo com Silver Tape, +10 balas (7000) · 6: Silenciador de Garrafa PET, opcional (10000) |
+| Pistola | 2: Gatilho de Fliperama (700) · 3: Mini Ponto Vermelho (1800) · 4: Coldre de Velcro (3200) · 5: Silenciador de Batata, opcional (5200) |
+| Submetralhadora | 2: Motor Turbo (800) · 3: Mira Holográfica da Tia do Zap (2000) · 4: Pente Tambor de Pipoqueira, opcional (3800) · 5: Coronha de Mangueira (6000) |
+| Faca | 2: Afiador da Feira (600) · 3: Frango de Borracha, opcional (1500) · 4: Tênis de Molinha (2800) · 5: Sabre de Luz Paraguaio, opcional (4500) |
+| Granada | 2: **Mina Terrestre**, opcional (700): G planta; arma em 1 s e explode quando um inimigo pisa perto; até 3 no mapa · 3: **Dose Dupla**, opcional (1800): um G lança duas · 4: Cinto de Granadas da Tia, +1 (3200) · 5: Pólvora de São João, explosão 20% maior (5000) |
+
+Com luneta, mirar mostra a visão da luneta. As árvores de melhorias ficam em [shared/data/progression.json](shared/data/progression.json) (nomes e descrições em [client/ui/strings.ts](client/ui/strings.ts)); os atributos com as melhorias saem de [shared/arsenal.ts](shared/arsenal.ts). Online, o servidor aplica o dano, a cadência e o alcance da arma que atirou, com as melhorias da conta, e ignora melhorias ainda não liberadas.
 
 ## Bots
 

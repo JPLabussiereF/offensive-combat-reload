@@ -9,11 +9,13 @@ source_paths:
   - shared/data/progression.json
   - server/migrations/001_contas.sql
   - client/world/hauntedTown.ts
+  - shared/data/weapons/pistola.json
+  - shared/data/weapons/smg.json
 tags:
   - game
   - design
   - economy
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Economy Design
@@ -24,12 +26,12 @@ updated: 2026-10-05
 ## O que existe no lugar
 
 - **Progressão por XP**: os pontos de abate viram XP da arma que matou, e o tempo vivo, os abates, as opressões e as carpas viram XP da conta. É o único recurso acumulável. Ver [[Progression]].
-- **Desbloqueio por uso**: os níveis de arma se liberam com XP e se equipam livremente no Arsenal. Não há custo nem escolha excludente.
-- **Recursos de partida** (não persistem): munição (cheia a cada nascimento), cargas de granada (2, recarga de 10 s) e bônus temporários do mapa ([[Buffs & Debuffs]], [[Pickups]]).
+- **Desbloqueio por uso**: cada nível de arma se libera com XP e traz uma melhoria. As comuns ficam ativas sozinhas; as opcionais se ligam e desligam livremente no Arsenal. Não há custo. A única escolha excludente é dentro de um grupo (luneta × ponto vermelho, frango × sabre, mina × Dose Dupla) e a secundária (pistola ou submetralhadora). Ver [[Weapons]].
+- **Recursos de partida** (não persistem): munição (cheia a cada nascimento, um pente por arma), cargas de granada (2, ou 3 com a melhoria Cinto; recarga de 10 s) e bônus temporários do mapa ([[Buffs & Debuffs]], [[Pickups]]).
 
 ## Rastros de uma economia planejada (não usados)
 
-O esquema de dados das armas (`WeaponData` em `shared/weapons.ts`) já tem campos econômicos, preenchidos com zero e **não lidos por nenhum código**:
+O esquema de dados das armas (`WeaponData` em `shared/weapons.ts`) já tem campos econômicos, preenchidos com zero e **não lidos por nenhum código** (o mesmo vale para `pistola.json` e `smg.json`):
 
 | Campo | Valor em `rifle_padrao.json` | Uso no código |
 | --- | --- | --- |

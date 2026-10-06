@@ -563,6 +563,47 @@ body {
   text-transform: uppercase;
   color: var(--hud-dim);
 }
+/* The guns carried: key, name and ammo per slot, the one in hand bright (it blinks while it comes up). */
+#weapon-slots {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.weapon-slot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 800 10px var(--body);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--hud-dim);
+  opacity: 0.7;
+}
+.weapon-slot.active {
+  color: #fff;
+  opacity: 1;
+}
+.weapon-slot.drawing {
+  animation: blink 0.15s infinite alternate;
+}
+.weapon-slot kbd:empty {
+  display: none;
+}
+.weapon-slot kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  font: 900 9px var(--body);
+}
+.slot-ammo {
+  font-family: var(--display);
+  font-size: 12px;
+  letter-spacing: 0;
+}
 @keyframes blink {
   to {
     opacity: 0.45;
@@ -906,49 +947,172 @@ html:not(.mobile) #chat-close {
   font-size: 12px;
   font-weight: 800;
 }
-.level-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+/* A secondary not taken is dimmed; its button puts it in the slot. */
+.arsenal-card.spare {
+  background: #f6f1e8;
 }
-.level-chip {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  padding: 3px 7px;
+.arsenal-card.spare .arsenal-head,
+.arsenal-card.spare .gun-stats {
+  opacity: 0.7;
+}
+.take-secondary {
+  align-self: flex-start;
+  padding: 4px 10px;
   border: 2px solid var(--ink);
   border-radius: 9px;
-  background: #fff8ec;
+  background: var(--warn);
   font: 900 12px var(--body);
   color: var(--ink);
   cursor: pointer;
+  box-shadow: 0 2px 0 var(--ink);
 }
-.level-chip .chip-icon {
+.take-secondary:hover {
+  background: #ffe27a;
+}
+.in-secondary {
+  align-self: flex-start;
+  padding: 2px 9px;
+  border-radius: 9px;
+  background: var(--team-a);
+  color: #fff;
+  font: 900 11px var(--body);
+  text-transform: uppercase;
+}
+/* The gun's stats as they are now (upgrades included): a label and a bar each. */
+.gun-stats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 8px;
+  font: 800 11px var(--body);
+}
+.gun-stats small {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  opacity: 0.7;
+}
+.stat-bar {
+  height: 7px;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  background: #eee7da;
+  overflow: hidden;
+}
+.stat-bar > div {
+  height: 100%;
+  background: var(--team-b);
+}
+/* Upgrades: one row each (icon, level, name, state or switch), what it changes as chips under it. */
+.upgrades {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.upg {
+  padding: 4px 6px;
+  border: 2px solid var(--ink);
+  border-radius: 9px;
+  background: #fff8ec;
+}
+.upg.locked {
+  background: #e9e4dc;
+  border-style: dashed;
+  opacity: 0.65;
+}
+.upg.locked .upg-icon {
+  filter: grayscale(1);
+}
+.upg.active,
+.upg.on {
+  background: #fff1df;
+  box-shadow: inset 4px 0 0 var(--team-a);
+}
+.upg.replaced {
+  opacity: 0.6;
+}
+.upg-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: 900 12px var(--body);
+}
+.upg-icon {
   font-size: 15px;
 }
-.level-chip.locked {
-  background: #e9e4dc;
-  opacity: 0.55;
-  cursor: default;
+.upg-lvl {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: 10px;
 }
-.level-chip.equipped {
+.upg-name {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.15;
+}
+.upg-state {
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.upg.active .upg-state {
+  color: var(--team-a);
+}
+.upg-toggle {
+  min-width: 74px;
+  padding: 2px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  font: 900 10px var(--body);
+  text-transform: uppercase;
+  color: var(--ink);
+  cursor: pointer;
+}
+.upg-toggle[aria-pressed='true'] {
   background: var(--team-a);
   color: #fff;
   box-shadow: 0 2px 0 var(--ink);
 }
-.level-chip.unlocked:not(.equipped):hover {
-  background: #ffe2b8;
+.upg-fx {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
 }
-.level-detail {
+.upg-fx:empty {
+  display: none;
+}
+.fx {
+  padding: 0 6px;
+  border-radius: 6px;
+  font: 800 10.5px var(--body);
+  line-height: 1.6;
+}
+.fx.good {
+  background: #dff5d3;
+  color: #24601a;
+}
+.fx.bad {
+  background: #fbdcd8;
+  color: #9b1d12;
+}
+.fx.opt {
+  background: #fff0b8;
+  color: #6b5200;
+}
+.upg-detail {
   font-size: 12.5px;
   line-height: 1.35;
   min-height: 52px;
-}
-.detail-status {
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-  color: var(--team-a);
 }
 
 /* --- Scope overlay --------------------------------------------------------------------------------- */
@@ -3042,8 +3206,14 @@ input[type='range'] {
 .mobile #ammo-reserve {
   font-size: 14px;
 }
-.mobile #weapon-name {
+/* Phones: only the other gun's ammo, next to the count (the swap button switches). */
+.mobile #weapon-name,
+.mobile .weapon-slot.active,
+.mobile .weapon-slot kbd {
   display: none;
+}
+.mobile #weapon-slots {
+  align-items: flex-start;
 }
 /* Closed: three one-line messages between the top buttons and the left fire button. */
 .mobile #chat {

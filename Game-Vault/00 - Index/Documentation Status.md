@@ -12,7 +12,7 @@ tags:
   - game
   - index
   - status
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Estado da documentação
@@ -97,3 +97,4 @@ Registradas em [[Technical Debt]], na seção "Comentários e documentação des
 | 2026-10-05 | Tela inicial: o cartão e o botão da conta mostram o personagem real (palco 3D do editor e retrato), não mais um emoji. Atualizada: [[Menus]]. |
 | 2026-10-05 | Servidor: todo mapa sempre tem uma sala com vaga (sala extra `<Mapa> 2` quando lotam) e `GET /api/sessoes` público. Tela inicial: contagem de sessões nos mapas antes de conectar; filtro de mapas em grade de largura total. Atualizadas: [[Matchmaking]], [[Sessions]], [[APIs]], [[Matchmaking UI]], [[ADR - Conexão online aberta sob demanda na tela inicial]]. |
 | 2026-10-06 | Aba Jogar: sessões já carregadas ao abrir (sem VER SESSÕES), 6 por vez com VER MAIS; a conexão de jogo abre ao entrar/criar. Atualizadas: [[Matchmaking UI]], [[Menus]], [[Flow - Join Online Match]], [[ADR - Conexão online aberta sob demanda na tela inicial]] (revisão). |
+| 2026-10-06 | Armas secundárias (Pistola do Porteiro, Submetralhadora Liquidificador) com troca de arma, e progressão por **melhorias** no lugar dos níveis nomeados (migração `003_melhorias.sql`, API `shared/arsenal.ts`). Reescritas: [[Weapons]], [[Progression]], [[Inventory UI]], [[Shared Systems]]. Nova: [[ADR - Progressão por melhorias de arma]]; [[ADR - Progressão de XP por arma]] marcada como substituída em parte. Menções antigas (níveis equipados, `rifleData`, `ONLINE_GRENADE_LEVEL`…) corrigidas nas notas de visão, gameplay, modos, rede, dados, UI, áudio, arte, arquitetura, segurança, testes, live ops e referência; [[Problem - Comentários dizem que a granada nível 1 não é letal]] resolvido. |

@@ -2,7 +2,8 @@
 // server validated (kills, humiliations, time alive). The delta since the last write is flushed to the
 // database every minute and when the player leaves a session (app.ts).
 import { ACCOUNT_XP, accountLevel } from '@shared/accountLevel';
-import { levelForXp, PROG_WEAPONS, type Loadout, type ProgWeapon } from '@shared/progression';
+import { levelForXp, PROG_WEAPONS, sanitizeChoice, type ArsenalChoice, type Levels, type ProgWeapon } from '@shared/progression';
+import { resolveLoadout, type Loadout } from '@shared/arsenal';
 import type { ServerMsg } from '@shared/protocol';
 import { emptyDelta, type GameProfile, type ProgressDelta } from './accounts';
 
@@ -22,11 +23,15 @@ export const liveAccount = (profile: GameProfile, chatMutedUntil = 0): LiveAccou
 
 export const accountLevelOf = (a: LiveAccount) => accountLevel(a.profile.xp).level;
 
-export const equippedOf = (a: LiveAccount): Loadout => ({ rifle: a.profile.weapons.rifle.equipped, faca: a.profile.weapons.faca.equipped, granada: a.profile.weapons.granada.equipped });
+/** The level of every weapon, from the points earned with it. */
+export const levelsOf = (a: LiveAccount): Levels => Object.fromEntries(PROG_WEAPONS.map((w) => [w, levelForXp(w, a.profile.weapons[w].xp)])) as Levels;
+
+/** What the account plays with: its Arsenal choice at its weapon levels (common upgrades on as they unlock). */
+export const loadoutOf = (a: LiveAccount): Loadout => resolveLoadout(a.profile.arsenal, levelsOf(a));
 
 export type LevelUp = { tipo: ProgWeapon | 'conta'; nivel: number };
 
-/** Adds weapon points; returns the new level when it goes up (equipped too if the best was equipped). */
+/** Adds weapon points; returns the new level when it goes up (its upgrade is on at once if it's a common one). */
 export function addWeaponXp(a: LiveAccount, w: ProgWeapon, points: number): LevelUp | null {
   if (points <= 0) return null;
   const pts = Math.round(points);
@@ -35,9 +40,7 @@ export function addWeaponXp(a: LiveAccount, w: ProgWeapon, points: number): Leve
   wp.xp += pts;
   a.delta.weaponXp[w] += pts;
   const after = levelForXp(w, wp.xp);
-  if (after === before) return null;
-  if (wp.equipped === before) wp.equipped = after;
-  return { tipo: w, nivel: after };
+  return after === before ? null : { tipo: w, nivel: after };
 }
 
 export function addAccountXp(a: LiveAccount, xp: number): LevelUp | null {
@@ -59,21 +62,19 @@ export function addTime(a: LiveAccount, dt: number, alive: boolean): LevelUp | n
   return addAccountXp(a, ACCOUNT_XP.perMinuteAlive);
 }
 
-/** Only unlocked levels can be equipped; others keep the current level. */
-export function equip(a: LiveAccount, lo: Loadout) {
-  for (const w of PROG_WEAPONS) {
-    const wp = a.profile.weapons[w];
-    if (lo[w] >= 1 && lo[w] <= levelForXp(w, wp.xp)) wp.equipped = lo[w];
-  }
+/** A new Arsenal choice from the player: upgrades not unlocked yet are dropped. */
+export function equip(a: LiveAccount, raw: unknown): ArsenalChoice {
+  a.profile.arsenal = sanitizeChoice(raw, levelsOf(a));
+  return a.profile.arsenal;
 }
 
 export function progressMsg(a: LiveAccount, subiu?: LevelUp | null): Extract<ServerMsg, { t: 'progresso' }> {
   const armas = {} as Extract<ServerMsg, { t: 'progresso' }>['armas'];
   for (const w of PROG_WEAPONS) {
-    const wp = a.profile.weapons[w];
-    armas[w] = { xp: wp.xp, nivel: levelForXp(w, wp.xp), equipado: wp.equipped };
+    const xp = a.profile.weapons[w].xp;
+    armas[w] = { xp, nivel: levelForXp(w, xp) };
   }
-  return { t: 'progresso', armas, conta: { xp: a.profile.xp, nivel: accountLevelOf(a) }, ...(subiu ? { subiu } : {}) };
+  return { t: 'progresso', armas, escolha: a.profile.arsenal, conta: { xp: a.profile.xp, nivel: accountLevelOf(a) }, ...(subiu ? { subiu } : {}) };
 }
 
 /** Puts a delta that failed to be written back, so the next flush retries it. */

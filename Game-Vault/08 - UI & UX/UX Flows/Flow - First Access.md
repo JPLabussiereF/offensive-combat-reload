@@ -12,11 +12,12 @@ source_paths:
   - client/ui/customize.ts
   - client/audio/sfx.ts
   - client/core/input.ts
+  - client/ui/arsenal.ts
 tags:
   - game
   - ux
   - flow
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Flow - First Access
@@ -57,9 +58,9 @@ flowchart TD
    - *Discord:* botão só aparece se o servidor tiver o provedor; no primeiro login volta com `#escolher-nome`; erros voltam com `#erro=<código>`, traduzido em mensagem.
    - Detalhes de backend em [[Authentication]].
 4. **Personagem (opcional):** Perfil → escolha de corpo e **PERSONALIZAR PERSONAGEM** (editor 3D). Sem conta, joga-se com a aparência padrão. Ver [[Character Customization]].
-5. **Modo:** *Campo de tiro* ([[Training]]), *Contra bots* ([[Versus Bots]]) ou *Online* (exige conta — [[Flow - Join Online Match]]). Arsenal e configurações já podem ser ajustados nas abas antes de escolher.
+5. **Modo:** *Campo de tiro* ([[Training]]), *Contra bots* ([[Versus Bots]]) ou *Online* (exige conta — [[Flow - Join Online Match]]). O Arsenal (secundária e melhorias opcionais) e as configurações já podem ser ajustados nas abas antes de escolher.
 6. **Mapa:** a tela de carregamento volta enquanto o mapa é construído ([[Maps Index]]).
-7. **Menu inicial:** um quadro do mapa é renderizado atrás do cartão; o jogador pode ajustar [[Settings]], teclas ([[Input & Controls]]) e o [[Inventory UI]] (Arsenal) antes de jogar.
+7. **Menu inicial:** um quadro do mapa é renderizado atrás do cartão; o jogador pode ajustar [[Settings]], teclas ([[Input & Controls]]) e o [[Inventory UI]] (Arsenal: secundária e melhorias) antes de jogar.
 8. **JOGAR:** o clique **libera o áudio** (`sfx.unlock()`, exigência do navegador — ver [[Audio Overview]]), toca o bip de UI, pede o **pointer lock** e, se configurado, **tela cheia** (celular: paisagem; computador com Keyboard Lock: o jogo fica com o Esc). Nascimento: ver [[Respawn]].
 
 ## Pontos de atrito conhecidos

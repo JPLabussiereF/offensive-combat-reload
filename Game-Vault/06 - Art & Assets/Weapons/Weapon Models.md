@@ -13,61 +13,68 @@ source_paths:
   - client/character/registry.ts
   - shared/progression.ts
   - shared/data/progression.json
+  - client/entities/avatar.ts
+  - client/character/animator.ts
+  - shared/arsenal.ts
 tags:
   - game
   - art
   - weapons
   - assets
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Weapon Models
 
 ## Visão geral
 
-Todas as armas são **modelos feitos de primitivas em código** ("placeholder art", comentário de `weaponModels.ts`), sem arquivos. Cada **nível de progressão** tem visual próprio: o rifle muda de mira e de pintura, a "faca" vira outro objeto engraçado, a granada vira mina ou dose dupla. Os mesmos modelos servem para a primeira pessoa (viewmodel) e para a terceira pessoa (o que os outros veem). Regras de jogo dos níveis: [[Weapons]] e [[Progression]].
+Todas as armas são **modelos feitos de primitivas em código** ("placeholder art", comentário de `weaponModels.ts`), sem arquivos. Cada arma de fogo tem o seu modelo (rifle, pistola, submetralhadora), e as **melhorias** mudam o que aparece nele: a mira, a pintura, o pente e o silenciador. A "faca" muda de forma com as melhorias opcionais (frango, sabre) e a granada vira mina ou Dose Dupla. Os mesmos modelos servem para a primeira pessoa (viewmodel) e para a terceira pessoa (o que os outros veem). Regras de jogo das melhorias: [[Weapons]] e [[Progression]].
 
-## Rifle (7 níveis)
+## Armas de fogo
 
-`rifleParts(level)` monta: receptor, cano, guarda-mão, coronha, empunhadura, faixa colorida, carregador (separado, animado na recarga), mais a mira e a pintura do nível.
+`gunParts(g)` monta o modelo de uma arma a partir de `GunLookKey` (`arma`, `mira`, `visual`, `silenciador`, `pente`, todos vindos de `gunStats`). `gunModelKey(g)` é a chave de cache com esses mesmos campos. Todas as armas têm o punho no mesmo lugar, então os braços, as poses e o suporte de terceira pessoa servem para todas. `holdOf(arma)` diz onde vai a mão de apoio: `longa` (guarda-mão do rifle), `curta` (empunhadura da submetralhadora) ou `pistola` (a mão esquerda envolve o punho).
 
-| Nível | Nome | Mira (`mira`) | Pintura (`visual`) | Detalhes visuais |
-| --- | --- | --- | --- | --- |
-| 1 | Rifle Padrão | `ferro` | `padrao` | massa de mira e alça em ferro; faixa laranja de equipe |
-| 2 | Remendado com Fita | `pontoVermelho` | `fita` | tubo com aros e ponto vermelho brilhante; 3 voltas de fita cinza |
-| 3 | da Tia do Zap | `holo` | `tia` | janela holográfica com **retículo de carinha feliz** amarelo; corpo lilás e rosa; adesivo de flor na coronha |
-| 4 | Pisca-Pisca de Natal | `holoLupa` | `natal` | holo + lupa; fio com 9 lampadinhas acesas (vermelho, verde, amarelo, azul) |
-| 5 | Tunado com Adesivo de Chama | `luneta2x` | `chamas` | corpo preto, chamas laranja/amarelas dos dois lados |
-| 6 | com Luneta do Vovô | `luneta3x` | `vovo` | madeira escura e latão |
-| 7 | Dourado Ostentação | `luneta4x` | `ouro` | todo dourado, com "rubis" (octaedros vermelhos) |
-
-- **Altura da linha de mira (`sightY`)**, que define a pose de ADS: ferro 0,057; ponto vermelho 0,07; holo 0,076; lunetas 0,085.
-- **Lunetas** ficam mais longas com o aumento (×1, ×1,2, ×1,35) e têm a lente azulada brilhante; mirando por completo, o modelo some e entra o overlay de luneta ([[Camera]]).
-- Partes que brilham (ponto vermelho, retículo, luzes de Natal, lente) são `MeshBasicMaterial` e ficam fora do merge, "para continuarem claras".
-
-Paletas de cada pintura em [[Material Palette]].
-
-## "Facas" (7 níveis)
-
-`knifeModel(model)`, segurado pelo punho na origem, apontando para −Z. Em primeira pessoa, as que não são `faca` são 20% maiores e usam o golpe em arco (`SWING_KEYS`) em vez da estocada.
-
-| Nível | Nome | Modelo | Construção |
+| Arma | Construção base | Pente | Silenciador |
 | --- | --- | --- | --- |
-| 1 | Faca de Cozinha | `faca` | lâmina + ponta, guarda e cabo de madeira |
-| 2 | Colher de Pau da Vó | `colher` | cabo e concha de madeira clara |
-| 3 | Frango de Borracha | `frango` | frango amarelo segurado pelos pés: corpo comprido, asas, pescoço, crista vermelha, bico aberto, olhos |
-| 4 | Baguete Amanhecida | `baguete` | cápsula de casca dourada com 5 cortes |
-| 5 | Peixe Congelado | `peixe` | peixe azul-acinzentado segurado pela cauda, olho, barbatana e 7 pontinhos brancos ao longo do corpo |
-| 6 | Macarrão de Piscina | `macarrao` | cilindro verde de 0,6 m com o furo na ponta |
-| 7 | Sabre de Luz Paraguaio | `sabre` | cabo prateado e lâmina rosa-choque com brilho aditivo |
+| Rifle | receptor, cano, guarda-mão, coronha, empunhadura, faixa colorida; mira de ferro (massa e alça) | com mais de 30 balas (melhoria Pente), **dois pentes lado a lado com fita** | garrafa PET de 2 L verde com rótulo vermelho na boca do cano |
+| Pistola | ferrolho com serrilhas, armação, punho de madeira, **chaveiro do porteiro** pendurado; massa de mira com ponto verde | pente curto no punho | **uma batata** na boca do cano |
+| Submetralhadora | corpo branco de eletrodoméstico com faixa vermelha, botão de velocidade (1 a 5) na lateral, empunhadura frontal, coronha de arame | com mais de 40 balas (Pente Tambor), **tambor de pipoqueira** listrado de branco e vermelho | — |
+
+| Mira (`mira`) | Onde aparece | Detalhe visual |
+| --- | --- | --- |
+| `ferro` | sem melhoria de mira | massa e alça da própria arma |
+| `pontoVermelho` | rifle (nível 2) e pistola (nível 3, versão mini, escala 0,65) | tubo com aros e ponto vermelho brilhante |
+| `holo` | submetralhadora (nível 3) | janela holográfica com **retículo de carinha feliz** amarelo |
+| `luneta` | rifle (nível 4, opcional) | luneta do vovô em latão com lente azulada; mirando por completo, o modelo some e entra o overlay de luneta ([[Camera]]) |
+
+| Pintura (`visual`) | Quando | Detalhe |
+| --- | --- | --- |
+| `padrao` | rifle sem melhorias visuais; pistola e submetralhadora sempre | metal escuro, madeira, faixa laranja |
+| `fita` | rifle com o Pente (nível 5) | voltas de fita cinza no guarda-mão e na coronha |
+| `vovo` | rifle com a Luneta (nível 4) | metal azulado, madeira avermelhada, latão |
+
+- **Altura da linha de mira (`sightY`)** define a pose de ADS. A pistola e a submetralhadora têm também uma distância de ADS própria (`adsZ`: −0,46 e −0,42), "a pistol is held out farther".
+- Partes que brilham (ponto vermelho, retículo, ponto da massa da pistola, lente) são `MeshBasicMaterial` e ficam fora do merge, "para continuarem claras".
+
+Paletas em `LOOKS` (`weaponModels.ts`); ver também [[Material Palette]].
+
+## "Facas" (3 formas)
+
+`knifeModel(form)` com `form` = `KnifeForm` (`faca`, `frango`, `sabre`), segurado pelo punho na origem, apontando para −Z. Em primeira pessoa, as que não são `faca` são 20% maiores e usam o golpe em arco (`SWING_KEYS`) em vez da estocada.
+
+| Forma | Quando | Construção |
+| --- | --- | --- |
+| `faca` | padrão | lâmina + ponta, guarda e cabo de madeira |
+| `frango` | melhoria opcional Frango de Borracha (nível 3) | frango amarelo segurado pelos pés: corpo comprido, asas, pescoço, crista vermelha, bico aberto, olhos |
+| `sabre` | melhoria opcional Sabre de Luz Paraguaio (nível 5) | cabo prateado e lâmina rosa-choque com brilho aditivo |
 
 ## Granadas e mina
 
 | Item | Modelo | Fonte |
 | --- | --- | --- |
-| Granada de fragmentação (nível 1) | corpo verde-oliva, cinta, espoleta, alavanca e argola | `grenadeModel` em `weapons/grenades.ts` |
-| Mina terrestre (nível 2) | disco oliva, placa de pressão e LED vermelho que pisca | `mineModel` em `weaponModels.ts` |
-| Dose Dupla (nível 3) | duas granadas lado a lado na mão | `Viewmodel.setGrenadeKind('dupla')` |
+| Granada de fragmentação (padrão) | corpo verde-oliva, cinta, espoleta, alavanca e argola | `grenadeModel` em `weapons/grenades.ts` |
+| Mina terrestre (melhoria opcional, nível 2) | disco oliva, placa de pressão e LED vermelho que pisca | `mineModel` em `weaponModels.ts` |
+| Dose Dupla (melhoria opcional, nível 3) | duas granadas lado a lado na mão | `Viewmodel.setGrenadeKind('dupla')` |
 | Granada-pato (poção "pato") | pato amarelo de borracha | `duckModel` em `weapons/grenades.ts` |
 
 Ver [[Grenades]], [[Land Mines]] e [[Buffs & Debuffs]].
@@ -77,13 +84,13 @@ Ver [[Grenades]], [[Land Mines]] e [[Buffs & Debuffs]].
 | | Primeira pessoa (`Viewmodel`) | Terceira pessoa (`heldWeapons.ts`) |
 | --- | --- | --- |
 | Cena | `vmScene`, câmera própria ([[ADR - Viewmodel em cena e câmera próprias]]) | cena do mundo, presa a sockets do personagem |
-| Rifle | partes rígidas + braços fundidos num mesh toon (`bakeStaticParts`); carregador, clarão e brilhos separados | um mesh por nível, cache `rifle|visual|mira`, na mão (`hand_R`) e nas costas (`back`) |
-| Faca | aparece só durante o golpe, na mão direita (ou espelhada para a esquerda sem mão direita) | na mão durante o golpe; o rifle vai para as costas |
+| Armas de fogo | um *kit* por visual (`gunModelKey`), montado uma vez e guardado: trocar de arma não custa nada; partes rígidas + braços fundidos num mesh toon (`bakeStaticParts`); carregador, clarão e brilhos separados. `setGun` põe a arma na mão (e refaz os braços quando a mão de apoio muda entre guarda-mão e punho de pistola); `draw(s)` faz a arma subir de baixo durante o tempo de saque | `heldGun(g)`: um mesh por visual, cache `gun|<gunModelKey>`. Na mão (`hand_R`) ficam as duas armas, só a que está na mão aparece; a primária fica nas costas (`back`), inclusive enquanto a secundária está na mão |
+| Faca | aparece só durante o golpe, na mão direita (ou espelhada para a esquerda sem mão direita) | `heldKnife(form)`, na mão durante o golpe; a arma de fogo vai para as costas |
 | Granada | mão esquerda, tremendo enquanto "cozinha" | mão esquerda, com o arremesso animado |
 | Material | `MeshToonMaterial` com cor por vértice | **um** material toon compartilhado por todas as armas de todos |
 | Brilhos | mantidos | descartados ("minúsculos de longe") |
 
-O rifle em primeira pessoa tem origem no receptor; em terceira, no punho (`RIFLE_FROM_GRIP = (0, 0,035, −0,09)`).
+Em primeira pessoa a arma tem origem no receptor; em terceira, no punho (`RIFLE_FROM_GRIP = (0, 0,035, −0,09)`). Como todas as armas têm o punho no mesmo lugar, o mesmo deslocamento serve para todas. Em terceira pessoa, a mão esquerda vai ao ponto de `ANIM.leftGrip[hold]` (`AvatarPose.hold`, em `client/character/animator.ts`) — ver [[Animation]].
 
 ### Braços em primeira pessoa
 
@@ -91,13 +98,15 @@ Antebraço e mão do próprio personagem, gerados com o mesmo corpo facetado (`v
 
 ## Código relacionado
 
-- `client/render/weaponModels.ts` (`rifleParts`, `LOOKS`, `knifeModel`, `mineModel`, `glowMat`)
-- `client/render/viewmodel.ts` (`setRifle`, `setKnife`, `setGrenadeKind`, `bakeStaticParts`, `flashTexture`)
+- `client/render/weaponModels.ts` (`gunParts`, `gunModelKey`, `holdOf`, `sight`, `LOOKS`, `knifeModel`, `mineModel`, `glowMat`)
+- `client/render/viewmodel.ts` (`setGun`, `draw`, `setKnife`, `setGrenadeKind`, `bakeStaticParts`, `flashTexture`)
 - `client/render/viewmodelArms.ts` (`armMesh`, `placeArm`)
-- `client/entities/heldWeapons.ts` (`heldRifle`, `heldKnife`, `heldGrenade`)
+- `client/entities/heldWeapons.ts` (`heldGun`, `heldKnife`, `heldGrenade`)
+- `client/entities/avatar.ts` (`setLoadout`: as duas armas na mão, a primária nas costas)
+- `client/character/animator.ts` (`GunHold`, `ANIM.leftGrip`)
 - `client/weapons/grenades.ts` (`grenadeModel`, `duckModel`)
 - `client/character/registry.ts` (itens `rifle`, `rifle_costas`)
-- `shared/data/progression.json`
+- `shared/data/progression.json`, `shared/arsenal.ts` (`GunStats`: `mira`, `visual`, `silenciador`, `pente`)
 
 ## Ver também
 

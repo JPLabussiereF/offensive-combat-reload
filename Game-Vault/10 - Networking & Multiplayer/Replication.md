@@ -9,11 +9,12 @@ source_paths:
   - shared/protocol.ts
   - client/net/remote.ts
   - client/main.ts
+  - shared/arsenal.ts
 tags:
   - game
   - networking
   - replication
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Replication
@@ -44,7 +45,7 @@ Enviado em `Session.tick()` (intervalo de `1000 / NET.tickRate` = 50 ms) **se a 
 
 ## Placar (`scores`) — 1 Hz
 
-A cada 1 s acumulado no tick, `scores` com `PlayerInfo` de todos (kills, deaths, score, humiliations, alive, ping, nível, loadout). Sem aparência (só vai no `joined`/`playerJoined`). Ver [[Scoreboard]].
+A cada 1 s acumulado no tick, `scores` com `PlayerInfo` de todos (kills, deaths, score, humiliations, alive, ping, nível, loadout: armas e melhorias em efeito). Sem aparência (só vai no `joined`/`playerJoined`). Ver [[Scoreboard]].
 
 ## Eventos
 
@@ -79,7 +80,7 @@ O jogador **entra morto** (`alive: false`, posição `[0, -50, 0]`) e o cliente 
 ## O que não é replicado
 
 - Física de granadas (cada cliente simula a trajetória a partir de `p`, `v`, `fuse` do evento `grenade`).
-- Ragdoll/corpo, animações e efeitos: derivados localmente das flags (`FLAG`) e eventos.
+- Ragdoll/corpo, animações e efeitos: derivados localmente das flags (`FLAG`) e eventos. A arma na mão de cada um sai de `FLAG.secondary` + o `Loadout` replicado (`RemotePlayer.gun`): o modelo, a pose da mão de apoio, o som do tiro e o tempo de recarga.
 - Estado de gags dos mapas além do evento `prop` (cada cliente reproduz o efeito).
 - Bots: não existem online ([[Versus Bots]]).
 

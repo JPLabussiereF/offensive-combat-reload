@@ -8,10 +8,11 @@ source_paths:
   - server/tests/appearance.test.ts
   - server/session.ts
   - shared/constants.ts
+  - shared/arsenal.ts
 tags:
   - testes
   - gameplay
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Gameplay Tests
@@ -22,7 +23,7 @@ Testes de **regras de partida validadas pelo servidor**, escritos como integraç
 
 | Grupo | Caso | Regra verificada | Nota relacionada |
 | --- | --- | --- | --- |
-| Progresso | Abate validado dá pontos à arma, XP à conta e estatísticas, gravados ao sair | Tiros na cabeça a 10 m espaçados pela cadência → `kill` tipo `head`; XP da arma = soma dos prêmios; +25 XP de conta; nível bloqueado (`rifle: 7`) ignorado | [[Scenario - Abate validado e progresso gravado]], [[Progression]], [[Scoring]] |
+| Progresso | Abate validado dá pontos à arma, XP à conta e estatísticas, gravados ao sair | Tiros na cabeça a 10 m espaçados pela cadência → `kill` tipo `head`; XP da arma = soma dos prêmios; +25 XP de conta; `kill.arma = 'rifle'`; melhoria bloqueada (`rifle: ['silenciador']`) descartada da escolha (`progresso.escolha`) | [[Scenario - Abate validado e progresso gravado]], [[Progression]], [[Scoring]] |
 | Progresso | Placar mostra o nível da conta | `nivel: 1`, nome `Placar#NNNN` | [[Scoreboard]] |
 | Cereja do jardim | Só quem está perto pega; +vida máxima; some para todos; quem chega depois sabe quando volta | distância, `CHERRY.extraHealth`, `ready - until = respawn - duration`, estado inicial em `joined.pickups` | [[Pickups]], [[Map - Jardim do Dragão]] |
 | Cereja do jardim | Peixe abatido dá XP da conta uma vez e volta | `KOI.xp`, janela de `KOI.respawn`, peixe inexistente ou atirador longe ignorados | [[Map Gags]] |
@@ -30,7 +31,8 @@ Testes de **regras de partida validadas pelo servidor**, escritos como integraç
 | Vila assombrada | Granada de quem bebeu a poção chega como pato | flag `duck` repassada só quando enviada | [[Grenades]] |
 | Vila assombrada | Poção da bruxa sorteia um efeito, uma de cada vez | distância da bruxa; `POTION.kinds`; `POTION.duration`; recarga recusa a segunda | [[Buffs & Debuffs]] |
 | Vila assombrada | Biscoito enche a vida e volta depois | `BISCUIT.respawn`; segunda tentativa ignorada | [[Pickups]] |
-| Armas vistas pelos outros | Trocar equipamento avisa os outros com loadout **validado** | níveis não liberados nunca chegam aos outros (`rifle: 9` → 1) | [[Weapons]] |
+| Armas vistas pelos outros | Mudar a escolha do Arsenal avisa os outros com loadout **validado** | secundária `smg` chega no `playerLoadout`; melhorias não liberadas (`sabre`, `mina`) e o rifle como secundária nunca chegam aos outros (volta o `DEFAULT_LOADOUT`) | [[Weapons]] |
+| Armas vistas pelos outros | O dano e os pontos são da arma que atirou | acerto de `smg` fora do loadout ignorado; com `FLAG.secondary`, a pistola causa o dano dela; um acerto de rifle logo após a troca ainda vale (`SWITCH_GRACE_MS`); o abate de pistola dá `kill.arma = 'pistola'` e o XP vai só para a pistola | [[Weapons]], [[Anti Cheat]] |
 | Armas vistas pelos outros | Quem entra recebe o loadout de quem já está | estado inicial | [[Replication]] |
 
 E em `appearance.test.ts` ("no online"): o corpo (cadáver) mantém a aparência e o biotipo não muda a vida; e nas regras puras, o dano por zona (cabeça 2,5×, pescoço 1,5×, mãos 0,5×, virilha mata) — ver [[Damage System]].

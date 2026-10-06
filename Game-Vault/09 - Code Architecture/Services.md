@@ -22,7 +22,7 @@ source_paths:
 tags:
   - architecture
   - services
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Services
@@ -38,11 +38,11 @@ updated: 2026-10-05
 
 | Módulo | Papel equivalente | Funções principais | Dependências recebidas |
 | --- | --- | --- | --- |
-| `server/accounts.ts` | Acesso a dados de contas (repositório + regras de perfil) | `createAccount`, `getAccount`, `fullProfile`, `changeName`, `setAppearance`, `setEquipped`, `loadGameProfile`, `flushProgress`, `audit`, `activeBan`, `anonymizeExpired` | `db` (`Db` ou `Queryable`) |
+| `server/accounts.ts` | Acesso a dados de contas (repositório + regras de perfil) | `createAccount`, `getAccount`, `fullProfile`, `changeName`, `setAppearance`, `setArsenal`, `loadGameProfile`, `flushProgress`, `audit`, `activeBan`, `anonymizeExpired` | `db` (`Db` ou `Queryable`) |
 | `server/auth/sessions.ts` | Serviço de sessão do navegador | `createSession`, `authenticate`, `revokeSession`, `revokeAll` | `db`, `redis` |
 | `server/auth/password.ts` | Serviço de login por senha | `register`, `login`, `requestReset`, `resetPassword` | `deps`, e-mail |
 | `server/auth/discord.ts` | Serviço OAuth Discord | `startDiscord`, `discordCallback`, `unlinkDiscord` | `deps`, `CONFIG.discord` |
-| `server/progress.ts` | Progresso em memória durante a partida | `addWeaponXp`, `addAccountXp`, `addTime`, `equip`, `progressMsg`, `mergeDelta` | nenhuma (opera sobre `LiveAccount`) |
+| `server/progress.ts` | Progresso em memória durante a partida | `addWeaponXp`, `addAccountXp`, `addTime`, `levelsOf`, `loadoutOf`, `equip`, `progressMsg`, `mergeDelta` | nenhuma (opera sobre `LiveAccount`) |
 | `server/email.ts` | Envio de e-mail | `sendMail` | `CONFIG.smtp` |
 | `server/jobs.ts` | Tarefas agendadas | `scheduleJobs`, `runJobs`, `ensureAuditPartitions` | `db` |
 | `server/moderacao.ts` | Ações de staff | `ban`, `unban`, `mute`, `unmute`, `setRole`, `sanctions` | `deps` |

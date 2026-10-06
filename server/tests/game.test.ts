@@ -1,8 +1,9 @@
 // The game connection: single-use tickets, origin check, one connection per account, revocation, and
 // progress earned only from kills the server validated.
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { CLOSE, NET, type SessionInfo } from '@shared/protocol';
+import { CLOSE, FLAG, NET, type SessionInfo } from '@shared/protocol';
 import { BISCUIT, CHERRY, HEALTH, KOI, POTION, RAT } from '@shared/constants';
+import { DEFAULT_LOADOUT, gunStats } from '@shared/arsenal';
 import type { GameServer } from '../app';
 import { ticketKey } from '../api';
 import { ban, mute, unmute } from '../moderacao';
@@ -116,21 +117,23 @@ describe('progresso', () => {
     await A.p.next('spawned', (m) => m.id === A.joined.you);
     await A.p.next('spawned', (m) => m.id === vId);
 
-    // A locked level is ignored: the server keeps level 1.
-    A.p.send({ t: 'loadout', lo: { rifle: 7, faca: 1, granada: 1 } });
+    // A locked upgrade is ignored: the server keeps the rifle without it.
+    A.p.send({ t: 'loadout', lo: { secundaria: 'smg', ligadas: { rifle: ['silenciador'] } } });
+    expect((await A.p.next('progresso', (m) => m.escolha.secundaria === 'smg')).escolha).toEqual({ secundaria: 'smg', ligadas: {} });
 
     // Headshots from 10 m, spaced by the rifle's fire rate, until the kill.
     const kill = A.p.next('kill', (m) => m.victim === vId, 8000);
     for (let i = 0; i < 8 && !A.p.msgs.some((m) => m.t === 'kill'); i++) {
-      A.p.send({ t: 'hit', target: vId, region: 'cabeca', dist: 10 });
+      A.p.send({ t: 'hit', target: vId, region: 'cabeca', dist: 10, w: 'rifle' });
       await sleep(100);
     }
     const k = await kill;
     expect(k.kind).toBe('head');
+    expect(k.arma).toBe('rifle');
     const points = k.awards.reduce((s, x) => s + x.value, 0);
     const prog = await A.p.next('progresso', (m) => m.armas.rifle.xp > 0);
     expect(prog.armas.rifle.xp).toBe(points);
-    expect(prog.armas.rifle.equipado).toBe(1);
+    expect(prog.armas.rifle.nivel).toBe(1);
     expect(prog.conta.xp).toBe(25);
 
     A.p.send({ t: 'leave' });
@@ -334,15 +337,49 @@ describe('armas vistas pelos outros', () => {
   it('trocar o equipamento avisa os outros jogadores, que recebem o loadout validado', async () => {
     const a = await joinMain(await signedIn('Atirador'));
     const b = await joinMain(await signedIn('Observador'));
-    a.p.send({ t: 'loadout', lo: { rifle: 1, faca: 1, granada: 1 } });
+    a.p.send({ t: 'loadout', lo: { secundaria: 'smg', ligadas: {} } });
     const m = await b.p.next('playerLoadout', (x) => x.id === a.joined.you);
-    expect(m.lo).toEqual({ rifle: 1, faca: 1, granada: 1 });
-    // Levels the account hasn't unlocked never reach the others.
-    a.p.send({ t: 'loadout', lo: { rifle: 9, faca: 7, granada: 3 } });
+    expect(m.lo).toEqual({ ...DEFAULT_LOADOUT, secundaria: 'smg' });
+    // Upgrades the account hasn't unlocked never reach the others; a primary isn't a secondary.
+    a.p.send({ t: 'loadout', lo: { secundaria: 'rifle', ligadas: { faca: ['sabre'], granada: ['mina'] } } });
     const n = await b.p.next('playerLoadout', (x) => x.id === a.joined.you);
-    expect(n.lo).toEqual({ rifle: 1, faca: 1, granada: 1 });
+    expect(n.lo).toEqual(DEFAULT_LOADOUT);
     a.p.close();
     b.p.close();
+  });
+
+  it('o dano e os pontos são da arma que atirou, e só valem as armas do loadout', async () => {
+    const a = await signedIn('Pistoleiro');
+    const v = await signedIn('Vitima');
+    const A = await joinMain(a);
+    const V = await joinMain(v);
+    const vId = V.joined.you;
+    A.p.send({ t: 'respawn', p: [0, 0, 0], yaw: 0 });
+    V.p.send({ t: 'respawn', p: [0, 0, 10], yaw: 0 });
+    await A.p.next('spawned', (m) => m.id === vId);
+    // The SMG isn't in the loadout (the pistol is the secondary): its hits are ignored.
+    A.p.send({ t: 'hit', target: vId, region: 'peito', dist: 10, w: 'smg' });
+    await expect(A.p.next('damage', (m) => m.target === vId, 300)).rejects.toThrow();
+    // The pistol, out of the holster (the state flag says the secondary is in hand): the pistol's damage.
+    A.p.send({ t: 'state', s: { p: [0, 0, 0], yaw: 0, pitch: 0, f: FLAG.secondary } });
+    A.p.send({ t: 'hit', target: vId, region: 'peito', dist: 10, w: 'pistola' });
+    expect((await A.p.next('damage', (m) => m.target === vId)).amount).toBe(gunStats('pistola').dano.max);
+    // A rifle hit right after the switch still counts (it was in flight); much later it wouldn't.
+    A.p.send({ t: 'hit', target: vId, region: 'peito', dist: 10, w: 'rifle' });
+    expect((await A.p.next('damage', (m) => m.target === vId)).amount).toBe(gunStats('rifle').dano.max);
+    const kill = A.p.next('kill', (m) => m.victim === vId, 8000);
+    for (let i = 0; i < 8 && !A.p.msgs.some((m) => m.t === 'kill'); i++) {
+      await sleep(160);
+      A.p.send({ t: 'hit', target: vId, region: 'peito', dist: 10, w: 'pistola' });
+    }
+    const k = await kill;
+    expect(k.arma).toBe('pistola');
+    const points = k.awards.reduce((s, x) => s + x.value, 0);
+    const prog = await A.p.next('progresso', (m) => m.armas.pistola.xp > 0);
+    expect(prog.armas.pistola.xp).toBe(points);
+    expect(prog.armas.rifle.xp).toBe(0);
+    A.p.close();
+    V.p.close();
   });
 
   it('quem entra recebe o loadout de quem já está na partida', async () => {

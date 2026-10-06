@@ -1,8 +1,8 @@
 // Touch controls for phones and tablets, laid out like CoD Mobile: a floating stick on the left (pushed to the
 // edge it sprints), drag anywhere else to look, a big fire button bottom right with aim next to it (drag the
 // fire button to keep aiming while shooting; a second fire button on the left), jump and crouch in the corner,
-// reload, knife and grenade (hold to cook, let go to throw), and pause, scoreboard, fullscreen and chat at the
-// top. Minimal line icons (white strokes on dark translucent circles). The buttons carry the state the thumb
+// reload, knife and grenade (hold to cook, let go to throw), switching guns above the jump button, and pause,
+// scoreboard, fullscreen and chat at the top. Minimal line icons (white strokes on dark translucent circles). The buttons carry the state the thumb
 // needs: grenades left on the grenade button, a ring filling while reloading and a pulse when the magazine
 // runs low on the reload button. The look has a response curve: slow drags are precise, fast flicks turn
 // more. Everything feeds the same named actions as the keyboard (core/input.ts), so the game code doesn't
@@ -53,6 +53,8 @@ const ICONS: Record<string, string> = {
   melee: svg('<path d="M9 15L19.5 4.5c1.5 2.5.5 6-2.5 8.5L12 18z"/><path d="M7 13l5 5"/><path d="M8.5 16.5L4 21"/>'),
   // A grenade: body, top and the pin's ring.
   grenade: svg('<circle cx="12" cy="14.5" r="6"/><path d="M10 8.5V6h4v2.5"/><path d="M14 7h3"/><circle cx="18.5" cy="7" r="1.5"/>'),
+  // Two arrows going round: the other gun.
+  swap: svg('<path d="M4 9h13l-3-3"/><path d="M20 15H7l3 3"/>'),
   pause: svg('<path d="M9 6v12M15 6v12"/>'),
   board: svg('<path d="M5 7h14M5 12h14M5 17h9"/>'),
   fs: svg('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'),
@@ -69,6 +71,7 @@ const BUTTONS: ButtonDef[] = [
   { id: 'reload', action: 'reload', icon: 'reload', label: 'touchReload', x: 0.62, y: 0.2, size: 0.12 },
   { id: 'melee', action: 'melee', icon: 'melee', label: 'touchMelee', x: 0.36, y: 0.11, size: 0.12 },
   { id: 'grenade', action: 'grenade', icon: 'grenade', label: 'touchGrenade', x: 0.38, y: 0.66, size: 0.12 },
+  { id: 'swap', action: 'swapWeapon', icon: 'swap', label: 'touchSwap', x: 0.12, y: 0.58, size: 0.12 },
   // Left hand: a second fire button above the stick.
   { id: 'fire2', action: 'fire', icon: 'fire', label: 'touchFire', x: 0.16, y: 0.62, size: 0.14, left: true, look: true },
   // Top row. The scoreboard toggles (holding a button to read it doesn't work with a thumb busy aiming).

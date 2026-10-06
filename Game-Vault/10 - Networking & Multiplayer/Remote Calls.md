@@ -11,11 +11,13 @@ source_paths:
   - client/net/connection.ts
   - client/main.ts
   - client/ui/home.ts
+  - shared/progression.ts
+  - shared/arsenal.ts
 tags:
   - game
   - networking
   - protocol
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Remote Calls
@@ -23,7 +25,7 @@ updated: 2026-10-05
 Catálogo de tudo que cruza a fronteira cliente ↔ servidor **durante o jogo**. O protocolo é **JSON sobre WebSocket**: cada mensagem é um objeto com o discriminador `t`. Tipos em `shared/protocol.ts` (`ClientMsg`, `ServerMsg`). Endpoints REST de conta estão detalhados em [[APIs]]; aqui só aparecem os que o fluxo de jogo usa.
 
 Convenções:
-- `Vec3` = `[x, y, z]` em metros; `NetState` = `{ p: Vec3 (pés), yaw, pitch, f (bits de FLAG) }`.
+- `Vec3` = `[x, y, z]` em metros; `NetState` = `{ p: Vec3 (pés), yaw, pitch, f (bits de FLAG) }`. O bit `FLAG.secondary` (512) diz que a secundária está na mão: o servidor usa para validar os acertos e os outros clientes, para desenhar a arma certa e tocar o som dela.
 - Tempos `time`, `until`, `ready`, `s` são **tempo do servidor em ms** (`performance.now()` do processo servidor). Ver [[Synchronization]].
 - O servidor **descarta silenciosamente** mensagens inválidas (JSON quebrado, `t` ausente, campos não finitos). Só `create`/`join` e `chat` respondem erro explícito.
 
@@ -55,13 +57,13 @@ Convenções:
 |---|---|---|---|---|
 | `state` | `s: NetState` | **20 Hz** enquanto vivo | `p` Vec3 finito, `yaw/pitch/f` finitos; ignorado se morto; pitch limitado a ±1,6; `f` truncado a inteiro | Atualiza a posição usada nos `snap` e nas validações |
 | `ping` | `c`, `rtt?` | 1 Hz | `rtt` limitado a 0–9999 ms | `pong {c, s}`; `rtt` vira o `ping` do placar |
-| `shot` | `o`, `e` (Vec3) | por disparo | vivo, vetores finitos, intervalo ≥ 70 % do intervalo da cadência do rifle equipado | broadcast `shot {id, o, e}` (exceto o autor) — **cosmético** |
-| `hit` | `target`, `region`, `dist`, `keep?` | por acerto | ver [[Anti Cheat]]: ambos vivos, região em `HIT_REGIONS`, máx. `ceil(cadência/60)+2` acertos/s, distância vs servidor | `damage` (+ `kill`) para todos |
+| `shot` | `o`, `e` (Vec3) | por disparo | vivo, vetores finitos, intervalo ≥ 70 % do intervalo da cadência da arma em mãos (com as melhorias) | broadcast `shot {id, o, e}` (exceto o autor) — **cosmético** |
+| `hit` | `target`, `region`, `dist`, `w` (`GunId` da arma que atirou), `keep?` | por acerto | ver [[Anti Cheat]]: `w` em mãos ou guardada há < 1 s e no loadout, ambos vivos, região em `HIT_REGIONS`, máx. `ceil(cadência/60)+2` acertos/s, distância vs servidor | `damage` (+ `kill`) para todos |
 | `swing` | — | por golpe | vivo | broadcast `swing {id}` (cosmético) |
 | `stab` | `target`, `behind` | por facada | ambos vivos; intervalo ≥ 75 % do `intervalo` da faca; distância horizontal ≤ `alcanceInvestida + 1,5 m` | `damage` (55 ou letal se a faca do nível for `letal`) |
 | `grenade` | `id`, `p`, `v`, `fuse`, `impact?`, `mine?`, `duck?` | por lançamento | vivo, campos finitos; id não repetido; máx. **4 granadas** e **3 minas** vivas; mina só se o nível da granada for do tipo `mina`; `fuse` limitado a `[0, pavio]` (ou `[0, tempoMaximoVoo]` se impacto) | broadcast `grenade {owner, ...}` (exceto o autor) |
 | `boom` | `id`, `p`, `hits[] {target, dist}` | por explosão | granada registrada; mina: `p` a ≤ 1,5 m da origem; impacto: dentro do alcance físico possível; pavio: não antes de `fuse − 0,5 s`; cada alvo: `dist` informada vs servidor ≤ 3 m e dentro de `raioDano + 3` | broadcast `boom` + `damage`/`kill` |
-| `loadout` | `lo` | ao trocar arma | `sanitizeLoadout` + só níveis desbloqueados | broadcast `playerLoadout {id, lo}` |
+| `loadout` | `lo` (`ArsenalChoice {secundaria, ligadas}`) | ao mudar a escolha no Arsenal | `equip` → `sanitizeChoice` com os níveis da conta (melhorias não liberadas são descartadas) | broadcast `playerLoadout {id, lo: Loadout}` (exceto o autor) + `progresso` para o autor (com a `escolha` guardada) |
 | `selfDamage` | `amount`, `cause` (`fall`/`void`/`dog`) | por evento | vivo, `amount > 0`, limitado a `LETHAL_DAMAGE` | `damage` no próprio jogador |
 | `taunt` | `corpse` | ao começar a dançar | corpo existe, não humilhado, livre, dentro da janela, não é o próprio, distância ≤ raio + 1,5 m | broadcast `taunt {id, corpse}` |
 | `tauntEnd` | `corpse`, `done` | ao parar/terminar | dança ativa nesse corpo; `done` só vale se durou ≥ duração − 400 ms | broadcast `tauntEnd {..., awards, players}` |
@@ -87,17 +89,17 @@ Convenções:
 | `scores` | `players: PlayerInfo[]` | **1 Hz** | sala |
 | `shot`, `swing` | `id`, (`o`, `e`) | retransmissão | sala, exceto autor |
 | `damage` | `target`, `attacker`, `amount`, `health`, `from` | dano aplicado | sala |
-| `kill` | `victim`, `attacker`, `kind`, `awards`, `corpse`, `players` | morte | sala |
+| `kill` | `victim`, `attacker`, `kind`, `arma?` (a arma que matou e recebe os pontos), `awards`, `corpse`, `players` | morte | sala |
 | `spawned` | `id`, `p`, `yaw` | respawn aceito | sala |
 | `grenade`, `boom` | `owner`, `id`, ... | lançamento / explosão | sala, exceto autor |
 | `taunt`, `tauntEnd` | `id`, `corpse`, (`done`, `awards`, `players`) | humilhação | sala |
-| `playerLoadout` | `id`, `lo` | troca de loadout | sala, exceto autor |
+| `playerLoadout` | `id`, `lo` (`Loadout {primaria, secundaria, ativas}`) | escolha do Arsenal ou subida de nível que muda as melhorias em efeito | sala, exceto autor |
 | `prop` | `id`, `by` | gag do mapa | sala, exceto autor |
 | `pickup`, `fish`, `rat`, `potion` | ver tipos | itens/criaturas | sala |
 | `chat` | `id`, `name`, `text` | fala aceita | sala (inclusive autor) |
 | `chatRefused` | `reason: 'muted' \| 'slow'` | fala recusada | conexão |
 | `pong` | `c`, `s` | resposta ao `ping` | conexão |
-| `progresso` | `armas`, `conta`, `subiu?` | `hello`, e sempre que o progresso muda | conexão |
+| `progresso` | `armas` (`{xp, nivel}` por arma), `escolha` (`ArsenalChoice`), `conta`, `subiu?` | `hello`, ao mudar a escolha, e sempre que o progresso muda | conexão |
 
 `KillKind`: `gun`, `head`, `groin`, `knife`, `grenade`, `fall`, `void`, `explosion`, `dog`. `AwardLabel`: `kill`, `headshot`, `groin`, `knife`, `backstab`, `longShot`, `humiliation`.
 

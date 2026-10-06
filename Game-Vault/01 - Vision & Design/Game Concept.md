@@ -16,7 +16,7 @@ tags:
   - game
   - design
   - concept
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Game Concept
@@ -42,11 +42,11 @@ O projeto se apresenta como **"Protótipo de tiro · Fase 1"** (texto da tela in
 ## Fantasia do jogador
 
 > [!info] Inferência
-> O conjunto de regras e textos sugere a fantasia de **"tiroteio de bairro entre amigos, levado a sério na mecânica e não levado a sério no tom"**: o tiro é preciso e guiado por dados (dispersão, recuo, multiplicadores por região), mas a recompensa máxima é **dançar sobre o corpo do adversário** ([[Humiliation]]), a faca evolui para um frango de borracha e o rifle final é "Dourado Ostentação".
+> O conjunto de regras e textos sugere a fantasia de **"tiroteio de bairro entre amigos, levado a sério na mecânica e não levado a sério no tom"**: o tiro é preciso e guiado por dados (dispersão, recuo, multiplicadores por região), mas a recompensa máxima é **dançar sobre o corpo do adversário** ([[Humiliation]]), a faca pode virar um frango de borracha ou um sabre de luz paraguaio e o rifle ganha um silenciador de garrafa PET.
 
 Elementos que sustentam essa leitura:
 - Pontuação que premia a provocação: a Opressão vale **150 pontos**, mais que um abate (100). Ver [[Scoring]].
-- Nomes e descrições cômicas das armas evoluídas (`shared/data/progression.json`), nomes de bots ("Capitão Lag", "Recruta 404") e de convidados ("Sargento Pastel").
+- Nomes e descrições cômicas das armas e das melhorias ("Pistola do Porteiro", "Submetralhadora Liquidificador", "Luneta do Vovô"; textos em `client/ui/strings.ts`, árvores em `shared/data/progression.json`), nomes de bots ("Capitão Lag", "Recruta 404") e de convidados ("Sargento Pastel").
 - Mensagens de morte e dicas de carregamento com humor (`DEATH_MESSAGES`, `TIPS` em `client/ui/strings.ts`).
 - Mapas cheios de gags ambientais e segredos (cachorra Amora que morde, bruxa das poções, rato gigante "como em Dark Souls"). Ver [[Map Gags]].
 

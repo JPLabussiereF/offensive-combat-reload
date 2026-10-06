@@ -11,18 +11,20 @@ source_paths:
   - client/main.ts
   - client/net/remote.ts
   - README.md
+  - shared/progression.ts
+  - shared/arsenal.ts
 tags:
   - game
   - networking
   - authority
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Client Server Model
 
 ## Resumo
 
-Modelo **cliente-servidor com servidor autoritativo sobre as regras**, mas **sem simulação física no servidor**. O cliente roda a física completa (Rapier, 60 Hz) do jogador local e a detecção de acertos; o servidor (Bun, sem Rapier) recebe relatórios, faz *sanity checks* com as mesmas regras de `shared/` (dados das armas, níveis de granada, tabela de pontos) e decide o resultado.
+Modelo **cliente-servidor com servidor autoritativo sobre as regras**, mas **sem simulação física no servidor**. O cliente roda a física completa (Rapier, 60 Hz) do jogador local e a detecção de acertos; o servidor (Bun, sem Rapier) recebe relatórios, faz *sanity checks* com as mesmas regras de `shared/` (dados das armas e das melhorias, tabela de pontos) e decide o resultado.
 
 > Comentário de `server/session.ts`: *"The server owns health, damage, kills, score, respawns and corpses; clients report their movement and what their shots hit, and every report is sanity-checked here."* e *"Movement is trusted; hits are validated against server positions with a lag tolerance."*
 
@@ -37,7 +39,8 @@ Modelo **cliente-servidor com servidor autoritativo sobre as regras**, mas **sem
 | Dano, vida, regeneração, morte | **Servidor** | `Session.damage()`, `kill()`, `tick()` |
 | Pontos, prêmios (*awards*), placar | **Servidor** | `SCORE` de `shared/constants.ts` |
 | Progresso (XP de armas e conta, estatísticas) | **Servidor** | `server/progress.ts`; o cliente só recebe `progresso` |
-| Loadout equipado | **Servidor** (filtra) | Só níveis desbloqueados (`equip()`, `sanitizeLoadout`) |
+| Loadout (armas e melhorias) | **Servidor** (resolve) | O cliente manda só a `ArsenalChoice`; o servidor descarta melhorias não liberadas (`equip()` → `sanitizeChoice`), resolve o `Loadout` (`loadoutOf`) e o envia a todos (`playerLoadout`) |
+| Arma em mãos (primária/secundária) | **Cliente** (`FLAG.secondary`) | o servidor só aceita acertos da arma em mãos ou da guardada há < 1 s (`SWITCH_GRACE_MS`) |
 | Corpos e humilhação (dança) | **Servidor** | `taunt` / `tauntEnd` validados por janela, raio e duração |
 | Itens do mapa (biscoito, cereja), carpas, ratos, poção da bruxa | **Servidor** | Estado e cooldown no servidor; cliente só pede ([[ADR - Itens do mapa com autoridade do servidor]]) |
 | Efeito da poção | **Servidor sorteia** | `Math.random()` em `onPotion` |
@@ -58,17 +61,17 @@ sequenceDiagram
     A->>A: raycast local contra hitboxes do remoto (posição interpolada -100 ms)
     A->>S: shot {o, e} (cosmético)
     S-->>O: shot {id, o, e}
-    A->>S: hit {target, region, dist, keep?}
-    S->>S: vivos? região válida? cadência? distância vs posições do servidor (LAG_SLACK)
-    S->>S: computeDamage(rifle, dist, região, keep)
+    A->>S: hit {target, region, dist, w, keep?}
+    S->>S: arma w em mãos? vivos? região válida? cadência? distância vs posições do servidor (LAG_SLACK)
+    S->>S: computeDamage(gunStats(w, melhorias), dist, região, keep)
     S-->>A: damage {target, attacker, amount, health, from}
     S-->>B: damage
     S-->>O: damage
     alt vida <= 0
-      S-->>A: kill {victim, attacker, kind, awards, corpse, players}
+      S-->>A: kill {victim, attacker, kind, arma, awards, corpse, players}
       S-->>B: kill
       S-->>O: kill
-      S-->>A: progresso (XP)
+      S-->>A: progresso (XP da arma que matou)
     end
 ```
 
@@ -88,6 +91,7 @@ sequenceDiagram
 
 - `server/session.ts` — `handle()`, `onHit()`, `onStab()`, `onBoom()`, `damage()`, `kill()`, `tick()`.
 - `shared/weapons.ts` — `computeDamage`, `explosionDamage`, `clampExplosionDamage`, `HIT_REGIONS`, `LETHAL_DAMAGE`.
-- `shared/progression.ts` — `rifleData`, `knifeData`, `sanitizeLoadout`.
+- `shared/progression.ts` — `sanitizeChoice`, `weaponOfKill`.
+- `shared/arsenal.ts` — `gunStats`, `meleeStats`, `grenadeStats`, `gunIn`, `sanitizeLoadout`.
 - `client/main.ts` — envio de `state`, `hit`, `stab`, `grenade`, `boom`; handlers de `snap`, `damage`, `kill`.
 - Regras de gameplay: [[Combat]], [[Damage System]], [[Health System]], [[Respawn]], [[Scoring]], [[Humiliation]], [[Grenades]].

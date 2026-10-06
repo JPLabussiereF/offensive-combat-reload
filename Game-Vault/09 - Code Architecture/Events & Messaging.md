@@ -29,7 +29,7 @@ tags:
   - events
   - messaging
   - pubsub
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Events & Messaging
@@ -51,7 +51,7 @@ Objetos expõem propriedades `onX` com uma função padrão vazia; o `boot()` (o
 | `Bot.onShoot(spread)` | `client/ai/bot.ts` | `BotManager` | Resolver o tiro do bot com os serviços do mundo |
 | `map.rewards.ratDown`, `map.rewards.aimBonus` | `MapRewards` (`client/world/blockoutMap.ts`) | `main.ts` | O mapa avisa; o jogo decide o efeito (online, via servidor) |
 
-Exceção com vários ouvintes: `Progress.onChange(f)` (`client/gameplay/progress.ts`) guarda um `Set` de ouvintes e os chama quando o progresso das armas muda (mensagem `progresso` do servidor).
+Exceção com vários ouvintes: `Progress.onChange(f)` (`client/gameplay/progress.ts`) guarda um `Set` de ouvintes e os chama quando o progresso das armas muda (mensagem `progresso` do servidor) ou quando o jogador muda a escolha do Arsenal (secundária, melhorias opcionais).
 
 ## 2. Hooks injetados no construtor (vários métodos)
 

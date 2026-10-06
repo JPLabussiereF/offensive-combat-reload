@@ -1,7 +1,7 @@
 ---
 title: ADR - Progressão de XP por arma
 type: decision
-status: documented
+status: outdated
 area: design
 source_paths:
   - shared/progression.ts
@@ -15,10 +15,13 @@ tags:
   - game
   - decision
   - progression
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # ADR - Progressão de XP por arma
+
+> [!warning] Substituída em parte
+> Os **níveis nomeados que se equipam** (7/7/3 níveis, "equipar um nível") foram substituídos por **melhorias por nível** em [[ADR - Progressão por melhorias de arma]] (2026-10-06). Continua valendo daqui: os pontos de cada abate vão só para a arma que matou, só de eventos validados pelo servidor, e o XP da conta é separado. O texto abaixo é o registro histórico da decisão original.
 
 ## Contexto
 

@@ -16,11 +16,13 @@ source_paths:
   - vite.config.ts
   - bunfig.toml
   - docs/DEPLOY.md
+  - shared/data/progression.json
+  - client/core/keybinds.ts
 tags:
   - referencia
   - configuracao
   - env
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Configuration Reference
@@ -77,8 +79,8 @@ No compose, o serviço `jogo` recebe `DATABASE_URL` e `REDIS_URL` montados inter
 | `deploy/nginx/*.conf` | Limites, cache, proxy (ver [[Hosting]]) |
 | `deploy/offensive-combat.service` | `NODE_ENV=production HOST=127.0.0.1 PORT=8787`, usuário `www-data` |
 | `Dockerfile` | `NODE_ENV=production HOST=0.0.0.0 PORT=8787` na imagem `server` |
-| `shared/protocol.ts` (`NET`), `shared/constants.ts`, `shared/data/*.json` | Parâmetros de jogo — ver [[Constants Reference]] e [[Configurable Content]] |
-| `localStorage` do navegador | Preferências do jogador — ver [[Settings]] |
+| `shared/protocol.ts` (`NET`), `shared/constants.ts`, `shared/data/*.json` (armas em `weapons/*.json`, melhorias em `progression.json`) | Parâmetros de jogo — ver [[Constants Reference]] e [[Configurable Content]] |
+| `localStorage` do navegador | Preferências do jogador (inclusive as teclas de troca de arma `weapon1`/`weapon2`/`swapWeapon`) — ver [[Settings]]. A escolha do Arsenal **não** fica aqui: vai para a conta (`player_profile.loadout`, [[Player Data]]) |
 
 O cliente não lê variáveis `VITE_*`; usa apenas `import.meta.env.DEV`.
 

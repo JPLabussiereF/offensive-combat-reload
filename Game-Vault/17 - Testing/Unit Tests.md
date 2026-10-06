@@ -9,10 +9,14 @@ source_paths:
   - client/tests/spatial.test.ts
   - server/tests/appearance.test.ts
   - server/tsconfig.json
+  - client/tests/arsenalText.test.ts
+  - server/tests/arsenal.test.ts
+  - shared/arsenal.ts
+  - server/migrations/003_melhorias.sql
 tags:
   - testes
   - unitarios
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Unit Tests
@@ -35,6 +39,10 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 - **Esvaziar um espaço (×)** e **teclas proibidas** (`Ctrl` dos dois lados, `F3`, `F4`, `F6`).
 - **Carregar o salvo:** sem nada volta o padrão (cópia); ação nova recebe o padrão; respeita espaço vazio de propósito; descarta lixo; tecla duplicada fica só na primeira.
 - **Tabela do Input** e **nome das teclas** (QWERTY, AZERTY via mapa do navegador, fallback do Firefox, código desconhecido).
+
+## `client/tests/arsenalText.test.ts` → [[Inventory UI]]
+
+- Um caso por idioma (pt-BR e en): toda arma e toda melhoria de `progression.json` tem nome e descrição (`arma_*`, `armaDesc_*`, `upg_<arma>_<id>`, `upgDesc_*`) e todo efeito tem o seu rótulo (`fx_*`) em `client/ui/strings.ts`.
 
 ## `client/tests/spatial.test.ts` → [[Spatial Audio]]
 
@@ -59,11 +67,21 @@ Testa funções de `shared/appearance.ts` (puras):
 - Dano por zona da hitbox: cabeça 2,5×, pescoço 1,5×, mãos 0,5×, virilha mata (ver [[Damage System]]).
 - Aparência aleatória dos bots sempre válida.
 
+## `server/tests/arsenal.test.ts` → [[Weapons]], [[Progression]]
+
+Testa `shared/progression.ts` e `shared/arsenal.ts` (puros), 18 casos:
+
+- **Níveis:** cada nível depois do primeiro libera uma melhoria, com pontos crescentes; o nível vem dos pontos da arma; armas diferentes têm quantidades diferentes de melhorias.
+- **Melhorias em efeito:** as comuns ligam sozinhas; as opcionais só quando ligadas e liberadas; uma opcional ligada substitui as comuns do seu grupo (a luneta tira o ponto vermelho).
+- **Escolha do Arsenal:** `sanitizeChoice` limpa o que veio do cliente (secundária válida, só opcionais conhecidas, uma por grupo) e, com os níveis, descarta o que não foi liberado; `legacyChoice` dá às contas antigas a escolha mais parecida; `resolveLoadout`; as armas de cada espaço vêm dos dados (`PRIMARIES`/`SECONDARIES`); `sanitizeLoadout` só aceita ids conhecidos.
+- **Atributos:** sem melhorias, `gunStats` é o JSON; cada melhoria muda atributos de verdade; o silenciador abafa e cobra dano e alcance; a faca vira sabre; a granada vira mina ou Dose Dupla e ganha cinto e pólvora; cada abate de tiro vai para a arma que atirou (`weaponOfKill`).
+- **Migração 003:** lê `server/migrations/003_melhorias.sql` e confere que todo XP de destino é um limiar que existe nos níveis novos ([[Data Migrations]]).
+
 ## Typecheck
 
 `client/tests` é excluído do `tsconfig.json` do navegador e incluído no `server/tsconfig.json` (tipos do Bun), então é verificado por `bun run typecheck`.
 
 ## Código relacionado
 
-- `client/tests/*.test.ts`, `server/tests/appearance.test.ts`
-- Módulos testados: `client/gameplay/aimAssist.ts`, `client/core/keybinds.ts`, `client/audio/spatial.ts`, `shared/appearance.ts`
+- `client/tests/*.test.ts`, `server/tests/appearance.test.ts`, `server/tests/arsenal.test.ts`
+- Módulos testados: `client/gameplay/aimAssist.ts`, `client/core/keybinds.ts`, `client/audio/spatial.ts`, `client/ui/strings.ts`, `shared/appearance.ts`, `shared/progression.ts`, `shared/arsenal.ts`

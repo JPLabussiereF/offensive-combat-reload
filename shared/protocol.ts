@@ -3,7 +3,8 @@
 // the game code.
 import type { HitRegion } from './weapons';
 import { HUMILIATION, type PotionKind } from './constants';
-import type { Loadout, ProgWeapon } from './progression';
+import type { ArsenalChoice, GunId, ProgWeapon } from './progression';
+import type { Loadout } from './arsenal';
 import type { Appearance } from './appearance';
 import type { MapId } from './maps';
 
@@ -29,9 +30,6 @@ export const NET = {
   path: '/ws',
 } as const;
 
-/** Everyone throws this grenade level online until progression exists (level 1 = non-lethal). */
-export const ONLINE_GRENADE_LEVEL = 1;
-
 export type Vec3 = [number, number, number];
 
 /** Bit flags describing what a player is doing, for remote animation. */
@@ -45,6 +43,8 @@ export const FLAG = {
   grounded: 64,
   knife: 128,
   slide: 256,
+  /** Holding the secondary gun (the primary is on the back). */
+  secondary: 512,
 } as const;
 
 export interface NetState {
@@ -75,7 +75,7 @@ export interface PlayerInfo {
   /** Account level (shown on the scoreboard). */
   nivel: number;
   sex: Sex;
-  /** Equipped level of each weapon (for weapon names in the kill feed). */
+  /** Weapons in hand and their upgrades (models in their hands, names in the kill feed). */
   lo?: Loadout;
   /** How the character looks (sent when the player appears: 'joined' and 'playerJoined'). */
   ap?: Appearance;
@@ -118,14 +118,17 @@ export type ClientMsg =
   | { t: 'leave' }
   | { t: 'state'; s: NetState }
   | { t: 'shot'; o: Vec3; e: Vec3 }
-  /** keep: damage fraction left after the bullet went through wood/glass (absent = clean hit). */
-  | { t: 'hit'; target: number; region: HitRegion; dist: number; keep?: number }
+  /**
+   * w: the gun that fired (one of the loadout's, held now or switched from a moment ago). keep: damage fraction
+   * left after the bullet went through wood/glass (absent = clean hit).
+   */
+  | { t: 'hit'; target: number; region: HitRegion; dist: number; w: GunId; keep?: number }
   | { t: 'swing' }
   | { t: 'stab'; target: number; behind: boolean }
   /** impact: explodes on its first contact instead of by fuse (fuse is then the flight time limit). */
   | { t: 'grenade'; id: number; p: Vec3; v: Vec3; fuse: number; impact?: boolean; mine?: boolean; duck?: boolean }
-  /** Equipped weapon levels; the server ignores levels the account hasn't unlocked. */
-  | { t: 'loadout'; lo: Loadout }
+  /** The Arsenal choice (secondary, optional upgrades on); the server drops upgrades the account hasn't unlocked. */
+  | { t: 'loadout'; lo: ArsenalChoice }
   | { t: 'boom'; id: number; p: Vec3; hits: { target: number; dist: number }[] }
   | { t: 'selfDamage'; amount: number; cause: 'fall' | 'void' | 'dog' }
   | { t: 'taunt'; corpse: number }
@@ -170,14 +173,15 @@ export type ServerMsg =
   | { t: 'shot'; id: number; o: Vec3; e: Vec3 }
   | { t: 'swing'; id: number }
   | { t: 'damage'; target: number; attacker: number | null; amount: number; health: number; from: Vec3 | null }
-  | { t: 'kill'; victim: number; attacker: number | null; kind: KillKind; awards: Award[]; corpse: CorpseInfo; players: PlayerInfo[] }
+  /** arma: the weapon that got the kill (and its points), when it was one. */
+  | { t: 'kill'; victim: number; attacker: number | null; kind: KillKind; arma?: ProgWeapon; awards: Award[]; corpse: CorpseInfo; players: PlayerInfo[] }
   | { t: 'spawned'; id: number; p: Vec3; yaw: number }
   | { t: 'grenade'; owner: number; id: number; p: Vec3; v: Vec3; fuse: number; impact?: boolean; mine?: boolean; duck?: boolean }
   | { t: 'boom'; owner: number; id: number; p: Vec3 }
   | { t: 'taunt'; id: number; corpse: number }
   | { t: 'tauntEnd'; id: number; corpse: number; done: boolean; awards: Award[]; players: PlayerInfo[] }
   | { t: 'scores'; players: PlayerInfo[] }
-  /** A player changed their equipped weapon levels: everyone else sees the new models. */
+  /** A player's loadout changed (Arsenal choice, an upgrade unlocked): everyone else sees the new models. */
   | { t: 'playerLoadout'; id: number; lo: Loadout }
   | { t: 'prop'; id: string; by: number }
   /** `by` took a collectible: it's gone until `ready` (server time); a cherry's boost lasts until `until` (0 for the others). */
@@ -196,8 +200,8 @@ export type ServerMsg =
   /** The player's chat line was dropped: their account is muted, or they're sending too fast. */
   | { t: 'chatRefused'; reason: 'muted' | 'slow' }
   | { t: 'pong'; c: number; s: number }
-  /** The account's progress changed (points only come from the server online). */
-  | { t: 'progresso'; armas: Record<ProgWeapon, { xp: number; nivel: number; equipado: number }>; conta: { xp: number; nivel: number }; subiu?: { tipo: ProgWeapon | 'conta'; nivel: number } };
+  /** The account's progress changed (points only come from the server online); `escolha` is the Arsenal choice it kept. */
+  | { t: 'progresso'; armas: Record<ProgWeapon, { xp: number; nivel: number }>; escolha: ArsenalChoice; conta: { xp: number; nivel: number }; subiu?: { tipo: ProgWeapon | 'conta'; nivel: number } };
 
 /** WebSocket close codes sent by the server. */
 export const CLOSE = {

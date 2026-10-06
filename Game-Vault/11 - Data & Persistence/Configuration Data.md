@@ -18,11 +18,14 @@ source_paths:
   - shared/catalog.ts
   - shared/palette.ts
   - server/config.ts
+  - shared/data/weapons/pistola.json
+  - shared/data/weapons/smg.json
+  - shared/arsenal.ts
 tags:
   - game
   - data
   - configuration
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Configuration Data
@@ -33,10 +36,12 @@ Dados que definem o jogo e **não mudam em tempo de execução**. Ficam no repos
 
 | Arquivo | Conteúdo | Lido por |
 |---|---|---|
-| `shared/data/weapons/rifle_padrao.json` | Rifle: dano por distância, multiplicadores por região, cadência (700 rpm), alcance máximo (300 m), modelo `.glb`, etc. | `shared/weapons.ts` (`WEAPONS`) |
+| `shared/data/weapons/rifle_padrao.json` | Rifle (espaço `primaria`): dano por distância, multiplicadores por região, cadência (700 rpm), alcance máximo (300 m), tempo de saque `troca` (0,45 s), modelo `.glb`, etc. | `shared/weapons.ts` (`WEAPONS`) |
+| `shared/data/weapons/pistola.json` | Pistola do Porteiro (espaço `secundaria`): semiautomática, 400 rpm, pente 12/48, `troca` 0,3 s | `shared/weapons.ts` (`WEAPONS`) |
+| `shared/data/weapons/smg.json` | Submetralhadora Liquidificador (espaço `secundaria`): automática, 950 rpm, pente 32/128, `troca` 0,35 s | `shared/weapons.ts` (`WEAPONS`) |
 | `shared/data/weapons/faca.json` | Faca (`MELEE`) | `shared/weapons.ts` |
 | `shared/data/weapons/granada_frag.json` | Granada: quantidade 2, recarga 10 s, pavio 3 s, impacto, tempo máx. de voo 8 s, níveis (`raioDano` 7 m, `danoMax` 85, `podeMatar`) | `shared/weapons.ts` (`GRENADES`) |
-| `shared/data/progression.json` | Níveis de cada arma (rifle, faca, granada): XP necessário, nome, ícone, descrição e modificadores (dano, pente, cadência, mira…) | `shared/progression.ts` |
+| `shared/data/progression.json` | Por arma (rifle, pistola, smg, faca, granada): ícone e a lista de `melhorias`, uma por nível ≥ 2 (`nivel`, `xp`, `id`, `icone`, `opcional?`, `grupo?`, `efeitos`). Os nomes e descrições ficam em `client/ui/strings.ts` (`upg_<arma>_<id>`) | `shared/progression.ts`, aplicado por `shared/arsenal.ts` |
 | `shared/data/nivel_conta.json` | Nível da conta: `porMinutoVivo` 10, `porAbate` 25, `porOpressao` 50; custo do nível n→n+1 = `round(1000 × n^1,5)` | `shared/accountLevel.ts` |
 
 Os JSON trazem um campo `_doc` com a explicação em português. Detalhes de gameplay em [[Weapons]] e [[Progression]].
@@ -46,15 +51,15 @@ Os JSON trazem um campo `_doc` com a explicação em português. Detalhes de gam
 | Módulo | O quê |
 |---|---|
 | `shared/constants.ts` | `MOVE`, `HEALTH` (100, regen 25/s após 4 s), `SCORE`, `HUMILIATION` (janela 6 s, raio 2 m, 3,2 s), `SIM`, `CHERRY`, `BISCUIT`, `KOI`, `RAT`, `POTION`… |
-| `shared/protocol.ts` | `NET` (tick 20 Hz, envio 20 Hz, interpolação 100 ms, 10 jogadores, limites de nome/chat, respawn 5 s, porta 8787, `/ws`), `FLAG`, `CLOSE`, `ONLINE_GRENADE_LEVEL` |
+| `shared/protocol.ts` | `NET` (tick 20 Hz, envio 20 Hz, interpolação 100 ms, 10 jogadores, limites de nome/chat, respawn 5 s, porta 8787, `/ws`), `FLAG` (inclui `secondary` = 512), `CLOSE` |
 | `shared/maps.ts` | `MAPS` (ids e nomes), `PICKUPS`, `FISH`, `RATS`, `WITCHES` por mapa |
 | `shared/account.ts` | Regras de nome, senha (8–128), e-mail (≤ 254), cooldown de nome (7 dias), carência de exclusão (30 dias) |
 | `shared/catalog.ts`, `shared/palette.ts`, `shared/appearance.ts` | Catálogo de personalização, paleta e regras de aparência (validação no servidor) |
 
 Lista consolidada em [[Constants Reference]].
 
-> [!warning]
-> Comentário desatualizado: `shared/protocol.ts` diz que o nível de granada online (`ONLINE_GRENADE_LEVEL = 1`) é "não letal", mas `granada_frag.json` define o nível 1 com `"podeMatar": true`. O código usa o JSON (`clampExplosionDamage` só limita quando `podeMatar` é falso).
+> [!note]
+> Resolvido: o comentário que chamava a granada online de "não letal" e a constante `ONLINE_GRENADE_LEVEL` foram removidos. A explosão vem de `grenadeStats` (`shared/arsenal.ts`), que usa o nível 1 de `granada_frag.json` (`"podeMatar": true`) com o raio da melhoria Pólvora. Ver [[Problem - Comentários dizem que a granada nível 1 não é letal]].
 
 ## Configuração de ambiente (servidor)
 

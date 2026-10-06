@@ -16,9 +16,11 @@ source_paths:
   - client/tests/keybinds.test.ts
   - client/tests/spatial.test.ts
   - .github/workflows/ci.yml
+  - server/tests/arsenal.test.ts
+  - client/tests/arsenalText.test.ts
 tags:
   - testes
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Testing Overview
@@ -30,13 +32,15 @@ Os testes usam o executor nativo **`bun test`** (`bun:test`: `describe`, `it`, `
 | Arquivo | Tipo | Casos (`it`) | Assunto |
 | --- | --- | --- | --- |
 | `server/tests/auth.test.ts` | Integração (HTTP) | 16 | cadastro, login, limites, sessão, origem, recuperação de senha, perfil, exclusão |
-| `server/tests/game.test.ts` | Integração (HTTP + WebSocket) / gameplay | 23 | ticket do WS, conexões por conta, progresso, mapas, pickups, Vila Assombrada, loadout, chat |
+| `server/tests/game.test.ts` | Integração (HTTP + WebSocket) / gameplay | 26 | ticket do WS, conexões por conta, progresso, mapas, pickups, Vila Assombrada, loadout, arma que atirou, chat |
+| `server/tests/arsenal.test.ts` | Unitário | 18 | níveis, melhorias, escolha do Arsenal, atributos, migração 003 |
 | `server/tests/appearance.test.ts` | Unitário + integração | 12 | regras de aparência (puras), perfil, aparência online |
 | `client/tests/aimAssist.test.ts` | Unitário | 4 | assistência de mira |
 | `client/tests/keybinds.test.ts` | Unitário | 28 | teclas configuráveis |
+| `client/tests/arsenalText.test.ts` | Unitário | 2 (um `it` repetido por idioma) | textos de armas e melhorias nos dois idiomas |
 | `client/tests/spatial.test.ts` | Unitário | 6 | som espacial |
 
-(Contagem por `it(` nos arquivos em 2026-10-05.)
+(Contagem por `it(` nos arquivos em 2026-10-06; `bun test` roda 112 casos.)
 
 ## Configuração (`bunfig.toml`)
 

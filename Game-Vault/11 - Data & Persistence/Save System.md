@@ -11,11 +11,12 @@ source_paths:
   - client/core/settings.ts
   - client/ui/home.ts
   - client/gameplay/progress.ts
+  - server/migrations/003_melhorias.sql
 tags:
   - game
   - data
   - save
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Save System
@@ -25,7 +26,7 @@ Não existe "save game" no sentido tradicional (slots, checkpoints): as partidas
 ## 1. Progresso da conta (servidor → PostgreSQL)
 
 ### O que é salvo
-O `ProgressDelta` de cada `LiveAccount` (XP de conta e de armas, abates, mortes, tipos de abate, humilhações, segundos jogados, pontos) e o **loadout equipado** atual. Detalhes em [[Player Data]].
+O `ProgressDelta` de cada `LiveAccount` (XP de conta e de armas, abates, mortes, tipos de abate, humilhações, segundos jogados, pontos) e a **escolha do Arsenal** atual (`profile.arsenal`). Detalhes em [[Player Data]].
 
 ### Quando
 | Gatilho | Fecha a participação? | Código |
@@ -38,8 +39,9 @@ O `ProgressDelta` de cada `LiveAccount` (XP de conta e de armas, abates, mortes,
 ### Como
 `flushProgress()` (`server/accounts.ts`) roda **numa transação**:
 1. `UPDATE player_stats SET xp = xp + ..., kills = kills + ..., ...` e recalcula `level`.
-2. `UPDATE weapon_progress SET xp = xp + ..., equipped_level = COALESCE(<equipado>, equipped_level)` para cada arma (sempre que há XP ou loadout).
-3. `UPDATE session_participation SET kills = kills + ..., ..., left_at = CASE WHEN <fechar> ...`.
+2. Para cada arma com XP no delta, um *upsert* em `weapon_progress` (`INSERT ... ON CONFLICT (profile_id, weapon) DO UPDATE SET xp = xp + ...`): uma arma criada depois da conta pode ainda não ter a linha.
+3. `UPDATE player_profile SET loadout = <escolha do Arsenal>` (o servidor sempre a passa no flush).
+4. `UPDATE session_participation SET kills = kills + ..., ..., left_at = CASE WHEN <fechar> ...`.
 
 O delta é trocado por um vazio **antes** da escrita; se ela falhar, `mergeDelta` devolve os valores ao delta atual e o próximo ciclo tenta de novo (log `[progresso] gravação falhou, tento de novo no próximo ciclo`). Ver [[ADR - Progresso gravado em lotes por delta]].
 
@@ -54,7 +56,7 @@ Uma queda abrupta do processo (sem SIGTERM) perde o que foi ganho desde a últim
 
 ## 2. Alterações via API (gravação imediata)
 
-Nome, sexo, aparência e nível equipado alterados pela tela de perfil (`PATCH /api/perfil`) são gravados na hora. A troca de equipamento no arsenal durante o jogo faz as duas coisas: `PATCH /api/perfil` (cliente, `Progress.equip`) e mensagem `loadout` (servidor atualiza a memória e grava no próximo flush).
+Nome, sexo, aparência e a escolha do Arsenal (`PATCH /api/perfil {arsenal}`, `setArsenal`) são gravados na hora. Uma mudança no Arsenal durante o jogo faz as duas coisas: `PATCH /api/perfil {arsenal}` (cliente, `Progress.toggle`/`setSecondary`) e mensagem `loadout` (servidor atualiza a memória e grava no próximo flush).
 
 ## 3. Preferências locais (navegador)
 

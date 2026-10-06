@@ -14,12 +14,15 @@ source_paths:
   - client/entities/localPlayer.ts
   - server/session.ts
   - shared/protocol.ts
+  - shared/data/weapons/pistola.json
+  - shared/data/weapons/smg.json
+  - shared/arsenal.ts
 tags:
   - game
   - gameplay
   - combat
   - damage
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Damage System
@@ -37,9 +40,9 @@ Transformar um acerto (bala, faca, explosão, queda, mapa) em perda de vida de f
 
 | Tipo | Origem | Dano |
 |---|---|---|
-| `gun` | rifle no corpo | fórmula do rifle |
-| `head` | rifle na cabeça | fórmula do rifle (×2,5) |
-| `groin` | rifle na virilha | **morte instantânea** (9999) |
+| `gun` | arma de fogo no corpo | fórmula da arma de fogo |
+| `head` | arma de fogo na cabeça | fórmula da arma de fogo (×2,5 no rifle) |
+| `groin` | arma de fogo na virilha | **morte instantânea** (9999) |
 | `knife` | faca | **morte instantânea** (`letal: true`) |
 | `grenade` | granada/mina de outro | fórmula de explosão |
 | `explosion` | sua própria granada/mina | fórmula de explosão (sem proteção) |
@@ -49,7 +52,9 @@ Transformar um acerto (bala, faca, explosão, queda, mapa) em perda de vida de f
 
 `LETHAL_DAMAGE = 9999`.
 
-## Rifle: fórmula
+## Arma de fogo: fórmula
+
+A mesma fórmula vale para o rifle, a pistola e a submetralhadora. Os números saem de `gunStats(arma, melhorias)` (`shared/arsenal.ts`): o JSON da arma com as melhorias ativas aplicadas (o silenciador, por exemplo, multiplica o dano por 0,9). Valores de cada arma em [[Weapons]]; os exemplos abaixo são do rifle sem melhorias.
 
 ```
 dano = max(1, round( danoPorDistância(dist) × multiplicador[região] × keep ))
@@ -71,7 +76,7 @@ dano = max(1, round( danoPorDistância(dist) × multiplicador[região] × keep )
 | `canelas` | 0,6 | 18 |
 | `virilha` | — | 9999 (instantâneo) |
 
-3. **`keep`** (penetração): produto das frações de cada superfície atravessada (madeira 0,6, vidro 0,9, papel 0,95; até 2 superfícies). Menor `keep` possível do rifle = 0,6² = 0,36.
+3. **`keep`** (penetração): produto das frações de cada superfície atravessada (madeira 0,6, vidro 0,9, papel 0,95; até 2 superfícies). Menor `keep` possível do rifle = 0,6² = 0,36; da pistola e da submetralhadora (1 superfície, madeira 0,5) = 0,5.
 4. **Virilha ignora tudo**: mata mesmo atravessando madeira.
 5. **Poção do crítico**: enquanto ativa, todo tiro do jogador é calculado como `cabeca` (o acerto continua contando onde caiu para pontos). Ver [[Buffs & Debuffs]].
 
@@ -100,7 +105,7 @@ dist > 7 m → 0
 
 - A distância é medida da explosão a 3 pontos do corpo (pés + 0,3 m, 1,1 m e 1,6 m), usando o mais próximo **com linha livre** (paredes bloqueiam). Se todos estão bloqueados, não há dano.
 - `podeMatar: false` limitaria o dano a deixar o alvo com ≥ 1 HP — **só protege os outros, nunca o lançador**. O nível 1 atual tem `podeMatar: true` (ver [[Problem - Comentários dizem que a granada nível 1 não é letal]]).
-- Online, o servidor sempre usa o nível de granada `ONLINE_GRENADE_LEVEL = 1` (único nível de dano existente). Os tipos da progressão (mina, dupla) mudam o **comportamento**, não o dano.
+- A explosão vem de `grenadeStats(melhorias).explosao` (`shared/arsenal.ts`): o nível 1 do JSON, com os raios ×1,2 na melhoria Pólvora. O servidor guarda a explosão de cada granada no momento do lançamento. Os tipos (mina, dupla) mudam o **comportamento**, não o dano. Ver [[Grenades]].
 
 ## Fluxo autoritativo online
 
@@ -110,8 +115,8 @@ sequenceDiagram
     participant S as Servidor (Session)
     participant V as Cliente vítima
     A->>A: traceShot local (hitboxes interpoladas 100 ms no passado)
-    A->>S: hit {target, region, dist, keep}
-    S->>S: valida vivo, região, cadência, distância, keep
+    A->>S: hit {target, region, dist, w, keep}
+    S->>S: valida arma (w), vivo, região, cadência, distância, keep
     S->>S: computeDamage (crítico se poção)
     S-->>V: damage {amount, health, from}
     S-->>A: damage (broadcast)
@@ -125,7 +130,7 @@ Validações do servidor (`server/session.ts`):
 
 | Ação | Verificação |
 |---|---|
-| `hit` | atirador e alvo vivos; região válida; ≤ `ceil(cadência/60) + 2` acertos por segundo; distância servidor (olho 1,6 m → peito 1,1 m) ≤ alcance e `|servidor − relatado| ≤ 4 m + 10%`; `keep` limitado a [0,36; 1] |
+| `hit` | atirador e alvo vivos; região válida; `w` é a arma em mãos (`FLAG.secondary`) ou a guardada há < 1 s (`SWITCH_GRACE_MS`), e está no loadout; ≤ `ceil(cadência/60) + 2` acertos por segundo; distância servidor (olho 1,6 m → peito 1,1 m) ≤ alcance e `|servidor − relatado| ≤ 4 m + 10%`; `keep` limitado a [`minPenetrationKeep` da arma; 1]. Cadência, dano, alcance e penetração são os de `gunStats` daquela arma com as melhorias do jogador |
 | `stab` | intervalo ≥ 75% do `intervalo` da faca; distância horizontal ≤ `alcanceInvestida + 1,5 m` |
 | `boom` | granada registrada; mina a ≤ 1,5 m de onde foi plantada; granada de impacto dentro do alcance físico possível (`v·t + 4,9·t² + 3`) e do tempo máximo de voo; granada por pavio não antes de `pavio − 0,5 s`; por alvo, distância ≤ `raioDano + 3` e `|servidor − relatado| ≤ 3` |
 | `selfDamage` | só quantidades positivas finitas, limitadas a 9999; causas `fall`/`void`/`dog` |
@@ -148,8 +153,9 @@ Não há rewind de hitboxes nem checagem de linha de visão no servidor ("Not ye
 - `client/entities/hitboxes.ts` — `ZONES`, `zonesFor`, `GROIN`, `GROIN_FROM`, `isBehind`.
 - `client/entities/rig.ts` — `refineRegion`.
 - `client/main.ts` — `shoot` hook, `resolveMelee`, `explode`, `blastDistance`.
-- `server/session.ts` — `onHit`, `onStab`, `onBoom`, `damage`, `kill`.
+- `server/session.ts` — `onHit`, `firedGun`, `onStab`, `onBoom`, `damage`, `kill`.
+- `shared/arsenal.ts` — `gunStats`, `meleeStats`, `grenadeStats` (atributos com as melhorias).
 
 ## Configurações relacionadas
 
-`dano`, `multiplicadores`, `penetracao` (`rifle_padrao.json`); `niveis` (`granada_frag.json`); `letal` (`faca.json`); `MOVE.fallDamageHeight/fallDamagePerMeter`. Ver [[Constants Reference]].
+`dano`, `multiplicadores`, `penetracao` (`rifle_padrao.json`, `pistola.json`, `smg.json`); efeitos das melhorias (`progression.json`); `niveis` (`granada_frag.json`); `letal` (`faca.json`); `MOVE.fallDamageHeight/fallDamagePerMeter`. Ver [[Constants Reference]].

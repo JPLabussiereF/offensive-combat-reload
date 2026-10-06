@@ -36,6 +36,8 @@ export class Hud {
   private reloadFill = $('reload-fill');
   private reloadKey = '';
   private weaponName = $('weapon-name');
+  private weaponSlots = $('weapon-slots');
+  private slotsKey = '';
   private scorePoints = $('score-points');
   private scoreKills = $('score-kills');
   private scoreAcc = $('score-acc');
@@ -77,6 +79,27 @@ export class Hud {
 
   setWeaponName(name: string) {
     this.weaponName.textContent = name;
+  }
+
+  /**
+   * The guns carried, under the ammo: the key that picks each slot, its name and the ammo it has, the one in
+   * hand lit (`drawing` while it comes up after a switch).
+   */
+  setWeaponSlots(slots: { key: string; name: string; mag: number; reserve: number; active: boolean }[], drawing: boolean) {
+    const key = JSON.stringify(slots) + drawing;
+    if (key === this.slotsKey) return;
+    this.slotsKey = key;
+    this.weaponSlots.replaceChildren(
+      ...slots.map((s) => {
+        const row = document.createElement('div');
+        row.className = `weapon-slot${s.active ? ' active' : ''}${s.active && drawing ? ' drawing' : ''}`;
+        row.innerHTML = '<kbd></kbd><span class="slot-name"></span><span class="slot-ammo"></span>';
+        row.querySelector('kbd')!.textContent = s.key;
+        row.querySelector('.slot-name')!.textContent = s.name;
+        row.querySelector('.slot-ammo')!.textContent = `${s.mag}/${s.reserve}`;
+        return row;
+      }),
+    );
   }
 
   /** `max`: the body's max health (150 for the heavy build), so the bar is full at full health. */

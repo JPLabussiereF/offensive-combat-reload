@@ -17,11 +17,12 @@ source_paths:
   - shared/data/progression.json
   - shared/data/nivel_conta.json
   - docker-compose.yml
+  - server/migrations/003_melhorias.sql
 tags:
   - game
   - data
   - persistence
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Data Architecture
@@ -46,7 +47,7 @@ Dados de **configuração de jogo** (armas, progressão, nível da conta, mapas)
 | Estado temporário | buffers de interpolação, efeitos, física local | cliente (memória) | [[Synchronization]] |
 | Estado da partida | vida, posição, kills da sala, corpos, itens | servidor (`Session`) | [[Sessions]] |
 | Estado do jogador (vivo) | `LiveAccount`: perfil carregado + delta não gravado | servidor (memória) | [[Player Data]] |
-| Estado persistente | conta, perfil, stats, armas, participações | PostgreSQL | [[Database]] |
+| Estado persistente | conta, perfil (com a escolha do Arsenal em `player_profile.loadout`), stats, XP das armas, participações | PostgreSQL | [[Database]] |
 | Configuração | `shared/data/*.json`, constantes, variáveis de ambiente | repositório / ambiente | [[Configuration Data]] |
 | Cache / efêmero | tickets, limites, tokens de redefinição | Redis | [[Cache]] |
 | Preferências locais | sensibilidade, FOV, teclas, qualidade | `localStorage` | [[Save System]] |
@@ -56,7 +57,7 @@ Dados de **configuração de jogo** (armas, progressão, nível da conta, mapas)
 
 ```mermaid
 flowchart LR
-    REST[API REST /api] -->|cadastro, perfil, aparência, equipado| PG[(PostgreSQL)]
+    REST[API REST /api] -->|cadastro, perfil, aparência, escolha do Arsenal| PG[(PostgreSQL)]
     PG -->|loadGameProfile no handshake| LA[LiveAccount em memória]
     SES[Session: abate, humilhação, tempo vivo, carpa] -->|addWeaponXp / addAccountXp / addTime| LA
     LA -->|progresso| CLI[Cliente]

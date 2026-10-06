@@ -15,12 +15,13 @@ source_paths:
   - client/world/jardim/panda.ts
   - client/world/jardim/peixes.ts
   - README.md
+  - shared/arsenal.ts
 tags:
   - ai
   - bots
   - npc
   - index
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # AI Overview
@@ -84,7 +85,7 @@ flowchart LR
 ## Limitações conhecidas (código/README)
 
 - Bots não pegam a cereja (README) e, pelo código, não usam granadas, minas, poções nem coletáveis: o `BotWorld` só oferece `fire` e `stab`.
-- Bots usam sempre o Rifle Padrão base (`WEAPONS.rifle_padrao`) e a faca base (`MELEE.faca`), sem progressão.
+- Bots sorteiam uma arma de fogo a cada vida (`pickGun` em `client/ai/bot.ts`: rifle 60%, submetralhadora 25%, pistola 15%) e usam a faca base (`MELEE.faca`), sempre **sem melhorias** (`gunStats(arma)`). Não trocam de arma durante a vida.
 - NPCs de cenário (bruxa, rato, fantasma) reagem à posição da **câmera local** (`listener`), não à de bots ou jogadores remotos. A Amora é exceção: olha para o mais próximo entre jogador, bots e remotos.
 
 ## Código relacionado

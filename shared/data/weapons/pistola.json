@@ -1,0 +1,87 @@
+{
+  "id": "pistola",
+  "nome": "Pistola do Porteiro",
+  "categoria": "pistola",
+  "slot": "secundaria",
+  "dano": {
+    "max": 28,
+    "min": 17,
+    "distMax": 12,
+    "distMin": 30
+  },
+  "multiplicadores": {
+    "cabeca": 2.8,
+    "pescoco": 1.5,
+    "peito": 1.0,
+    "abdomen": 1.0,
+    "quadril": 0.9,
+    "bracos": 0.75,
+    "maos": 0.5,
+    "coxas": 0.75,
+    "canelas": 0.6
+  },
+  "cadencia": 400,
+  "modo": "semi",
+  "pente": 12,
+  "reserva": 48,
+  "recarga": {
+    "tatica": 1.4,
+    "vazia": 1.7
+  },
+  "dispersao": {
+    "mirando": 0.15,
+    "parado": 0.7,
+    "andando": 1.4,
+    "noAr": 3.2,
+    "porTiro": 0.45,
+    "decaimento": 9.0
+  },
+  "recuo": {
+    "vertical": 1.6,
+    "horizontal": [
+      -0.4,
+      0.4
+    ],
+    "retorno": 12.0
+  },
+  "ads": {
+    "tempo": 0.14,
+    "zoom": 0.9
+  },
+  "movimento": 1.06,
+  "troca": 0.3,
+  "alcanceMaximo": 200,
+  "penetracao": {
+    "maxSuperficies": 1,
+    "materiais": {
+      "wood": {
+        "dano": 0.5,
+        "espessuraMax": 0.3
+      },
+      "glass": {
+        "dano": 0.85,
+        "espessuraMax": 0.1
+      },
+      "paper": {
+        "dano": 0.9,
+        "espessuraMax": 0.1
+      }
+    }
+  },
+  "tracanteACada": 2,
+  "desbloqueioNivel": 1,
+  "preco": {
+    "moedaJogo": 0,
+    "premium": 0
+  },
+  "slotsAcessorio": [
+    "mira",
+    "cano"
+  ],
+  "modelo": "weapons/pistola.glb",
+  "sons": {
+    "tiro": "pistol_fire",
+    "recarga": "pistol_reload",
+    "vazio": "dry_fire"
+  }
+}

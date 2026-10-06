@@ -6,11 +6,11 @@ import type { MeResponse, ProfileResponse } from '@shared/account';
 import { defaultAppearance, type Appearance } from '@shared/appearance';
 import { CLOSE, NET, type ServerMsg, type SessionInfo, type Sex } from '@shared/protocol';
 import { DEFAULT_MAP, isMapId, MAP_IDS, MAPS, type MapId } from '@shared/maps';
-import { PROG_WEAPONS, levelInfo } from '@shared/progression';
 import { Progress } from '../gameplay/progress';
 import { api, fetchMe, fetchProfile } from '../net/api';
 import { Connection } from '../net/connection';
-import { Arsenal } from './arsenal';
+import { Arsenal, weaponIcon } from './arsenal';
+import type { ProgWeapon } from '@shared/progression';
 import { errorText, showAuth, type AuthView } from './auth';
 import { renderPortrait, showCustomizer, Stage } from './customize';
 import { showProfile } from './profile';
@@ -190,7 +190,10 @@ export function showHome(): Promise<HomeChoice> {
 
   const renderEquipped = () => {
     if (!progress) return;
-    const icons = PROG_WEAPONS.map((w) => levelInfo(w, progress!.equipped(w)).icone).join(' ');
+    // What goes into a match: the primary, the chosen secondary, the knife and the grenade (as their upgrades make them).
+    const lo = progress.loadout;
+    const carried: (ProgWeapon | null)[] = [lo.primaria, lo.secundaria, 'faca', 'granada'];
+    const icons = carried.flatMap((w) => (w ? [weaponIcon(w, lo.ativas[w])] : [])).join(' ');
     $('char-equipped').textContent = t('equippedLine', { icons });
   };
 
@@ -228,7 +231,7 @@ export function showHome(): Promise<HomeChoice> {
     const r = await fetchMe();
     me = r.me;
     profile = me ? await fetchProfile().catch(() => null) : null;
-    // The Arsenal tab edits the account's equipped levels; a fresh grid drops the old listeners.
+    // The Arsenal tab edits the account's Arsenal choice; a fresh grid drops the old listeners.
     progress = profile ? new Progress(profile) : null;
     const grid = $('home-arsenal');
     const fresh = grid.cloneNode(false) as HTMLElement;

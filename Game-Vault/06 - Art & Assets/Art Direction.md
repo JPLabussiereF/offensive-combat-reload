@@ -17,11 +17,12 @@ source_paths:
   - docs/PERSONAGENS.md
   - docs/MAPAS.md
   - README.md
+  - shared/data/progression.json
 tags:
   - game
   - art
   - art-direction
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Art Direction
@@ -45,7 +46,7 @@ Cartoon colorido e bem-humorado, com geometria simples (*placeholder art* de pri
 | Preto puro evitado: o toon achata quase-preto numa silhueta sem forma | `dog.ts` (`FUR = 0x35323c`) |
 | Fogo de explosão em puffs opacos e facetados, não brilho aditivo ("lava no céu") | `effects.ts` |
 | Sem sangue: confete em acertos, estrelas em cabeça/virilha, confete em abates | `main.ts`, `effects.ts` |
-| Humor nas armas: rifle da "Tia do Zap" com retículo de carinha feliz, pisca-pisca de Natal, frango de borracha, sabre de luz "paraguaio" | `weaponModels.ts`, `shared/data/progression.json` |
+| Humor nas armas: pistola do porteiro com chaveiro, submetralhadora-liquidificador, holográfica de carinha feliz "da Tia do Zap", silenciador de garrafa PET e de batata, pente tambor de pipoqueira, frango de borracha, sabre de luz "paraguaio" | `weaponModels.ts`, `shared/data/progression.json`, `client/ui/strings.ts` |
 
 > [!note] Divergência
 > O `README.md` descreve o estilo como "anime low poly esguio (cabeça com cerca de 1/6 da altura, sombra pintada quente)" e cita 3 estilos de olho e 3 cabelos por sexo. O código e o `docs/PERSONAGENS.md` têm 6 estilos de olho e 30 cabelos para qualquer corpo. O README está desatualizado nesse ponto.

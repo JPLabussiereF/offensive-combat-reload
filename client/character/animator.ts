@@ -4,8 +4,9 @@
 //   matches the speed in any direction (forward, back, strafe, diagonals: an 8-way blend for free), the
 //   crouch bends the knees with the feet on the ground, and the slide stretches the legs ahead. The lower
 //   body turns in place only after the torso has twisted 60° (turn in place);
-// - upper body: the view pitch spread over spine 30%, chest 40%, head 30% (aim offset, ±70°), the rifle in
-//   both hands by IK (right hand on the grip, left under the handguard) for hip fire, ADS and sprint, and
+// - upper body: the view pitch spread over spine 30%, chest 40%, head 30% (aim offset, ±70°), the gun in
+//   both hands by IK (right hand on the grip, left under the handguard, or cupping a pistol's grip) for hip
+//   fire, ADS and sprint, and
 //   short additive layers on top: recoil on every shot, reload, knife, grenade, hit reaction, landing.
 // Also the unarmed idle and walk of the editor, the victory dance and the fall. Every "feel" number is in
 // ANIM. The hitbox skeleton (entities/rig.ts) runs the same animator on the simulation tick, and the visible
@@ -44,7 +45,14 @@ export interface AvatarPose {
   reload: boolean;
   knife: boolean;
   cook: boolean;
+  /** Holding the secondary gun (the primary goes on the back). */
+  secondary?: boolean;
+  /** How the gun in hand is held (where the left hand goes). Default 'longa'. */
+  hold?: GunHold;
 }
+
+/** A long gun's handguard, a compact gun's foregrip, or a pistol's grip for the left hand. */
+export type GunHold = 'longa' | 'curta' | 'pistola';
 
 /** Every "feel" parameter of the animation, in one place (tunable live with F6). */
 export const ANIM = {
@@ -70,8 +78,12 @@ export const ANIM = {
     ads: { pos: [0.035, 0.305, -0.29], rot: [0, 0, 0] },
     sprint: { pos: [0.06, 0.03, -0.24], rot: [-0.55, 0.75, 0.3] },
   },
-  /** Where the left hand holds the handguard, in the rifle's space. */
-  leftGrip: [0, -0.03, -0.23] as [number, number, number],
+  /** Where the left hand holds the gun, in its space: handguard, foregrip, cupping a pistol's grip. */
+  leftGrip: {
+    longa: [0, -0.03, -0.23] as [number, number, number],
+    curta: [0, -0.05, -0.1] as [number, number, number],
+    pistola: [-0.012, -0.05, 0.01] as [number, number, number],
+  },
   recoil: { back: 0.04, up: 0.09, chest: 0.03, decay: 14 },
   hit: { angle: 0.22, decay: 11 },
   land: { depth: 0.09, decay: 7 },
@@ -493,7 +505,7 @@ export class CharacterAnimator {
     // Left hand: under the handguard, palm up; to the magazine and the pouch while reloading; up and back
     // holding the grenade while cooking.
     const rifleQ = new THREE.Quaternion().setFromRotationMatrix(rifle);
-    let left = new THREE.Vector3(...A.leftGrip).applyMatrix4(rifle);
+    let left = new THREE.Vector3(...A.leftGrip[s.hold ?? 'longa']).applyMatrix4(rifle);
     let leftQ = rifleQ.clone().multiply(q.setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI));
     if (s.reload) {
       const u = (this.reloadT % A.reload.cycle) / A.reload.cycle;

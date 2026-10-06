@@ -1,15 +1,18 @@
 // The weapons other players see in a character's hands (third person): the same models as the first-person
-// view for the equipped levels — the rifle with its sight and paint job, the knife (or spoon, chicken...), the
-// grenade — merged into one mesh each (vertex colors, one shared toon material: a draw call per weapon), cached
-// per level and shared by every character.
+// view, as the player's upgrades make them — each gun with its sight, magazine and silencer, the knife (or the
+// rubber chicken, the lightsaber), the grenade — merged into one mesh each (vertex colors, one shared toon
+// material: a draw call per weapon), cached per look and shared by every character.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { PROGRESSION, type KnifeModel, type Loadout } from '@shared/progression';
+import type { KnifeForm } from '@shared/progression';
 import { toonGradient } from '../render/materials';
-import { knifeModel, rifleParts } from '../render/weaponModels';
+import { gunModelKey, gunParts, knifeModel, type GunLookKey } from '../render/weaponModels';
 import { grenadeModel } from '../weapons/grenades';
 
-/** The first-person rifle's origin is the receiver; the third-person rifle item's origin is the grip. */
+/**
+ * The first-person gun's origin is the receiver; the third-person rifle item's origin is the grip. Every gun has
+ * its grip in the same place, so one offset fits them all.
+ */
 export const RIFLE_FROM_GRIP = new THREE.Vector3(0, 0.035, -0.09);
 
 let material: THREE.MeshToonMaterial | null = null;
@@ -49,14 +52,13 @@ function cached(key: string, make: () => THREE.Object3D): THREE.BufferGeometry {
   return g;
 }
 
-/** The rifle of a loadout's level, origin at the grip (third-person item space). */
-export function heldRifle(lo: Loadout): THREE.Mesh {
-  const level = PROGRESSION.rifle[Math.max(0, Math.min(PROGRESSION.rifle.length - 1, (lo.rifle ?? 1) - 1))];
-  const geo = cached(`rifle|${level.visual}|${level.mira}`, () => {
-    const parts = rifleParts(level);
-    const g = new THREE.Group();
-    for (const m of [...parts.meshes, parts.mag]) g.add(m);
-    return g;
+/** A gun as its upgrades make it, origin at the grip (third-person item space). */
+export function heldGun(g: GunLookKey): THREE.Mesh {
+  const geo = cached(`gun|${gunModelKey(g)}`, () => {
+    const parts = gunParts(g);
+    const group = new THREE.Group();
+    for (const m of [...parts.meshes, parts.mag]) group.add(m);
+    return group;
   });
   const mesh = new THREE.Mesh(geo, sharedMaterial());
   mesh.position.copy(RIFLE_FROM_GRIP);
@@ -64,12 +66,10 @@ export function heldRifle(lo: Loadout): THREE.Mesh {
   return mesh;
 }
 
-/** The knife of a loadout's level: blade out of the thumb side of the fist (hand socket space). */
-export function heldKnife(lo: Loadout): THREE.Mesh {
-  const level = PROGRESSION.faca[Math.max(0, Math.min(PROGRESSION.faca.length - 1, (lo.faca ?? 1) - 1))];
-  const model: KnifeModel = level.modelo;
+/** The knife in its form: blade out of the thumb side of the fist (hand socket space). */
+export function heldKnife(form: KnifeForm): THREE.Mesh {
   const mesh = new THREE.Mesh(
-    cached(`knife|${model}`, () => knifeModel(model)),
+    cached(`knife|${form}`, () => knifeModel(form)),
     sharedMaterial(),
   );
   mesh.castShadow = true;

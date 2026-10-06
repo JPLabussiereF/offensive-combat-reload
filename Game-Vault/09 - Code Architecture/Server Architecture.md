@@ -26,7 +26,7 @@ tags:
   - server
   - bun
   - websocket
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Server Architecture
@@ -71,7 +71,7 @@ O estado do lobby (`sessions`, `conns`, `byAccount`, `nextId`) vive como variáv
 | --- | --- | --- |
 | `app.ts` | Composição, lobby, handshake WS, roteamento das mensagens de lobby, flush do progresso, assinatura Redis | composição / "servidor" |
 | `session.ts` | Classe `Session`: uma partida de mata-mata livre, tick a `NET.tickRate` (20 Hz) por `setInterval`, validação de cada mensagem do cliente, regras de dano/abate/coletáveis | regra de jogo autoritativa |
-| `progress.ts` | `LiveAccount` em memória, XP de arma e de conta, `delta` desde a última gravação | domínio |
+| `progress.ts` | `LiveAccount` em memória, XP de arma e de conta, a escolha do Arsenal (`equip`) e o loadout que sai dela (`loadoutOf`), `delta` desde a última gravação | domínio |
 | `api.ts` | Tabela de rotas `'MÉTODO /caminho' → handler`, checagem de Origin em métodos que mudam estado | API |
 | `auth/sessions.ts` | Sessões do navegador (cookie `oc_sessao`, SHA-256 no banco, renovação deslizante) | auth |
 | `auth/password.ts` | Cadastro, login (rate limit + bloqueio), recuperação por e-mail | auth |

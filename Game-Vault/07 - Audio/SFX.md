@@ -15,11 +15,12 @@ source_paths:
   - client/world/jardim/lago.ts
   - client/world/dog.ts
   - client/world/hydrant.ts
+  - client/net/remote.ts
 tags:
   - game
   - audio
   - sfx
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # SFX
@@ -41,7 +42,8 @@ O comentário do arquivo diz que cada função "mapeia para uma futura entrada d
 
 | Método | Som | Disparado por |
 | --- | --- | --- |
-| `gunshot(volume)` | 3 camadas: estalo (ruído passa-alta), corpo (ruído passa-baixa + seno 150→45 Hz) e cauda (passa-banda). ±5% de altura aleatória. | Tiro do jogador (na cabeça); tiros de outros e de bots via `at(muzzle, 'gun')`. |
+| `gunshot(volume, voz)` | 3 camadas: estalo (ruído passa-alta), corpo (ruído passa-baixa + seno 150→45 Hz) e cauda (passa-banda). ±5% de altura aleatória. Cada arma tem uma voz (`GunVoice`): `rifle` (estampido cheio), `pistola` (mais aguda e curta), `smg` (estalo leve e rápido) e `silenciado` (um "pff" abafado, para o silenciador). | Tiro do jogador (na cabeça); tiros de outros e de bots via `at(muzzle, 'gun')`. Um tiro silenciado de outro jogador toca como `step` (ouvido até ~34 m) e não desenha traçante. |
+| `weaponSwitch()` | Pano e um clique metálico. | Troca entre primária e secundária. Ver [[Weapons]]. |
 | `dryFire()` | Clique seco. | Gatilho sem munição. |
 | `reload(duração, vazio)` | Linha do tempo: pente sai (20%), pente entra (55%) e, se vazio, ferrolho (80% e 86%). | Início da recarga; recargas de outros via [[Spatial Audio]] (`BodySounds`). |
 | `hitmarker(cabeça)` | Bip agudo (mais agudo e com segundo tom no tiro na cabeça/virilha). Barramento `ui`. | Acerto confirmado. |
@@ -50,7 +52,7 @@ O comentário do arquivo diz que cada função "mapeia para uma futura entrada d
 | `hurt()` | Dente de serra descendente + ruído. | Dano recebido. |
 | `sadTrombone()` | Trombone triste (4 notas descendentes). | Morte do próprio jogador. Ver [[Flow - Death and Respawn]]. |
 | `bird()` | Dois piados e apito descendente ("NO PÁSSARO!"). | Tiro na virilha. Ver [[Humiliation]]. |
-| `knifeSwing()` / `meleeSwing(tipo)` / `knifeHit()` | Assobio de lâmina; cada nível de faca tem seu som (`faca`, `madeira`, `frango`, `crocante`, `tapa`, `boing`, `sabre`); impacto. | [[Melee]]. |
+| `knifeSwing()` / `meleeSwing(forma)` / `knifeHit()` | Assobio de lâmina; cada forma da faca tem seu som (`faca` = `knifeSwing`, `frango` = guincho de borracha, `sabre` = "vuuum"); impacto. | [[Melee]]. O golpe de outro jogador toca o som da forma dele: a faca como `step`, o frango e o sabre como `normal` (ouvidos mais longe). |
 | `levelUp()` | Fanfarra curta. | Novo nível de arma/conta. Ver [[Progression]]. |
 | `airHorn()` + `applause()` | Buzina de estádio e aplausos (ruído granulado). | Fim de uma humilhação ("OPRIMIDO!"). |
 

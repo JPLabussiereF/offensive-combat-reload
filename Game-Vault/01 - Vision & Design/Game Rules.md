@@ -15,11 +15,14 @@ source_paths:
   - client/main.ts
   - client/entities/localPlayer.ts
   - client/weapons/mines.ts
+  - shared/data/weapons/pistola.json
+  - shared/data/weapons/smg.json
+  - shared/arsenal.ts
 tags:
   - game
   - design
   - rules
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Game Rules
@@ -50,7 +53,7 @@ Detalhes em [[Health System]] e [[Character Customization]].
 
 | Causa (`KillKind`) | Regra | Quem pontua |
 | --- | --- | --- |
-| `gun` / `head` / `groin` | dano do rifle por distância e região. A virilha ("No pássaro") mata na hora | o atirador |
+| `gun` / `head` / `groin` | dano da arma de fogo que atirou (rifle, pistola ou submetralhadora, com as melhorias) por distância e região. A virilha ("No pássaro") mata na hora | o atirador |
 | `knife` | a faca é letal (`letal: true`) | o atacante |
 | `grenade` | dano em área com queda por distância, máximo de 85 no centro | quem lançou |
 | `explosion` | a própria granada **sempre** pode matar quem a lançou | ninguém |
@@ -80,10 +83,10 @@ Ver [[Damage System]], [[Grenades]], [[Melee]] e [[Map Gags]].
 
 ## Armas e limites
 
-- O arsenal tem rifle, faca e granada. Uma granada vira [[Land Mines|mina]] ou "Dose Dupla" conforme o nível equipado ([[Progression]]).
-- Granadas: **2 cargas**, recarga de **10 s**, pavio de 3 s enquanto cozinha, explodem no primeiro contato depois de lançadas (`granada_frag.json`).
+- O arsenal tem a primária (rifle), uma secundária (pistola ou submetralhadora, escolhida no Arsenal), faca e granada. Toda vida começa com a primária na mão. Uma granada vira [[Land Mines|mina]] ou "Dose Dupla" conforme a melhoria opcional ligada ([[Weapons]], [[Progression]]).
+- Granadas: **2 cargas** (+1 com a melhoria Cinto), recarga de **10 s**, pavio de 3 s enquanto cozinha, explodem no primeiro contato depois de lançadas (`granada_frag.json`).
 - Minas: até **3** no mapa por jogador (`MAX_MINES`). O servidor limita a 4 granadas comuns vivas por jogador.
-- Não há troca de arma primária nem pickups de arma ou munição: a munição volta cheia a cada nascimento. Ver [[Inventory]] e [[Items]].
+- A troca entre primária e secundária acontece na partida (1/2/roda); a escolha da secundária, só no Arsenal. Não há pickups de arma ou munição: cada arma tem o seu pente e a munição volta cheia a cada nascimento. Ver [[Inventory]] e [[Items]].
 
 ## Sessões
 

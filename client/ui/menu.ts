@@ -30,6 +30,9 @@ const ACTION_NAME: Record<RebindableAction, StringKey> = {
   reload: 'keyReload',
   melee: 'keyMelee',
   grenade: 'keyGrenade',
+  weapon1: 'keyWeapon1',
+  weapon2: 'keyWeapon2',
+  swapWeapon: 'keySwapWeapon',
   taunt: 'keyTaunt',
   scoreboard: 'keyScoreboard',
   chat: 'keyChat',
@@ -147,6 +150,7 @@ export class Screens {
         ['keyReload', g('x')],
         ['keyMelee', `${g('rb')} / ${g('r3')}`],
         ['keyGrenade', g('lb')],
+        ['keySwapWeapon', `${g('left')} / ${g('right')}`],
         ['keyTaunt', g('y')],
         ['keyPause', g('start')],
       ];

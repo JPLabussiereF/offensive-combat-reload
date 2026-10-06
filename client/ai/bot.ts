@@ -14,7 +14,9 @@ import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { GROUP, groups, HEALTH, HUMILIATION, MOVE } from '@shared/constants';
 import { configureController, CONTROLLER_OFFSET, createMoveState, eyeHeight, HALF_STAND, stepMovement, type MoveBody, type MoveInput, type MoveState } from '@shared/movement';
-import { MELEE, WEAPONS, type HitRegion } from '@shared/weapons';
+import { MELEE, type HitRegion } from '@shared/weapons';
+import { DEFAULT_LOADOUT, gunStats } from '@shared/arsenal';
+import type { GunId } from '@shared/progression';
 import type { Sex } from '@shared/protocol';
 import { bodyStats, randomAppearance, type Appearance, type BodyStats } from '@shared/appearance';
 import { Avatar } from '../entities/avatar';
@@ -23,6 +25,7 @@ import { CharacterRig, type HitPose } from '../entities/rig';
 import type { HitboxRegistry, Target } from '../gameplay/targets';
 import type { Corpse } from '../gameplay/corpse';
 import { Weapon } from '../weapons/weapon';
+import { holdOf } from '../render/weaponModels';
 import type { SpawnPoint } from '../world/blockoutMap';
 import type { NavMap } from './navmesh';
 
@@ -82,6 +85,12 @@ export interface BotWorld {
 type Mode = 'roam' | 'engage' | 'chase' | 'flee' | 'toTaunt' | 'taunt';
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
+
+/** The gun a bot takes for a life: mostly the rifle, sometimes a secondary (no upgrades, like a new account). */
+function pickGun(): GunId {
+  const r = Math.random();
+  return r < 0.6 ? 'rifle' : r < 0.85 ? 'smg' : 'pistola';
+}
 const angleDiff = (a: number, b: number) => {
   let d = b - a;
   while (d > Math.PI) d -= Math.PI * 2;
@@ -121,6 +130,10 @@ export class Bot implements Combatant {
   yaw = 0;
   pitch = 0;
   readonly weapon: Weapon;
+  /** The gun of this life (drawn at each spawn). */
+  gun: GunId = 'rifle';
+  /** Semi-automatic guns fire on presses: the trigger is pulsed tick by tick. */
+  private triggerUp = false;
   readonly rig: CharacterRig;
   readonly mb: MoveBody;
   readonly move: MoveState = createMoveState();
@@ -184,7 +197,7 @@ export class Bot implements Combatant {
     configureController(controller);
     this.rig = new CharacterRig(world, this, registry, this.bodyStats.missing);
     this.mb = { world, body, collider, controller, ignoreBody: this.rig.body };
-    this.weapon = new Weapon(WEAPONS.rifle_padrao, {
+    this.weapon = new Weapon(gunStats('rifle'), {
       shoot: (spread) => this.onShoot?.(spread),
       dryFire: () => {},
       reloadStart: () => {},
@@ -245,7 +258,11 @@ export class Bot implements Combatant {
     this.pitch = 0;
     this.health = this.bodyStats.maxHealth;
     this.dead = false;
+    // A gun for this life: a secondary is held as one, with the rifle on the back.
+    this.gun = pickGun();
+    this.weapon.setData(gunStats(this.gun));
     this.weapon.refill();
+    this.avatar.setLoadout({ ...DEFAULT_LOADOUT, secundaria: this.gun === 'rifle' ? DEFAULT_LOADOUT.secundaria : this.gun });
     this.mode = 'roam';
     this.target = null;
     this.goal = null;
@@ -565,9 +582,11 @@ export class Bot implements Combatant {
         if (this.burstLeft <= 0) this.pauseLeft = rand(...this.skill.pause);
       }
     }
-    const reload = this.weapon.mag === 0 || (!this.targetVisible && this.weapon.mag < 12 && !this.weapon.reloading);
+    const reload = this.weapon.mag === 0 || (!this.targetVisible && this.weapon.mag < this.weapon.data.pente * 0.4 && !this.weapon.reloading);
+    // Semi-automatic: let go of the trigger every other tick so each press fires.
+    this.triggerUp = fire && this.weapon.data.modo !== 'auto' ? !this.triggerUp : false;
     this.weapon.update(dt, {
-      fireHeld: fire,
+      fireHeld: fire && !this.triggerUp,
       firePressed: false,
       adsHeld: ads,
       reloadPressed: reload,
@@ -606,6 +625,8 @@ export class Bot implements Combatant {
         reload: this.weapon.reloading,
         knife: this.knifeAnim > 0,
         cook: false,
+        secondary: this.gun !== 'rifle',
+        hold: holdOf(this.gun),
       },
     };
   }

@@ -16,11 +16,13 @@ source_paths:
   - shared/progression.ts
   - server/migrations/001_contas.sql
   - client/ui/chat.ts
+  - shared/arsenal.ts
+  - client/net/remote.ts
 tags:
   - game
   - security
   - validation
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Validation
@@ -40,7 +42,7 @@ Validação de entrada em cada camada. As regras ficam, sempre que possível, em
 | Nome | `cleanName` (espaços colapsados) + `NAME_RULE`: 3–16, começa/termina com letra/número, meio com letras, números, espaço, `_`, `.`, `-` | `shared/account.ts` |
 | Sexo | qualquer valor que não `f` vira `m` | `asSex` |
 | Aparência | `sanitizeAppearance`: tudo fora do catálogo/paleta vira escolha válida | `shared/appearance.ts` |
-| Equipado | inteiro entre 1 e o nível desbloqueado; nível bloqueado falha a requisição inteira (`400 nivel_bloqueado`) | `setEquipped` |
+| Arsenal | `sanitizeChoice`: secundária precisa estar em `SECONDARIES` (senão vira a pistola), só ids de melhorias **opcionais** conhecidas, uma por grupo; se alguma ainda não foi liberada pelos níveis, a requisição inteira falha (`400 nivel_bloqueado`) | `setArsenal` |
 | Tokens (ticket, redefinição) | ≤ 100 caracteres; procurados pelo SHA-256 | `server/app.ts`, `resetPassword` |
 | Erros | sempre `{ erro: código }`; exceções inesperadas viram `500 erro_interno` sem detalhes | `handleApi` |
 
@@ -57,7 +59,9 @@ Validação de entrada em cada camada. As regras ficam, sempre que possível, em
 | Chat | `sanitizeChat`: corta em 480 chars antes de processar, troca quebras/tabs por espaço, remove controles C0/C1, *zero-width* (exceto ZWJ, para emojis) e **overrides bidirecionais** (evita falsificar nome alheio), colapsa espaços, limita a **120 code points** |
 | Prop | regex `^[a-z]{1,16}(:\d{1,3})?$` |
 | Região de acerto | lista `HIT_REGIONS` |
-| Loadout | `sanitizeLoadout` + `equip` (só desbloqueados) |
+| Arma do acerto (`w`) | `isGun`; precisa ser a arma em mãos ou a guardada há < 1 s, e estar no loadout (`firedGun`) |
+| Escolha do Arsenal (`loadout`) | `equip` → `sanitizeChoice(raw, níveis)`: melhorias não liberadas são descartadas (sem erro); o `Loadout` é resolvido no servidor (`loadoutOf`) |
+| `Loadout` recebido pelo cliente (`playerLoadout`, `PlayerInfo.lo`) | `sanitizeLoadout` em `client/net/remote.ts`: ids desconhecidos descartados; serve só para desenhar, nunca para regras |
 | Ids de itens/criaturas | precisam existir no mapa da sala |
 | Pitch | limitado a ±1,6 rad; flags `| 0` |
 | `rtt` | limitado a 0–9999 |

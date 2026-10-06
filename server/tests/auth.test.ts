@@ -157,10 +157,14 @@ describe('perfil', () => {
     expect(second.body.erro).toBe('cooldown_nome');
   });
 
-  it('não deixa equipar nível bloqueado', async () => {
+  it('não deixa ligar melhoria bloqueada, e guarda a secundária escolhida', async () => {
     const b = new Browser(game);
     await b.register();
-    expect((await b.req('PATCH', '/api/perfil', { equipado: { rifle: 5 } })).body.erro).toBe('nivel_bloqueado');
+    expect((await b.req('PATCH', '/api/perfil', { arsenal: { secundaria: 'pistola', ligadas: { rifle: ['luneta'] } } })).body.erro).toBe('nivel_bloqueado');
+    const ok = await b.req('PATCH', '/api/perfil', { arsenal: { secundaria: 'smg', ligadas: {} } });
+    expect(ok.status).toBe(200);
+    expect(ok.body.arsenal).toEqual({ secundaria: 'smg', ligadas: {} });
+    expect((await b.req('GET', '/api/perfil')).body.armas.smg).toEqual({ xp: 0, nivel: 1 });
   });
 });
 

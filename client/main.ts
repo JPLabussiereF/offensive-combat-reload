@@ -7,9 +7,9 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { pickSafeSpawn } from './gameplay/spawnPicker';
 import { BISCUIT, CHERRY, GROUP, groups, HEALTH, HUMILIATION, KOI, MOVE, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
 import { PICKUPS } from '@shared/maps';
-import { clampExplosionDamage, computeDamage, explosionDamage, GRENADES, grenadeLevel, idealTtk, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
+import { clampExplosionDamage, computeDamage, explosionDamage, idealTtk, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
 import { eyeHeight, type MoveInput } from '@shared/movement';
-import { CLOSE, FLAG, NET, ONLINE_GRENADE_LEVEL, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
+import { CLOSE, FLAG, NET, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
 import { startLoop } from './core/loop';
 import { applyKeybinds, Input } from './core/input';
 import { CAN_KEEP_ESCAPE, enterFullscreen, escapeIsKept, IS_MOBILE, isFullscreen, keepEscape } from './core/device';
@@ -21,6 +21,7 @@ import { loadSettings, saveSettings, spatialMode } from './core/settings';
 import { applyAtmosphere, createRenderContext } from './render/renderer';
 import { Effects } from './render/effects';
 import { Viewmodel, VM_FEEL } from './render/viewmodel';
+import { holdOf } from './render/weaponModels';
 import { ANIM } from './character/animator';
 import { TuningPanel } from './ui/tuning';
 import { QualityManager } from './render/quality';
@@ -35,7 +36,7 @@ import { DummyManager, type Dummy, type HitResult } from './entities/dummy';
 import { LocalPlayer } from './entities/localPlayer';
 import { Avatar } from './entities/avatar';
 import { bodyStats, defaultAppearance } from '@shared/appearance';
-import { Weapon } from './weapons/weapon';
+import { Weapon, type WeaponHooks } from './weapons/weapon';
 import { Melee, findMeleeTarget } from './weapons/melee';
 import { GrenadeProjectiles, GrenadeThrower } from './weapons/grenades';
 import { applySpread, traceShot } from './weapons/hitscan';
@@ -56,8 +57,9 @@ import { Screens } from './ui/menu';
 import { closeReason, showHome } from './ui/home';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
-import { Arsenal } from './ui/arsenal';
-import { DEFAULT_LOADOUT, knifeData, levelInfo, rifleData, type KnifeSound, type Loadout, type ProgWeapon } from '@shared/progression';
+import { Arsenal, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
+import { upgradeAt, type KnifeForm, type ProgWeapon } from '@shared/progression';
+import { DEFAULT_LOADOUT, grenadeStats, gunIn, meleeStats, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import { Scoreboard } from './ui/scoreboard';
 import { DEATH_MESSAGES, getLang, pick, t, type StringKey } from './ui/strings';
 
@@ -66,12 +68,9 @@ const MOUSE_DEG_PER_COUNT = 0.022;
 const VM_FOV = 58;
 const UP = new THREE.Vector3(0, 1, 0);
 const WORLD_ONLY = groups(GROUP.BULLET, GROUP.WORLD);
-/** Grenade progression is decided later; everyone throws level 1 (non-lethal) for now. */
-const GRENADE_LEVEL = ONLINE_GRENADE_LEVEL;
 
 const vec3 = (v: THREE.Vector3): Vec3 => [+v.x.toFixed(3), +v.y.toFixed(3), +v.z.toFixed(3)];
 const KIND_ICON: Record<KillKind, FeedIcon> = { gun: null, head: 'head', groin: 'bird', knife: 'knife', grenade: 'grenade', fall: null, void: null, explosion: 'grenade', dog: 'dog' };
-const WEAPON_LABEL: Record<ProgWeapon, StringKey> = { rifle: 'weaponRifle', faca: 'weaponKnife', granada: 'weaponGrenade' };
 /** Dose Dupla: seconds between the two grenades of one throw. */
 const DOUBLE_THROW_GAP = 0.3;
 /** How each timed potion shows on the buff panel (the debuffs in colder colors). */
@@ -158,7 +157,7 @@ async function boot() {
   const net = online ? new RemoteWorld(physics.world, ctx.scene, registry, conn!, me) : null;
   const effects = new Effects(ctx.scene);
   const viewmodel = new Viewmodel(ctx.vmScene);
-  // Weapon progression from the account (level 1 without one) and our land mines (grenade level 2).
+  // Weapon progression from the account (level 1 without one) and our land mines (a grenade upgrade).
   const progress = new Progress(choice.account);
   const mines = new Mines(physics, ctx.scene);
   const player = new LocalPlayer(physics, map.killY);
@@ -174,9 +173,9 @@ async function boot() {
   player.health = body.maxHealth;
   viewmodel.setBody(look, choice.sex);
   const avatar = new Avatar(ctx.scene, look, choice.sex);
-  const melee = new Melee(knifeData(progress.equipped('faca')));
-  const grenadeData = GRENADES.granada_frag;
-  const grenadeLvl = grenadeLevel(grenadeData, GRENADE_LEVEL);
+  const melee = new Melee(meleeStats(progress.loadout.ativas.faca));
+  // The grenade as its upgrades make it (how many, what G does, the blast); applyLoadout keeps it current.
+  let grenadeData = grenadeStats(progress.loadout.ativas.granada);
   const thrower = new GrenadeThrower(grenadeData);
   const grenades = new GrenadeProjectiles(physics, ctx.scene, grenadeData, (s, at, duck) => sfx.at(at, 'normal', (x) => (duck ? x.quack() : x.grenadeBounce(s))));
   const taunt = new Taunt();
@@ -401,11 +400,13 @@ async function boot() {
     const f = playerFeet(new THREE.Vector3());
     return Math.hypot(f.x - pot.at.x, f.z - pot.at.z) < pot.radius && Math.abs(f.y - pot.at.y) < 1.5;
   };
-  /** Spread and recoil: the golden carp sharpens them, the drunk potion ruins them. */
+  /** Spread and recoil (both guns): the golden carp sharpens them, the drunk potion ruins them. */
   const refreshWeaponMods = () => {
     const drunk = potionKind === 'bebado';
-    weapon.spreadMul = (aimEnds ? KOI.spreadMul : 1) * (drunk ? POTION.drunkSpread : 1);
-    weapon.recoilMul = (aimEnds ? KOI.recoilMul : 1) * (drunk ? POTION.drunkRecoil : 1);
+    for (const g of Object.values(guns)) {
+      g.spreadMul = (aimEnds ? KOI.spreadMul : 1) * (drunk ? POTION.drunkSpread : 1);
+      g.recoilMul = (aimEnds ? KOI.recoilMul : 1) * (drunk ? POTION.drunkRecoil : 1);
+    }
   };
   const potionSpeed = () => (potionKind === 'veloz' ? POTION.fastSpeed : potionKind === 'lerdo' ? POTION.slowSpeed : 1);
   const endPotion = (announce: boolean) => {
@@ -594,7 +595,8 @@ async function boot() {
     effects.burst('confetti', at, UP, 25, 0xffd23f);
   };
 
-  const weapon: Weapon = new Weapon(rifleData(progress.equipped('rifle')), {
+  // The gun hooks, shared by both slots: they act on the gun in hand (`weapon`).
+  const gunHooks: WeaponHooks = {
     shoot(spread, shotIndex) {
       shots++;
       bots?.unprotect(playerTarget);
@@ -609,7 +611,7 @@ async function boot() {
       viewmodel.kick();
       gamepad.rumble(45, 0.1, 0.35);
       effects.flash(muzzle);
-      sfx.gunshot();
+      sfx.gunshot(1, weapon.data.silenciador ? 'silenciado' : weapon.data.arma);
       if (shotIndex % weapon.data.tracanteACada === 0) effects.tracer(muzzle, end);
       conn?.send({ t: 'shot', o: vec3(muzzle), e: vec3(end) });
       // Fish and fruit don't stop the bullet: whatever it hits further on is hit too.
@@ -638,7 +640,7 @@ async function boot() {
         if (net) {
           // Online: report the hit, show feedback now; the server confirms damage and kills.
           if (entity.dead) return;
-          conn!.send({ t: 'hit', target: (entity as RemotePlayer).id, region, dist: +hit.distance.toFixed(2), ...(keep < 1 ? { keep: +keep.toFixed(3) } : {}) });
+          conn!.send({ t: 'hit', target: (entity as RemotePlayer).id, region, dist: +hit.distance.toFixed(2), w: weapon.data.arma, ...(keep < 1 ? { keep: +keep.toFixed(3) } : {}) });
           hits++;
           lastHitDist = hit.distance;
           effects.burst(head || groin ? 'star' : 'confetti', hit.point, tmp, head || groin ? 10 : 6);
@@ -650,7 +652,7 @@ async function boot() {
           // Against bots: same rules as online; kills and popups come back through the bot hooks.
           if (entity.dead) return;
           const kind: KillKind = head ? 'head' : groin ? 'groin' : 'gun';
-          const res = bots.hit(entity, playerTarget, computeDamage(weapon.data, hit.distance, potionKind === 'critico' ? 'cabeca' : region, keep), { kind, region, dist: hit.distance });
+          const res = bots.hit(entity, playerTarget, computeDamage(weapon.data, hit.distance, potionKind === 'critico' ? 'cabeca' : region, keep), { kind, region, dist: hit.distance, w: weapon.data.arma });
           if (res.dealt <= 0) return;
           hits++;
           lastHitDist = hit.distance;
@@ -668,7 +670,7 @@ async function boot() {
         sfx.hitmarker(res.headshot || groin);
         hud.hit(res.killed ? 'kill' : res.headshot ? 'head' : 'hit');
         if (res.killed) {
-          onKill(dummy, res, weapon.data.nome, groin ? 'bird' : res.headshot ? 'head' : null);
+          onKill(dummy, res, weaponName(weapon.data.arma), groin ? 'bird' : res.headshot ? 'head' : null);
           if (res.headshot) award(t('headshot'), SCORE.headshot);
           if (groin) {
             award(t('groin'), SCORE.groin);
@@ -690,41 +692,80 @@ async function boot() {
     dryFire: () => sfx.dryFire(),
     reloadStart: (duration, empty) => sfx.reload(duration, empty),
     reloadEnd: () => {},
-  });
-  hud.setWeaponName(weapon.data.nome);
+  };
+  /** What we carry: the guns in each slot and every weapon's upgrades (refreshed by applyLoadout). */
+  let loadout = progress.loadout;
+  /** The two gun slots, each with its own magazine; `weapon` is the one in hand. */
+  const guns: Record<GunSlot, Weapon> = {
+    primaria: new Weapon(slotStats(loadout, 'primaria')!, gunHooks),
+    secundaria: new Weapon(slotStats(loadout, 'secundaria') ?? slotStats(loadout, 'primaria')!, gunHooks),
+  };
+  let slot: GunSlot = 'primaria';
+  let weapon = guns.primaria;
+  /** Seconds left bringing the gun in hand up after a switch (it can't fire, aim or reload meanwhile). */
+  let drawT = 0;
+
+  /** Puts a slot's gun in the hands; `draw`: a switch (the gun comes up, with its draw time and sound). */
+  const holdSlot = (next: GunSlot, draw: boolean) => {
+    if (next !== slot) {
+      weapon.holster();
+      drawT = 0;
+    }
+    slot = next;
+    weapon = guns[next];
+    viewmodel.setGun(weapon.data);
+    hud.setWeaponName(weaponName(weapon.data.arma));
+    if (!draw) return;
+    drawT = weapon.data.troca;
+    viewmodel.draw(drawT);
+    sfx.weaponSwitch();
+  };
+  /** 1, 2, the wheel, the swap button: the other gun, if there's one in that slot. */
+  const switchTo = (next: GunSlot) => {
+    if (next !== slot && gunIn(loadout, next)) holdSlot(next, true);
+  };
 
   // --- Weapon progression: each kill's points level up only the weapon that made it ------------------
-  let knifeSound: KnifeSound = 'faca';
-  /** Puts the equipped level of each weapon in our hands (and tells the server, which uses it too). */
-  const applyLoadout = () => {
-    const r = levelInfo('rifle', progress.equipped('rifle'));
-    weapon.setData(rifleData(r.nivel));
-    weapon.reloadMul = body.reloadMul;
-    viewmodel.setRifle(r);
-    hud.setWeaponName(r.nome);
-    const k = levelInfo('faca', progress.equipped('faca'));
-    melee.setData(knifeData(k.nivel));
-    viewmodel.setKnife(k.modelo);
-    knifeSound = k.som;
-    const g = levelInfo('granada', progress.equipped('granada'));
-    thrower.kind = g.tipo;
-    viewmodel.setGrenadeKind(g.tipo);
-    conn?.send({ t: 'loadout', lo: progress.loadout });
+  let knifeForm: KnifeForm = 'faca';
+  /**
+   * Puts what we carry in our hands: each slot's gun, the knife and the grenade with their upgrades. `tell`:
+   * the choice changed here (the Arsenal), so the server, which uses it too, hears about it.
+   */
+  const applyLoadout = (tell: boolean) => {
+    loadout = progress.loadout;
+    for (const s of ['primaria', 'secundaria'] as const) {
+      const g = slotStats(loadout, s);
+      if (g) guns[s].setData(g);
+      guns[s].reloadMul = body.reloadMul;
+    }
+    holdSlot(gunIn(loadout, slot) ? slot : 'primaria', false);
+    const knife = meleeStats(loadout.ativas.faca);
+    melee.setData(knife);
+    viewmodel.setKnife(knife.forma);
+    knifeForm = knife.forma;
+    grenadeData = grenadeStats(loadout.ativas.granada);
+    thrower.setData(grenadeData);
+    thrower.kind = grenadeData.tipo;
+    viewmodel.setGrenadeKind(grenadeData.tipo);
+    if (tell) conn?.send({ t: 'loadout', lo: progress.choice });
   };
   // Points only come from the server (online kills, humiliations, time alive): it pushes the new progress.
   conn?.on('progresso', (m) => {
-    progress.applyServer(m.armas);
-    applyLoadout();
+    progress.applyServer(m);
+    applyLoadout(false);
     if (!m.subiu) return;
     if (m.subiu.tipo === 'conta') hud.showBanner(t('accountLevelUp', { level: m.subiu.nivel }), 'level');
     else {
-      const info = levelInfo(m.subiu.tipo, m.subiu.nivel);
-      hud.showBanner(`${info.icone} ${t('levelUp', { weapon: t(WEAPON_LABEL[m.subiu.tipo]), level: m.subiu.nivel })}: ${info.nome}!`, 'level');
+      // Each level unlocks an upgrade: the common ones are on at once, the optional ones wait in the Arsenal.
+      const w = m.subiu.tipo;
+      const u = upgradeAt(w, m.subiu.nivel);
+      hud.showBanner(`${u?.icone ?? ''} ${t('upgradeUnlocked', { weapon: weaponName(w), level: m.subiu.nivel, upgrade: u ? upgradeName(w, u.id) : '' })}`, 'level');
+      if (u?.opcional) hud.notice(t('upgradeTurnOn'));
     }
     sfx.levelUp();
   });
-  new Arsenal(progress, () => applyLoadout(), document.getElementById('arsenal-grid')!);
-  applyLoadout();
+  new Arsenal(progress, () => applyLoadout(true), document.getElementById('arsenal-grid')!);
+  applyLoadout(true);
   const scopeEl = document.getElementById('scope')!;
 
   // --- Knife ----------------------------------------------------------------------------------------
@@ -733,7 +774,7 @@ async function boot() {
     const found = findMeleeTarget(physics, targets(), eye, player.yaw, melee.data.alcanceInvestida, melee.data.anguloGraus);
     if (!melee.tryStart(found?.target ?? null)) return;
     weapon.cancelReload();
-    sfx.meleeSwing(knifeSound);
+    sfx.meleeSwing(knifeForm);
     conn?.send({ t: 'swing' });
   };
 
@@ -762,7 +803,7 @@ async function boot() {
       return;
     }
     if (target instanceof Bot && bots) {
-      const res = bots.hit(target, playerTarget, melee.data.letal ? LETHAL_DAMAGE : 55, { kind: 'knife', behind });
+      const res = bots.hit(target, playerTarget, melee.data.letal ? LETHAL_DAMAGE : 55, { kind: 'knife', behind, w: 'faca' });
       if (!res.killed && res.dealt > 0) hud.hit('hit');
       return;
     }
@@ -772,7 +813,7 @@ async function boot() {
     if (res.damage <= 0) return;
     hud.hit(res.killed ? 'kill' : 'hit');
     if (res.killed) {
-      onKill(dummy, res, melee.data.nome, 'knife');
+      onKill(dummy, res, weaponLabel('faca', loadout.ativas.faca), 'knife');
       award(t('knife'), SCORE.knife);
       if (behind) award(t('backstab'), SCORE.backstab);
     }
@@ -832,7 +873,7 @@ async function boot() {
   let grenadeSeq = 1;
   let secondThrowIn: number | null = null;
 
-  /** Grenade level 2: a land mine just in front of our feet (online, others see it too). */
+  /** The land mine upgrade: a mine just in front of our feet (online, others see it too). */
   const plantMine = () => {
     if (mines.own >= MAX_MINES) {
       thrower.count++; // nothing planted, charge back
@@ -871,7 +912,7 @@ async function boot() {
     const ground = groundHit
       ? { point: center.clone().setY(center.y - groundHit.timeOfImpact), normal: new THREE.Vector3(groundHit.normal.x, groundHit.normal.y, groundHit.normal.z) }
       : null;
-    effects.explosion(center, ground, grenadeLvl.raioDano);
+    effects.explosion(center, ground, grenadeData.explosao.raioDano);
     player.eye(1, eye);
     const listener = eye.distanceTo(center);
     sfx.at(center, 'boom', (s) => s.explosion());
@@ -882,6 +923,7 @@ async function boot() {
   /** Our own grenade went off: effects, then damage (locally offline, reported to the server online). */
   const explode = (at: THREE.Vector3, id: number) => {
     const center = explosionFx(at);
+    const blast = grenadeData.explosao;
     const f = playerFeet(feet);
     const selfDist = player.dead ? null : blastDistance(center, [new THREE.Vector3(f.x, f.y + 0.3, f.z), eye.clone()]);
 
@@ -890,9 +932,9 @@ async function boot() {
       for (const p of net.targets()) {
         if (p.dead) continue;
         const dist = blastDistance(center, bodySamples(p.position));
-        if (dist !== null && dist <= grenadeLvl.raioDano) reported.push({ target: p.id, dist: +dist.toFixed(2) });
+        if (dist !== null && dist <= blast.raioDano) reported.push({ target: p.id, dist: +dist.toFixed(2) });
       }
-      if (selfDist !== null && selfDist <= grenadeLvl.raioDano) reported.push({ target: me, dist: +selfDist.toFixed(2) });
+      if (selfDist !== null && selfDist <= blast.raioDano) reported.push({ target: me, dist: +selfDist.toFixed(2) });
       conn!.send({ t: 'boom', id, p: vec3(center), hits: reported });
       if (reported.some((r) => r.target !== me)) {
         sfx.hitmarker(false);
@@ -908,7 +950,7 @@ async function boot() {
       const p = d.position;
       const dist = blastDistance(center, bodySamples(p));
       if (dist === null) continue;
-      const dmg = clampExplosionDamage(grenadeLvl, explosionDamage(grenadeLvl, dist), d.health);
+      const dmg = clampExplosionDamage(blast, explosionDamage(blast, dist), d.health);
       if (dmg <= 0) continue;
       const away = new THREE.Vector3(p.x - center.x, 0, p.z - center.z).normalize();
       const res = d.applyHit(dmg, 'peito', simTime, away, 'back');
@@ -917,16 +959,16 @@ async function boot() {
       effects.burst('confetti', tmp.copy(p).setY(p.y + 1.1), UP, 6);
       if (res.killed) {
         anyKill = true;
-        onKill(d, res, levelInfo('granada', progress.equipped('granada')).nome, 'grenade');
+        onKill(d, res, weaponLabel('granada', loadout.ativas.granada), 'grenade');
       }
     }
     for (const b of bots?.bots ?? []) {
       if (b.dead) continue;
       const dist = blastDistance(center, bodySamples(b.position));
       if (dist === null) continue;
-      const dmg = clampExplosionDamage(grenadeLvl, explosionDamage(grenadeLvl, dist), b.health);
+      const dmg = clampExplosionDamage(blast, explosionDamage(blast, dist), b.health);
       if (dmg <= 0) continue;
-      const res = bots!.hit(b, playerTarget, dmg, { kind: 'grenade' });
+      const res = bots!.hit(b, playerTarget, dmg, { kind: 'grenade', w: 'granada' });
       if (res.dealt > 0) anyHit = true;
       if (res.killed) anyKill = true;
     }
@@ -934,9 +976,9 @@ async function boot() {
       sfx.hitmarker(false);
       hud.hit(anyKill ? 'kill' : 'hit');
     }
-    // Your own grenade can always kill you: the level's "non-lethal" rule only protects others.
+    // Your own grenade can always kill you: a "non-lethal" blast only protects others.
     if (selfDist !== null) {
-      const dmg = explosionDamage(grenadeLvl, selfDist);
+      const dmg = explosionDamage(blast, selfDist);
       const dealt = player.damage(dmg, simTime, 'explosion');
       if (dealt > 0) {
         hud.damageFlash(dealt);
@@ -995,9 +1037,14 @@ async function boot() {
   };
 
   // --- Bots ----------------------------------------------------------------------------------------
-  /** Name of the weapon behind a kill, at the killer's levels (bots use the starting ones). */
-  const weaponNameFor = (kind: KillKind, lo: Loadout = DEFAULT_LOADOUT) =>
-    kind === 'knife' ? knifeData(lo.faca).nome : kind === 'grenade' || kind === 'explosion' ? levelInfo('granada', lo.granada).nome : rifleData(lo.rifle).nome;
+  /**
+   * Name of the weapon behind a kill (`weapon`, when the server or the bots tell it), as the killer's upgrades
+   * make it: the lightsaber, the land mine (bots carry no upgrades).
+   */
+  const weaponNameFor = (kind: KillKind, weapon: ProgWeapon | null | undefined, lo: Loadout = DEFAULT_LOADOUT) => {
+    const w: ProgWeapon = weapon ?? (kind === 'knife' ? 'faca' : kind === 'grenade' || kind === 'explosion' ? 'granada' : 'rifle');
+    return weaponLabel(w, lo.ativas[w]);
+  };
   if (botMode && nav) {
     bots = new BotManager({
       physics,
@@ -1019,10 +1066,10 @@ async function boot() {
           }
           return player.health;
         },
-        kill: (victim, killer, kind, awards, corpse) => {
+        kill: (victim, killer, kind, awards, corpse, weapon) => {
           const victimName = victim === playerTarget ? t('you') : victim.name;
-          const killerLoadout = killer === playerTarget ? progress.loadout : DEFAULT_LOADOUT;
-          if (killer) hud.killfeed(killer === playerTarget ? t('you') : killer.name, weaponNameFor(kind, killerLoadout), victimName, KIND_ICON[kind]);
+          const killerLoadout = killer === playerTarget ? loadout : DEFAULT_LOADOUT;
+          if (killer) hud.killfeed(killer === playerTarget ? t('you') : killer.name, weaponNameFor(kind, weapon, killerLoadout), victimName, KIND_ICON[kind]);
           else if (kind === 'dog') hud.killfeed('Amora', t('dogBite'), victimName, 'dog');
           else hud.notice(`💀 ${victimName}`);
           if (killer === playerTarget) {
@@ -1034,7 +1081,7 @@ async function boot() {
           if (victim === playerTarget) {
             killerId = killer?.id ?? null;
             myCorpseId = corpse.info.id;
-            deathMessage = killer ? t('killedByWith', { name: killer.name, weapon: weaponNameFor(kind, killerLoadout) }) : null;
+            deathMessage = killer ? t('killedByWith', { name: killer.name, weapon: weaponNameFor(kind, weapon, killerLoadout) }) : null;
           }
         },
         tauntStarted: (dancer, corpse) => {
@@ -1089,12 +1136,16 @@ async function boot() {
       if (!rp) return;
       const from = rp.muzzle(new THREE.Vector3());
       rp.fire();
-      effects.tracer(from, new THREE.Vector3(...m.e));
-      sfx.at(from, 'gun', (s) => s.gunshot());
+      // Their gun's own bang; a silencer: no tracer, and only those nearby hear it.
+      const gun = rp.gun;
+      if (!gun.silenciador) effects.tracer(from, new THREE.Vector3(...m.e));
+      sfx.at(from, gun.silenciador ? 'step' : 'gun', (s) => s.gunshot(1, gun.silenciador ? 'silenciado' : gun.arma));
     });
     conn.on('swing', (m) => {
       const rp = net.players.get(m.id);
-      if (rp) sfx.at({ x: rp.position.x, y: rp.position.y + 1.3, z: rp.position.z }, 'step', (s) => s.knifeSwing());
+      // The rubber chicken's scream and the lightsaber's vwoom carry much farther than a knife's swish.
+      const form = rp?.knife.forma ?? 'faca';
+      if (rp) sfx.at({ x: rp.position.x, y: rp.position.y + 1.3, z: rp.position.z }, form === 'faca' ? 'step' : 'normal', (s) => s.meleeSwing(form));
     });
     conn.on('playerLoadout', (m) => net.setLoadout(m.id, m.lo));
     conn.on('grenade', (m) => {
@@ -1128,8 +1179,8 @@ async function boot() {
       m.players.forEach((p) => net.upsertInfo(p));
       net.addCorpse(m.corpse);
       const victimName = m.victim === me ? t('you') : m.corpse.name;
-      const attackerInfo = m.attacker !== null ? net.info.get(m.attacker) : undefined;
-      const weaponName = weaponNameFor(m.kind, m.attacker === me ? progress.loadout : (attackerInfo?.lo ?? DEFAULT_LOADOUT));
+      const killerLoadout = m.attacker === me ? loadout : m.attacker !== null ? net.players.get(m.attacker)?.loadout : undefined;
+      const weaponName = weaponNameFor(m.kind, m.arma, killerLoadout);
       if (m.attacker !== null) hud.killfeed(nameOf(m.attacker), weaponName, victimName, KIND_ICON[m.kind]);
       else if (m.kind === 'dog') hud.killfeed('Amora', t('dogBite'), victimName, 'dog');
       else hud.notice(`💀 ${victimName}`);
@@ -1324,7 +1375,10 @@ async function boot() {
       hud.setDeathTimer(player.respawnIn(simTime));
       if (player.canRespawn(simTime)) {
         respawn();
-        weapon.refill();
+        // Every life starts with full magazines and the primary in hand.
+        for (const g of Object.values(guns)) g.refill();
+        holdSlot('primaria', false);
+        drawT = 0;
         thrower.refill();
         hud.showDeath(null);
         killerId = null;
@@ -1336,7 +1390,7 @@ async function boot() {
       // in hand (the pin goes back in). They never interrupt a reload (no shooting until it ends; the knife
       // and grenades do cancel it), a knife swing (too quick: cancelling it would be an exploit) or a dance
       // (only death ends it). A slide keeps going: you can shoot while sliding.
-      const canShoot = !weapon.reloading && !melee.swinging && !taunt.active;
+      const canShoot = !weapon.reloading && !melee.swinging && !taunt.active && drawT <= 0;
       const fireIntent = canShoot && (input.down('fire') || input.peek('fire'));
       if (fireIntent) {
         if (thrower.cookT !== null) thrower.cancel();
@@ -1462,7 +1516,18 @@ async function boot() {
         if (melee.update(dt) === 'impact') resolveMelee();
         const done = taunt.update(dt, simTime);
         if (done) finishTaunt(done);
-        const busy = taunt.active || melee.swinging || thrower.busy;
+        // Switching guns: 1 and 2 pick a slot, the wheel (or the swap button) goes to the other one. Not with
+        // the hands busy (knife, dance, a grenade in hand): those presses are dropped.
+        const pick1 = input.consume('weapon1');
+        const pick2 = input.consume('weapon2');
+        const swap = input.consume('swapWeapon');
+        if (!taunt.active && !melee.swinging && !thrower.busy) {
+          if (pick1) switchTo('primaria');
+          if (pick2) switchTo('secundaria');
+          if (swap) switchTo(slot === 'primaria' ? 'secundaria' : 'primaria');
+        }
+        drawT = Math.max(0, drawT - dt);
+        const busy = taunt.active || melee.swinging || thrower.busy || drawT > 0;
         weapon.update(dt, {
           fireHeld: !busy && input.down('fire'),
           firePressed: input.consume('fire') && !busy,
@@ -1477,7 +1542,7 @@ async function boot() {
     }
     // Presses that arrived while dead shouldn't fire later.
     if (player.dead) {
-      for (const a of ['fire', 'reload', 'jump', 'melee', 'taunt', 'grenade'] as const) input.consume(a);
+      for (const a of ['fire', 'reload', 'jump', 'melee', 'taunt', 'grenade', 'weapon1', 'weapon2', 'swapWeapon'] as const) input.consume(a);
     }
 
     for (const ex of grenades.fixedUpdate(dt)) explode(ex.position, ex.id);
@@ -1501,6 +1566,8 @@ async function boot() {
               reload: weapon.reloading,
               knife: melee.swinging,
               cook: thrower.cookT !== null,
+              secondary: slot === 'secundaria',
+              hold: holdOf(weapon.data.arma),
             },
           };
       playerRig.follow(playerFeet(feet), player.yaw, !player.dead, pose, dt);
@@ -1525,7 +1592,8 @@ async function boot() {
           (thrower.cookT !== null ? FLAG.cook : 0) |
           (player.move.grounded ? FLAG.grounded : 0) |
           (melee.swinging ? FLAG.knife : 0) |
-          (player.move.sliding ? FLAG.slide : 0);
+          (player.move.sliding ? FLAG.slide : 0) |
+          (slot === 'secundaria' ? FLAG.secondary : 0);
         playerFeet(feet);
         conn.send({ t: 'state', s: { p: vec3(feet), yaw: +player.yaw.toFixed(3), pitch: +player.pitch.toFixed(3), f } });
       }
@@ -1763,7 +1831,7 @@ async function boot() {
     for (const p of net?.players.values() ?? []) {
       const f = p.flags;
       const w = { feet: p.position, alive: p.alive, grounded: !!(f & FLAG.grounded), sprint: !!(f & FLAG.sprint), crouch: !!(f & FLAG.crouch), slide: !!(f & FLAG.slide), reload: !!(f & FLAG.reload) };
-      playBody(p.id, w, frameDt, () => rifleData((net?.info.get(p.id)?.lo ?? DEFAULT_LOADOUT).rifle).recarga.tatica);
+      playBody(p.id, w, frameDt, () => p.gun.recarga.tatica);
     }
     grenades.render(alpha);
     effects.update(frameDt);
@@ -1797,7 +1865,7 @@ async function boot() {
     let warnAngle: number | null = null;
     let warnClose = 0;
     if (!player.dead) {
-      let bestD = grenadeLvl.raioDano;
+      let bestD = grenadeData.explosao.raioDano;
       for (const g of grenades.live) {
         const gp = g.mesh.position;
         const dist = gp.distanceTo(feet);
@@ -1808,7 +1876,7 @@ async function boot() {
         const fwd = -Math.sin(player.yaw) * dx - Math.cos(player.yaw) * dz;
         const side = Math.cos(player.yaw) * dx - Math.sin(player.yaw) * dz;
         warnAngle = Math.atan2(side, fwd);
-        warnClose = 1 - dist / grenadeLvl.raioDano;
+        warnClose = 1 - dist / grenadeData.explosao.raioDano;
       }
     }
     hud.setGrenadeWarning(warnAngle, warnClose);
@@ -1838,6 +1906,13 @@ async function boot() {
       hud.setBoost(!!boostEnds);
       hud.setBuffs(buffs());
       hud.setAmmo(weapon.mag, weapon.reserve, weapon.data.pente, weapon.reloading);
+      hud.setWeaponSlots(
+        (['primaria', 'secundaria'] as const)
+          .filter((s) => gunIn(loadout, s))
+          // On a controller there's no key per slot (the D-pad switches): no key cap.
+          .map((s) => ({ key: gamepad.device === 'pad' ? '' : screens.keyName(s === 'primaria' ? 'weapon1' : 'weapon2'), name: weaponName(guns[s].data.arma), mag: guns[s].mag, reserve: guns[s].reserve, active: s === slot })),
+        drawT > 0,
+      );
       hud.setGrenades(thrower.count, grenadeData.quantidade, thrower.rechargeProgress);
       const mine = net?.info.get(me) ?? bots?.standings().find((p) => p.id === me);
       hud.setScore(mine ? mine.score : points, mine ? mine.kills : kills, shots ? hits / shots : 0);
@@ -1868,8 +1943,11 @@ async function boot() {
   if (import.meta.env.DEV) {
     Object.assign(window, {
       __oc: {
-        player, weapon, melee, taunt, thrower, grenades, input, dummies, net, conn, me, ctx, physics, quality, map, effects, bots, nav, RAPIER,
+        player, guns, melee, taunt, thrower, grenades, input, dummies, net, conn, me, ctx, physics, quality, map, effects, bots, nav, RAPIER,
         mines, progress,
+        get weapon() {
+          return weapon;
+        },
         trace: (o: THREE.Vector3, d: THREE.Vector3) => traceShot(physics, registry, o, d, weapon.data.alcanceMaximo, playerRig?.body, weapon.data.penetracao),
         stats: () => ({ shots, hits, kills, points, lastTtk }),
         perf: () => ({ boot, mapBuildMs, map: map.stats, simMsAvg, renderMsAvg, calls: ctx.renderer.info.render.calls, tris: ctx.renderer.info.render.triangles }),

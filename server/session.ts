@@ -1,6 +1,6 @@
 // One free-for-all game session. The server owns health, damage, kills, score, respawns and corpses;
 // clients report their movement and what their shots hit, and every report is sanity-checked here with
-// the same shared rules the client uses (weapon data, grenade levels, score table).
+// the same shared rules the client uses (each weapon's stats with the player's upgrades, score table).
 //
 // Every player is a signed-in account: kills, humiliations and time alive feed the account's progress
 // (server/progress.ts), which app.ts writes to the database.
@@ -10,23 +10,22 @@
 // with a lag tolerance.
 import type { ServerWebSocket } from 'bun';
 import { BISCUIT, CHERRY, HEALTH, HUMILIATION, KOI, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
-import { clampExplosionDamage, computeDamage, explosionDamage, GRENADES, grenadeLevel, HIT_REGIONS, LETHAL_DAMAGE, minPenetrationKeep, WEAPONS, type HitRegion } from '@shared/weapons';
+import { clampExplosionDamage, computeDamage, explosionDamage, HIT_REGIONS, LETHAL_DAMAGE, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
 import { ACCOUNT_XP } from '@shared/accountLevel';
 import { bodyStats } from '@shared/appearance';
 import { FISH, PICKUPS, RATS, WITCHES, type MapId, type PickupKind } from '@shared/maps';
-import { knifeData, levelInfo, rifleData, sanitizeLoadout, weaponOfKill, type Loadout } from '@shared/progression';
-import { accountLevelOf, addAccountXp, addTime, addWeaponXp, equip, equippedOf, progressMsg, type LevelUp, type LiveAccount } from './progress';
-import { NET, ONLINE_GRENADE_LEVEL, sanitizeChat, type Award, type ClientMsg, type CorpseInfo, type KillKind, type NetState, type PlayerInfo, type ServerMsg, type Sex, type SessionInfo, type Vec3 } from '@shared/protocol';
+import { isGun, weaponOfKill, type GunId, type ProgWeapon } from '@shared/progression';
+import { grenadeStats, gunIn, gunStats, meleeStats, type GunSlot, type Loadout } from '@shared/arsenal';
+import { accountLevelOf, addAccountXp, addTime, addWeaponXp, equip, loadoutOf, progressMsg, type LevelUp, type LiveAccount } from './progress';
+import { FLAG, NET, sanitizeChat, type Award, type ClientMsg, type CorpseInfo, type KillKind, type NetState, type PlayerInfo, type ServerMsg, type Sex, type SessionInfo, type Vec3 } from '@shared/protocol';
 
-const RIFLE = WEAPONS.rifle_padrao;
-const PEN_MIN_KEEP = minPenetrationKeep(RIFLE);
-const GRENADE = GRENADES.granada_frag;
-const GRENADE_LVL = grenadeLevel(GRENADE, ONLINE_GRENADE_LEVEL);
 /** Eye and chest height: the same for every body (height is only a look). */
 const EYE = 1.6;
 const CHEST = 1.1;
 /** Extra meters allowed between what the client saw and the server's latest positions (latency). */
 const LAG_SLACK = 4;
+/** After a weapon switch, hits from the gun put away still count for this long (shots already in flight, latency). */
+const SWITCH_GRACE_MS = 1000;
 
 export interface Conn {
   ws: ServerWebSocket<unknown>;
@@ -44,8 +43,12 @@ interface SPlayer {
   id: number;
   name: string;
   sex: Sex;
-  /** Equipped weapon levels (unlocked ones only): damage, fire rate and knife reach follow them. */
+  /** Guns and upgrades in effect (resolved from the account): damage, fire rate and reach follow them. */
   loadout: Loadout;
+  /** The gun slot in hand (from the state flags), the one before it and when it changed. */
+  held: GunSlot;
+  heldBefore: GunSlot;
+  heldAt: number;
   /** What the character's look does in the game: height (eye, hitboxes) and max health. */
   body: ReturnType<typeof bodyStats>;
   state: NetState;
@@ -65,7 +68,8 @@ interface SPlayer {
   /** Chat token bucket (NET.chatBurst, one back every NET.chatEveryMs). */
   chatTokens: number;
   chatAt: number;
-  grenades: Map<number, { thrownAt: number; fuse: number; impact: boolean; mine: boolean; origin: Vec3; speed: number }>;
+  /** Live grenades and mines, with the blast they had when thrown (upgrades can't grow it afterwards). */
+  grenades: Map<number, { thrownAt: number; fuse: number; impact: boolean; mine: boolean; origin: Vec3; speed: number; blast: GrenadeLevel }>;
   dance: { corpse: number; since: number } | null;
   /** Server time when the cherry's extra health runs out (0: none). */
   boostUntil: number;
@@ -174,7 +178,10 @@ export class Session {
       id: conn.id,
       name,
       sex: conn.sex,
-      loadout: equippedOf(conn.account),
+      loadout: loadoutOf(conn.account),
+      held: 'primaria',
+      heldBefore: 'primaria',
+      heldAt: 0,
       body: bodyStats(conn.account.profile.appearance),
       state: { p: [0, -50, 0], yaw: 0, pitch: 0, f: 0 },
       // Joins dead: the client picks a spawn and sends 'respawn' right away.
@@ -239,7 +246,14 @@ export class Session {
       case 'state': {
         const s = msg.s;
         if (!s || !vec(s.p) || !finite(s.yaw) || !finite(s.pitch) || !finite(s.f)) return;
-        if (p.alive) p.state = { p: s.p, yaw: s.yaw, pitch: Math.max(-1.6, Math.min(1.6, s.pitch)), f: s.f | 0 };
+        if (!p.alive) return;
+        p.state = { p: s.p, yaw: s.yaw, pitch: Math.max(-1.6, Math.min(1.6, s.pitch)), f: s.f | 0 };
+        const held: GunSlot = p.state.f & FLAG.secondary && p.loadout.secundaria ? 'secundaria' : 'primaria';
+        if (held !== p.held) {
+          p.heldBefore = p.held;
+          p.held = held;
+          p.heldAt = now;
+        }
         return;
       }
       case 'ping':
@@ -247,8 +261,9 @@ export class Session {
         if (finite(msg.c)) conn.send({ t: 'pong', c: msg.c, s: now });
         return;
       case 'shot': {
-        // Cosmetic relay (tracer + sound for others), rate-limited to the rifle's fire rate.
-        if (!p.alive || !vec(msg.o) || !vec(msg.e) || now - p.lastShotRelay < (60000 / rifleData(p.loadout.rifle).cadencia) * 0.7) return;
+        // Cosmetic relay (tracer + sound for others), rate-limited to the fire rate of the gun in hand.
+        const gun = this.gunOf(p, p.held);
+        if (!p.alive || !gun || !vec(msg.o) || !vec(msg.e) || now - p.lastShotRelay < (60000 / gun.cadencia) * 0.7) return;
         p.lastShotRelay = now;
         this.broadcast({ t: 'shot', id: p.id, o: msg.o, e: msg.e }, p.id);
         return;
@@ -284,19 +299,20 @@ export class Session {
         return;
       }
       case 'hit':
-        return this.onHit(p, msg.target, msg.region, msg.dist, msg.keep, now);
+        return this.onHit(p, msg.target, msg.region, msg.dist, msg.w, msg.keep, now);
       case 'stab':
         return this.onStab(p, msg.target, !!msg.behind, now);
       case 'grenade': {
         if (!p.alive || !finite(msg.id) || !vec(msg.p) || !vec(msg.v) || !finite(msg.fuse)) return;
-        // Land mines (grenade level 2) stay until they go off or their owner respawns.
-        const mine = !!msg.mine && levelInfo('granada', p.loadout.granada).tipo === 'mina';
+        // Land mines (a grenade upgrade) stay until they go off or their owner respawns.
+        const grenade = grenadeStats(p.loadout.ativas.granada);
+        const mine = !!msg.mine && grenade.tipo === 'mina';
         const live = [...p.grenades.values()];
         if (p.grenades.has(msg.id) || (mine ? live.filter((g) => g.mine).length >= 3 : live.filter((g) => !g.mine).length >= 4)) return;
-        const impact = !mine && !!msg.impact && GRENADE.impacto;
-        const fuse = mine ? 0 : Math.max(0, Math.min(impact ? GRENADE.tempoMaximoVoo : GRENADE.pavio, msg.fuse));
+        const impact = !mine && !!msg.impact && grenade.impacto;
+        const fuse = mine ? 0 : Math.max(0, Math.min(impact ? grenade.tempoMaximoVoo : grenade.pavio, msg.fuse));
         const speed = Math.hypot(msg.v[0], msg.v[1], msg.v[2]);
-        p.grenades.set(msg.id, { thrownAt: now, fuse, impact, mine, origin: msg.p, speed });
+        p.grenades.set(msg.id, { thrownAt: now, fuse, impact, mine, origin: msg.p, speed, blast: grenade.explosao });
         // A duck (the witch's potion) is only how it looks and sounds.
         this.broadcast({ t: 'grenade', owner: p.id, id: msg.id, p: msg.p, v: msg.v, fuse, impact, ...(mine ? { mine } : {}), ...(!mine && msg.duck === true ? { duck: true } : {}) }, p.id);
         return;
@@ -304,15 +320,15 @@ export class Session {
       case 'boom':
         return this.onBoom(p, msg, now);
       case 'loadout':
-        equip(p.conn.account, sanitizeLoadout(msg.lo));
-        p.loadout = equippedOf(p.conn.account);
-        // Everyone else draws the new weapons in this player's hands.
-        this.broadcast({ t: 'playerLoadout', id: p.id, lo: p.loadout }, p.id);
+        equip(p.conn.account, msg.lo);
+        // Everyone else draws the new weapons in this player's hands; the player gets the choice as kept.
+        this.refreshLoadout(p, true);
+        p.conn.send(progressMsg(p.conn.account));
         return;
       case 'selfDamage': {
         if (!p.alive || !finite(msg.amount) || msg.amount <= 0) return;
         const cause: KillKind = msg.cause === 'void' ? 'void' : msg.cause === 'dog' ? 'dog' : 'fall';
-        this.damage(p, null, Math.min(LETHAL_DAMAGE, msg.amount), cause, null, []);
+        this.damage(p, null, Math.min(LETHAL_DAMAGE, msg.amount), cause, null, [], null);
         return;
       }
       case 'taunt':
@@ -328,6 +344,8 @@ export class Session {
         p.lastDamageAt = 0;
         p.dance = null;
         p.state = { p: msg.p, yaw: msg.yaw, pitch: 0, f: 0 };
+        // Every life starts with the primary in hand.
+        p.held = p.heldBefore = 'primaria';
         // Mines last only for the life they were planted in (clients drop them on 'spawned' too).
         for (const [id, g] of p.grenades) if (g.mine) p.grenades.delete(id);
         this.broadcast({ t: 'spawned', id: p.id, p: msg.p, yaw: msg.yaw });
@@ -401,42 +419,60 @@ export class Session {
     this.broadcast({ t: 'fish', id: id as string, by: p.id, prize, ready: f.ready, golden: f.golden, ...(until ? { until } : {}) });
   }
 
-  private onHit(p: SPlayer, targetId: number, region: HitRegion, reportedDist: number, reportedKeep: number | undefined, now: number) {
+  /** The gun a player has in a slot, with their upgrades (null: empty slot). */
+  private gunOf(p: SPlayer, slot: GunSlot) {
+    const g = gunIn(p.loadout, slot);
+    return g ? gunStats(g, p.loadout.ativas[g]) : null;
+  }
+
+  /**
+   * The gun a hit says it came from, if the player could have fired it: the one in hand, or the one just put
+   * away (shots fired right before a switch arrive after it).
+   */
+  private firedGun(p: SPlayer, w: unknown, now: number) {
+    if (!isGun(w)) return null;
+    if (gunIn(p.loadout, p.held) === w) return this.gunOf(p, p.held);
+    if (now - p.heldAt < SWITCH_GRACE_MS && gunIn(p.loadout, p.heldBefore) === w) return this.gunOf(p, p.heldBefore);
+    return null;
+  }
+
+  private onHit(p: SPlayer, targetId: number, region: HitRegion, reportedDist: number, w: GunId, reportedKeep: number | undefined, now: number) {
     const target = this.players.get(targetId);
     if (!target || target === p || !p.alive || !target.alive || !finite(reportedDist)) return;
     if (!(HIT_REGIONS as readonly string[]).includes(region)) return;
-    // Fire-rate check: no more confirmed hits per second than the rifle can fire (+ slack for jitter).
+    const gun = this.firedGun(p, w, now);
+    if (!gun) return;
+    // Fire-rate check: no more confirmed hits per second than the gun can fire (+ slack for jitter).
     p.hitTimes = p.hitTimes.filter((t) => now - t < 1000);
-    const rifle = rifleData(p.loadout.rifle);
-    if (p.hitTimes.length >= Math.ceil(rifle.cadencia / 60) + 2) return;
+    if (p.hitTimes.length >= Math.ceil(gun.cadencia / 60) + 2) return;
     // Distance check against the server's view of both players.
     const serverDist = dist3(eye(p), chest(target));
-    if (serverDist > rifle.alcanceMaximo || Math.abs(serverDist - reportedDist) > LAG_SLACK + serverDist * 0.1) return;
+    if (serverDist > gun.alcanceMaximo || Math.abs(serverDist - reportedDist) > LAG_SLACK + serverDist * 0.1) return;
     p.hitTimes.push(now);
-    const dist = Math.min(reportedDist, rifle.alcanceMaximo);
+    const dist = Math.min(reportedDist, gun.alcanceMaximo);
     const kind: KillKind = region === 'cabeca' ? 'head' : region === 'virilha' ? 'groin' : 'gun';
     const awards: Award[] = [];
     if (kind === 'head') awards.push({ label: 'headshot', value: SCORE.headshot });
     if (kind === 'groin') awards.push({ label: 'groin', value: SCORE.groin });
     if (dist > SCORE.longShotDistance) awards.push({ label: 'longShot', value: SCORE.longShot });
     // Went through wood/glass: never less than the weapon allows, never more than a clean hit.
-    const keep = finite(reportedKeep) ? Math.min(1, Math.max(PEN_MIN_KEEP, reportedKeep!)) : 1;
+    const keep = finite(reportedKeep) ? Math.min(1, Math.max(minPenetrationKeep(gun), reportedKeep!)) : 1;
     // The critical potion: every bullet does a head's damage (the hit still counts where it landed).
     const crit = p.potion?.kind === 'critico' && p.potion.until > now;
-    this.damage(target, p, computeDamage(rifle, dist, crit ? 'cabeca' : region, keep), kind, eye(p), awards);
+    this.damage(target, p, computeDamage(gun, dist, crit ? 'cabeca' : region, keep), kind, eye(p), awards, gun.arma);
   }
 
   private onStab(p: SPlayer, targetId: number, behind: boolean, now: number) {
     const target = this.players.get(targetId);
     if (!target || target === p || !p.alive || !target.alive) return;
-    const knife = knifeData(p.loadout.faca);
+    const knife = meleeStats(p.loadout.ativas.faca);
     if (now - p.lastStab < knife.intervalo * 1000 * 0.75) return;
     const d = Math.hypot(p.state.p[0] - target.state.p[0], p.state.p[2] - target.state.p[2]);
     if (d > knife.alcanceInvestida + 1.5) return;
     p.lastStab = now;
     const awards: Award[] = [{ label: 'knife', value: SCORE.knife }];
     if (behind) awards.push({ label: 'backstab', value: SCORE.backstab });
-    this.damage(target, p, knife.letal ? LETHAL_DAMAGE : 55, 'knife', eye(p), awards);
+    this.damage(target, p, knife.letal ? LETHAL_DAMAGE : 55, 'knife', eye(p), awards, 'faca');
   }
 
   private onBoom(p: SPlayer, msg: Extract<ClientMsg, { t: 'boom' }>, now: number) {
@@ -459,11 +495,11 @@ export class Session {
       if (!target || !target.alive || seen.has(target.id) || !finite(h.dist)) continue;
       seen.add(target.id);
       const serverDist = dist3(msg.p, chest(target));
-      if (serverDist > GRENADE_LVL.raioDano + 3 || Math.abs(serverDist - h.dist) > 3) continue;
-      // Non-lethal levels protect other players only: your own grenade can kill you.
-      const raw = explosionDamage(GRENADE_LVL, h.dist);
-      const dmg = target === p ? raw : clampExplosionDamage(GRENADE_LVL, raw, target.health);
-      if (dmg > 0) this.damage(target, target === p ? null : p, dmg, target === p ? 'explosion' : 'grenade', msg.p, []);
+      if (serverDist > g.blast.raioDano + 3 || Math.abs(serverDist - h.dist) > 3) continue;
+      // A non-lethal blast protects other players only: your own grenade can kill you.
+      const raw = explosionDamage(g.blast, h.dist);
+      const dmg = target === p ? raw : clampExplosionDamage(g.blast, raw, target.health);
+      if (dmg > 0) this.damage(target, target === p ? null : p, dmg, target === p ? 'explosion' : 'grenade', msg.p, [], target === p ? null : 'granada');
     }
   }
 
@@ -500,16 +536,17 @@ export class Session {
 
   // --- Rules ------------------------------------------------------------------------------------------
 
-  private damage(target: SPlayer, attacker: SPlayer | null, amount: number, kind: KillKind, from: Vec3 | null, bonus: Award[]) {
+  /** `weapon`: what dealt it (it gets the kill's points); null for falls, the dog, your own grenade. */
+  private damage(target: SPlayer, attacker: SPlayer | null, amount: number, kind: KillKind, from: Vec3 | null, bonus: Award[], weapon: ProgWeapon | null) {
     if (!target.alive || amount <= 0) return;
     const dealt = Math.min(target.health, amount);
     target.health -= dealt;
     target.lastDamageAt = this.now();
     this.broadcast({ t: 'damage', target: target.id, attacker: attacker?.id ?? null, amount: dealt, health: target.health, from });
-    if (target.health <= 0) this.kill(target, attacker, kind, bonus);
+    if (target.health <= 0) this.kill(target, attacker, kind, bonus, weapon);
   }
 
-  private kill(victim: SPlayer, attacker: SPlayer | null, kind: KillKind, bonus: Award[]) {
+  private kill(victim: SPlayer, attacker: SPlayer | null, kind: KillKind, bonus: Award[], weapon: ProgWeapon | null) {
     const now = this.now();
     victim.alive = false;
     victim.health = 0;
@@ -539,7 +576,7 @@ export class Session {
       if (kind === 'knife') d.knifeKills++;
       if (kind === 'grenade') d.grenadeKills++;
       if (awards.some((a) => a.label === 'backstab')) d.backstabs++;
-      const w = weaponOfKill(kind);
+      const w = weaponOfKill(kind, isGun(weapon) ? weapon : null);
       this.progress(attacker, [w ? addWeaponXp(acct, w, points) : null, addAccountXp(acct, ACCOUNT_XP.perKill)]);
     }
     const corpse: Corpse = {
@@ -558,7 +595,7 @@ export class Session {
     this.corpses.set(corpse.id, corpse);
     const players = [this.playerInfo(victim), ...(attacker && attacker !== victim ? [this.playerInfo(attacker)] : [])];
     const { id, victim: v, name, sex, ap, p, yaw, until } = corpse;
-    this.broadcast({ t: 'kill', victim: victim.id, attacker: attacker?.id ?? null, kind, awards, corpse: { id, victim: v, name, sex, ap, p, yaw, until }, players });
+    this.broadcast({ t: 'kill', victim: victim.id, attacker: attacker?.id ?? null, kind, ...(weapon && attacker && attacker !== victim ? { arma: weapon } : {}), awards, corpse: { id, victim: v, name, sex, ap, p, yaw, until }, players });
   }
 
   private tick() {
@@ -594,11 +631,19 @@ export class Session {
     }
   }
 
-  /** Tells the player their new progress; a weapon that leveled up may have been equipped. */
+  /** Tells the player their new progress; an upgrade unlocked by a level up changes their loadout at once. */
   private progress(p: SPlayer, ups: (LevelUp | null)[]) {
-    p.loadout = equippedOf(p.conn.account);
     const levelUps = ups.filter((u): u is LevelUp => !!u);
+    if (levelUps.length) this.refreshLoadout(p, false);
     if (!levelUps.length) p.conn.send(progressMsg(p.conn.account));
     for (const up of levelUps) p.conn.send(progressMsg(p.conn.account, up));
+  }
+
+  /** Resolves the player's loadout again (choice, levels) and shows it to the others when it changed (or `always`). */
+  private refreshLoadout(p: SPlayer, always: boolean) {
+    const before = JSON.stringify(p.loadout);
+    p.loadout = loadoutOf(p.conn.account);
+    if (!p.loadout.secundaria && p.held === 'secundaria') p.held = 'primaria';
+    if (always || JSON.stringify(p.loadout) !== before) this.broadcast({ t: 'playerLoadout', id: p.id, lo: p.loadout }, p.id);
   }
 }

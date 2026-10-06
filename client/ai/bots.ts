@@ -3,7 +3,8 @@
 // corpses and the respawns. The local player is just another Combatant here.
 import * as THREE from 'three';
 import { HUMILIATION, SCORE } from '@shared/constants';
-import { computeDamage, LETHAL_DAMAGE, MELEE, WEAPONS, type HitRegion } from '@shared/weapons';
+import { computeDamage, LETHAL_DAMAGE, MELEE, type HitRegion } from '@shared/weapons';
+import type { ProgWeapon } from '@shared/progression';
 import type { Award, KillKind, PlayerInfo, Sex } from '@shared/protocol';
 import { Bot, BOT_SKILLS, type BotSkillName, type BotWorld, type Combatant } from './bot';
 import type { NavMap } from './navmesh';
@@ -19,7 +20,6 @@ import type { SpawnPoint } from '../world/blockoutMap';
 const RESPAWN = 5;
 /** Spawn protection (section 6): invulnerable and ignored for 2 s, cancelled by your own first shot. */
 const SPAWN_PROTECTION = 2;
-const RIFLE = WEAPONS.rifle_padrao;
 const DEG = Math.PI / 180;
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -30,6 +30,8 @@ const BOT_NAMES: [string, Sex][] = [
 
 export interface HitInfo {
   kind: KillKind;
+  /** The weapon that dealt it (named in the kill feed). */
+  w?: ProgWeapon;
   region?: HitRegion;
   dist?: number;
   behind?: boolean;
@@ -38,7 +40,8 @@ export interface HitInfo {
 export interface BotHooks {
   /** Damage to the local player; returns the health left (the game applies it and handles death). */
   damagePlayer(amount: number, attacker: Combatant, from: THREE.Vector3): number;
-  kill(victim: Combatant, killer: Combatant | null, kind: KillKind, awards: Award[], corpse: Corpse): void;
+  /** `weapon`: what got the kill (null for falls, the dog, your own grenade). */
+  kill(victim: Combatant, killer: Combatant | null, kind: KillKind, awards: Award[], corpse: Corpse, weapon: ProgWeapon | null): void;
   tauntStarted(dancer: Combatant, corpse: Corpse): void;
   humiliation(dancer: Combatant, corpse: Corpse, awards: Award[]): void;
 }
@@ -199,7 +202,9 @@ export class BotManager {
     );
     this.corpses.set(corpse.info.id, corpse);
     if (victim instanceof Bot) victim.die(this.time);
-    this.o.hooks.kill(victim, killer && killer !== victim ? killer : null, info.kind, awards, corpse);
+    const by = killer && killer !== victim ? killer : null;
+    const weapon = !by ? null : (info.w ?? (info.kind === 'knife' ? 'faca' : info.kind === 'grenade' ? 'granada' : 'rifle'));
+    this.o.hooks.kill(victim, by, info.kind, awards, corpse, weapon);
   }
 
   private finishTaunt(dancer: Combatant, corpse: Corpse) {
@@ -217,10 +222,11 @@ export class BotManager {
     const y = bot.yaw - bot.weapon.recoilYaw * DEG;
     const aim = new THREE.Vector3(-Math.sin(y) * Math.cos(p), Math.sin(p), -Math.cos(y) * Math.cos(p));
     const dir = applySpread(aim, spread, new THREE.Vector3());
-    const { hit, through, keep, end } = traceShot(this.o.physics, this.o.registry, eye, dir, RIFLE.alcanceMaximo, bot.rig.body, RIFLE.penetracao);
+    const gun = bot.weapon.data;
+    const { hit, through, keep, end } = traceShot(this.o.physics, this.o.registry, eye, dir, gun.alcanceMaximo, bot.rig.body, gun.penetracao);
     const muzzle = bot.muzzle(new THREE.Vector3());
     bot.fired();
-    this.o.sfx.at(muzzle, 'gun', (s) => s.gunshot());
+    this.o.sfx.at(muzzle, 'gun', (s) => s.gunshot(1, bot.gun));
     if (Math.random() < 0.5) this.o.effects.tracer(muzzle, end);
     for (const p of through) {
       this.o.effects.decal(p.point, p.normal);
@@ -236,7 +242,7 @@ export class BotManager {
       const region = victim.refineRegion(hit.point, hit.target.region);
       const kind: KillKind = region === 'cabeca' ? 'head' : region === 'virilha' ? 'groin' : 'gun';
       this.o.effects.burst(region === 'cabeca' || region === 'virilha' ? 'star' : 'confetti', hit.point, dir.clone().negate(), 6);
-      this.hit(victim, bot, computeDamage(RIFLE, hit.distance, region, keep), { kind, region, dist: hit.distance });
+      this.hit(victim, bot, computeDamage(gun, hit.distance, region, keep), { kind, region, dist: hit.distance, w: bot.gun });
     } else {
       this.o.effects.decal(hit.point, hit.normal);
       this.o.effects.burst('debris', hit.point, hit.normal, 3, 0x9a8f80);

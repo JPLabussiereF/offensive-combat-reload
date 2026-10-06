@@ -18,7 +18,7 @@ tags:
   - game
   - rendering
   - animation
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Animation
@@ -42,7 +42,7 @@ Esqueleto canônico (`BONES` em `client/character/rig.ts`): `root → hips → s
 ### `CharacterAnimator` (duas camadas)
 
 - **Parte de baixo (locomoção):** cada pé tem um alvo no chão; na fase de apoio fica parado enquanto o corpo passa, na fase de balanço levanta e vai à frente. Resolvido com **IK de dois ossos**. A passada acompanha a velocidade em qualquer direção (o comentário chama de "blend de 8 direções de graça"). Agachar dobra os joelhos com os pés no chão; deslizar estica as pernas à frente. As pernas só giram no lugar depois que o tronco torce **60°**.
-- **Parte de cima:** o pitch da visão é dividido em coluna 30%, peito 40%, cabeça 30% (limite ±70°). O rifle fica nas duas mãos por IK (mão direita no punho, esquerda sob o guarda-mão) em três poses: quadril, ADS e corrida.
+- **Parte de cima:** o pitch da visão é dividido em coluna 30%, peito 40%, cabeça 30% (limite ±70°). A arma de fogo fica nas duas mãos por IK (mão direita no punho; a esquerda sob o guarda-mão do rifle, na empunhadura da submetralhadora ou envolvendo o punho da pistola — `AvatarPose.hold`, `ANIM.leftGrip[hold]`) em três poses: quadril, ADS e corrida. Com a secundária na mão (`AvatarPose.secondary`), o rifle fica nas costas.
 - **Camadas aditivas curtas:** recuo a cada tiro, recarga (ciclo 1,6 s), faca, granada (arremesso de 0,5 s, solta aos 45%), reação a tiro (o tronco "dá um tranco" na direção da bala), pouso.
 - **Poses especiais:** idle e caminhada desarmados (editor), **dança** da [[Humiliation]] (`dance`), **queda** dura de desenho para trás ou de cara (`die`).
 
@@ -88,7 +88,8 @@ Pose base do rifle no espaço da câmera, misturada entre quadril, ADS (*ease-ou
 | Inclinação no strafe | roll de até 0,06 rad (≈ 3,4°) a 5 m/s | — |
 | Recarga | inclina a arma, o carregador sai do quadro e volta | por progresso 0..1 |
 | Deslize | a arma rola para dentro e desce | — |
-| Faca | o rifle abaixa; a faca segue 5 *keyframes* (estocada para facas, arco lateral para colher, frango etc.) | `KNIFE_KEYS`, `SWING_KEYS` |
+| Faca | a arma abaixa; a faca segue 5 *keyframes* (estocada para a faca, arco lateral para o frango e o sabre) | `KNIFE_KEYS`, `SWING_KEYS` |
+| Troca de arma | a arma nova sobe de baixo, inclinada, durante o tempo de saque (`troca`) | `Viewmodel.draw`, `VM_FEEL.draw` |
 | Granada | o rifle abaixa, a mão esquerda segura a granada tremendo e arremessa por cima | — |
 
 Os braços em primeira pessoa são do próprio personagem (pele, manga, luvas, PCD). Ver [[Weapon Models]] e [[Character Customization]].

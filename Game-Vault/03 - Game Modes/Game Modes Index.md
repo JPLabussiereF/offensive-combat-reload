@@ -15,7 +15,7 @@ tags:
   - game
   - modes
   - index
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Game Modes Index
@@ -44,7 +44,7 @@ Porta de entrada da área de **modos de jogo**. A escolha do modo acontece na ho
 | --- | --- | --- | --- |
 | Autoridade das regras | servidor (`server/session.ts`) | cliente (`BotManager`, mesmas regras) | cliente |
 | Pontos pontuam a progressão? | Sim | Não | Não |
-| Níveis de arma usados | equipados na conta | equipados na conta (nível 1 sem conta) | idem |
+| Armas e melhorias usadas | loadout da conta (níveis + escolha do Arsenal) | loadout da conta (sem melhorias sem conta) | idem |
 | Pontos de nascimento | `spawnsFFA` + seletor seguro | `spawnsFFA` + seletor seguro | `spawnsA` (sorteio, sem repetir o último) |
 | Atraso de respawn | 5 s (servidor) | 5 s | 3 s |
 | Proteção ao nascer | Não | **2 s** (pisca, cancelada ao atirar) | Não |

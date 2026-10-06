@@ -10,11 +10,13 @@ source_paths:
   - shared/protocol.ts
   - client/ui/home.ts
   - server/session.ts
+  - shared/progression.ts
+  - shared/arsenal.ts
 tags:
   - game
   - index
   - design
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Visão geral do jogo
@@ -32,11 +34,11 @@ updated: 2026-10-05
 | Elemento | Resumo | Detalhe |
 |---|---|---|
 | Loop | Nascer, procurar alvos, abater, oprimir o corpo (opcional), pontuar, morrer, renascer | [[Core Loop]] |
-| Armas | Arsenal fixo: rifle hitscan, faca (mata com um golpe) e granada. Cada arma evolui por níveis | [[Weapons]], [[Melee]], [[Grenades]], [[Land Mines]] |
+| Armas | Rifle (primária) + uma secundária escolhida no Arsenal (pistola ou submetralhadora), todas hitscan, trocadas com 1/2/roda; faca (mata com um golpe) e granada. Cada arma ganha melhorias ao subir de nível | [[Weapons]], [[Melee]], [[Grenades]], [[Land Mines]] |
 | Dano e vida | 100 de vida para todos, regeneração após 4 s sem dano, cabeça ×2,5, tiro na virilha mata na hora | [[Damage System]], [[Health System]] |
 | Pontos | Abate 100 mais bônus (cabeça, virilha, longa distância, faca, pelas costas); oprimir vale 150 | [[Scoring]] |
 | Renascimento | 5 s online e contra bots, 3 s no treino, em ponto seguro | [[Respawn]], [[Spawn Design]] |
-| Progressão | XP por arma (os pontos do abate vão para a arma que matou) e nível de conta, só em partidas online validadas | [[Progression]] |
+| Progressão | XP por arma (os pontos do abate vão para a arma que matou); cada nível libera uma melhoria (comum ou opcional, ligada no Arsenal). Nível de conta à parte. Só em partidas online validadas | [[Progression]] |
 | Bônus de mapa | Cereja, biscoito, carpa dourada, humanidade (rato gigante), poções da bruxa, tiro ao alvo | [[Pickups]], [[Buffs & Debuffs]], [[Objectives]] |
 
 ## Modos

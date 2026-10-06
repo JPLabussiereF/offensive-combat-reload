@@ -4,10 +4,11 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { FLAG, NET, type CorpseInfo, type NetState, type PlayerInfo, type Sex } from '@shared/protocol';
-import { DEFAULT_LOADOUT, type Loadout } from '@shared/progression';
+import { DEFAULT_LOADOUT, gunIn, meleeStats, sanitizeLoadout, slotStats, type GunStats, type Loadout, type MeleeStats } from '@shared/arsenal';
 import type { HitRegion } from '@shared/weapons';
 import { bodyStats, defaultAppearance, type Appearance } from '@shared/appearance';
 import { Avatar } from '../entities/avatar';
+import { holdOf } from '../render/weaponModels';
 import { isBehind } from '../entities/hitboxes';
 import { CharacterRig, type HitPose } from '../entities/rig';
 import type { HitboxRegistry, Target } from '../gameplay/targets';
@@ -64,6 +65,8 @@ export class RemotePlayer implements Target {
   private rig: CharacterRig;
   private danceT: number | null = null;
   private loadoutKey = '';
+  /** What they carry (guns, upgrades): what's in their hands, how their shots sound. */
+  loadout: Loadout = DEFAULT_LOADOUT;
   private lastPos = new THREE.Vector3();
 
   constructor(
@@ -95,10 +98,26 @@ export class RemotePlayer implements Target {
     this.rig.setDebug(v);
   }
 
+  /** Holding their secondary gun (from the flags). */
+  get holdingSecondary() {
+    return !!(this.flags & FLAG.secondary) && !!this.loadout.secundaria;
+  }
+
+  /** The gun in their hands, with their upgrades (sound of their shots, reload time). */
+  get gun(): GunStats {
+    return slotStats(this.loadout, this.holdingSecondary ? 'secundaria' : 'primaria')!;
+  }
+
+  /** Their knife, in its form (the sound of their swings). */
+  get knife(): MeleeStats {
+    return meleeStats(this.loadout.ativas.faca);
+  }
+
   /** What the body is doing, from the flags: the avatar plays it and the hitboxes follow it. */
   private currentPose(): HitPose {
     const f = this.flags;
     if (f & FLAG.dance) return { kind: 'dance', t: this.danceT ?? 0 };
+    const secondary = this.holdingSecondary;
     return {
       kind: 'armed',
       pose: {
@@ -114,6 +133,8 @@ export class RemotePlayer implements Target {
         reload: !!(f & FLAG.reload),
         knife: !!(f & FLAG.knife),
         cook: !!(f & FLAG.cook),
+        secondary,
+        hold: holdOf(gunIn(this.loadout, secondary ? 'secundaria' : 'primaria') ?? 'rifle'),
       },
     };
   }
@@ -185,11 +206,12 @@ export class RemotePlayer implements Target {
     this.avatar.fire();
   }
 
-  /** Their equipped weapon levels (the models in their hands). */
+  /** What they carry (the models in their hands). */
   setLoadout(lo: Loadout) {
     const key = JSON.stringify(lo);
     if (key === this.loadoutKey) return;
     this.loadoutKey = key;
+    this.loadout = lo;
     this.avatar.setLoadout(lo);
   }
 
@@ -244,11 +266,12 @@ export class RemoteWorld {
     const rp = this.players.get(p.id);
     const sex = p.sex ?? 'm';
     if (!rp) this.players.set(p.id, new RemotePlayer(p.id, p.name, sex, ap ?? defaultAppearance(sex), this.world, this.scene, this.registry));
-    this.players.get(p.id)?.setLoadout(p.lo ?? DEFAULT_LOADOUT);
+    this.players.get(p.id)?.setLoadout(p.lo ? sanitizeLoadout(p.lo) : DEFAULT_LOADOUT);
   }
 
-  /** A player equipped other weapon levels. */
-  setLoadout(id: number, lo: Loadout) {
+  /** A player's loadout changed (Arsenal choice, a new upgrade). */
+  setLoadout(id: number, raw: Loadout) {
+    const lo = sanitizeLoadout(raw);
     const info = this.info.get(id);
     if (info) info.lo = lo;
     this.players.get(id)?.setLoadout(lo);

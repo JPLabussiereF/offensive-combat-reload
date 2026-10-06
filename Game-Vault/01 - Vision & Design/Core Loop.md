@@ -12,11 +12,12 @@ source_paths:
   - shared/protocol.ts
   - shared/progression.ts
   - shared/accountLevel.ts
+  - shared/arsenal.ts
 tags:
   - game
   - design
   - loop
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Core Loop
@@ -29,7 +30,7 @@ O jogo tem três laços encaixados: o **laço de combate** (segundos), o **laço
 flowchart TD
     Home[Home: escolhe modo e mapa] --> Spawn[Nasce num ponto seguro]
     Spawn --> Explore[Explora o mapa / gags / coletáveis]
-    Explore --> Fight[Combate: rifle, faca, granada/mina]
+    Explore --> Fight[Combate: rifle ou secundária, faca, granada/mina]
     Fight -->|abate| Kill[Pontos do abate + bônus]
     Kill --> Corpse{Corpo oprimível por 6 s}
     Corpse -->|E perto do corpo, dança 3,2 s| Opp[Opressão: +150 pontos]
@@ -42,7 +43,7 @@ flowchart TD
 
 1. **Nascer**: o cliente escolhe um ponto de nascimento seguro ([[Respawn]]).
 2. **Procurar briga**: andar, correr, deslizar ([[Movement]]). No caminho há coletáveis e gags ([[Objectives]], [[Map Gags]]).
-3. **Combater**: rifle hitscan, faca que mata com um golpe, granada de impacto ou mina ([[Combat]], [[Weapons]]).
+3. **Combater**: rifle ou a secundária (pistola ou submetralhadora, trocadas com 1/2/roda), todas hitscan; faca que mata com um golpe; granada de impacto ou mina ([[Combat]], [[Weapons]]).
 4. **Abater**: o abate vale 100 pontos, mais os bônus (cabeça, virilha, faca, pelas costas, longa distância) ([[Scoring]]).
 5. **Oprimir (opcional, risco × recompensa)**: o corpo fica oprimível por 6 s. Dançar sobre ele dura 3,2 s, o jogador não pode atirar e só a morte interrompe a dança. Ao completar, ganha +150 pontos ([[Humiliation]]).
 6. **Morrer e voltar**: online, o respawn leva 5 s, tempo para a vítima assistir à própria opressão.
@@ -56,15 +57,16 @@ flowchart LR
     Opp[Opressão completa] -->|+50| AXP
     Alive[Cada minuto vivo] -->|+10| AXP
     Fish[Carpa / carpa dourada] -->|+1 / +100| AXP
-    WXP --> Lvl[Novo nível da arma]
-    Lvl -->|auto-equipa se usava o melhor| Arsenal[Arsenal: equipar níveis]
+    WXP --> Lvl[Novo nível da arma: libera uma melhoria]
+    Lvl -->|comum: ativa na hora| Kill
+    Lvl -->|opcional: o jogador liga| Arsenal[Arsenal: secundária e melhorias opcionais]
     Arsenal --> Kill
     AXP --> AL[Nível da conta: exibido no placar e no perfil]
 ```
 
-- Os pontos de cada abate viram XP **só da arma que matou** (rifle, faca ou granada). Os níveis novos trocam a mira, os números e o visual ([[Progression]]).
+- Os pontos de cada abate viram XP **só da arma que matou** (rifle, pistola, submetralhadora, faca ou granada). Cada nível novo libera uma **melhoria**: as comuns ficam ativas na hora; as opcionais têm uma troca e o jogador as liga no Arsenal ([[Progression]], [[ADR - Progressão por melhorias de arma]]).
 - O nível da conta é só exibido: não libera nada no código atual.
-- O treino e o modo contra bots **usam** os níveis equipados, mas **não dão** pontos.
+- O treino e o modo contra bots **usam** os níveis e a escolha do Arsenal da conta, mas **não dão** pontos.
 
 ## Laço de sessão
 
