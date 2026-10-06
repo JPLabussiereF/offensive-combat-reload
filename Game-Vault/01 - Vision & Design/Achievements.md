@@ -25,7 +25,7 @@ As conquistas são um **álbum de figurinhas**. Cada figurinha tem **um desenho*
 - Um **contador** (abates, opressões, reanimações...) continua contando depois da Dourada, e cada nova volta inteira na última meta aparece como **repetidas** (×2, ×3...).
 - Um **recorde** (nível da conta, melhor onda, armas no máximo) termina na Dourada.
 
-Proposta completa e fases na issue #25 do repositório. Este documento descreve o que existe hoje: a **fase 1** (figurinhas derivadas das estatísticas), a **fase 2** (contadores próprios e o aviso no jogo) e a **fase 3** (figurinha em destaque e títulos que os outros veem). Com a fase 2b, são 56 figurinhas em 9 páginas.
+Proposta completa e fases na issue #25 do repositório. Este documento descreve o que existe hoje: a **fase 1** (figurinhas derivadas das estatísticas), a **fase 2** (contadores próprios e o aviso no jogo) e a **fase 3** (figurinha em destaque e títulos que os outros veem). Com a fase 2b e a página Mapas, são 65 figurinhas em 10 páginas.
 
 ## Fase 1: figurinhas derivadas
 
@@ -109,6 +109,24 @@ Os eventos ficam em `server/session.ts` (`albumKill`, `albumHumiliation`, `onPic
 
 🔒 = **secreta** (`oculta`): até ser colada, o cartão mostra "❓ ???" e o detalhe só a `dica`. Ao ser descoberta, o aviso diz "🔓 Figurinha secreta descoberta". A página Proezas dá o título **Lenda Urbana**.
 
+## Página Mapas: objetos dos mapas
+
+Os objetos de piada que contam figurinha passaram a ser **conferidos pelo servidor** (`PROPS` em `shared/maps.ts`): o toque só vale no mapa certo, de quem está vivo e a até 80 m do objeto. As sequências ficam em `Session.albumProp` (`server/session.ts`), com a lista dos últimos toques de cada jogador (`propLog`, 30 s).
+
+| Mapa | Figurinha | Como conta | Tipo | Metas |
+| --- | --- | --- | --- | --- |
+| Rua | Sorveteiro Fantasma | o caminhão de sorvete toca (uma vez a cada 4 s, como a música) | contador | 1 · 5 · 10 |
+| Jardim | Proibido Acordar 🔒 | acordar o dragão do lago | recorde | 1 |
+| Jardim | Maestro | Dó-Ré-Mi-Fá-Sol no carrilhão do mercado, em ordem, em até 6 s | recorde | 1 |
+| Jardim | Banda Marcial | os 4 tambores e o gongo em até 30 s | recorde | 1 |
+| Vila | EU JÁ OUVI. 🔒 | o sino da capela 5 vezes em 8 s (quando ele reclama) | recorde | 1 |
+| Vila | CHEGA. | a buzina 6 vezes em 6 s (quando o vizinho grita) | recorde | 1 |
+| Vila | Mudou pro Mausoléu | acordar o fantasma da cova | contador | 4 · 8 · 12 |
+| Vila | Patinhos em Fila | mexer o caldeirão da bruxa | contador | 5 · 15 · 50 |
+| Vila | Mosca no Alvo | os 7 alvos do parque antes do primeiro voltar (5 s) | contador | 1 · 5 · 20 |
+
+A página dá o título **Guia Turístico**. O relógio da mansão e os cogumelos ficaram de fora: são o Feitiço da Meia-Noite (#23) e precisam que o servidor guarde a hora do relógio para todos.
+
 ## Aviso no jogo
 
 O `LiveAccount` guarda os totais e os contadores próprios da última gravação (`profile.totals`, `profile.album`); com o delta ainda não gravado, são os números ao vivo (`liveSources`, `liveOwn`). Uma vez por segundo, no `tick` da sessão, `stickerUps` compara o acabamento de cada figurinha com o que o jogador já sabe (`stickerTiers`, calculado no login) e manda `figurinha {id, nivel}` só ao dono. Vale para todas, derivadas e próprias, inclusive as do zumbi. O cliente mostra a faixa "🎯 Figurinha Brilhante: Na Testa!" (uma por vez, em fila) com o som de subir de nível. Repetidas não geram aviso.
@@ -129,6 +147,7 @@ O "calling card" do jogo: cada jogador escolhe **uma figurinha em destaque** (qu
   | Cardápio | Chef da Vizinhança |
   | Corrida Armada | Piloto de Fuga |
   | Zumbi | Caça-Zumbis |
+  | Mapas | Guia Turístico |
   | Vexames | Pé-Frio |
 
 - **Escolha:** na aba Álbum, o bloco do topo mostra a figurinha em destaque e um seletor com os títulos ganhos. O detalhe de uma figurinha colada tem **Usar como destaque** / **Tirar do destaque**. "Títulos: X de 8" abre a lista com o andamento de cada página.
@@ -188,7 +207,7 @@ Nada disto existe ainda; fica anotado para as próximas versões do álbum (prop
 - **Arte das figurinhas** renderizada com os modelos do próprio jogo (o rato, a Noiva, o Frango de Borracha), por uma ferramenta como a `bake-navmesh` (`tools/bake-figurinhas.ts`), no lugar dos emojis.
 
 **Mais figurinhas**
-- **Mapas e easter eggs**: sino da capela ("EU JÁ OUVI."), buzina ("CHEGA."), fantasma que desiste, dragão do Jardim, carrilhão (tocar Dó-Ré-Mi-Fá-Sol), alvos do parque. Antes disso, o servidor precisa guardar e conferir o estado desses objetos: hoje eles só são repassados entre os clientes ([[Map Gags]]).
+- **Mais objetos de mapa:** o relógio da mansão (bater meia-noite), os cogumelos, o hidrante (ser lançado), os flamingos girando. Precisam que o servidor guarde o estado deles para todos (a hora do relógio) ou confie em física do cliente. A página Mapas já tem os que dava para conferir.
 - **Feitiço da Meia-Noite** e a figurinha secreta **Aprendiz de Bruxa** (issue #23, deixada de lado por enquanto).
 - **Proezas que dependem do cliente**, aceitas só se o jogo passar a conferir esses dados:
   - Carpa e Cabra (um tiro mata a carpa e um jogador);

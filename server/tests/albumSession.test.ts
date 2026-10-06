@@ -9,6 +9,7 @@ import { gunStats, slotStats } from '@shared/arsenal';
 import { computeDamage, critRegion, LETHAL_DAMAGE } from '@shared/weapons';
 import { HUMILIATION } from '@shared/constants';
 import { FINAL_STEP } from '@shared/gunGame';
+import type { MapId } from '@shared/maps';
 import { modeMaps, type GameModeId } from '@shared/modes';
 import { DEFAULT_CHOICE, PROG_WEAPONS, type ProgWeapon } from '@shared/progression';
 import type { Award, ClientMsg, KillKind, ServerMsg } from '@shared/protocol';
@@ -43,8 +44,8 @@ class Room {
   readonly stubs: Stub[] = [];
   readonly session: Session;
 
-  constructor(mode: GameModeId) {
-    this.session = new Session(`album-${mode}`, 'Album', modeMaps(mode)[0], mode, false, () => this.t, () => {}, (_topic, data) => this.deliver(data));
+  constructor(mode: GameModeId, map: MapId = modeMaps(mode)[0]) {
+    this.session = new Session(`album-${mode}`, 'Album', map, mode, false, () => this.t, () => {}, (_topic, data) => this.deliver(data));
   }
 
   private deliver(data: string, except?: Stub) {
@@ -258,6 +259,92 @@ describe('figurinhas próprias numa sessão (relógio falso)', () => {
     ladder.set(C.conn.id, { step: FINAL_STEP, kills: 0 });
     room.kill(C, A, 'knife', 'faca');
     expect(room.own(C)).toMatchObject({ corredor: 1, 'volta-olimpica': 1 });
+    room.dispose();
+  });
+});
+
+describe('figurinhas de mapa (objetos conferidos pelo servidor)', () => {
+  /** A prop hit, spaced past the server's limit of one every 150 ms. */
+  const hitProp = (room: Room, s: Stub, id: string) => {
+    room.t += 200;
+    room.send(s, { t: 'prop', id });
+  };
+
+  it('só conta e só repassa um objeto do próprio mapa, de quem está vivo e a até 80 m', () => {
+    const room = new Room('mata-mata', 'jardim');
+    const A = room.join();
+    const B = room.join();
+    // The dragon is ~41 m from the origin: taken, and relayed to the others.
+    hitProp(room, A, 'dragao');
+    expect(room.own(A)).toMatchObject({ 'proibido-acordar': 1 });
+    expect(room.take(B, 'prop')).toEqual([{ t: 'prop', id: 'dragao', by: A.conn.id }]);
+    // A prop of another map (the Haunted Town's horn): refused, not relayed.
+    hitProp(room, A, 'buzina');
+    expect(room.take(B, 'prop')).toEqual([]);
+    // Too far (over 80 m from the dragon): refused.
+    room.send(A, { t: 'state', s: { p: [-60, 0, 40], yaw: 0, pitch: 0, f: 64 } });
+    hitProp(room, A, 'dragao');
+    expect(room.own(A)['proibido-acordar']).toBe(1);
+    expect(room.take(B, 'prop')).toEqual([]);
+    // A cosmetic prop (a lantern) is still just relayed, from anywhere.
+    hitProp(room, A, 'lanterna:3');
+    expect(room.take(B, 'prop')).toHaveLength(1);
+    room.dispose();
+  });
+
+  it('Jardim: Maestro (Dó-Ré-Mi-Fá-Sol em ordem, até 6 s) e Banda Marcial (4 tambores e o gongo, até 30 s)', () => {
+    const room = new Room('mata-mata', 'jardim');
+    const A = room.join();
+    // Out of order: nothing.
+    for (const i of [0, 2, 1, 3, 4]) hitProp(room, A, `carrilhao:${i}`);
+    expect(room.own(A).maestro).toBeUndefined();
+    // In order but too slow: nothing.
+    for (const i of [0, 1, 2, 3, 4]) {
+      room.t += 1500;
+      hitProp(room, A, `carrilhao:${i}`);
+    }
+    expect(room.own(A).maestro).toBeUndefined();
+    // In order, in time.
+    for (const i of [0, 1, 2, 3, 4]) hitProp(room, A, `carrilhao:${i}`);
+    expect(room.own(A)).toMatchObject({ maestro: 1 });
+    for (const id of ['tambor:0', 'tambor:1', 'tambor:2', 'gongo']) hitProp(room, A, id);
+    expect(room.own(A)['banda-marcial']).toBeUndefined();
+    hitProp(room, A, 'tambor:3');
+    expect(room.own(A)).toMatchObject({ 'banda-marcial': 1 });
+    room.dispose();
+  });
+
+  it('Vila: EU JÁ OUVI. (5 sinos em 8 s), CHEGA. (6 buzinas em 6 s), Mosca no Alvo (7 alvos em 5 s), fantasma e caldeirão', () => {
+    const room = new Room('mata-mata', 'halloween');
+    const A = room.join();
+    for (let i = 0; i < 4; i++) hitProp(room, A, 'sinocapela');
+    expect(room.own(A)['eu-ja-ouvi']).toBeUndefined();
+    hitProp(room, A, 'sinocapela');
+    expect(room.own(A)).toMatchObject({ 'eu-ja-ouvi': 1 });
+    for (let i = 0; i < 6; i++) hitProp(room, A, 'buzina');
+    expect(room.own(A)).toMatchObject({ chega: 1 });
+    // Six targets, then the seventh too late (the first ones are back up): nothing; all seven in time: one.
+    for (let i = 0; i < 6; i++) hitProp(room, A, `alvo:${i}`);
+    room.t += 5000;
+    hitProp(room, A, 'alvo:6');
+    expect(room.own(A)['mosca-no-alvo']).toBeUndefined();
+    for (let i = 0; i < 7; i++) hitProp(room, A, `alvo:${i}`);
+    expect(room.own(A)).toMatchObject({ 'mosca-no-alvo': 1 });
+    hitProp(room, A, 'fantasma');
+    hitProp(room, A, 'caldeirao');
+    expect(room.own(A)).toMatchObject({ 'mudou-pro-mausoleu': 1, 'patinhos-em-fila': 1 });
+    room.dispose();
+  });
+
+  it('Rua: o caminhão de sorvete conta uma vez por música (a cada 4 s)', () => {
+    const room = new Room('mata-mata', 'rua');
+    const A = room.join();
+    hitProp(room, A, 'caminhao');
+    hitProp(room, A, 'caminhao');
+    expect(room.own(A)).toMatchObject({ 'sorveteiro-fantasma': 1 });
+    room.t += 4000;
+    hitProp(room, A, 'caminhao');
+    expect(room.own(A)).toMatchObject({ 'sorveteiro-fantasma': 2 });
     room.dispose();
   });
 });
