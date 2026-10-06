@@ -188,7 +188,7 @@ describe('mapas da comunidade online', () => {
     p.send({ t: 'play', map: id, mode: 'mata-mata' });
     expect((await p.next('error')).message).toBe('Esse modo não é jogado nesse mapa.');
     const joined = await enterMap(p, id, 'zumbi');
-    expect(joined.session).toMatchObject({ map: id, mode: 'zumbi', mapaNome: 'Cemitério da Capela' });
+    expect(joined.session).toMatchObject({ map: id, mode: 'zumbi', mapaNome: 'Cemitério da Capela (cópia)' });
     // The match runs on the copy's navmesh, counting down to the first wave: in 'joined' when the navmesh was
     // already loaded, else announced as soon as it is.
     const match = joined.zumbi ?? (await p.next('zwave', () => true, 10_000));

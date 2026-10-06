@@ -171,6 +171,12 @@ async function createMap(ctx: Ctx, kind: MapRow['kind'], p: Prepared, by: string
   throw new Error('não achei um id livre para o mapa');
 }
 
+/** A copy's name: "Nome (cópia)", the original cut to fit the 60 characters a map's name may have. */
+export const copyName = (nome: string) => {
+  const suffix = ' (cópia)';
+  return `${nome.trim().slice(0, 60 - suffix.length).trimEnd()}${suffix}`;
+};
+
 const versionParam = (ctx: Ctx) => {
   const v = Number(ctx.params.v);
   if (!Number.isInteger(v) || v < 1 || v > 1_000_000) throw new HttpError(404, 'nao_encontrado');
@@ -178,11 +184,15 @@ const versionParam = (ctx: Ctx) => {
 };
 
 export const mapRoutes: Record<string, Handler> = {
-  /** ?tipo=oficial|comunidade &q= (name) &autor= (name or tag) &ordem=jogados|recentes &pagina= */
+  /**
+   * ?tipo=oficial|comunidade &q= (name) &autor= (name or tag) &ordem=jogados|recentes &pagina= &ocultos=1 (the staff
+   * also sees the hidden maps, to show them again; ignored for anyone else: P34).
+   */
   'GET /api/mapas': async (ctx) => {
     const me = await viewer(ctx);
     const sp = ctx.url.searchParams;
-    const where = ['m.deleted_at IS NULL', 'm.hidden_at IS NULL'];
+    const withHidden = sp.get('ocultos') === '1' && !!me && isEquipe(me);
+    const where = withHidden ? ['m.deleted_at IS NULL'] : ['m.deleted_at IS NULL', 'm.hidden_at IS NULL'];
     const args: unknown[] = [];
     const tipo = sp.get('tipo');
     if (tipo === 'oficial' || tipo === 'comunidade') {
@@ -338,7 +348,7 @@ export const mapRoutes: Record<string, Handler> = {
     return reply(ctx, 204);
   },
 
-  /** A community copy of the current version, the one asking as its author. */
+  /** A community copy of the current version, the one asking as its author, named "Nome (cópia)" (P38). */
   'POST /api/mapas/:id/duplicar': async (ctx) => {
     const me = await actor(ctx);
     const m = await visible(ctx, me);
@@ -349,7 +359,7 @@ export const mapRoutes: Record<string, Handler> = {
     const v = rows[0];
     const assets = await ctx.deps.db.query<{ sha256: string }>('SELECT sha256 FROM map_version_asset WHERE map_id = $1 AND version = $2', [m.id, m.current_version]);
     const p: Prepared = {
-      data: v.data,
+      data: { ...v.data, nome: copyName(v.data.nome) },
       drawCalls: v.draw_calls ?? 0,
       triangulos: v.triangles ?? 0,
       colliders: v.colliders ?? 0,

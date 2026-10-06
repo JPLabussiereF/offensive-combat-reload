@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { MAP_BUDGET, type MapaResumo, type MapData } from '@shared/mapData';
 import type { GameServer } from '../app';
 import { Browser, enterMap, Player, promote, startTestServer, tinyMap } from './helpers';
+import { copyName } from '../mapRoutes';
 import { buildHeadless, compareSnapshots, goldenPath, OFFICIAL, summarize, type MapSnapshot } from '../../tools/snapshot-mapas';
 import { fakeRenderer, loadClient, ROOT, silentSfx } from '../../tools/headless';
 
@@ -98,7 +99,9 @@ describe('mapas da comunidade', () => {
 
     const copy = await other.req('POST', `/api/mapas/${id}/duplicar`);
     expect(copy.status).toBe(201);
-    expect((await other.req('GET', `/api/mapas/${copy.body.id}`)).body).toMatchObject({ tipo: 'comunidade', nome: 'Quintal', autor: (await other.req('GET', '/api/perfil')).body.tag, copiaDe: id, versao: 1 });
+    expect((await other.req('GET', `/api/mapas/${copy.body.id}`)).body).toMatchObject({ tipo: 'comunidade', nome: 'Quintal (cópia)', autor: (await other.req('GET', '/api/perfil')).body.tag, copiaDe: id, versao: 1 });
+    // The name inside the copy's data too (what the game shows).
+    expect(((await (await fetch(`${other.base}/api/mapas/${copy.body.id}/versoes/1`)).json()) as MapData).nome).toBe('Quintal (cópia)');
 
     expect((await author.req('DELETE', `/api/mapas/${id}`)).status).toBe(204);
     expect((await author.req('GET', `/api/mapas/${id}`)).status).toBe(404);
@@ -138,6 +141,12 @@ describe('mapas da comunidade', () => {
     expect((await list(other, '?q=Mapa%20Feio')).length).toBe(0);
     expect((await other.req('GET', `/api/mapas/${id}`)).body).toEqual({ erro: 'mapa_oculto' });
     expect((await author.req('GET', `/api/mapas/${id}`)).body.oculto).toMatchObject({ motivo: 'ofensivo' });
+    // With ?ocultos=1 the staff finds it in the list (to show it again); for anyone else the parameter changes nothing.
+    expect((await list(mod, '?q=Mapa%20Feio&ocultos=1')).map((m) => [m.id, m.oculto?.motivo])).toEqual([[id, 'ofensivo']]);
+    expect(await list(mod, '?q=Mapa%20Feio')).toEqual([]);
+    expect(await list(other, '?q=Mapa%20Feio&ocultos=1')).toEqual([]);
+    expect(await list(author, '?q=Mapa%20Feio&ocultos=1')).toEqual([]);
+    expect(await list(new Browser(game), '?q=Mapa%20Feio&ocultos=1')).toEqual([]);
     const p = await Player.connect(game, await other.ticket());
     p.send({ t: 'hello' });
     await p.next('welcome');
@@ -149,6 +158,15 @@ describe('mapas da comunidade', () => {
     p.close();
     // The staff deletes any map.
     expect((await mod.req('DELETE', `/api/mapas/${id}`)).status).toBe(204);
+  });
+});
+
+describe('nome da cópia', () => {
+  it('"Nome (cópia)", cortando o original para caber nos 60 caracteres', () => {
+    expect(copyName('Quintal')).toBe('Quintal (cópia)');
+    const long = copyName('x'.repeat(60));
+    expect(long).toHaveLength(60);
+    expect(long.endsWith('x (cópia)')).toBe(true);
   });
 });
 
