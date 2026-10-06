@@ -1,6 +1,7 @@
 // "Jardim do Dragão" converted into pieces: the old buildDragonGardenMap with every call recorded (see
 // recorder.ts). A great Chinese estate, 90 x 90 m: the main house in the middle, the ring around it and six
-// walled sectors around the ring (jardim/kit.ts has the layout), each sector one piece.
+// walled sectors around the ring (jardim/kit.ts has the layout). The sectors are converted call by call in
+// jardimSetores.ts.
 //
 // The walls between sectors are 4 m tall and their gates never line up with each other: sightlines stay
 // inside one sector (or one room). The cherry under the courtyard's tree gives extra max health for a while
@@ -11,6 +12,7 @@ import { ORIENTAL as C } from '../oriental';
 import { MID_X, MID_Z, rect, W } from '../jardim/kit';
 import { NIGHT } from '../jardim/luzes';
 import type { MapMeta, Recorder } from './recorder';
+import { anel, bambu, bonsai, casa, guerreiros, lago, lanternas, santuario } from './jardimSetores';
 
 /** Same seed on every client: rocks, trees and bamboo collide identically online. */
 export const SEED = 8128;
@@ -99,7 +101,7 @@ export function pieces(r: Recorder) {
   const { b } = r;
 
   // --- Sectors -------------------------------------------------------------------------------------
-  for (const setor of ['casa', 'anel', 'bonsai', 'lago', 'lanternas', 'guerreiros', 'bambu', 'santuario']) r.place('setor', { setor });
+  for (const setor of [casa, anel, bonsai, lago, lanternas, guerreiros, bambu, santuario]) setor(r);
 
   // --- Ground (with the ponds, the lake and the stream cut out) -------------------------------------
   r.place('laje', { area: rect(-W, -W, W, W), furos: r.ctx.s.holes.map((h) => ({ ...h })), y0: -3, y1: 0, superficie: 'grama', cor: 0x86c45a, sombra: false });
