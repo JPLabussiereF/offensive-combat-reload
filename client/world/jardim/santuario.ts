@@ -34,6 +34,7 @@ export function buildSantuario(c: Ctx) {
   b.span(-24.06, TY - 0.45, -45, -23.95, TY - 0.3, -21, 'pintura', { tint: C.stoneDark, collide: false, castShadow: false });
   // Crypt inside: a wall splitting west from east, the west half in two chambers, tombs, pillars, lamps.
   const cryptH = TY - 0.4;
+  b.room({ x: -45, y: 0, z: -33.6 }, { x: -24.6, y: cryptH, z: -21.6 }, 1);
   const stoneWall = { tint: 0x9d9a90 };
   b.wall('z', -36, -33.6, -21.6, 0.5, cryptH, 'pedra', [[-25.4, -23.6, 0, 2.3], [-31.4, -29.6, 0, 2.3]], 0, stoneWall);
   b.wall('x', -27.6, -45, -36.25, 0.5, cryptH, 'pedra', [[-41.4, -39.6, 0, 2.3]], 0, stoneWall);

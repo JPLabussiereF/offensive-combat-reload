@@ -6,6 +6,8 @@
 //   DUMMY_*        training dummy spot
 //   KILLVOLUME     falling below this object's height kills
 //   GAG_*          environmental gag trigger (e.g. GAG_LATIDO), wired up by the map code
+//   ROOM_*         enclosed place for the sound (room echo, light muffling): a box, never rendered, no collision;
+//                  custom property fechamento = 0..1 (default 1 = closed room; 0.3-0.6 for a porch or pavilion)
 //   MAT_<surface>  material name → shared library surface (tijolo, madeira, telhado...), tinted by the
 //                  material's base color and textured in world meters (no UV unwrap needed)
 //   any other material with its own texture is kept (UVs from Blender), converted to toon shading
@@ -131,6 +133,13 @@ export function addGltfToMap(gltf: GLTF, builder: MapBuilder, placement?: { posi
       markers.gags.push({ name: name.slice(4).toUpperCase(), position: pos });
       return;
     }
+    if (/^ROOM_/i.test(name)) {
+      // Its world bounds (an empty scaled as a box counts as its unit cube).
+      const box = (obj as THREE.Mesh).isMesh ? new THREE.Box3().setFromObject(obj) : new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1)).applyMatrix4(obj.matrixWorld);
+      const f = Number(obj.userData?.fechamento ?? 1);
+      builder.room(box.min, box.max, Number.isFinite(f) ? f : 1);
+      return;
+    }
     if (!(obj as THREE.Mesh).isMesh) return;
     if (/^COL_/i.test(name) || /^COL_/i.test(obj.parent?.name ?? '')) colliders.push(obj as THREE.Mesh);
     else meshes.push(obj as THREE.Mesh);
@@ -206,6 +215,7 @@ export async function buildGltfMap(url: string, builder: MapBuilder, renderer: T
     killY: m.killY ?? -20,
     stats: builder.stats,
     openings: builder.openings,
+    rooms: builder.rooms,
     props: new PropBus(),
     update() {},
     dog: null,

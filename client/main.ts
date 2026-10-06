@@ -52,7 +52,7 @@ import { CharacterRig, type HitPose } from './entities/rig';
 import { isBehind } from './entities/hitboxes';
 import { Corpse } from './gameplay/corpse';
 import { Sfx } from './audio/sfx';
-import { BodySounds, OCCLUSION_WEIGHT, type Vec, type Walker } from './audio/spatial';
+import { BACK_OFFSET, BodySounds, occluderWeight, pathOcclusion, type Vec, type Walker } from './audio/spatial';
 import { Chat } from './ui/chat';
 import { Hud, type Buff, type FeedIcon } from './ui/hud';
 import { Screens } from './ui/menu';
@@ -214,14 +214,18 @@ async function boot() {
   const input = new Input(ctx.renderer.domElement);
   sfx.setVolume(settings.volume);
   sfx.setSpatialMode(spatialMode(settings));
-  // The map's walls for the sound: room echo where it's enclosed, muffling behind walls (audio/spatial.ts).
+  // The map's walls for the sound: room echo where it's enclosed (its marked rooms, rays elsewhere), muffling
+  // behind walls by how thick they are and what they are (audio/spatial.ts).
   const soundRay = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 1, z: 0 });
   const soundCast = (o: Vec, d: Vec, max: number) => {
     soundRay.origin = o;
     soundRay.dir = d;
     return physics.world.castRay(soundRay, max, true, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, WORLD_ONLY);
   };
-  const occluder = (handle: number) => OCCLUSION_WEIGHT[physics.surfaces.get(handle)?.material ?? 'concrete'];
+  const occluder = (handle: number, thickness: number | null) => {
+    const info = physics.surfaces.get(handle);
+    return occluderWeight(info?.material ?? 'concrete', thickness, info?.occluder);
+  };
   sfx.setWorld(
     (o, d, max) => soundCast(o, d, max)?.timeOfImpact ?? null,
     (from, to) => {
@@ -230,14 +234,15 @@ async function boot() {
       const dz = to.z - from.z;
       const len = Math.hypot(dx, dy, dz);
       if (len < 0.8) return 0;
-      // From the ears to the sound and back: the same collider both ways is one wall, two are two.
+      // From the ears to the sound and back: the same collider both ways is one obstacle (where each ray meets
+      // it gives its thickness), two are two.
       const a = soundCast(from, { x: dx / len, y: dy / len, z: dz / len }, len - 0.3);
       if (!a) return 0;
-      const back = { x: to.x - (dx / len) * 0.25, y: to.y - (dy / len) * 0.25, z: to.z - (dz / len) * 0.25 };
+      const back = { x: to.x - (dx / len) * BACK_OFFSET, y: to.y - (dy / len) * BACK_OFFSET, z: to.z - (dz / len) * BACK_OFFSET };
       const b = soundCast(back, { x: -dx / len, y: -dy / len, z: -dz / len }, len - 0.55);
-      const wa = occluder(a.collider.handle);
-      return !b || b.collider.handle === a.collider.handle ? wa : wa + occluder(b.collider.handle);
+      return pathOcclusion(len, { handle: a.collider.handle, toi: a.timeOfImpact }, b && { handle: b.collider.handle, toi: b.timeOfImpact }, occluder);
     },
+    map.rooms,
   );
   // Other people's footsteps, landings, slides and reloads, from what their bodies are doing.
   const bodySounds = new BodySounds();
@@ -724,7 +729,8 @@ async function boot() {
       viewmodel.kick();
       gamepad.rumble(45, 0.1, 0.35);
       effects.flash(muzzle);
-      sfx.gunshot(1, weapon.data.silenciador ? 'silenciado' : weapon.data.arma);
+      // Clear even at low health: only the rest of the sound is muffled then.
+      sfx.unmuffled((s) => s.gunshot(1, weapon.data.silenciador ? 'silenciado' : weapon.data.arma));
       if (shotIndex % weapon.data.tracanteACada === 0) effects.tracer(muzzle, end);
       conn?.send({ t: 'shot', o: vec3(muzzle), e: vec3(end) });
       // Fish and fruit don't stop the bullet: whatever it hits further on is hit too.
@@ -1332,7 +1338,9 @@ async function boot() {
       // Their gun's own bang; a silencer: no tracer, and only those nearby hear it.
       const gun = rp.gun;
       if (!gun.silenciador) effects.tracer(from, new THREE.Vector3(...m.e));
-      sfx.at(from, gun.silenciador ? 'step' : 'gun', (s) => s.gunshot(1, gun.silenciador ? 'silenciado' : gun.arma));
+      // The bang comes from where their muzzle really was (sent with the shot), not the estimated one: a shooter
+      // hugging a wall outside must not sound as if behind it.
+      sfx.at({ x: m.o[0], y: m.o[1], z: m.o[2] }, gun.silenciador ? 'step' : 'gun', (s) => s.gunshot(1, gun.silenciador ? 'silenciado' : gun.arma));
     });
     conn.on('swing', (m) => {
       const rp = net.players.get(m.id);

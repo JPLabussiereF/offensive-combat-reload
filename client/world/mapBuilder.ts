@@ -9,7 +9,8 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { WORLD_GROUPS, type Physics, type SurfaceInfo, type SurfaceMaterial } from './physics';
+import { WORLD_GROUPS, type OccluderKind, type Physics, type SurfaceInfo, type SurfaceMaterial } from './physics';
+import type { RoomVolume, Vec } from '../audio/spatial';
 import { SURFACES, surfaceMaterial, type SurfaceKey } from './surfaces';
 
 const CELL = 40;
@@ -23,6 +24,8 @@ export interface PieceOpts {
   physics?: SurfaceMaterial;
   onShot?: SurfaceInfo['onShot'];
   castShadow?: boolean;
+  /** What it is for sound occlusion (tree trunks block less than a wall); default 'solid'. */
+  occluder?: OccluderKind;
 }
 
 export type Opening = [from: number, to: number, bottom: number, top: number];
@@ -69,6 +72,8 @@ export class MapBuilder {
   private center = new THREE.Vector3();
   readonly stats = { pieces: 0, colliders: 0, meshes: 0, triangles: 0 };
   readonly openings: WallOpening[] = [];
+  /** Enclosed places marked by hand (room), for the sound: echo and muffling inside. */
+  readonly rooms: RoomVolume[] = [];
 
   constructor(
     readonly physics: Physics,
@@ -101,20 +106,22 @@ export class MapBuilder {
     this.stats.pieces++;
   }
 
-  private register(desc: RAPIER.ColliderDesc, physics: SurfaceMaterial, onShot?: SurfaceInfo['onShot']) {
+  private register(desc: RAPIER.ColliderDesc, physics: SurfaceMaterial, onShot?: SurfaceInfo['onShot'], occluder?: OccluderKind) {
     const col = this.physics.world.createCollider(desc.setCollisionGroups(WORLD_GROUPS), this.physics.staticBody);
-    this.physics.surfaces.set(col.handle, { material: physics, onShot });
+    this.physics.surfaces.set(col.handle, occluder && occluder !== 'solid' ? { material: physics, onShot, occluder } : { material: physics, onShot });
     this.stats.colliders++;
     return col;
   }
 
-  cuboidCollider(center: THREE.Vector3, halfExtents: THREE.Vector3, rotation: THREE.Quaternion, physics: SurfaceMaterial, onShot?: SurfaceInfo['onShot']) {
+  /** `occluder`: what it is for sound occlusion (vehicles and tree trunks block less than a wall). */
+  cuboidCollider(center: THREE.Vector3, halfExtents: THREE.Vector3, rotation: THREE.Quaternion, physics: SurfaceMaterial, onShot?: SurfaceInfo['onShot'], occluder?: OccluderKind) {
     return this.register(
       RAPIER.ColliderDesc.cuboid(halfExtents.x, halfExtents.y, halfExtents.z)
         .setTranslation(center.x, center.y, center.z)
         .setRotation({ x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w }),
       physics,
       onShot,
+      occluder,
     );
   }
 
@@ -149,7 +156,7 @@ export class MapBuilder {
     geo.dispose();
     if (o.collide === false) return null;
     const physics = o.physics ?? SURFACES[surface].physics;
-    return this.cuboidCollider(new THREE.Vector3(cx, cy, cz), new THREE.Vector3(sx / 2, sy / 2, sz / 2), this.q, physics, o.onShot);
+    return this.cuboidCollider(new THREE.Vector3(cx, cy, cz), new THREE.Vector3(sx / 2, sy / 2, sz / 2), this.q, physics, o.onShot, o.occluder);
   }
 
   /** Box from min/max corners. */
@@ -165,7 +172,20 @@ export class MapBuilder {
     this.addGeometry(geo, surfaceMaterial(surface), o.tint, o.castShadow ?? true);
     geo.dispose();
     if (o.collide === false) return null;
-    return this.register(RAPIER.ColliderDesc.cylinder(h / 2, Math.max(r, o.radiusTop ?? r)).setTranslation(cx, y0 + h / 2, cz), o.physics ?? SURFACES[surface].physics, o.onShot);
+    return this.register(RAPIER.ColliderDesc.cylinder(h / 2, Math.max(r, o.radiusTop ?? r)).setTranslation(cx, y0 + h / 2, cz), o.physics ?? SURFACES[surface].physics, o.onShot, o.occluder);
+  }
+
+  /**
+   * Marks an enclosed place for the sound, as an axis-aligned box from `min` to `max` (floor to ceiling, inside
+   * the walls): `enclosure` 1 for a room, 0.3-0.6 for a porch or an open pavilion. Where boxes overlap, the most
+   * enclosed wins; outside every box the sound measures the spot with rays.
+   */
+  room(min: Vec, max: Vec, enclosure = 1) {
+    this.rooms.push({
+      min: { x: Math.min(min.x, max.x), y: Math.min(min.y, max.y), z: Math.min(min.z, max.z) },
+      max: { x: Math.max(min.x, max.x), y: Math.max(min.y, max.y), z: Math.max(min.z, max.z) },
+      enclosure: Math.min(1, Math.max(0, enclosure)),
+    });
   }
 
   /**

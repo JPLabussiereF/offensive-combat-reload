@@ -135,7 +135,7 @@ function dragonBonsai(c: Ctx, x: number, z: number) {
   }
   const head = curve.getPoint(1);
   foliageCrown(b, head.add(new THREE.Vector3(0.4, 0.25, 0)), 1.05, [0x4f9e44, 0x3f8a3a], { flat: 0.5, y0: y0 + 1.5, y1 });
-  b.cuboidCollider(new THREE.Vector3(x - 0.4, y0 + 1.2, z), new THREE.Vector3(0.35, 1.2, 0.35), new THREE.Quaternion(), 'wood');
+  b.cuboidCollider(new THREE.Vector3(x - 0.4, y0 + 1.2, z), new THREE.Vector3(0.35, 1.2, 0.35), new THREE.Quaternion(), 'wood', undefined, 'trunk');
   c.lanterns.hang(new THREE.Vector3(x + 1.6, y0 + 2.2, z + 0.5), 0.6);
   c.lanterns.hang(new THREE.Vector3(x - 1.6, y0 + 3.6, z - 0.6), 0.6);
 }

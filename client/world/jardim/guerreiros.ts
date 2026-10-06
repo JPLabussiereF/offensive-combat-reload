@@ -72,6 +72,7 @@ export function buildGuerreiros(c: Ctx) {
     const z1 = 26.6;
     const y = 2.0;
     b.span(x0, y - 0.2, z0, x1, y, z1, 'madeira', { tint: C.wood });
+    b.room({ x: x0, y, z: z0 }, { x: x1, y: y + 2.6, z: z1 }, 0.3); // roofed, open all around
     for (const [x, z] of [[x0 + 0.2, z0 + 0.2], [x1 - 0.2, z0 + 0.2], [x1 - 0.2, z1 - 0.2], [x0 + 0.2, z1 - 0.2]]) column(b, x, z, 0, y + 2.6, 0.15);
     b.stairs('z', -1, z1 + stairRun(y), x0, x0 + 1.3, 0, y, 'madeira', { tint: C.wood });
     railing(b, 'x', z0 + 0.06, x0, x1, y);

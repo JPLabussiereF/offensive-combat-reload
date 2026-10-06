@@ -470,6 +470,8 @@ export function pavilion(b: MapBuilder, spec: PavilionSpec): Pavilion {
         ext[sd] = Math.max(outerExt(st, sd) + balcony, outerExt(prev, sd));
       }
       const r: Rect = { x0: cx - ext.w, x1: cx + ext.e, z0: cz - ext.n, z1: cz + ext.s };
+      // For the sound, a balcony is a porch (roofed, open on three sides); the room inside wins where they overlap.
+      if (SIDES.some((sd) => ext[sd] - outerExt(st, sd) >= 0.3)) b.room({ x: r.x0, y, z: r.z0 }, { x: r.x1, y: y + st.h, z: r.z1 }, 0.4);
       const wells = (prev.stairs ?? []).map((s) => stairRect(prev, s));
       slabWithHoles(r, wells, y - SLAB, y);
       // Railings around every edge that reaches out past this story's walls.
@@ -488,7 +490,8 @@ export function pavilion(b: MapBuilder, spec: PavilionSpec): Pavilion {
         railing(b, 'x', zEdge, Math.min(w.start, stop), Math.max(w.start, stop), y);
         railing(b, 'z', w.start - s.dir * 0.05, w.z0, w.z1, y);
       }
-      // Balcony over the ground: columns along its edge.
+      // Balcony over the ground: columns along its edge, and the porch under it.
+      if (i === 1 && SIDES.some((sd) => ext[sd] - outerExt(prev, sd) >= 0.9)) b.room({ x: r.x0, y: 0, z: r.z0 }, { x: r.x1, y: y - SLAB, z: r.z1 }, 0.4);
       if (i === 1) {
         const placed = new Set<string>();
         for (const sd of SIDES) {
@@ -514,6 +517,8 @@ export function pavilion(b: MapBuilder, spec: PavilionSpec): Pavilion {
       }
     }
     walls(st, y, top ? st.h : st.h - SLAB);
+    // Each story is a closed room for the sound.
+    b.room({ x: cx - outerExt(st, 'w'), y, z: cz - outerExt(st, 'n') }, { x: cx + outerExt(st, 'e'), y: y + st.h - (top ? 0.2 : SLAB), z: cz + outerExt(st, 's') }, 1);
     for (const s of st.stairs ?? []) {
       const w = stairRect(st, s);
       b.stairs('x', s.dir, w.start, w.z0, w.z1, y, st.h, 'madeira', { tint: C.wood });
@@ -828,7 +833,7 @@ export function pine(b: MapBuilder, x: number, y: number, z: number, scale: numb
   // Each crown starts on another of the greens, so neighbors differ. Pinks are blossom.
   const blossom = ((greens[0] >> 16) & 255) > ((greens[0] >> 8) & 255) + 30;
   pads.forEach(([p, r], i) => foliageCrown(b, p, r * s, [...greens.slice(i % greens.length), ...greens.slice(0, i % greens.length)], { flat: 0.46, y0, y1, blossom }));
-  if (o.collide !== false) b.cuboidCollider(new THREE.Vector3(x, y + s, z), new THREE.Vector3(0.22 * s, s, 0.22 * s), new THREE.Quaternion(), 'wood');
+  if (o.collide !== false) b.cuboidCollider(new THREE.Vector3(x, y + s, z), new THREE.Vector3(0.22 * s, s, 0.22 * s), new THREE.Quaternion(), 'wood', undefined, 'trunk');
   // Where the crowns are (center, horizontal radius): for fruit or lanterns.
   return pads.map(([p, r]) => ({ p, r: r * s * 1.15 }));
 }

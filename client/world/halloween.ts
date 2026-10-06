@@ -405,7 +405,7 @@ export function deadTree(b: MapBuilder, x: number, z: number, scale: number, ran
     b.addGeometry(tg, paint, tint);
     tg.dispose();
   }
-  if (o.collide !== false) b.cuboidCollider(V(x + lx * 0.2 * s, y + h * 0.32, z + lz * 0.2 * s), V(0.3 * s, h * 0.32, 0.3 * s), NO_ROT, 'wood');
+  if (o.collide !== false) b.cuboidCollider(V(x + lx * 0.2 * s, y + h * 0.32, z + lz * 0.2 * s), V(0.3 * s, h * 0.32, 0.3 * s), NO_ROT, 'wood', undefined, 'trunk');
 }
 
 export type TombKind = 'arco' | 'cruz' | 'laje' | 'obelisco';
@@ -2050,8 +2050,9 @@ export function circusTrailer(b: MapBuilder, scene: THREE.Scene, glow: Glow, x: 
   board.position.copy(V(-0.1, y0 + 2.2, -Wd / 2 - 0.02).applyMatrix4(m));
   board.quaternion.copy(q).multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1, 0), Math.PI));
   scene.add(board);
-  b.cuboidCollider(V(0, y0 + H / 2, 0).applyMatrix4(m), V(L / 2, H / 2 + 0.3, Wd / 2), q, 'metal');
-  b.cuboidCollider(V(-0.35, 0.35, 0).applyMatrix4(m), V(0.8, 0.35, Wd / 2 - 0.05), q, 'metal');
+  // A vehicle for the sound: it wraps around it (audio/spatial.ts).
+  b.cuboidCollider(V(0, y0 + H / 2, 0).applyMatrix4(m), V(L / 2, H / 2 + 0.3, Wd / 2), q, 'metal', undefined, 'vehicle');
+  b.cuboidCollider(V(-0.35, 0.35, 0).applyMatrix4(m), V(0.8, 0.35, Wd / 2 - 0.05), q, 'metal', undefined, 'vehicle');
 }
 
 // --- The mansion kitchen's cabinet and its Scooby biscuit ------------------------------------------------

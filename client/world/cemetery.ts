@@ -174,6 +174,7 @@ export async function buildCemeteryMap(physics: Physics, scene: THREE.Scene, sfx
     for (const x of [-4.5, 4.5]) b.wall('z', x, -17.05, -10.35, 0.3, H, 'pedra', [[-14.3, -12.7, 0, 2.4]], PL, cw);
     b.span(-4.35, PL, -17.05, 4.35, PL + 0.02, -10.35, 'piso', { tint: 0x5a3a2e, collide: false, castShadow: false });
     b.span(-4.35, PL + H - 0.2, -17.05, 4.35, PL + H, -10.35, 'concreto', { tint: 0x5a5458 });
+    b.room({ x: -4.35, y: PL, z: -17.05 }, { x: 4.35, y: PL + H - 0.2, z: -10.35 }, 1);
     b.gableRoof(-4.5, -17.2, 4.5, -10.2, PL + H, 2.6, 'telhado', { tint: C.roof, ridgeAxis: 'z', gableSurface: 'pedra', gableTint: 0x7d7872 });
     // The bell-cote over the front gable (the waves start with its bell).
     const ridge = PL + H + 2.6;
@@ -328,6 +329,7 @@ export async function buildCemeteryMap(physics: Physics, scene: THREE.Scene, sfx
     killY: -10,
     stats: b.stats,
     openings: b.openings,
+    rooms: b.rooms,
     props,
     update(dt, frame) {
       for (const f of animated) f(dt, frame);
