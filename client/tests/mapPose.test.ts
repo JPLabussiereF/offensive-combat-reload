@@ -190,7 +190,7 @@ describe('pose das peças (P32)', () => {
     // Its objects hang from the pose's group.
     const group = turned.scene.getObjectByName('pose:armario');
     expect(group).toBeDefined();
-    expect(group.children.length).toBeGreaterThan(0);
+    expect(group!.children.length).toBeGreaterThan(0);
   });
 
   it('editor: peça girada no seu grupo; tirar a peça leva os colisores, a sala e o vão', async () => {
