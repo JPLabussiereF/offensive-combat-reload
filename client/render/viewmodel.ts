@@ -23,6 +23,7 @@ import { toonGradient } from './materials';
 import { ANIM } from '../character/animator';
 import { Spring } from './springs';
 import { armMesh, placeArm } from './viewmodelArms';
+import { stanceOffset } from './viewmodelStance';
 import { grenadeModel } from '../weapons/grenades';
 import { gunModelKey, gunParts, knifeModel, mineModel, type GunHold, type GunLookKey } from './weaponModels';
 
@@ -449,17 +450,18 @@ export class Viewmodel {
       rx -= down * F.draw.tilt;
     }
 
-    // Slide: gun rolls inward and sits a bit lower, still aimable.
-    rz += s.slide * 0.22 * (1 - s.ads * 0.7);
-    pos.y -= s.slide * 0.02 * (1 - s.ads);
-    pos.x -= s.slide * 0.02 * (1 - s.ads);
+    // Slide (gun rolls inward and sits a bit lower), crouch and landing (a spring): none while fully aimed, so
+    // the sight stays where the shot goes.
+    const stance = stanceOffset(s.ads, s.crouch, s.slide, this.land.update(dt));
+    pos.x += stance.x;
+    pos.y += stance.y;
+    rz += stance.rz;
 
-    // Recoil (visual kick) and landing, both springs.
+    // Recoil (visual kick), a spring.
     const kick = 1 - ads * (1 - F.recoil.adsKeep);
     pos.z += this.kickBack.update(dt) * kick;
     rx += this.kickUp.update(dt) * kick;
     ry += this.kickSide.update(dt) * kick;
-    pos.y += this.land.update(dt) - s.crouch * 0.01;
 
     // Knife swing: the rifle ducks out of view quickly, stays down for the whole swing and is only drawn
     // back up once the knife is gone.
