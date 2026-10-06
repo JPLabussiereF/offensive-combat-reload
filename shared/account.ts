@@ -98,6 +98,9 @@ export interface ProfileResponse {
   totais: Totals;
   /** The sticker album's own counters (shared/achievements.ts), by key; the rest of the album reads `totais`. */
   album: Record<string, number>;
+  /** The sticker the player shows to the others (id) and the title they wear (a page id); null: none. */
+  destaque: string | null;
+  titulo: string | null;
   participacoes: Participation[];
   /** When the name can be changed again (ISO date), null = now. */
   nomeLiberaEm: string | null;
@@ -123,6 +126,7 @@ export type ApiErrorCode =
   | 'discord_indisponivel'
   | 'discord_ja_vinculado'
   | 'nivel_bloqueado'
+  | 'figurinha_bloqueada'
   | 'origem_invalida'
   | 'nao_encontrado'
   | 'json_invalido'

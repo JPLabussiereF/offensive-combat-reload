@@ -1,7 +1,7 @@
 // Album tab on the home card: the account's stickers by page, each with its finish (common, shiny,
 // holographic, gold) and the way to the next target. Read from the profile (shared/achievements.ts).
-import { album, albumCount, fillHow, finishOf, itemProgress, PAGES, sourcesFromProfile, stickerById, type Finish, type Own, type Sticker, type StickerState } from '@shared/achievements';
-import { fetchProfile } from '../net/api';
+import { album, albumCount, fillHow, finishOf, itemProgress, pageById, PAGES, sourcesFromProfile, stickerById, titleProgress, titlesOf, type Finish, type Own, type Sticker, type StickerState } from '@shared/achievements';
+import { api, fetchProfile } from '../net/api';
 import { errorText } from './auth';
 import { getLang, t, type StringKey } from './strings';
 
@@ -38,14 +38,27 @@ const howTo = (st: StickerState) => {
   return fillHow(text(st.sticker.como), meta, amount(st.sticker, meta));
 };
 
-/** Where the bar is between the last target reached and the next one (0..100), and its label. */
+/** How full the bar is toward the next target, counted from zero (300 of 1,000: 30%), and its label. */
 function bar(st: StickerState) {
   const s = st.sticker;
   if (st.next === null) return { pct: 100, label: t('albumDone') };
-  const top = s.metas[s.metas.length - 1];
-  const from = st.tier === 0 ? 0 : st.tier < s.metas.length ? s.metas[st.tier - 1] : top * Math.max(1, st.repeats);
-  return { pct: Math.min(100, Math.round(((st.progress - from) / Math.max(1, st.next - from)) * 100)), label: `${amount(s, st.progress)} / ${amount(s, st.next)}` };
+  return { pct: Math.min(100, Math.round((st.progress / Math.max(1, st.next)) * 100)), label: `${amount(s, st.progress)} / ${amount(s, st.next)}` };
 }
+
+/** A small sticker as others see it (scoreboard, death card, profile): its drawing with its finish; '' for none. */
+export function stickerBadge(fig: [id: string, nivel: number] | undefined | null): string {
+  const s = fig ? stickerById(fig[0]) : undefined;
+  const f = s && finishOf(s, fig![1]);
+  if (!s || !f) return '';
+  const color = pageById(s.pagina)?.cor ?? '#888';
+  return `<span class="fig-mini fig-t${FINISH_CLASS[f]}" style="--c:${color}" title="${text(s.nome)} · ${t(FINISH_KEY[f])}"><span class="fig-art"><span class="fig-icon">${s.icone}</span></span></span>`;
+}
+
+/** A title (a page id) as it reads; '' for none or one this client doesn't know. */
+export const titleText = (page: string | null | undefined) => {
+  const p = page ? pageById(page) : undefined;
+  return p ? text(p.titulo) : '';
+};
 
 const barHtml = (pct: number) => `<span class="xp-bar fig-bar"><span class="xp-fill" style="width:${pct}%"></span></span>`;
 
@@ -60,10 +73,14 @@ let page = PAGES[0].id;
 export async function showAlbum(root: HTMLElement, o: Options) {
   let states: StickerState[];
   let own: Own;
+  let featured: string | null;
+  let title: string | null;
   try {
     const p = await fetchProfile();
     own = p.album;
     states = album(sourcesFromProfile(p), own);
+    featured = p.destaque;
+    title = p.titulo;
   } catch (err) {
     o.setStatus(errorText(err), true);
     return o.onBack();
@@ -103,7 +120,37 @@ export async function showAlbum(root: HTMLElement, o: Options) {
         ${items ? `<ul class="fig-items">${items}</ul>` : ''}
         <ol class="fig-tiers" style="--n:${s.metas.length}">${rows}</ol>
         ${st.repeats > 1 ? `<p class="hint">${t('albumRepeats', { n: st.repeats })}</p>` : ''}
+        ${st.tier > 0 ? `<button id="al-feature" type="button" class="small-btn${featured === s.id ? ' alt' : ''}">${t(featured === s.id ? 'albumUnfeature' : 'albumFeature')}</button>` : ''}
       </div>`;
+  };
+
+  /** What others see: the sticker shown and the title worn (only the titles earned can be picked). */
+  const showcase = () => {
+    const shown = states.find((s) => s.sticker.id === featured);
+    const earned = titlesOf(states);
+    const options = [`<option value="">${t('albumNoTitle')}</option>`, ...earned.map((id) => `<option value="${id}" ${id === title ? 'selected' : ''}>${titleText(id)}</option>`)].join('');
+    const titles = PAGES.map((p) => {
+      const tp = titleProgress(states, p.id);
+      const done = tp.done === tp.total;
+      return `<li class="${done ? 'done' : ''}"><b>${text(p.titulo)}</b><span>${p.icone} ${text(p.nome)}</span><small>${done ? '✓' : `${tp.done}/${tp.total}`}</small></li>`;
+    }).join('');
+    return `
+      <div class="album-showcase">
+        <div class="album-shown">${shown ? stickerBadge([shown.sticker.id, shown.tier]) : '<span class="fig-mini empty"></span>'}<div><span class="hint">${t('albumShowcase')}</span><b>${shown ? text(shown.sticker.nome) : t('albumNoShowcase')}</b></div></div>
+        <label class="album-title-pick"><span class="hint">${t('albumTitleLabel')}</span><select id="al-title" ${earned.length ? '' : 'disabled'}>${options}</select></label>
+      </div>
+      <details class="album-titles"><summary>${t('albumTitlesSummary', { got: earned.length, total: PAGES.length })}</summary><p class="hint">${t('albumTitlesHint')}</p><ul>${titles}</ul></details>`;
+  };
+
+  const save = async (body: { destaque?: string | null; titulo?: string | null }) => {
+    try {
+      const p = await api<{ destaque: string | null; titulo: string | null }>('PATCH', '/api/perfil', body);
+      featured = p.destaque;
+      title = p.titulo;
+    } catch (err) {
+      o.setStatus(errorText(err), true);
+    }
+    render();
   };
 
   const render = () => {
@@ -118,6 +165,7 @@ export async function showAlbum(root: HTMLElement, o: Options) {
       <div class="album">
         <div class="pane-head"><h3>${t('albumTitle')}</h3><span class="hint">${t('albumCount', { stuck: all.stuck, total: all.total, finishes: all.finishes, finishesTotal: all.finishesTotal })}</span></div>
         <p class="hint">${t('albumHint')}</p>
+        ${showcase()}
         <div class="seg album-pages">${tabs}</div>
         <div class="fig-grid">${list.map(card).join('')}</div>
         ${chosen ? detail(chosen) : ''}
@@ -133,6 +181,10 @@ export async function showAlbum(root: HTMLElement, o: Options) {
         selected = selected === b.dataset.id ? null : b.dataset.id!;
         render();
       };
+    const feature = root.querySelector<HTMLButtonElement>('#al-feature');
+    if (feature) feature.onclick = () => void save({ destaque: featured === selected ? null : selected });
+    const pick = root.querySelector<HTMLSelectElement>('#al-title');
+    if (pick) pick.onchange = () => void save({ titulo: pick.value || null });
   };
   render();
 }

@@ -1,6 +1,6 @@
 // Accounts, profiles, progress and audit: every SQL query about players lives here.
 import { accountLevel } from '@shared/accountLevel';
-import type { Own } from '@shared/achievements';
+import { album, canFeature, sourcesFromProfile, titlesOf, type Own } from '@shared/achievements';
 import { sanitizeAppearance, type Appearance } from '@shared/appearance';
 import { DELETION_GRACE_DAYS, formatTag, NAME_COOLDOWN_DAYS, type Participation, type ProfileResponse, type Totals, type ZombieTotals } from '@shared/account';
 import { legacyChoice, levelForXp, PROG_WEAPONS, sanitizeChoice, type ArsenalChoice, type Levels, type ProgWeapon } from '@shared/progression';
@@ -164,12 +164,15 @@ interface ProfileRow {
   /** The Arsenal choice (JSON), null until the player makes one. */
   loadout: unknown;
   name_changed_at: Date | null;
+  /** The album sticker shown and the title worn (a page id); null: none. */
+  featured_sticker: string | null;
+  title: string | null;
 }
 
 /** The account's game profile (one per account for now; the oldest one). */
 export async function profileOf(db: Queryable, accountId: string): Promise<ProfileRow> {
   const { rows } = await db.query<ProfileRow>(
-    'SELECT id, display_name, discriminator, sex, appearance, loadout, name_changed_at FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1',
+    'SELECT id, display_name, discriminator, sex, appearance, loadout, name_changed_at, featured_sticker, title FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1',
     [accountId],
   );
   if (!rows[0]) throw new HttpError(404, 'nao_encontrado');
@@ -293,6 +296,8 @@ export async function fullProfile(db: Db, accountId: string): Promise<ProfileRes
     arsenal,
     totais,
     album,
+    destaque: profile.featured_sticker,
+    titulo: profile.title,
     participacoes,
     nomeLiberaEm: libera && libera.getTime() > Date.now() ? libera.toISOString() : null,
     provedores: prov,
@@ -342,6 +347,24 @@ export async function setArsenal(db: Db, accountId: string, raw: unknown): Promi
   if (JSON.stringify(choice) !== JSON.stringify(sanitizeChoice(raw))) throw new HttpError(400, 'nivel_bloqueado');
   await db.query('UPDATE player_profile SET loadout = $2 WHERE id = $1', [profile.id, JSON.stringify(choice)]);
   return choice;
+}
+
+/**
+ * The showcase: the album sticker shown and the title worn (undefined: unchanged, null: none). Only what the
+ * account has: a sticker stuck in, a page completed (shared/achievements.ts); otherwise 400 figurinha_bloqueada.
+ */
+export async function setShowcase(db: Db, accountId: string, sticker: unknown, title: unknown) {
+  const p = await fullProfile(db, accountId);
+  const states = album(sourcesFromProfile(p), p.album);
+  const pick = (v: unknown, ok: (id: string) => boolean) => {
+    if (v === null) return null;
+    if (typeof v !== 'string' || !ok(v)) throw new HttpError(400, 'figurinha_bloqueada');
+    return v;
+  };
+  const s = sticker === undefined ? p.destaque : pick(sticker, (id) => canFeature(states, id));
+  const t = title === undefined ? p.titulo : pick(title, (id) => titlesOf(states).includes(id));
+  const profile = await profileOf(db, accountId);
+  await db.query('UPDATE player_profile SET featured_sticker = $2, title = $3 WHERE id = $1', [profile.id, s, t]);
 }
 
 // --- Deletion (LGPD) --------------------------------------------------------------------------------------
@@ -399,6 +422,8 @@ export interface GameProfile {
   totals: Totals;
   /** The stickers' own counters as of the last write. */
   album: Own;
+  /** The album sticker shown and the title worn (checked when they were chosen). */
+  showcase?: { sticker: string | null; title: string | null };
 }
 
 export async function loadGameProfile(db: Db, accountId: string): Promise<GameProfile> {
@@ -422,6 +447,7 @@ export async function loadGameProfile(db: Db, accountId: string): Promise<GamePr
     arsenal,
     totals: totalsOf(stats.rows[0] ?? {}, zstats.rows[0] ?? {}),
     album,
+    showcase: { sticker: profile.featured_sticker, title: profile.title },
   };
 }
 

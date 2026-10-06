@@ -260,4 +260,44 @@ describe('figurinhas próprias no servidor', () => {
     q.close();
     await sleep(100);
   }, 20_000);
+
+  it('destaque e título: só o que a conta tem; os outros veem a figurinha com o acabamento dela', async () => {
+    const b = new Browser(game);
+    await b.register('Vitrine');
+    // Nothing stuck in yet: refused.
+    expect(await b.req('PATCH', '/api/perfil', { destaque: 'fora-do-mapa' })).toMatchObject({ status: 400, body: { erro: 'figurinha_bloqueada' } });
+    // Falls off the map once (a gold sticker of a single target), and then shows it.
+    const p = await Player.connect(game, await b.ticket());
+    p.send({ t: 'hello' });
+    await p.next('welcome');
+    p.send({ t: 'join', session: 'principal' });
+    const joined = await p.next('joined');
+    p.send({ t: 'respawn', p: [0, 0, 0], yaw: 0 });
+    await p.next('spawned', (m) => m.id === joined.you);
+    p.send({ t: 'selfDamage', amount: 9999, cause: 'void' });
+    await p.next('figurinha', (m) => m.id === 'fora-do-mapa', 3000);
+    p.send({ t: 'leave' });
+    await sleep(300);
+    const ok = await b.req('PATCH', '/api/perfil', { destaque: 'fora-do-mapa' });
+    expect(ok).toMatchObject({ status: 200, body: { destaque: 'fora-do-mapa', titulo: null } });
+    // A sticker it doesn't have, or a title of a page not completed: refused, the choice stays.
+    expect(await b.req('PATCH', '/api/perfil', { destaque: 'na-testa' })).toMatchObject({ status: 400 });
+    expect(await b.req('PATCH', '/api/perfil', { titulo: 'vexames' })).toMatchObject({ status: 400, body: { erro: 'figurinha_bloqueada' } });
+    expect((await b.req('GET', '/api/perfil')).body.destaque).toBe('fora-do-mapa');
+    // Back in a match (a new connection reads the choice): everyone sees the sticker and its finish.
+    p.close();
+    await sleep(100);
+    const q = await Player.connect(game, await b.ticket());
+    q.send({ t: 'hello' });
+    await q.next('welcome');
+    q.send({ t: 'join', session: 'principal' });
+    const again = await q.next('joined');
+    const mine = again.players.find((x) => x.id === again.you)!;
+    expect(mine.fig).toEqual(['fora-do-mapa', 1]);
+    expect(mine.tit).toBeUndefined();
+    q.close();
+    // Taking it off.
+    expect((await b.req('PATCH', '/api/perfil', { destaque: null })).body.destaque).toBeNull();
+    await sleep(100);
+  }, 20_000);
 });

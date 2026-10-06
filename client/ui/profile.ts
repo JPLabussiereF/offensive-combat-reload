@@ -4,6 +4,8 @@ import { NAME_MAX, type ProfileResponse } from '@shared/account';
 import { api, fetchProfile } from '../net/api';
 import { errorText, formatDate } from './auth';
 import { showCustomizer } from './customize';
+import { album, sourcesFromProfile } from '@shared/achievements';
+import { stickerBadge, titleText } from './album';
 import { t, type StringKey } from './strings';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -69,6 +71,10 @@ export async function showProfile(root: HTMLElement, o: Options) {
     )
     .join('');
   const linked = p.provedores.includes('discord');
+  // The album's showcase, as the others see it: the sticker with its finish now, and the title.
+  const shown = p.destaque ? album(sourcesFromProfile(p), p.album).find((s) => s.sticker.id === p.destaque) : undefined;
+  const badge = shown ? stickerBadge([shown.sticker.id, shown.tier]) : '';
+  const title = titleText(p.titulo);
   const pct = Math.round((p.xpNoNivel / p.xpProximo) * 100);
 
   root.innerHTML = `
@@ -77,6 +83,7 @@ export async function showProfile(root: HTMLElement, o: Options) {
         <b class="profile-tag">${esc(p.tag)}</b>
         <span class="level-badge">${t('levelShort', { level: p.nivel })}</span>
       </div>
+      ${badge || title ? `<div class="profile-showcase">${badge}${title ? `<span class="profile-title">${esc(title)}</span>` : ''}</div>` : ''}
       <div class="xp-bar" title="${p.xpNoNivel} / ${p.xpProximo} XP"><div style="width:${pct}%"></div></div>
       <p class="hint">${p.xpNoNivel} / ${p.xpProximo} XP</p>
       ${p.exclusaoEm ? `<p class="profile-warn">${t('deletionPending', { date: formatDate(p.exclusaoEm) })}</p><button id="pf-cancel-del" class="small-btn">${t('cancelDeletion')}</button>` : ''}
