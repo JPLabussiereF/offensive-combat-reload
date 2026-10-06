@@ -20,6 +20,8 @@ source_paths:
   - server/tests/progression-modes.test.ts
   - client/tests/remoteImpact.test.ts
   - client/weapons/remoteImpact.ts
+  - client/tests/oneHandGrip.test.ts
+  - client/tests/viewmodelOneHand.test.ts
 tags:
   - testes
   - unitarios
@@ -104,6 +106,14 @@ O que o jogo offline usa da progressão, sem navegador:
 - **Zumbi sozinho (`LocalZombies`, `client/zombies/local.ts`)** sobre a navmesh pré-gerada: começa com o rifle simples; dano no chefe do rifle, da faca e da granada pelas mesmas funções do servidor; o caixão entrega a arma (gancho `setLoadout` e evento `playerLoadout`) com as melhorias dela, e o dano é o dela × a raridade; uma rodada danificada (os dois defeitos) chega com o defeito no equipamento, o dano × 0,75 e menos pente e reserva (`zombieGunData`); erguer uma barricada sozinho custa o mesmo e dá as mesmas tábuas; sozinho, cair encerra a partida (`zend`).
 
 Não rodam aqui (precisam do navegador): `BotManager` e `Bot` (malhas, física Rapier e placas de nome em canvas) e a escolha do equipamento inicial em `client/main.ts` (dentro da closure com DOM); o teste cobre as funções puras que eles chamam. Para rodar o jogo solo sem DOM, a interface `ZombieLink` foi para `client/zombies/link.ts` (antes em `client.ts`, que depende do navegador).
+
+## `client/tests/oneHandGrip.test.ts` → [[Animation]], [[Character Customization]]
+
+O personagem completo (`Character`, sem WebGL) e o `CharacterAnimator` com o modo PCD de uma mão: `LEFT_GRIP` é o espelho de `RIFLE_GRIP`; para `maoDir`, `bracoDir`, `maoEsq`, `bracoEsq` e sem PCD, o rifle aponta para a frente do peito no quadril e na mira (produto escalar > 0,95), segue a pose de corrida, fica do lado da mão que o segura, o braço direito fica pendurado sem o lado direito e a mão ou o coto esquerdo fica sob o guarda-mão nos outros casos; a recarga de uma mão deixa o rifle perto do peito enquanto a mão sai da empunhadura; a granada põe o rifle nas costas só com uma mão; a faca vai na esquerda sem a direita; e o esqueleto das hitboxes (o mesmo de `entities/rig.ts`) faz a mesma pose de uma mão que o personagem visível (mãos e antebraços a menos de 1 cm).
+
+## `client/tests/viewmodelOneHand.test.ts` → [[Animation]]
+
+O `Viewmodel` de verdade com um `document` mínimo (só o canvas do clarão do tiro): mirando, o ponto da mira fica no centro (x ≈ 0, y ≈ 0) com e sem a mão direita; sem a mão direita, a arma fica do lado esquerdo da tela. O arquivo carrega `viewmodel.ts` por caminho, porque a checagem de tipos do servidor (que cobre `client/tests`) não tem os tipos do DOM.
 
 ## `server/tests/progression-modes.test.ts` → [[Weapons]], [[Progression]], [[Game Modes Index]]
 

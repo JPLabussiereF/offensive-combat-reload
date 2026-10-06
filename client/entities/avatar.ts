@@ -10,6 +10,7 @@ import { bodyStats } from '@shared/appearance';
 import { DEFAULT_LOADOUT, meleeStats, slotStats, type Loadout } from '@shared/arsenal';
 import { CharacterAnimator, type AvatarPose, type ZombiePose } from '../character/animator';
 import { Character, type CharacterConfig } from '../character/character';
+import { mirrorGrip } from '../character/registry';
 import { heldGrenade, heldGun, heldKnife } from './heldWeapons';
 
 export type { AvatarPose };
@@ -41,6 +42,19 @@ export function appearanceToConfig(look: Appearance, sex: Sex): CharacterConfig 
     pcd: { braco: look.pcd.braco, perna: look.pcd.perna },
   };
 }
+
+/**
+ * A held item at (x, y) in its hand socket, as made for its hand, or `mirrored` for the other one (X and the
+ * rotation mirrored across the body's middle, like the rifle's grip: registry.ts mirrorGrip).
+ */
+function holdIn(o: THREE.Object3D, x: number, y: number, mirrored: boolean) {
+  o.position.set(mirrored ? -x : x, y, 0);
+  if (mirrored) o.quaternion.copy(mirrorGrip(o.quaternion));
+}
+
+/** Where the gun in hand sits on its grip (put back after a one-hand reload). */
+const rifleGrips = new WeakMap<THREE.Object3D, { p: THREE.Vector3; q: THREE.Quaternion }>();
+const restScale = new THREE.Vector3();
 
 /** Animation LOD (style guide): the camera the game renders with, and its frustum this frame. */
 const lodCam = { pos: new THREE.Vector3(), frustum: new THREE.Frustum(), active: false };
@@ -139,13 +153,15 @@ export class Avatar {
       }
     }
     const missing = bodyStats(this.look).missing;
+    // The knife is made for the right hand and the grenade for the left; in the other hand (PCD) they are
+    // mirrored, position and rotation, as the swing and the throw are (animator.ts).
     const knifeHand = missing.handR || missing.armR ? 'hand_L' : 'hand_R';
     const grenadeHand = missing.handL || missing.armL ? 'hand_R' : 'hand_L';
     this.knife = heldKnife(meleeStats(lo.ativas.faca).forma);
-    this.knife.position.set(knifeHand === 'hand_R' ? 0.01 : -0.01, 0, 0);
+    holdIn(this.knife, 0.01, 0, knifeHand !== 'hand_R');
     this.character.sockets[knifeHand].add(this.knife);
     this.grenade = heldGrenade();
-    this.grenade.position.set(grenadeHand === 'hand_L' ? 0.01 : -0.01, -0.03, 0);
+    holdIn(this.grenade, 0.01, -0.03, grenadeHand !== 'hand_L');
     this.character.sockets[grenadeHand].add(this.grenade);
     this.held.push(this.knife, this.grenade);
     this.bladeOnly = !!lo.soFaca;
@@ -227,16 +243,34 @@ export class Avatar {
   /** Alive, armed: locomotion, aim offset, the gun in both hands, action layers (reload, knife, grenade). */
   pose(dt: number, s: AvatarPose) {
     if (!!s.secondary !== this.holdingSecondary) this.showGun(!!s.secondary);
-    // Knife: the gun goes away and the knife comes out in the hand (and stays there with a blade-only loadout).
-    this.rifle(!s.knife && !s.blade);
     const step = this.lod(dt);
     if (step !== null) {
       // Following the hitboxes: their state as is and no time of its own, so the very same pose.
       if (this.hitboxes) this.animator.syncFrom(this.hitboxes);
       this.animator.pose(this.hitboxes ? 0 : step, s);
+      this.restRifle(this.animator.rifleOffset);
     }
+    // Knife: the gun goes away and the knife comes out in the hand (and stays there with a blade-only loadout).
+    // With one hand (PCD) the grenade puts it on the back too.
+    this.rifle(!s.knife && !s.blade && !this.animator.rifleAway);
     this.showHeld(s.knife || !!s.blade, this.animator.grenadeInHand);
   }
+
+  /** The gun in hand moved off its grip (resting against the body: one-hand reload), or back on it (null). */
+  private restRifle(offset: THREE.Matrix4 | null) {
+    if (!offset && !this.rifleMoved) return;
+    for (const o of this.character.objectsOf('weapon_R')) {
+      let grip = rifleGrips.get(o);
+      if (!grip) rifleGrips.set(o, (grip = { p: o.position.clone(), q: o.quaternion.clone() }));
+      if (offset) offset.decompose(o.position, o.quaternion, restScale);
+      else {
+        o.position.copy(grip.p);
+        o.quaternion.copy(grip.q);
+      }
+    }
+    this.rifleMoved = !!offset;
+  }
+  private rifleMoved = false;
 
   /** A shot (recoil on the next poses). */
   fire() {
