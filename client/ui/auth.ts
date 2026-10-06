@@ -22,6 +22,7 @@ const ERRORS: Partial<Record<ApiErrorCode | 'offline', StringKey>> = {
   discord_indisponivel: 'errDiscordUnavailable',
   discord_ja_vinculado: 'errDiscordLinked',
   nao_autorizado: 'errUnauthorized',
+  figurinha_bloqueada: 'errStickerLocked',
   offline: 'errOffline',
 };
 

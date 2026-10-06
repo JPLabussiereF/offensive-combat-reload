@@ -2,7 +2,7 @@
 // finish (common → gold, then repeats for counters), pages and the album count what's stuck in, and the
 // numbers come out of the profile the API already sends.
 import { describe, expect, it } from 'bun:test';
-import { album, albumCount, albumProblems, fillHow, FINISHES, finishOf, itemProgress, PAGES, SOURCES, STICKERS, stickerState, sourcesFromProfile, tierOf, tiersOf, type Sources, type Sticker } from '@shared/achievements';
+import { album, albumCount, albumProblems, canFeature, titleProgress, titlesOf, fillHow, FINISHES, finishOf, itemProgress, PAGES, SOURCES, STICKERS, stickerState, sourcesFromProfile, tierOf, tiersOf, type Sources, type Sticker } from '@shared/achievements';
 import type { ProfileResponse, ZombieTotals } from '@shared/account';
 import { MAX_LEVELS, PROG_WEAPONS } from '@shared/progression';
 
@@ -94,6 +94,23 @@ describe('do número ao acabamento', () => {
     expect(all.total).toBe(STICKERS.length);
     expect(all.finishesTotal).toBe(STICKERS.reduce((n, s) => n + s.metas.length, 0));
     expect(all.stuck).toBe(2);
+  });
+});
+
+describe('destaque e títulos', () => {
+  it('o título da página sai com todas as figurinhas dela em Holográfica ou mais (meta única conta Dourada)', () => {
+    // Corrida Armada: Corredor holographic at 20, Volta Olímpica gold at 1, Esfaqueador holographic at 100.
+    const own = { corredor: 20, 'volta-olimpica': 1, esfaqueador: 99 };
+    expect(titleProgress(album(zero, own), 'corrida')).toEqual({ done: 2, total: 3 });
+    expect(titlesOf(album(zero, own))).not.toContain('corrida');
+    expect(titlesOf(album(zero, { ...own, esfaqueador: 100 }))).toEqual(['corrida']);
+  });
+
+  it('só dá para pôr em destaque uma figurinha colada', () => {
+    const states = album({ ...zero, cabeca: 25 });
+    expect(canFeature(states, 'na-testa')).toBe(true);
+    expect(canFeature(states, 'facada')).toBe(false);
+    expect(canFeature(states, 'nao-existe')).toBe(false);
   });
 });
 

@@ -25,7 +25,7 @@ As conquistas são um **álbum de figurinhas**. Cada figurinha tem **um desenho*
 - Um **contador** (abates, opressões, reanimações...) continua contando depois da Dourada, e cada nova volta inteira na última meta aparece como **repetidas** (×2, ×3...).
 - Um **recorde** (nível da conta, melhor onda, armas no máximo) termina na Dourada.
 
-Proposta completa e fases na issue #25 do repositório. Este documento descreve o que existe hoje: a **fase 1** (figurinhas derivadas das estatísticas) e a **fase 2** (contadores próprios e o aviso no jogo). São 43 figurinhas em 8 páginas.
+Proposta completa e fases na issue #25 do repositório. Este documento descreve o que existe hoje: a **fase 1** (figurinhas derivadas das estatísticas), a **fase 2** (contadores próprios e o aviso no jogo) e a **fase 3** (figurinha em destaque e títulos que os outros veem). São 43 figurinhas em 8 páginas.
 
 ## Fase 1: figurinhas derivadas
 
@@ -95,6 +95,31 @@ Os eventos ficam em `server/session.ts` (`albumKill`, `albumHumiliation`, `onPic
 
 O `LiveAccount` guarda os totais e os contadores próprios da última gravação (`profile.totals`, `profile.album`); com o delta ainda não gravado, são os números ao vivo (`liveSources`, `liveOwn`). Uma vez por segundo, no `tick` da sessão, `stickerUps` compara o acabamento de cada figurinha com o que o jogador já sabe (`stickerTiers`, calculado no login) e manda `figurinha {id, nivel}` só ao dono. Vale para todas, derivadas e próprias, inclusive as do zumbi. O cliente mostra a faixa "🎯 Figurinha Brilhante: Na Testa!" (uma por vez, em fila) com o som de subir de nível. Repetidas não geram aviso.
 
+## Fase 3: destaque e títulos
+
+O "calling card" do jogo: cada jogador escolhe **uma figurinha em destaque** (qualquer uma já colada) e **um título**, e os outros veem os dois.
+
+- **Títulos:** cada página dá um título quando **todas** as figurinhas dela estão **Holográficas ou Douradas** (`TITLE_FINISH`; uma figurinha de meta única conta quando sai Dourada). Os títulos:
+
+  | Página | Título |
+  | --- | --- |
+  | Carreira | Morador Ilustre |
+  | Jeitos de matar | Ameaça do Bairro |
+  | Opressão | Opressor-Mor |
+  | Sequências | Imparável |
+  | Cardápio | Chef da Vizinhança |
+  | Corrida Armada | Piloto de Fuga |
+  | Zumbi | Caça-Zumbis |
+  | Vexames | Pé-Frio |
+
+- **Escolha:** na aba Álbum, o bloco do topo mostra a figurinha em destaque e um seletor com os títulos ganhos. O detalhe de uma figurinha colada tem **Usar como destaque** / **Tirar do destaque**. "Títulos: X de 8" abre a lista com o andamento de cada página.
+- **Servidor confere:** `PATCH /api/perfil {destaque, titulo}` → `setShowcase` (`server/accounts.ts`) recalcula o álbum da conta e recusa com `400 figurinha_bloqueada` o que ela não tem. A escolha fica em `player_profile.featured_sticker` e `title` (migration `006_destaque.sql`), é lida no login (`profile.showcase`) e vale a partir da próxima conexão.
+- **Onde aparece** (`PlayerInfo.fig = [id, nivel]`, com o acabamento **de agora**, de `stickerTiers`, e `PlayerInfo.tit`):
+  - no **placar**, ao lado do nome, com o título embaixo;
+  - na **tela de morte**, a figurinha e o título de quem te matou;
+  - no **Perfil**, embaixo do nome.
+- `stickerBadge` e `titleText` (`client/ui/album.ts`) desenham a figurinha pequena com o mesmo acabamento em CSS.
+
 ## Tela
 
 - **Aba Álbum** na tela inicial logada ([[Menus]]):
@@ -105,7 +130,7 @@ O `LiveAccount` guarda os totais e os contadores próprios da última gravação
   - desenho (ícone sobre a cor da página);
   - nome;
   - quatro bolinhas (acabamentos ganhos);
-  - barra da meta anterior até a próxima;
+  - barra até a próxima meta, contada desde zero (300 de 1.000 = 30%);
   - o número ("812 / 1200", ou "Completa!").
 - **Figurinha não colada:** borda tracejada, desenho apagado.
 - **Clique no cartão:** detalhe com "como pegar" (com a próxima meta), a barra com o número, o andamento de cada item numa coleção (cada poção, cada mapa), as metas com as ganhas marcadas e as repetidas.
@@ -131,8 +156,7 @@ O `LiveAccount` guarda os totais e os contadores próprios da última gravação
 
 ## Ainda não existe (fases seguintes da proposta)
 
-- **Figurinha em destaque e título** no Perfil, no placar e na tela de morte.
-- **Recompensas por página.**
+- **Molduras** para a figurinha em destaque e uma **dancinha nova** para o álbum completo (as recompensas por página hoje são só os títulos).
 - Figurinhas ocultas.
 - Datas em que cada acabamento foi pego (só o número é guardado).
 

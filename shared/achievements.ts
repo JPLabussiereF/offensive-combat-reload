@@ -50,6 +50,8 @@ export interface AlbumPage {
   /** The page's color (the stickers' background). */
   cor: string;
   nome: Text;
+  /** The title the page gives: every sticker on it at TITLE_FINISH or better. */
+  titulo: Text;
 }
 
 export interface Sticker {
@@ -123,6 +125,34 @@ export const album = (src: Sources, own: Own = {}): StickerState[] => STICKERS.m
 export const tiersOf = (src: Sources, own: Own = {}): Record<string, number> => Object.fromEntries(album(src, own).map((s) => [s.sticker.id, s.tier]));
 
 export const stickerById = (id: string) => STICKERS.find((s) => s.id === id);
+export const pageById = (id: string) => PAGES.find((p) => p.id === id);
+
+// --- Showcase: the sticker a player shows and the title they wear --------------------------------------------
+
+/** A page's title is earned with every sticker on it at this finish or better. */
+export const TITLE_FINISH: Finish = 'holografica';
+
+/** Whether a sticker reached a finish (a gold-only sticker counts for any). */
+const reached = (st: StickerState, f: Finish) => {
+  const got = finishOf(st.sticker, st.tier);
+  return !!got && FINISHES.indexOf(got) >= FINISHES.indexOf(f);
+};
+
+/** How many stickers of a page already count toward its title, out of how many. */
+export function titleProgress(states: StickerState[], page: string) {
+  const list = states.filter((s) => s.sticker.pagina === page);
+  return { done: list.filter((s) => reached(s, TITLE_FINISH)).length, total: list.length };
+}
+
+/** The pages whose title the account wears if it wants. */
+export const titlesOf = (states: StickerState[]) =>
+  PAGES.filter((p) => {
+    const t = titleProgress(states, p.id);
+    return t.total > 0 && t.done === t.total;
+  }).map((p) => p.id);
+
+/** A sticker can be shown once it's stuck in (any finish). */
+export const canFeature = (states: StickerState[], id: string) => states.some((s) => s.sticker.id === id && s.tier > 0);
 
 /** Stickers stuck in (any finish) and finishes earned, out of the totals, for a page or the whole album. */
 export function albumCount(states: StickerState[], page?: string) {
@@ -190,6 +220,9 @@ export function albumProblems(): string[] {
       if (s.metas.length > 1 && !s.como[lang]?.includes('{meta}')) out.push(`${s.id}: "como" sem {meta} em ${lang}`);
     }
   }
-  for (const p of PAGES) if (!STICKERS.some((s) => s.pagina === p.id)) out.push(`página ${p.id} vazia`);
+  for (const p of PAGES) {
+    if (!STICKERS.some((s) => s.pagina === p.id)) out.push(`página ${p.id} vazia`);
+    if (!p.titulo?.pt || !p.titulo?.en) out.push(`página ${p.id} sem título`);
+  }
   return out;
 }

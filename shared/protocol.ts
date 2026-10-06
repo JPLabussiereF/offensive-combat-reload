@@ -94,6 +94,9 @@ export interface PlayerInfo {
   ladder?: LadderPos;
   /** Zumbi: the match's money, zombie kills, times downed and revives given, whether they're standing, what they carry. */
   zumbi?: ZombiePlayer;
+  /** The album sticker the player shows (its id and the targets it reached) and the title they wear (a page id). */
+  fig?: [id: string, nivel: number];
+  tit?: string;
 }
 
 /** A player in a zumbi match. */

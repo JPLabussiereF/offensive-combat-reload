@@ -2,7 +2,7 @@
 // (Origin check) and carries the session cookie. Errors are { erro: code }.
 import { cleanName, validName } from '@shared/account';
 import { asSex } from '@shared/protocol';
-import { activeBan, audit, cancelDeletion, changeName, fullProfile, getAccount, me, requestDeletion, setAppearance, setArsenal, setSex } from './accounts';
+import { activeBan, audit, cancelDeletion, changeName, fullProfile, getAccount, me, requestDeletion, setAppearance, setArsenal, setSex, setShowcase } from './accounts';
 import { discordAvailable, discordCallback, startDiscord, unlinkDiscord } from './auth/discord';
 import { login, register, requestReset, resetPassword } from './auth/password';
 import { authenticate, clearSessionCookie, revokeSession, type AuthSession, type Deps } from './auth/sessions';
@@ -105,6 +105,7 @@ const routes: Record<string, Handler> = {
     if (body.sexo !== undefined) await setSex(ctx.deps.db, s.accountId, asSex(body.sexo));
     if (body.aparencia !== undefined) await setAppearance(ctx.deps.db, s.accountId, body.aparencia);
     if (body.arsenal !== undefined) await setArsenal(ctx.deps.db, s.accountId, body.arsenal);
+    if (body.destaque !== undefined || body.titulo !== undefined) await setShowcase(ctx.deps.db, s.accountId, body.destaque, body.titulo);
     return reply(ctx, 200, await fullProfile(ctx.deps.db, s.accountId));
   },
 

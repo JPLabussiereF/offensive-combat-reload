@@ -3210,6 +3210,148 @@ input[type='range'] {
     animation: none;
   }
 }
+/* A small sticker as the others see it: scoreboard, death card, profile, the album's showcase. */
+.fig-mini {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-radius: 7px;
+}
+.fig-mini .fig-art {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-width: 2px;
+  border-radius: 7px;
+}
+.fig-mini .fig-icon {
+  font-size: 17px;
+}
+.fig-mini.fig-t4 {
+  background: none;
+}
+.fig-mini.empty {
+  border: 2px dashed currentColor;
+  opacity: 0.35;
+}
+.sb-name {
+  white-space: nowrap;
+}
+.sb-title {
+  display: block;
+  margin-left: 36px;
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0.75;
+}
+#death-showcase {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+#death-showcase.hidden {
+  display: none;
+}
+#death-showcase .fig-mini {
+  width: 48px;
+  height: 48px;
+  margin: 0;
+}
+#death-showcase .fig-icon {
+  font-size: 28px;
+}
+.death-title {
+  font: 900 17px var(--body);
+  color: var(--warn);
+}
+.album-showcase {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+}
+.album-shown {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.album-shown .fig-mini {
+  width: 46px;
+  height: 46px;
+  margin: 0;
+}
+.album-shown .fig-icon {
+  font-size: 26px;
+}
+.album-shown b {
+  display: block;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 18px;
+}
+.album-title-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.album-titles {
+  margin: 0 0 10px;
+}
+.album-titles summary {
+  cursor: pointer;
+  font-weight: 900;
+}
+.album-titles ul {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.album-titles li {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 3px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  opacity: 0.7;
+}
+.album-titles li.done {
+  background: var(--good);
+  opacity: 1;
+}
+#al-feature {
+  margin-top: 10px;
+}
+.profile-showcase {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+.profile-showcase .fig-mini {
+  width: 40px;
+  height: 40px;
+}
+.profile-showcase .fig-icon {
+  font-size: 22px;
+}
+.profile-title {
+  font-family: var(--display);
+  font-size: 18px;
+}
 .fig-detail {
   margin-top: 14px;
   padding: 12px 14px;

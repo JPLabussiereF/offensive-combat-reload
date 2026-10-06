@@ -68,6 +68,7 @@ Colunas e índices em [[Database]].
 | Nível equipado (legado) | `weapon_progress.equipped_level` | Não é mais escrito; só lido para derivar a escolha de contas antigas ([[Data Migrations]]) |
 | Totais | `player_stats` (kills, deaths, headshots, groin_kills, knife_kills, backstabs, grenade_kills, humiliations, seconds_played, matches_played) | Somados a partir do delta de cada gravação |
 | Totais do modo zumbi | `zombie_stats` (partidas, vitórias, melhor onda, ondas sobrevividas, abates por golpe, chefes por nome, quedas, reanimações, mortes, giros no caixão) | O motor (`ZombieMatch`) avisa cada evento pelo gancho `ZombieHost.stat`; `addZombieStat` soma em `delta.zumbi`; gravado no mesmo flush. Zumbis não contam em `player_stats` |
+| Destaque e título do álbum | `player_profile.featured_sticker`, `title` | `PATCH /api/perfil {destaque, titulo}` (`setShowcase`): só figurinha colada e título de página completa (todas Holográficas ou mais); lidos no login (`profile.showcase`) e mostrados em `PlayerInfo.fig`/`tit` |
 | Álbum de figurinhas | derivado de `player_stats`, `weapon_progress`, `zombie_stats`; contadores próprios em `achievement_progress` | Ver [[Achievements]]. Os próprios são somados (ou guardados como recorde) pelo servidor em `delta.album` e gravados no flush |
 | MMR | `player_stats.mmr` (padrão 1000) | **Não usado** ("unused until ranked play exists") |
 | Participações | `session_participation` (nome da sala, entrada/saída, kills, deaths, score, humiliations, account_xp) | Aberta no `join`; somada a cada gravação; `left_at` ao sair |

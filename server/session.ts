@@ -209,8 +209,16 @@ export class Session {
       humiliations: p.humiliations,
       alive: p.alive,
       ping: p.ping,
+      ...this.showcase(p.conn.account),
       ...this.mode.info(p),
     };
+  }
+
+  /** The album sticker and title a player chose to show: the sticker with the finish it has right now. */
+  private showcase(a: LiveAccount): Pick<PlayerInfo, 'fig' | 'tit'> {
+    const { sticker, title } = a.profile.showcase ?? { sticker: null, title: null };
+    const tier = sticker ? (a.stickerTiers[sticker] ?? 0) : 0;
+    return { ...(sticker && tier ? { fig: [sticker, tier] as [string, number] } : {}), ...(title ? { tit: title } : {}) };
   }
 
   /** To everyone in the session, serialized once; `except` is the player whose action caused it. */

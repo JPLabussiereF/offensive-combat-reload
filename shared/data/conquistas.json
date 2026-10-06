@@ -1,13 +1,13 @@
 {
   "paginas": [
-    { "id": "carreira", "icone": "🏠", "cor": "#2f9bff", "nome": { "pt": "Carreira", "en": "Career" } },
-    { "id": "matar", "icone": "🎯", "cor": "#ff4a3d", "nome": { "pt": "Jeitos de matar", "en": "Ways to kill" } },
-    { "id": "opressao", "icone": "💃", "cor": "#b04aff", "nome": { "pt": "Opressão", "en": "Humiliation" } },
-    { "id": "sequencias", "icone": "🔥", "cor": "#ff7a1a", "nome": { "pt": "Sequências", "en": "Streaks" } },
-    { "id": "cardapio", "icone": "🍪", "cor": "#e0567a", "nome": { "pt": "Cardápio", "en": "Menu" } },
-    { "id": "corrida", "icone": "🏁", "cor": "#1fb5a8", "nome": { "pt": "Corrida Armada", "en": "Gun Game" } },
-    { "id": "zumbi", "icone": "🧟", "cor": "#3fae4a", "nome": { "pt": "Zumbi", "en": "Zombies" } },
-    { "id": "vexames", "icone": "🤡", "cor": "#ffb13d", "nome": { "pt": "Vexames", "en": "Fails" } }
+    { "id": "carreira", "icone": "🏠", "cor": "#2f9bff", "nome": { "pt": "Carreira", "en": "Career" }, "titulo": { "pt": "Morador Ilustre", "en": "Distinguished Resident" } },
+    { "id": "matar", "icone": "🎯", "cor": "#ff4a3d", "nome": { "pt": "Jeitos de matar", "en": "Ways to kill" }, "titulo": { "pt": "Ameaça do Bairro", "en": "Neighborhood Menace" } },
+    { "id": "opressao", "icone": "💃", "cor": "#b04aff", "nome": { "pt": "Opressão", "en": "Humiliation" }, "titulo": { "pt": "Opressor-Mor", "en": "Grand Oppressor" } },
+    { "id": "sequencias", "icone": "🔥", "cor": "#ff7a1a", "nome": { "pt": "Sequências", "en": "Streaks" }, "titulo": { "pt": "Imparável", "en": "Unstoppable" } },
+    { "id": "cardapio", "icone": "🍪", "cor": "#e0567a", "nome": { "pt": "Cardápio", "en": "Menu" }, "titulo": { "pt": "Chef da Vizinhança", "en": "Neighborhood Chef" } },
+    { "id": "corrida", "icone": "🏁", "cor": "#1fb5a8", "nome": { "pt": "Corrida Armada", "en": "Gun Game" }, "titulo": { "pt": "Piloto de Fuga", "en": "Getaway Driver" } },
+    { "id": "zumbi", "icone": "🧟", "cor": "#3fae4a", "nome": { "pt": "Zumbi", "en": "Zombies" }, "titulo": { "pt": "Caça-Zumbis", "en": "Zombie Hunter" } },
+    { "id": "vexames", "icone": "🤡", "cor": "#ffb13d", "nome": { "pt": "Vexames", "en": "Fails" }, "titulo": { "pt": "Pé-Frio", "en": "Jinx" } }
   ],
   "figurinhas": [
     {
