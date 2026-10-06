@@ -47,7 +47,7 @@ Ninguém se pune, e o último admin não pode ser removido. Os papéis são lido
 | --- | --- |
 | `GET /api/gestao/contas?q=&pagina=` | Busca por nome (parte) ou tag exata, 20 por página: tag, nível, papéis, banida/silenciada. |
 | `GET /api/gestao/contas/:id` | Detalhes (nome, corpo, aparência, XP, armas, histórico de sanções com quem aplicou) e `permissoes` de quem pergunta (`editar`, `punir`, `conceder`, `remover`). |
-| `PATCH /api/gestao/contas/:id` | `{ nome?, sexo?, aparencia?, xp?, armas? }`: o nome sem o tempo de espera (e sem mexer no tempo de espera do jogador); `xp` e `armas` são os pontos absolutos. Publica `oc:perfil`: o progresso novo chega na partida em andamento. |
+| `PATCH /api/gestao/contas/:id` | `{ nome?, sexo?, aparencia?, xp?, armas? }`: o nome sem o tempo de espera, e a espera de 7 dias do jogador recomeça a partir dessa troca (P35: um nome ofensivo tirado pela equipe não volta na hora); `xp` e `armas` são os pontos absolutos. Publica `oc:perfil`: o progresso novo chega na partida em andamento. |
 | `POST /api/gestao/contas/:id/sancoes` | `{ tipo: banimento \| silencio, motivo, duracao }` (duração como no console). |
 | `DELETE /api/gestao/contas/:id/sancoes/:tipo` | Revoga as sanções ativas desse tipo. |
 | `PUT` / `DELETE /api/gestao/contas/:id/papeis/:papel` | Concede / tira `admin` ou `moderador`. |

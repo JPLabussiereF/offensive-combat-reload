@@ -48,6 +48,10 @@ Onde e como conferir quem pode fazer o quê, sem que um moderador consiga agir s
 
 Um papel tirado vale na hora; as regras ficam num lugar só e testáveis sem servidor (`client/tests/roles.test.ts`), e a matriz completa roda contra o servidor real (`server/tests/management.test.ts`).
 
+### Troca de nome pela equipe (P35)
+
+A equipe troca o nome de uma conta sem o tempo de espera, e a troca grava `name_changed_at`: a espera de 7 dias do jogador recomeça a partir dela, para um nome ofensivo tirado pela equipe não voltar na hora (`changeName` com `staffId` em `server/accounts.ts`). As demais decisões abertas na fase 2 (P33 a P38) estão em [[ADR - Sessões sob demanda por versão do mapa]].
+
 ## Consequências
 
 - Uma consulta a mais (`account_role`) por pedido da equipe e por pedido de mapa que depende de papel.

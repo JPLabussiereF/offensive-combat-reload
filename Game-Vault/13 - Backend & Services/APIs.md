@@ -73,7 +73,7 @@ Equipe = admin ou moderador. Ver [[World Structure]] e [[ADR - Sessões sob dema
 
 | Método e caminho | Quem | O que faz | Respostas principais |
 | --- | --- | --- | --- |
-| `GET /api/mapas?tipo=oficial\|comunidade&q=&autor=&ordem=jogados\|recentes&pagina=` | todos | Lista os mapas visíveis (nem ocultos nem apagados), 20 por página, com busca por nome ou autor (nome ou tag). Cada item é um `MapaResumo` (com `pode`: o que quem pergunta pode fazer). | 200 `{ mapas, pagina, mais }` |
+| `GET /api/mapas?tipo=oficial\|comunidade&q=&autor=&ordem=jogados\|recentes&pagina=&ocultos=1` | todos | Lista os mapas visíveis (nem ocultos nem apagados; com `ocultos=1`, a equipe também vê os ocultos, e para os outros o parâmetro é ignorado: P34), 20 por página, com busca por nome ou autor (nome ou tag). Cada item é um `MapaResumo` (com `pode`: o que quem pergunta pode fazer). | 200 `{ mapas, pagina, mais }` |
 | `GET /api/mapas/:id` | todos | Um mapa. Oculto: só o autor e a equipe o veem. | 200; 404 `nao_encontrado` / `mapa_oculto` |
 | `GET /api/mapas/:id/versoes` | todos | As versões salvas (`VersaoMapa`: número, data, quem salvou, chamadas e triângulos, qual é a atual). | 200 |
 | `GET /api/mapas/:id/versoes/:v` | todos | Os dados (`MapData`) de uma versão: imutável, com cache longo. | 200; 404 |
@@ -82,7 +82,7 @@ Equipe = admin ou moderador. Ver [[World Structure]] e [[ADR - Sessões sob dema
 | `POST /api/mapas/:id/restaurar` | autor ou equipe | `{ versao }`: volta a jogar uma versão antiga (só troca a versão atual). | 200; 404 |
 | `POST` / `DELETE /api/mapas/:id/ocultar` | equipe | Oculta (`{ motivo? }`) ou mostra de novo. | 204 |
 | `DELETE /api/mapas/:id` | autor ou equipe | Apaga (exclusão lógica). | 204 |
-| `POST /api/mapas/:id/duplicar` | conta | Cópia da versão atual como mapa da comunidade da conta (`copiaDe`). | 201 `{ id, versao: 1 }` |
+| `POST /api/mapas/:id/duplicar` | conta | Cópia da versão atual como mapa da comunidade da conta (`copiaDe`), chamada "Nome (cópia)" (P38). | 201 `{ id, versao: 1 }` |
 | `POST /api/mapas/:id/jogadas` | todos | Uma partida offline (treino, bots): conta uma jogada por conta (ou IP) e mapa por hora (Redis). | 204 |
 | `POST /api/mapas/arquivos?nome=` | conta | O modelo GLB no corpo (`model/gltf-binary`, até 10 MB): validado (`server/glb.ts`) e guardado pelo SHA-256 em `MAPAS_DIR`. Limite de envios por hora e cota por conta. | 201 `{ sha256, url, bytes, triangulos, primitivas }`; 413 `arquivo_grande_demais` / `cota_excedida`; 400 `glb_invalido` (+ `motivo`); 429 `muitas_tentativas` |
 | `GET /api/mapas/arquivos/:sha256.glb` | todos | O modelo (`model/gltf-binary`, `nosniff`, cache longo). | 200; 404 |
@@ -95,7 +95,7 @@ Admin e moderador, com as regras de `shared/roles.ts`. Ver [[Moderation]].
 | --- | --- |
 | `GET /api/gestao/contas?q=&pagina=` | Busca contas por nome ou tag. |
 | `GET /api/gestao/contas/:id` | Detalhes e `permissoes` de quem pergunta. |
-| `PATCH /api/gestao/contas/:id` | `{ nome?, sexo?, aparencia?, xp?, armas? }` (nome sem o tempo de espera). |
+| `PATCH /api/gestao/contas/:id` | `{ nome?, sexo?, aparencia?, xp?, armas? }` (nome sem o tempo de espera; a espera do jogador recomeça a partir da troca: P35). |
 | `POST /api/gestao/contas/:id/sancoes` | `{ tipo: banimento \| silencio, motivo, duracao }`. |
 | `DELETE /api/gestao/contas/:id/sancoes/:tipo` | Revoga as sanções ativas do tipo. |
 | `PUT` / `DELETE /api/gestao/contas/:id/papeis/:papel` | Concede / tira um papel. |

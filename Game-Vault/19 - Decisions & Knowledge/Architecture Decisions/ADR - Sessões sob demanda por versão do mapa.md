@@ -64,6 +64,17 @@ Escala com qualquer número de mapas, e "uma sala, uma versão" garante que ning
 - Sessões e o cache de versões vivem na memória de um processo, como antes ([[Problem - Estado das partidas só em memória de um processo]]).
 - Uma sala zumbi carrega a navmesh da sua versão (`server/navmesh.ts`, uma vez por processo e versão).
 
+## Decisões do dev depois da fase 2 (P33 a P38)
+
+Perguntas abertas pela fase 2, respondidas pelo dev:
+
+- **P33 — limites provisórios ficam:** GLB com até 2000 nós (`GLB_LIMITS.nos`), 30 envios de GLB por hora por conta (`GLB_UPLOADS_PER_HOUR`), 200 MB de modelos por conta (`GLB_QUOTA_BYTES`) e a montagem de um mapa no construtor limitada a 120 s (`BUILD_TIMEOUT_MS`).
+- **P34 — a equipe vê os mapas ocultos na lista:** `GET /api/mapas?ocultos=1` inclui os ocultos para admin e moderador (para mostrá-los de novo); para os outros o parâmetro é ignorado. Feito.
+- **P35 — troca de nome pela equipe:** a espera de 7 dias do jogador recomeça a partir da troca. Feito ([[ADR - Papéis da equipe conferidos no servidor]]).
+- **P36 — versões de mapas ocultos ou apagados continuam baixáveis** por id e versão (`GET /api/mapas/:id/versoes/:v`): as salas que já jogam nelas precisam, e os dados são imutáveis. Como estava.
+- **P37 — GLB com `EXT_meshopt_compression` e `EXT_texture_avif` continuam recusados** (o servidor não os lê nem mede com `@gltf-transform/core` sozinho).
+- **P38 — duplicar cria "Nome (cópia)"**, no registro e nos dados da versão, cortando o original para caber nos 60 caracteres (`copyName` em `server/mapRoutes.ts`). Feito.
+
 ## Código afetado
 
 - `server/app.ts` (`sessionFor`, `enter`, `opening`, `sessionsChanged`), `server/maps.ts` (`MapRuntime`, `MapStore`, `mapRow`, `playable`, `allows`, `defaultMapFor`), `server/session.ts`, `server/modes.ts`, `server/navmesh.ts`.

@@ -73,9 +73,9 @@ Como o servidor confia em `X-Forwarded-For` só vindo de endereço privado, e os
 ### `maps.test.ts` — API de mapas (PF-6)
 
 - Criar, salvar versões, `409 versao_desatualizada` com a versão base velha, restaurar (a próxima versão vem depois da mais nova) e listar as versões; a versão antiga com cache `immutable`.
-- Outros não editam, apagam, restauram nem ocultam, mas duplicam (cópia da comunidade com `copiaDe`); o dono apaga (some da lista).
+- Outros não editam, apagam, restauram nem ocultam, mas duplicam (cópia da comunidade com `copiaDe`, chamada "Nome (cópia)" no registro e nos dados; `copyName` corta para caber em 60 caracteres); o dono apaga (some da lista).
 - Busca por nome e por autor (nome e tag) e ordem por mais jogados (jogadas offline contadas uma vez por conta por hora) ou mais recentes; a lista é pública.
-- Mapa oculto pelo moderador some da lista, dá `mapa_oculto` a outros e `play` é recusado; o autor ainda o vê; mostrar de novo devolve; a equipe apaga qualquer mapa.
+- Mapa oculto pelo moderador some da lista, dá `mapa_oculto` a outros e `play` é recusado; com `?ocultos=1` a equipe o acha na lista, e para quem não é equipe (o autor, outro jogador, sem conta) o parâmetro não muda nada; o autor ainda o vê; mostrar de novo devolve; a equipe apaga qualquer mapa.
 - User recebe `sem_permissao` ao salvar oficial; admin cria oficial.
 - `mapa_invalido` (tipo de peça desconhecido, modelo de fora do jogo, modelo nunca enviado) e `orcamento_excedido` (uma esfera de 1 milhão de triângulos, com os números e o limite).
 - GLB: envio guardado uma vez pelo SHA-256, download com `model/gltf-binary` e `nosniff`, mapa que o usa salvo (`map_version_asset`); recusa acima de 10 MB (`arquivo_grande_demais`), lixo, URI externa, Draco e o tipo errado (`glb_invalido`).
@@ -87,7 +87,7 @@ Como o servidor confia em `X-Forwarded-For` só vindo de endereço privado, e os
 - Busca por nome e por tag; o moderador vê a conta de um admin com `permissoes` todas falsas.
 - Matriz: o moderador silencia, tira o silêncio, renomeia, promove a moderador e rebaixa um user; nunca promove a admin nem mexe num admin (editar, banir, tirar papel, dar papel); ninguém se pune; user não é equipe; pedidos inválidos não mudam nada.
 - O admin concede e tira admin; o último admin não sai (`motivo: ultimo_admin`).
-- O nome trocado pela equipe não espera o tempo de espera e não mexe no do jogador.
+- O nome trocado pela equipe não espera o tempo de espera, e a espera do jogador recomeça a partir da troca (7 dias, mesmo para quem não tinha usado a troca grátis).
 - Na partida em andamento: o banimento derruba a conexão (`4001`) e grava o moderador como `actor_id` e `por`; o silêncio vale na hora; `xp` e `armas` novos chegam numa mensagem `progresso` e continuam no banco depois de sair.
 
 ### `sessions.test.ts` — sessões sob demanda (PF-6)
