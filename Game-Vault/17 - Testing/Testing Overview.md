@@ -56,7 +56,7 @@ Os testes usam o executor nativo **`bun test`** (`bun:test`: `describe`, `it`, `
 
 - `root = "."` — o projeto inteiro é a raiz, então `client/tests` também roda (no Bun, sem navegador).
 - `preload = ["./server/tests/preload.ts"]` — antes de qualquer arquivo: `DROP DATABASE ... WITH (FORCE)` + `CREATE DATABASE` do banco de teste e `FLUSHDB` no Redis de teste.
-- `timeout = 20000` ms por teste.
+- **20 s por teste**, definidos em `server/tests/preload.ts` com `setDefaultTimeout(20_000)`. O `timeout = 20000` do `bunfig.toml` é **ignorado pelo Bun 1.4.2** (conferido: um teste de 6 s falhava aos 5 s), e até 2026-10-06 valia o padrão de 5 s. Por isso testes online mais longos (por exemplo "as melhorias liberadas valem nas armas travadas", 3–5 s) falhavam de vez em quando numa máquina ocupada, inclusive no CI.
 - Arquivos rodam **um depois do outro num único processo**, cada um com **seu próprio servidor de jogo numa porta livre** (`startTestServer`, porta 0, jobs desligados).
 
 | Variável | Default | Uso |
