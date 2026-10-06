@@ -39,10 +39,11 @@ O `ProgressDelta` de cada `LiveAccount` (XP de conta e de armas, abates, mortes,
 ### Como
 `flushProgress()` (`server/accounts.ts`) roda **numa transação**:
 1. `UPDATE player_stats SET xp = xp + ..., kills = kills + ..., ...` e recalcula `level`.
-2. Se `delta.zumbi` tem algo, um *upsert* em `zombie_stats` que soma cada coluna e guarda `best_wave = GREATEST(...)`. No `mergeDelta` de uma gravação que falhou, `bestWave` também fica com o maior valor em vez de somar.
-3. Para cada arma com XP no delta, um *upsert* em `weapon_progress` (`INSERT ... ON CONFLICT (profile_id, weapon) DO UPDATE SET xp = xp + ...`): uma arma criada depois da conta pode ainda não ter a linha.
-4. `UPDATE player_profile SET loadout = <escolha do Arsenal>` (o servidor sempre a passa no flush).
-5. `UPDATE session_participation SET kills = kills + ..., ..., left_at = CASE WHEN <fechar> ...`.
+2. Para cada arma com XP no delta, um *upsert* em `weapon_progress` (`INSERT ... ON CONFLICT (profile_id, weapon) DO UPDATE SET xp = xp + ...`): uma arma criada depois da conta pode ainda não ter a linha.
+3. Se `delta.zumbi` tem algo, um *upsert* em `zombie_stats` que soma cada coluna e guarda `best_wave = GREATEST(...)`. No `mergeDelta` de uma gravação que falhou, `bestWave` também fica com o maior valor em vez de somar.
+4. Os contadores próprios do álbum (`delta.album.add` somados, `delta.album.max` com `GREATEST`): um *upsert* por grupo em `achievement_progress` (`unnest` das chaves e valores). Depois de uma gravação que deu certo, `settle` junta o delta aos totais em memória (`profile.totals`, `profile.album`) de onde o álbum ao vivo parte ([[Achievements]]).
+5. `UPDATE player_profile SET loadout = <escolha do Arsenal>` (o servidor sempre a passa no flush).
+6. `UPDATE session_participation SET kills = kills + ..., ..., left_at = CASE WHEN <fechar> ...`.
 
 O delta é trocado por um vazio **antes** da escrita; se ela falhar, `mergeDelta` devolve os valores ao delta atual e o próximo ciclo tenta de novo (log `[progresso] gravação falhou, tento de novo no próximo ciclo`). Ver [[ADR - Progresso gravado em lotes por delta]].
 

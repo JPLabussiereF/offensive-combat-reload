@@ -96,6 +96,8 @@ export interface ProfileResponse {
   /** The Arsenal choice (secondary gun, optional upgrades turned on), already checked against the levels. */
   arsenal: ArsenalChoice;
   totais: Totals;
+  /** The sticker album's own counters (shared/achievements.ts), by key; the rest of the album reads `totais`. */
+  album: Record<string, number>;
   participacoes: Participation[];
   /** When the name can be changed again (ISO date), null = now. */
   nomeLiberaEm: string | null;

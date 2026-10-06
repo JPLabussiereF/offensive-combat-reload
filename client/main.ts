@@ -60,6 +60,7 @@ import { closeReason, gameModeName, showHome } from './ui/home';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
 import { Arsenal, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
+import { stickerUpText } from './ui/album';
 import { upgradeAt, type KnifeForm, type ProgWeapon } from '@shared/progression';
 import { DEFAULT_LOADOUT, grenadeStats, gunIn, meleeStats, sanitizeLoadout, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import { MODE_RULES, type GameModeId } from '@shared/modes';
@@ -916,6 +917,23 @@ async function boot() {
       else if (lockedLoadout) hud.notice(t('upgradeNextMatch'));
     }
     sfx.levelUp();
+  });
+  // An album sticker went up (online, from the server): one banner after the other when several come at once.
+  const stickerLines: string[] = [];
+  let stickerShowing = false;
+  const nextSticker = () => {
+    const line = stickerLines.shift();
+    stickerShowing = !!line;
+    if (!line) return;
+    hud.showBanner(line, 'level');
+    sfx.levelUp();
+    setTimeout(nextSticker, 2000);
+  };
+  conn?.on('figurinha', (m) => {
+    const line = stickerUpText(m.id, m.nivel);
+    if (!line) return;
+    stickerLines.push(line);
+    if (!stickerShowing) nextSticker();
   });
   // The pause menu: corrida armada shows its ladder (the mode hands out the weapons); otherwise the Arsenal,
   // read-only during a match with a locked loadout (mata-mata), editable on the training range.

@@ -68,6 +68,7 @@ Colunas e índices em [[Database]].
 | Nível equipado (legado) | `weapon_progress.equipped_level` | Não é mais escrito; só lido para derivar a escolha de contas antigas ([[Data Migrations]]) |
 | Totais | `player_stats` (kills, deaths, headshots, groin_kills, knife_kills, backstabs, grenade_kills, humiliations, seconds_played, matches_played) | Somados a partir do delta de cada gravação |
 | Totais do modo zumbi | `zombie_stats` (partidas, vitórias, melhor onda, ondas sobrevividas, abates por golpe, chefes por nome, quedas, reanimações, mortes, giros no caixão) | O motor (`ZombieMatch`) avisa cada evento pelo gancho `ZombieHost.stat`; `addZombieStat` soma em `delta.zumbi`; gravado no mesmo flush. Zumbis não contam em `player_stats` |
+| Álbum de figurinhas | derivado de `player_stats`, `weapon_progress`, `zombie_stats`; contadores próprios em `achievement_progress` | Ver [[Achievements]]. Os próprios são somados (ou guardados como recorde) pelo servidor em `delta.album` e gravados no flush |
 | MMR | `player_stats.mmr` (padrão 1000) | **Não usado** ("unused until ranked play exists") |
 | Participações | `session_participation` (nome da sala, entrada/saída, kills, deaths, score, humiliations, account_xp) | Aberta no `join`; somada a cada gravação; `left_at` ao sair |
 
@@ -79,6 +80,8 @@ Criado no handshake do WebSocket (`liveAccount(loadGameProfile(...), chatMutedUn
 
 - `profile: GameProfile` — `accountId`, `profileId`, `tag`, `sex`, `appearance`, `xp`, `weapons{xp}` por arma, `arsenal` (`ArsenalChoice`, sanitizada contra os níveis).
 - `delta: ProgressDelta` — o que foi ganho desde a última gravação (accountXp, weaponXp por arma, kills, deaths, headshots, groinKills, knifeKills, backstabs, grenadeKills, humiliations, secondsPlayed, score e `zumbi: ZombieDelta`).
+- `profile.totals` e `profile.album` — totais e contadores próprios do álbum como estavam na última gravação. Com o delta, são os números "ao vivo" (`liveSources`, `liveOwn`); `settle` junta o delta depois de cada gravação que deu certo.
+- `stickerTiers` — o acabamento de cada figurinha que o jogador já sabe. Uma vez por segundo `stickerUps` compara e manda `figurinha` para o que subiu.
 - `participation` — promessa do id da linha de participação atual.
 - `aliveCarry` — segundos vivos acumulados para o próximo "minuto vivo".
 - `chatMutedUntil` — ms epoch (0 = pode falar, `Infinity` = permanente).

@@ -3,6 +3,9 @@
     { "id": "carreira", "icone": "🏠", "cor": "#2f9bff", "nome": { "pt": "Carreira", "en": "Career" } },
     { "id": "matar", "icone": "🎯", "cor": "#ff4a3d", "nome": { "pt": "Jeitos de matar", "en": "Ways to kill" } },
     { "id": "opressao", "icone": "💃", "cor": "#b04aff", "nome": { "pt": "Opressão", "en": "Humiliation" } },
+    { "id": "sequencias", "icone": "🔥", "cor": "#ff7a1a", "nome": { "pt": "Sequências", "en": "Streaks" } },
+    { "id": "cardapio", "icone": "🍪", "cor": "#e0567a", "nome": { "pt": "Cardápio", "en": "Menu" } },
+    { "id": "corrida", "icone": "🏁", "cor": "#1fb5a8", "nome": { "pt": "Corrida Armada", "en": "Gun Game" } },
     { "id": "zumbi", "icone": "🧟", "cor": "#3fae4a", "nome": { "pt": "Zumbi", "en": "Zombies" } },
     { "id": "vexames", "icone": "🤡", "cor": "#ffb13d", "nome": { "pt": "Vexames", "en": "Fails" } }
   ],
@@ -25,7 +28,7 @@
     {
       "id": "oficina-do-seu-ze", "pagina": "carreira", "icone": "🔧", "tipo": "recorde", "fonte": "armasNoMaximo", "metas": [1, 2, 3, 5],
       "nome": { "pt": "Oficina do Seu Zé", "en": "Zé's Workshop" },
-      "como": { "pt": "Libere todas as melhorias de {meta} armas", "en": "Unlock every upgrade of {meta} weapons" }
+      "como": { "pt": "Libere todas as melhorias de {meta} {arma|armas}", "en": "Unlock every upgrade of {meta} {weapon|weapons}" }
     },
     {
       "id": "vizinho-perigoso", "pagina": "matar", "icone": "💥", "tipo": "contador", "fonte": "abates", "metas": [50, 250, 1000, 5000],
@@ -63,9 +66,131 @@
       "como": { "pt": "Oprima {meta} corpos com a dancinha", "en": "Humiliate {meta} bodies with the dance" }
     },
     {
+      "id": "oprimido", "pagina": "opressao", "icone": "😩", "tipo": "contador", "fonte": "propria", "metas": [3, 20, 80, 300],
+      "nome": { "pt": "Oprimido", "en": "Humiliated" },
+      "como": { "pt": "Seja oprimido {meta} vezes", "en": "Get humiliated {meta} times" }
+    },
+    {
+      "id": "troco", "pagina": "opressao", "icone": "🔁", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 20, 80],
+      "nome": { "pt": "Troco", "en": "Payback" },
+      "como": { "pt": "Oprima quem te oprimiu por último ({meta} {vez|vezes})", "en": "Humiliate whoever last humiliated you ({meta} {time|times})" }
+    },
+    {
+      "id": "oportunista", "pagina": "opressao", "icone": "🦅", "tipo": "contador", "fonte": "propria", "metas": [1, 10, 25, 50],
+      "nome": { "pt": "Oportunista", "en": "Opportunist" },
+      "como": { "pt": "Oprima {meta} {corpo|corpos} que outro jogador derrubou", "en": "Humiliate {meta} {body|bodies} someone else dropped" }
+    },
+    {
+      "id": "chutando-cachorro-morto", "pagina": "opressao", "icone": "🦴", "tipo": "contador", "fonte": "propria", "metas": [1, 3, 5, 10],
+      "nome": { "pt": "Chutando Cachorro Morto", "en": "Kicking Them While They're Down" },
+      "como": { "pt": "Oprima {meta} {corpo|corpos} de quem morreu sozinho (queda, Amora, a própria granada)", "en": "Humiliate {meta} {body|bodies} of players who died on their own (fall, Amora, their own grenade)" }
+    },
+    {
+      "id": "no-ultimo-segundo", "pagina": "opressao", "icone": "⏱️", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 10, 20],
+      "nome": { "pt": "No Último Segundo", "en": "Just in Time" },
+      "como": { "pt": "Comece a dancinha com menos de 1 s de corpo e complete ({meta} {vez|vezes})", "en": "Start the dance with under 1 s left on the body and finish it ({meta} {time|times})" }
+    },
+    {
+      "id": "davi-contra-golias", "pagina": "opressao", "icone": "🪨", "tipo": "contador", "fonte": "propria", "metas": [1, 2, 3],
+      "nome": { "pt": "Davi contra Golias", "en": "David and Goliath" },
+      "como": { "pt": "Oprima {meta} {jogador|jogadores} com 10 abates ou mais à sua frente na partida", "en": "Humiliate {meta} {player|players} 10 or more kills ahead of you in the match" }
+    },
+    {
+      "id": "pe-de-valsa", "pagina": "opressao", "icone": "🕺", "tipo": "recorde", "fonte": "propria", "metas": [1, 3, 5, 10],
+      "itens": [
+        { "id": "rua", "nome": { "pt": "Rua dos Vizinhos", "en": "Neighbors' Street" } },
+        { "id": "jardim", "nome": { "pt": "Jardim do Dragão", "en": "Dragon Garden" } },
+        { "id": "halloween", "nome": { "pt": "Vila Assombrada", "en": "Haunted Town" } }
+      ],
+      "nome": { "pt": "Pé de Valsa", "en": "Dancing Feet" },
+      "como": { "pt": "Oprima {meta} {vez|vezes} em cada mapa versus", "en": "Humiliate {meta} {time|times} on every versus map" }
+    },
+    {
+      "id": "estraga-prazer", "pagina": "opressao", "icone": "🚫", "tipo": "contador", "fonte": "propria", "metas": [1, 10, 25, 50],
+      "nome": { "pt": "Estraga-Prazer", "en": "Party Pooper" },
+      "como": { "pt": "Mate {meta} {jogador|jogadores} no meio da dancinha", "en": "Kill {meta} {player|players} mid-dance" }
+    },
+    {
+      "id": "embalado", "pagina": "sequencias", "icone": "🔥", "tipo": "recorde", "fonte": "propria", "metas": [3, 5, 10, 15],
+      "nome": { "pt": "Embalado", "en": "On a Roll" },
+      "como": { "pt": "Faça {meta} abates sem morrer", "en": "Get {meta} kills without dying" }
+    },
+    {
+      "id": "combo", "pagina": "sequencias", "icone": "⚡", "tipo": "recorde", "fonte": "propria", "metas": [2, 3, 4, 5],
+      "nome": { "pt": "Combo", "en": "Combo" },
+      "como": { "pt": "Faça {meta} abates seguidos, com até 4 s entre um e outro", "en": "Get {meta} kills in a row, at most 4 s apart" }
+    },
+    {
+      "id": "vinganca", "pagina": "sequencias", "icone": "😤", "tipo": "contador", "fonte": "propria", "metas": [5, 25, 100, 400],
+      "nome": { "pt": "Vingança", "en": "Revenge" },
+      "como": { "pt": "Mate quem te matou por último ({meta} vezes)", "en": "Kill whoever last killed you ({meta} times)" }
+    },
+    {
+      "id": "estraga-sequencia", "pagina": "sequencias", "icone": "🧯", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 10, 15],
+      "nome": { "pt": "Estraga-Sequência", "en": "Streak Breaker" },
+      "como": { "pt": "Mate {meta} {jogador|jogadores} com 5 abates ou mais sem morrer", "en": "Kill {meta} {player|players} on a 5+ kill streak" }
+    },
+    {
+      "id": "scooby-dooby-doo", "pagina": "cardapio", "icone": "🦴", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 10, 20],
+      "nome": { "pt": "Scooby-Dooby-Doo!", "en": "Scooby-Dooby-Doo!" },
+      "como": { "pt": "Coma o Biscoito Scooby com 30 de vida ou menos e mate em até 10 s ({meta} {vez|vezes})", "en": "Eat the Scooby Snack at 30 health or less and kill within 10 s ({meta} {time|times})" }
+    },
+    {
+      "id": "humanidade-restaurada", "pagina": "cardapio", "icone": "🕯️", "tipo": "contador", "fonte": "propria", "metas": [5, 25, 100, 200],
+      "nome": { "pt": "Humanidade Restaurada", "en": "Humanity Restored" },
+      "como": { "pt": "Faça {meta} abates com a humanidade do rato gigante", "en": "Get {meta} kills carrying the giant rat's humanity" }
+    },
+    {
+      "id": "cereja-do-bolo", "pagina": "cardapio", "icone": "🍒", "tipo": "contador", "fonte": "propria", "metas": [5, 15, 30, 50],
+      "nome": { "pt": "Cereja do Bolo", "en": "Cherry on Top" },
+      "como": { "pt": "Faça {meta} abates com a vida extra da cereja", "en": "Get {meta} kills with the cherry's extra health" }
+    },
+    {
+      "id": "saude-hic", "pagina": "cardapio", "icone": "🍺", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 15, 30],
+      "nome": { "pt": "Saúde! Hic!", "en": "Cheers! Hic!" },
+      "como": { "pt": "Faça {meta} {abate|abates} bêbado com a poção da bruxa", "en": "Get {meta} {kill|kills} drunk on the witch's potion" }
+    },
+    {
+      "id": "provador-da-bruxa", "pagina": "cardapio", "icone": "🧪", "tipo": "recorde", "fonte": "propria", "metas": [1, 2, 3, 5],
+      "itens": [
+        { "id": "pato", "nome": { "pt": "Pato", "en": "Duck" } },
+        { "id": "veloz", "nome": { "pt": "Pressa", "en": "Haste" } },
+        { "id": "lerdo", "nome": { "pt": "Lerdeza", "en": "Sluggish" } },
+        { "id": "critico", "nome": { "pt": "Crítico", "en": "Critical" } },
+        { "id": "bebado", "nome": { "pt": "Bêbado", "en": "Drunk" } }
+      ],
+      "nome": { "pt": "Provador da Bruxa", "en": "Witch's Taster" },
+      "como": { "pt": "Beba cada uma das 5 poções {meta} {vez|vezes}", "en": "Drink each of the 5 potions {meta} {time|times}" }
+    },
+    {
+      "id": "pescador", "pagina": "cardapio", "icone": "🎣", "tipo": "contador", "fonte": "propria", "metas": [10, 50, 100, 200],
+      "nome": { "pt": "Pescador", "en": "Angler" },
+      "como": { "pt": "Acerte {meta} carpas do Jardim do Dragão (tiro ou faca)", "en": "Hit {meta} koi in the Dragon Garden (shot or knife)" }
+    },
+    {
+      "id": "peixe-de-ouro", "pagina": "cardapio", "icone": "🐠", "tipo": "contador", "fonte": "propria", "metas": [1, 2, 3, 5],
+      "nome": { "pt": "Peixe de Ouro", "en": "Golden Catch" },
+      "como": { "pt": "Acerte {meta} {carpa dourada|carpas douradas} (tiro ou faca)", "en": "Hit {meta} golden koi (shot or knife)" }
+    },
+    {
+      "id": "corredor", "pagina": "corrida", "icone": "🏁", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 20, 50],
+      "nome": { "pt": "Corredor", "en": "Racer" },
+      "como": { "pt": "Vença {meta} {rodada|rodadas} da corrida armada", "en": "Win {meta} gun game {round|rounds}" }
+    },
+    {
+      "id": "volta-olimpica", "pagina": "corrida", "icone": "🥇", "tipo": "recorde", "fonte": "propria", "metas": [1],
+      "nome": { "pt": "Volta Olímpica", "en": "Victory Lap" },
+      "como": { "pt": "Vença uma rodada sem morrer", "en": "Win a round without dying" }
+    },
+    {
+      "id": "esfaqueador", "pagina": "corrida", "icone": "🔪", "tipo": "contador", "fonte": "propria", "metas": [5, 25, 100, 400],
+      "nome": { "pt": "Esfaqueador", "en": "Demoter" },
+      "como": { "pt": "Rebaixe {meta} jogadores na faca", "en": "Knock {meta} players down a step with the knife" }
+    },
+    {
       "id": "sobrevivente", "pagina": "zumbi", "icone": "🏆", "tipo": "contador", "fonte": "zumbiVitorias", "metas": [1, 5, 20, 50],
       "nome": { "pt": "Sobrevivente", "en": "Survivor" },
-      "como": { "pt": "Vença {meta} partidas de zumbi", "en": "Win {meta} zombie matches" }
+      "como": { "pt": "Vença {meta} {partida|partidas} de zumbi", "en": "Win {meta} zombie {match|matches}" }
     },
     {
       "id": "ate-onde-der", "pagina": "zumbi", "icone": "🌊", "tipo": "recorde", "fonte": "zumbiMelhorOnda", "metas": [4, 8, 10, 12],
@@ -78,9 +203,9 @@
       "como": { "pt": "Abata {meta} zumbis", "en": "Kill {meta} zombies" }
     },
     {
-      "id": "caca-chefes", "pagina": "zumbi", "icone": "👑", "tipo": "recorde", "fonte": "zumbiCadaChefe", "metas": [1, 5, 20, 50],
+      "id": "caca-chefes", "pagina": "zumbi", "icone": "👑", "tipo": "recorde", "fonte": "zumbiCadaChefe", "metas": [1],
       "nome": { "pt": "Caça-Chefes", "en": "Boss Hunter" },
-      "como": { "pt": "Dê o golpe final no Coveiro, na Noiva e no Prefeito {meta} vezes cada", "en": "Land the final blow on the Gravedigger, the Bride and the Mayor {meta} times each" }
+      "como": { "pt": "Dê o golpe final no Coveiro, na Noiva e no Prefeito", "en": "Land the final blow on the Gravedigger, the Bride and the Mayor" }
     },
     {
       "id": "anjo-da-guarda", "pagina": "zumbi", "icone": "😇", "tipo": "contador", "fonte": "zumbiReanimacoes", "metas": [10, 50, 200, 1000],
@@ -101,6 +226,26 @@
       "id": "beijando-o-chao", "pagina": "vexames", "icone": "😵", "tipo": "contador", "fonte": "zumbiQuedas", "metas": [10, 50, 200, 1000],
       "nome": { "pt": "Beijando o Chão", "en": "Kissing the Floor" },
       "como": { "pt": "Caia {meta} vezes no zumbi", "en": "Go down {meta} times in zombies" }
+    },
+    {
+      "id": "gravidade", "pagina": "vexames", "icone": "🪂", "tipo": "contador", "fonte": "propria", "metas": [1, 3, 5, 10],
+      "nome": { "pt": "Gravidade 1 × 0 Você", "en": "Gravity 1, You 0" },
+      "como": { "pt": "Morra de queda {meta} {vez|vezes}", "en": "Die from a fall {meta} {time|times}" }
+    },
+    {
+      "id": "fora-do-mapa", "pagina": "vexames", "icone": "🕳️", "tipo": "recorde", "fonte": "propria", "metas": [1],
+      "nome": { "pt": "Fora do Mapa", "en": "Off the Map" },
+      "como": { "pt": "Caia para fora do mapa", "en": "Fall out of the map" }
+    },
+    {
+      "id": "amora-mandou-lembrancas", "pagina": "vexames", "icone": "🐕", "tipo": "contador", "fonte": "propria", "metas": [1, 3, 5, 10],
+      "nome": { "pt": "Amora Mandou Lembranças", "en": "Amora Says Hi" },
+      "como": { "pt": "Seja mordido pela Amora {meta} {vez|vezes}", "en": "Get bitten by Amora {meta} {time|times}" }
+    },
+    {
+      "id": "tiro-no-pe", "pagina": "vexames", "icone": "🦶", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 20, 50],
+      "nome": { "pt": "Tiro no Pé", "en": "Own Goal" },
+      "como": { "pt": "Morra com a própria granada {meta} {vez|vezes}", "en": "Die to your own grenade {meta} {time|times}" }
     }
   ]
 }
