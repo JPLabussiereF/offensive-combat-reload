@@ -23,6 +23,11 @@ updated: 2026-10-06
 
 # ADR - Modo zumbi cooperativo com caixão e raridades
 
+> [!note] Atualizações (2026-10-06)
+> - **O mapa** (item 1) mudou: o modo agora é jogado só no [[Map - Cemitério da Capela]], mapa exclusivo dele, com barricadas nas brechas do muro ([[ADR - Mapa exclusivo e barricadas no modo zumbi]]). A Vila Assombrada voltou a ser só versus.
+> - **O pato de borracha** (item 3) foi **substituído** por armas danificadas, e o caixão não muda mais de lugar ([[ADR - Caixão fixo com armas danificadas]]).
+> O texto abaixo é o da decisão original, mantido como histórico.
+
 ## Contexto
 
 Pedido do usuário: um modo de ondas de zumbis em que cada zumbi morto dá XP a quem matou e um valor em dinheiro; o dinheiro compra, dentro da partida, uma arma aleatória (primária ou secundária) numa caixa; todos começam com a primária inicial e precisam comprar armas para progredir. O jogo tem só três armas de fogo (rifle, pistola, submetralhadora) e as melhorias de arma mexem em cadência, mira, pente e manejo, quase nunca em dano ([[ADR - Progressão por melhorias de arma]]).

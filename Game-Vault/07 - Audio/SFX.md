@@ -19,6 +19,7 @@ source_paths:
   - client/zombies/view.ts
   - client/zombies/coffin.ts
   - client/zombies/client.ts
+  - client/zombies/barricades.ts
 tags:
   - game
   - audio
@@ -95,12 +96,12 @@ O comentário do arquivo diz que cada função "mapeia para uma futura entrada d
 
 ### Modo zumbi
 
-Todos via `at(...)` no lugar do zumbi, do chefe ou do caixão, exceto os do próprio jogador. Ver [[Zombie]].
+Todos via `at(...)` no lugar do zumbi, do chefe, do caixão ou da barricada, exceto os do próprio jogador. Ver [[Zombie]].
 
 | Método | Som | Quando |
 | --- | --- | --- |
 | `zombieGroan(altura)` | vogal grave e trêmula num filtro de garganta ("uuuurgh") | a cada 3–9 s, só os **6 zumbis mais próximos** do ouvinte (senão vira uma parede de barulho); altura por tipo (chefes e o segurança mais graves, o maratonista e a tia mais agudos) |
-| `zombieRise()` | terra rachando e um suspiro | um zumbi sai do chão |
+| `zombieRise()` | terra rachando e um suspiro | um zumbi vai sair do chão (no anúncio `zfx 'rise'`, 0,9 s antes, junto com um `zombieGroan` na categoria `loud`, que se ouve longe) e de novo quando ele aparece |
 | `zombieDeath(altura)` | gorgolejo e baque molhado | zumbi morreu |
 | `zombieSpit()` / `zombieSplat()` | escarro e assobio / "splat" | a Tia da Fofoca cospe / o cuspe cai |
 | `bloaterPop()` | a explosão + um peido longo | o Tio do Churrasco estoura |
@@ -110,8 +111,11 @@ Todos via `at(...)` no lugar do zumbi, do chefe ou do caixão, exceto os do pró
 | `bossSummon()` | cântico oco sobre pá cavando | o Coveiro chama os mortos |
 | `bossBlink()` | "whoosh" invertido com brilho | a Noiva some e reaparece |
 | `coffinOpen()` / `coffinTick()` / `coffinReveal(nível)` | tampa rangendo + caixinha de música / um clique por arma que passa / acorde (maior numa épica, com aplausos numa lendária) | o Caixão Misterioso gira e para |
-| `quack()` (já existia) | pato | o pato do caixão |
-| `coffinFly()` / `coffinLand()` | "whoosh" subindo, bater de asas e a risada malvada / baque | o caixão voa para outro lugar / chega |
+| `coffinBroken()` | estalo, um trítono escorregando para baixo e um zumbido grave (um "ta-da" murcho) | o caixão para numa arma **danificada** |
+| `barricadeBuild()` | três passadas de serrote e uma sequência de marteladas | uma barricada é erguida |
+| `boardNail()` | duas marteladas na madeira | uma tábua é pregada |
+| `boardHit()` | baque surdo e rangido | um golpe da horda nas tábuas |
+| `boardBreak(última)` | madeira estalando (com estrondo quando é a última, categoria `loud`) | uma tábua cai / a barricada é arrombada |
 | `waveStart(chefe)` | o `churchBell` três vezes (mais grave numa onda de chefe) | começa uma onda |
 | `waveEnd()` | acorde de órgão | onda vencida |
 | `cashRegister()` | "ka-ching" (barramento `ui`) | dinheiro ganho |

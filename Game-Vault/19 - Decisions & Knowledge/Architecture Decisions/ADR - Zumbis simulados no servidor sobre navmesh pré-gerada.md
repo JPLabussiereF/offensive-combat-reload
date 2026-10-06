@@ -10,7 +10,8 @@ source_paths:
   - server/navmesh.ts
   - server/session.ts
   - tools/bake-navmesh.ts
-  - shared/data/navmesh/halloween.json
+  - shared/data/navmesh/cemiterio.json
+  - shared/barricades.ts
   - client/zombies/local.ts
   - client/zombies/view.ts
   - client/ai/navmesh.ts
@@ -26,6 +27,9 @@ updated: 2026-10-06
 ---
 
 # ADR - Zumbis simulados no servidor sobre navmesh pré-gerada
+
+> [!note] Atualização (2026-10-06)
+> A malha assada agora é a do [[Map - Cemitério da Capela]] (`shared/data/navmesh/cemiterio.json`, ~116 KB); a da Vila Assombrada saiu junto com o modo. As brechas do muro são assadas como polígonos próprios com uma flag por brecha, e cada sessão fecha as barricadas com filtros de consulta, sem mexer na malha compartilhada: [[ADR - Barricadas como polígonos próprios na navmesh]]. O jogo solo passou a gerar a malha com as mesmas caixas de brecha.
 
 ## Contexto
 

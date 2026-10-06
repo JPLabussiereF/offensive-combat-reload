@@ -16,6 +16,8 @@ source_paths:
   - shared/progression.ts
   - shared/arsenal.ts
   - shared/zombies.ts
+  - shared/zombieMatch.ts
+  - shared/barricades.ts
   - client/zombies/client.ts
 tags:
   - game
@@ -50,7 +52,7 @@ Convenções:
 |---|---|---|---|---|
 | `hello` | — | 1× após abrir | Nome e corpo vêm da conta, nunca da mensagem | `welcome {id, name, sessions}` + `progresso` |
 | `list` | — | sob demanda | — | `sessions {list}` |
-| `create` | `name`, `map?`, `mode?` | sob demanda | Exige `hello` antes; `sanitizeName(name, 24)` ou "Sala de <nome>"; mapa inválido → `DEFAULT_MAP`; modo inválido → `mata-mata` | sai da sala atual, cria e entra → `joined` |
+| `create` | `name`, `map?`, `mode?` | sob demanda | Exige `hello` antes; `sanitizeName(name, 24)` ou "Sala de <nome>"; mapa inválido → `DEFAULT_MAP`; modo inválido → `mata-mata`; mapa fora dos mapas do modo (`modeMaps`) → o primeiro deles (zumbi: sempre o cemitério; os outros modos nunca caem no cemitério) | sai da sala atual, cria e entra → `joined` |
 | `loadout` | `lo` (`ArsenalChoice`) | antes de `join`/`create` (a home sempre manda) | só fora de sessão; `equip` → `sanitizeChoice` com os níveis da conta | `progresso` (com a `escolha` guardada). A escolha vale para a próxima sessão em que entrar |
 | `join` | `session` | sob demanda | Exige `hello`; sessão existe e não está cheia | `joined`, ou `error` ("Diga olá primeiro.", "Essa sessão não existe mais.", "Sessão lotada.") |
 | `leave` | — | sob demanda | — | `sessions {list}`; grava o progresso |
@@ -81,7 +83,8 @@ Convenções:
 | `chat` | `text` | por mensagem | `sanitizeChat`; silêncio da conta; 4 de rajada + 1 a cada 1,5 s | broadcast `chat` para **todos, inclusive o autor**, ou `chatRefused` |
 | `zhit` | `z` (id do zumbi), `region`, `dist`, `w`, `keep?` | por acerto num zumbi ([[Zombie]]) | zumbi existe e não sumiu, atirador vivo e não caído, `w` disparável (como `hit`), **mesmo contador de cadência** de `hit`, distância do olho até o peito do zumbi **na posição do servidor** ≤ alcance e dentro de `LAG_SLACK` + 10% + o tamanho do zumbi | dano do servidor (`gunDamageToZombie` × raridade); morte → `zdie` (+ `zmoney`, XP) |
 | `zstab` | `z` | por facada num zumbi | intervalo da faca como `stab`; distância horizontal ≤ `alcanceInvestida + 1,5 m + 0,4 × tamanho` | 120 × raridade da faca |
-| `box` | — | `E` no Caixão Misterioso | de pé, a ≤ alcance + 1 m do lugar do caixão; caixão parado e dinheiro ≥ preço (girar), ou oferta para este jogador (pegar) | `zbox` (girando/oferta/pato/mudando); pegar → `playerLoadout` |
+| `box` | — | `E` no Caixão Misterioso | de pé, a ≤ alcance + 1 m do caixão (lugar fixo); caixão parado e dinheiro ≥ preço (girar), ou oferta para este jogador (pegar) | `zbox` (girando; oferta com `item` e `flaw`); pegar → `playerLoadout` (com `danificadas` se a arma veio danificada) |
+| `barricade` | `i` (brecha), `on` | segurando/soltando `E` numa brecha do muro | `i` inteiro e existente; de pé; a ≤ 2,4 m do centro da brecha (de qualquer lado); algo a fazer (erguer ou repregar); dinheiro ≥ $300 para erguer; o trabalho para se ele se afasta, cai ou solta; a tábua que fecha a brecha espera o vão ficar livre | `zbarwork` (começou/parou); pronto → `zbar` (`build` com o dinheiro dele, ou `nail` com o prêmio) |
 | `revive` | `id`, `on` | segurando/soltando `E` sobre um colega caído | reanimador de pé, alvo caído, a ≤ 3,5 m; cancelado se ele se afasta | `zrevive`; completo (3 s) → `zup` |
 
 ## Servidor → Cliente (`ServerMsg`)
@@ -90,7 +93,7 @@ Convenções:
 |---|---|---|---|
 | `welcome` | `id`, `name`, `sessions` | resposta ao `hello` | conexão |
 | `sessions` | `list: SessionInfo[]` | `list`, `leave`, ou mudança no lobby (agrupada em 100 ms) | quem está no lobby |
-| `joined` | `session`, `you`, `players` (com aparência), `corpses`, `time`, `pickups?`, `fish?`, `rats?`, `zumbi?` (`ZombieSync`: fase, onda, fim da fase, total, caixão, caídos) | ao entrar numa sala | conexão |
+| `joined` | `session`, `you`, `players` (com aparência), `corpses`, `time`, `pickups?`, `fish?`, `rats?`, `zumbi?` (`ZombieSync`: fase, onda, fim da fase, total, caixão, caídos, `bars` — as barricadas como estão) | ao entrar numa sala | conexão |
 | `error` | `message` | falha em `create`/`join` | conexão |
 | `playerJoined` | `player` (com aparência) | alguém entrou | sala, exceto quem entrou |
 | `playerLeft` | `id` | alguém saiu | sala |
@@ -114,14 +117,16 @@ Convenções:
 | `zsnap` | `time`, `z: ZNet[]` (`[id, tipo, x, y, z, yaw, flags]`), `left`, `boss?: [id, vida, máx]` | **20 Hz** logo depois do `snap`, durante a onda ou com zumbis vivos | sala |
 | `zwave` | `phase` (`waiting`/`countdown`/`wave`/`break`/`over`), `wave`, `until`, `total`, `boss?` | a partida muda de fase | sala |
 | `zdie` | `id`, `by`, `how`, `award?`, `money?` | zumbi morreu | sala |
-| `zfx` | `fx` (`slam`/`summon`/`scream`/`blink`/`charge`/`pound`/`spit`/`boom`/`intro`), `id?`, `at`, `to?`, `r?`, `t0`, `t1` | golpe telegrafado ou efeito (o dano cai em `t1`) | sala |
+| `zfx` | `fx` (`slam`/`summon`/`scream`/`blink`/`charge`/`pound`/`spit`/`boom`/`intro`/`rise`), `id?`, `at`, `to?`, `r?`, `t0`, `t1` | golpe telegrafado ou efeito (o dano cai em `t1`); `rise`: um zumbi vai sair do chão em `at` em `t1` (0,9 s depois; um por surgimento) | sala |
 | `zhitfx` | `id`, `fx`, `v?` (empurrão), `slow?`, `until?` | um golpe empurrou ou deixou alguém lento | sala (o cliente do jogador aplica) |
-| `zbox` | `spot`, `state`, `by`, `item`, `until`, `money?` | o caixão mudou | sala |
+| `zbox` | `state` (`idle`/`rolling`/`offer`), `by`, `item`, `flaw` (`municao`/`dano`/`ambos` ou null), `until`, `money?` | o caixão mudou (o defeito só aparece na oferta) | sala |
+| `zbar` | `i`, `fx` (`build`/`nail`/`hit`/`break`/`reset`), `built`, `boards`, `hp`, `by?`, `award?`, `money?` | uma barricada mudou: erguida, tábua pregada, golpe da horda (~1 por golpe), arrombada, ou desfeita numa partida nova | sala |
+| `zbarwork` | `i`, `by`, `until` (0: parou) | alguém começou/parou de trabalhar numa barricada (próxima tábua em `until`) | sala |
 | `zmoney` | `m: [id, dinheiro][]`, `why` (`assist`/`wave`/`boss`) | ajudas, bônus de onda, prêmio de chefe | sala |
 | `zdown`, `zrevive`, `zup` | `id`, (`until`), (`by`, `money?`) | caiu / reanimando / levantou | sala |
 | `zend` | `won`, `wave`, `secs`, `players: ZSummaryRow[]`, `restartAt` | fim da partida zumbi (resumo) | sala |
 
-`PlayerInfo` ganhou `ladder?: {step, kills}` (corrida armada) e `zumbi?: {money, kills, downs, revives, state, items}` (zumbi); `SessionInfo` ganhou `mode`; `KillKind` ganhou `'zombie'` (sangrou caído). Ver [[Gun Game]] e [[Zombie]].
+`PlayerInfo` ganhou `ladder?: {step, kills}` (corrida armada) e `zumbi?: {money, kills, downs, revives, state, items}` (zumbi; `items.danificadas` diz quais estão danificadas); `SessionInfo` ganhou `mode`; `KillKind` ganhou `'zombie'` (sangrou caído); `Loadout` ganhou `danificadas?` (por arma: `municao`/`dano`/`ambos`, mantido por `sanitizeLoadout`). Ver [[Gun Game]] e [[Zombie]].
 
 `KillKind`: `gun`, `head`, `groin`, `knife`, `grenade`, `fall`, `void`, `explosion`, `dog`. `AwardLabel`: `kill`, `headshot`, `groin`, `knife`, `backstab`, `longShot`, `humiliation`.
 

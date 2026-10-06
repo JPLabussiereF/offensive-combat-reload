@@ -50,7 +50,7 @@ docker compose up -d banco redis   # PostgreSQL :5442 e Redis :6392 em 127.0.0.1
 | `bun run build` / `bun start` | Build de produção e servidor em porta única `:8787`. Ver [[Build Pipeline]]. |
 | `bun run preview` | `vite preview` do `dist/`. |
 | `bun run admin ...` | Console de moderação ([[Moderation]]). |
-| `bun run navmesh` | `tools/bake-navmesh.ts`: refaz a navmesh dos mapas do modo zumbi (`shared/data/navmesh/*.json`) a partir do código dos mapas, headless em Bun. Rode depois de mudar a Vila Assombrada; senão `bun test` falha. Ver [[Navigation]]. |
+| `bun run navmesh` | `tools/bake-navmesh.ts`: refaz a navmesh dos mapas do modo zumbi (`shared/data/navmesh/*.json`) a partir do código dos mapas, headless em Bun. Rode depois de mudar o mapa do cemitério (`client/world/cemetery.ts`) ou as brechas em `shared/data/zumbi.json`; senão `bun test` falha. Ver [[Navigation]]. |
 | `bun run exemplos:glb` | Gera `public/models/casinha_cachorro.glb` e `public/maps/arena_teste.glb` (`tools/gerar-props-exemplo.mjs`, usa `@gltf-transform/core`). Ver [[Asset Pipeline]]. |
 | `bun run offensive [subir\|parar\|logs\|status\|firewall]` | Pilha Docker completa (ver [[Hosting]]). Com `bun link`, vira o comando global `offensive`. |
 

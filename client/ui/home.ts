@@ -5,7 +5,7 @@
 import type { MeResponse, ProfileResponse } from '@shared/account';
 import { defaultAppearance, type Appearance } from '@shared/appearance';
 import { CLOSE, NET, type ServerMsg, type SessionInfo, type Sex } from '@shared/protocol';
-import { DEFAULT_MAP, isMapId, MAP_IDS, MAPS, type MapId } from '@shared/maps';
+import { DEFAULT_MAP, isMapId, MAPS, PVP_MAPS, type MapId } from '@shared/maps';
 import { DEFAULT_GAME_MODE, GAME_MODE_IDS, isGameModeId, modeMaps, MODE_RULES, type GameModeId } from '@shared/modes';
 import { Progress } from '../gameplay/progress';
 import { api, fetchMe, fetchProfile } from '../net/api';
@@ -43,7 +43,10 @@ const MAP_LOOK: Record<MapId, { tint: string; emoji: string; size: string; when:
   rua: { tint: '#cfe8ff', emoji: '🏡', size: '80 × 60 m', when: 'mapRuaWhen', gag: 'mapRuaGag' },
   jardim: { tint: '#ffe2b8', emoji: '🏮', size: '90 × 90 m', when: 'mapJardimWhen', gag: 'mapJardimGag' },
   halloween: { tint: '#e3dbff', emoji: '🎃', size: '120 × 110 m', when: 'mapHalloweenWhen', gag: 'mapHalloweenGag' },
+  cemiterio: { tint: '#c9f5b0', emoji: '⚰️', size: '68 × 64 m', when: 'mapCemiterioWhen', gag: 'mapCemiterioGag' },
 };
+/** A map that may be offered outside its own mode's pickers (the training range, the landing's showcase). */
+const openMap = (m: MapId) => PVP_MAPS.includes(m);
 
 const MODES: { id: PlayMode; title: StringKey; desc: StringKey; color: string }[] = [
   { id: 'online', title: 'modeOnline', desc: 'modeOnlineDesc', color: '#ff7a1a' },
@@ -119,7 +122,7 @@ function renderLandingMap(id: MapId) {
   const look = MAP_LOOK[id];
   $('land-map-show').innerHTML = `<div class="ph" style="--tint:${look.tint}">${look.emoji}</div>
     <div class="land-map-caption"><span class="land-map-name">${MAPS[id].nome}</span><span class="land-map-gag">${t(look.gag)}</span></div>`;
-  $('land-map-list').innerHTML = MAP_IDS.map(
+  $('land-map-list').innerHTML = PVP_MAPS.map(
     (m) => `<button type="button" class="land-map-btn" data-map="${m}" aria-pressed="${m === id}"><b>${MAPS[m].nome}</b><span>${t(MAP_LOOK[m].when)} · ${MAP_LOOK[m].size}</span></button>`,
   ).join('');
 }
@@ -137,7 +140,7 @@ export function showHome(): Promise<HomeChoice> {
   const newMapSel = $<HTMLSelectElement>('session-new-map');
   const newModeSel = $<HTMLSelectElement>('session-new-mode');
   translate(home);
-  newMapSel.innerHTML = MAP_IDS.map((id) => `<option value="${id}">${MAPS[id].nome}</option>`).join('');
+  newMapSel.innerHTML = PVP_MAPS.map((id) => `<option value="${id}">${MAPS[id].nome}</option>`).join('');
   newMapSel.title = t('mapLabel');
   newModeSel.innerHTML = GAME_MODE_IDS.map((id) => `<option value="${id}">${esc(gameModeName(id))}</option>`).join('');
   newModeSel.title = t('gameModeTitle');
@@ -156,14 +159,15 @@ export function showHome(): Promise<HomeChoice> {
     map: DEFAULT_MAP,
     mode: 'online',
     game: DEFAULT_GAME_MODE,
-    filtro: [...MAP_IDS],
+    filtro: [...PVP_MAPS],
   };
   try {
     const saved = JSON.parse(localStorage.getItem(BOTS_KEY) ?? '{}');
     prefs = {
       skill: SKILLS.some(([s]) => s === saved.skill) ? saved.skill : prefs.skill,
       count: COUNTS.includes(saved.count) ? saved.count : prefs.count,
-      map: isMapId(saved.map) ? saved.map : prefs.map,
+      // The remembered map is one of the open maps: a mode's own map is never anyone's default.
+      map: isMapId(saved.map) && openMap(saved.map) ? saved.map : prefs.map,
       mode: MODES.some((m) => m.id === saved.mode) ? saved.mode : prefs.mode,
       game: isGameModeId(saved.game) ? saved.game : prefs.game,
       filtro: Array.isArray(saved.filtro) ? saved.filtro.filter(isMapId) : prefs.filtro,
@@ -411,7 +415,7 @@ export function showHome(): Promise<HomeChoice> {
       const single = !range && oneMap(prefs.game);
       $('home-map-title').textContent = t(online && !single ? 'mapFilterTitle' : 'mapLabel');
       $('home-map-hint').textContent = single ? t('zMapOnly') : online ? t('mapFilterHint') : range ? t('mapHintRange') : t('mapHintBots');
-      $('home-maps').innerHTML = (range ? MAP_IDS : modeMaps(prefs.game)).map((id) => {
+      $('home-maps').innerHTML = (range ? PVP_MAPS : modeMaps(prefs.game)).map((id) => {
         const look = MAP_LOOK[id];
         const on = single || (online ? prefs.filtro.includes(id) : !range && prefs.map === id);
         const n = sessions.filter((s) => s.map === id && s.mode === prefs.game).length;
@@ -529,9 +533,11 @@ export function showHome(): Promise<HomeChoice> {
       }
     };
 
-    const startOffline = async (map: MapId) => {
+    const startOffline = async (wanted: MapId) => {
       if (busy) return;
       busy = true;
+      // The training range is never on a map made for one mode.
+      const map = openMap(wanted) ? wanted : DEFAULT_MAP;
       closeConn();
       prefs.map = map;
       savePrefs();
@@ -600,7 +606,8 @@ export function showHome(): Promise<HomeChoice> {
     segClick('home-counts', setCount);
     segClick('land-skills', setSkill);
     segClick('land-counts', setCount);
-    segClick('land-map-pick', (v) => isMapId(v) && (prefs.map = v));
+    // (a one-map mode's only button changes nothing: its map is never kept as the choice)
+    segClick('land-map-pick', (v) => isMapId(v) && openMap(v) && (prefs.map = v));
     $('home-bots').onclick = () => void startBots();
     $('home-more').onclick = () => {
       pageSize += PAGE;

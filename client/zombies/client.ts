@@ -1,14 +1,16 @@
 // The zumbi mode on the player's side: listens to the match (the server's online, the local one solo, through
 // the same messages), keeps what the HUD shows (the wave, zombies left, the boss's health, our money and
-// weapons, who's down), draws the zombies (view.ts) and the Mystery Coffin (coffin.ts), and turns E into the
-// coffin's purchase or a revive. It reports our hits on zombies; it never decides one: the match does.
+// weapons, who's down, the gaps the horde is coming through), draws the zombies (view.ts), the Mystery Coffin
+// (coffin.ts) and the barricades (barricades.ts), and turns E into the coffin's purchase, a revive or work on a
+// barricade (held). It reports our hits on zombies; it never decides one: the match does.
 import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
-import type { PlayerInfo, ServerMsg, Vec3, ZombieSync, ZPhase } from '@shared/protocol';
+import type { PlayerInfo, ServerMsg, Vec3, ZBarricade, ZombieSync, ZPhase } from '@shared/protocol';
 import type { GunStats } from '@shared/arsenal';
 import type { HitRegion } from '@shared/weapons';
 import type { MapId } from '@shared/maps';
-import { itemOf, itemSlot, startItems, waveSpec, WAVES, ZF, ZOMBIE, type BossId, type KillHow, type ZItems } from '@shared/zombies';
+import { emptyBarricade, inGap, inReach, insideWall, needsWork } from '@shared/barricades';
+import { itemOf, startItems, waveSpec, WAVES, withItem, ZF, ZOMBIE, type BossId, type KillHow, type ZFlaw, type ZItems, type ZombieMapData } from '@shared/zombies';
 import type { Hud } from '../ui/hud';
 import type { Sfx } from '../audio/sfx';
 import type { Effects } from '../render/effects';
@@ -17,6 +19,8 @@ import type { HitboxRegistry } from '../gameplay/targets';
 import { t, type StringKey } from '../ui/strings';
 import { ZombieView, Zombie } from './view';
 import { Coffin } from './coffin';
+import { BarricadeView } from './barricades';
+import { flawText } from './ambience';
 import type { ZombieLink } from './link';
 
 /** How the zombie side talks to its match (link.ts): the server's connection online, the local match solo. */
@@ -35,6 +39,8 @@ export interface ZombieGame {
   /** Our feet (and whether we're alive, not dead). */
   feet(): THREE.Vector3;
   alive(): boolean;
+  /** Where we look (yaw, the game's convention: 0 looks down -Z), for the HUD's arrows. */
+  yaw(): number;
   nameOf(id: number): string;
   /** Teammates (online): where each one is. */
   teammates(): { id: number; position: THREE.Vector3; alive: boolean }[];
@@ -56,9 +62,20 @@ const REACH = 2.2;
 
 const fmtTime = (secs: number) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
 
+/** How far outside a gap zombies count as coming through it (the HUD's arrows), m. */
+const GAP_WATCH = 10;
+
 export class ZombieClient {
   readonly view: ZombieView;
   readonly coffin: Coffin;
+  readonly barricades: BarricadeView;
+  private readonly map: ZombieMapData;
+  /** Every barricade as the match last said. */
+  readonly bars: ZBarricade[];
+  /** Who's working on which barricade (by gap), until when. */
+  private work = new Map<number, { by: number; until: number }>();
+  /** The gap we're holding E at. */
+  private workTarget: number | null = null;
   phase: ZPhase = 'waiting';
   wave = 0;
   private until = 0;
@@ -89,9 +106,11 @@ export class ZombieClient {
     map: MapId,
     sync?: ZombieSync,
   ) {
-    const data = ZOMBIE.mapas[map];
+    this.map = ZOMBIE.mapas[map] ?? ZOMBIE.mapas.cemiterio!;
     this.view = new ZombieView(game.world, game.scene, game.registry, game.sfx, game.effects, { ear: () => game.feet() });
-    this.coffin = new Coffin(game.scene, game.physics, data?.caixa ?? [], game.sfx);
+    this.coffin = new Coffin(game.scene, game.physics, this.map.caixa, game.sfx);
+    this.barricades = new BarricadeView(game.scene, game.physics, this.map.barricadas, game.sfx, game.effects);
+    this.bars = this.map.barricadas.map(() => emptyBarricade());
     if (sync) this.applySync(sync);
     this.listen();
   }
@@ -120,6 +139,19 @@ export class ZombieClient {
       this.down.set(id, until);
       this.game.setDowned(id, true);
     }
+    // The barricades as they are (joining mid-wave: whatever was built and what's left of it).
+    (s.bars ?? []).forEach((b, i) => this.setBar(i, b));
+  }
+
+  private setBar(i: number, b: ZBarricade, fx?: Extract<ServerMsg, { t: 'zbar' }>['fx']) {
+    if (!this.bars[i]) return;
+    this.bars[i] = { built: b.built, boards: b.boards, hp: b.hp };
+    this.barricades.set(i, this.bars[i], fx);
+  }
+
+  private gapName(i: number) {
+    const g = this.map.barricadas[i];
+    return g ? t(`zgap_${g.id}` as StringKey) : '';
   }
 
   /** The players' match state (money, weapons) from the scoreboard updates. */
@@ -195,8 +227,30 @@ export class ZombieClient {
     L.on('zbox', (m) => {
       this.coffin.set(m, L.now());
       if (m.by === this.me && m.money !== undefined) this.money = m.money;
-      if (m.state === 'duck' && m.by === this.me) g.hud.notice(t('zBoxRefund'));
-      if (m.state === 'moving') g.hud.notice(t('zBoxMoved'));
+      // Our roll came out damaged: said loud, before we decide to take it.
+      if (m.state === 'offer' && m.by === this.me && m.flaw) {
+        g.hud.showBanner(t('zBoxDamagedOffer', { flaw: t(`zFlaw_${m.flaw}` as StringKey) }), 'flaw');
+      }
+    });
+    L.on('zbar', (m) => {
+      const before = this.bars[m.i];
+      this.setBar(m.i, m, m.fx);
+      if (m.by === this.me && m.money !== undefined) {
+        const gain = m.money - this.money;
+        this.money = m.money;
+        if (m.fx === 'nail' && gain > 0) {
+          g.hud.cash(gain, t('zBarNail'));
+          g.sfx.cashRegister();
+        }
+      }
+      if (m.fx === 'build' && m.by !== undefined && m.by !== this.me) g.hud.notice(t('zBarBuilt', { name: g.nameOf(m.by), gap: this.gapName(m.i) }));
+      if (m.fx === 'break' && before?.built) g.hud.notice(t('zBarBroken', { gap: this.gapName(m.i) }));
+    });
+    L.on('zbarwork', (m) => {
+      if (m.until > 0) this.work.set(m.i, { by: m.by, until: m.until });
+      else if (this.work.get(m.i)?.by === m.by) this.work.delete(m.i);
+      // The match stopped our work (done, or no longer possible): holding E again starts it over if there's more to do.
+      if (m.until === 0 && m.by === this.me && this.workTarget === m.i) this.workTarget = null;
     });
     L.on('zmoney', (m) => {
       for (const [id, money] of m.m) {
@@ -224,11 +278,17 @@ export class ZombieClient {
     });
     L.on('playerLoadout', (m) => {
       if (m.id !== this.me || !this.lastOffer) return;
-      // The coffin's weapon reached our hands (the game puts it there): say which.
-      const it = itemOf(this.lastOffer);
+      // The coffin's weapon reached our hands (the game puts it there): say which, and whether it's damaged.
+      const { item, flaw } = this.lastOffer;
+      const it = itemOf(item);
       this.lastOffer = null;
-      if (it) this.items = { ...this.items, [itemSlot(it)]: it.id };
-      if (it) g.hud.showBanner(t('zBoxGot', { item: t(`zitem_${it.id}` as StringKey), rarity: t(`rar_${it.raridade}` as StringKey) }), 'level');
+      if (!it) return;
+      this.items = withItem(this.items, it, flaw);
+      const names = { item: t(`zitem_${it.id}` as StringKey), rarity: t(`rar_${it.raridade}` as StringKey) };
+      if (flaw) {
+        g.hud.showBanner(t('zBoxGotDamaged', names), 'flaw');
+        g.hud.notice(`${t('zDamaged')}: ${flawText(flaw)}`);
+      } else g.hud.showBanner(t('zBoxGot', names), 'level');
     });
     L.on('zup', (m) => {
       this.down.delete(m.id);
@@ -268,8 +328,8 @@ export class ZombieClient {
     });
   }
 
-  /** The item the coffin offered us last (named when it reaches our hands). */
-  private lastOffer: string | null = null;
+  /** The item the coffin offered us last, and its flaw (named when it reaches our hands). */
+  private lastOffer: { item: string; flaw: ZFlaw | null } | null = null;
 
   private renderSummary() {
     const s = this.summary;
@@ -298,9 +358,13 @@ export class ZombieClient {
     this.revives.clear();
     this.diedInWave = false;
     this.reviveTarget = null;
+    this.workTarget = null;
+    this.work.clear();
     this.money = ZOMBIE.dinheiroInicial;
     this.items = startItems();
     this.view.clear();
+    // No barricades in a new match (the match says so too: 'zbar' 'reset').
+    this.bars.forEach((_, i) => this.setBar(i, emptyBarricade(), 'reset'));
     for (const id of [...this.markers.keys()]) this.game.setDowned(id, false);
   }
 
@@ -330,13 +394,43 @@ export class ZombieClient {
     return out;
   }
 
-  // --- E: the coffin and revives -----------------------------------------------------------------------------
+  // --- E: the coffin, revives and barricades ---------------------------------------------------------------------
 
   private nearCoffin(): boolean {
     const f = this.game.feet();
     const c = this.coffin.position;
-    const st = this.coffin.state;
-    return st.spot >= 0 && st.state !== 'moving' && Math.hypot(f.x - c.x, f.z - c.z) < REACH && Math.abs(f.y - c.y) < 1.6;
+    return Math.hypot(f.x - c.x, f.z - c.z) < REACH && Math.abs(f.y - c.y) < 1.6;
+  }
+
+  private feetVec(): Vec3 {
+    const f = this.game.feet();
+    return [f.x, f.y, f.z];
+  }
+
+  /** The nearest gap in reach whose barricade we could work on (build or nail), or null. */
+  private nearGap(): number | null {
+    const f = this.feetVec();
+    let best: number | null = null;
+    let bestD = Infinity;
+    this.map.barricadas.forEach((g, i) => {
+      if (!inReach(g, f) || !needsWork(this.bars[i])) return;
+      const other = this.work.get(i);
+      if (other && other.by !== this.me) return;
+      const d = Math.hypot(f[0] - g.centro[0], f[2] - g.centro[2]);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    });
+    return best;
+  }
+
+  /** Someone standing in the gap itself, which can't shut on them (what the match checks too). */
+  private gapBusy(i: number): boolean {
+    const g = this.map.barricadas[i];
+    if (this.view.targets().some((z) => inGap(g, [z.position.x, z.position.y, z.position.z], 0.35))) return true;
+    if (inGap(g, this.feetVec(), 0.3)) return true;
+    return this.game.teammates().some((p) => p.alive && inGap(g, [p.position.x, p.position.y, p.position.z], 0.3));
   }
 
   /** The nearest teammate who's down within reach (and nobody else reviving them), or null. */
@@ -357,29 +451,46 @@ export class ZombieClient {
     return best;
   }
 
-  /** E pressed: the coffin's purchase (or taking its weapon) when we're at it. True when it was used. */
+  /**
+   * E pressed: the coffin's purchase (or taking its weapon) when we're at it. True when E was ours (the coffin,
+   * or a teammate down or a barricade, which are held: see hold).
+   */
   press(): boolean {
     if (this.downed || !this.game.alive()) return this.downed;
     if (this.nearDowned() !== null) return true;
-    if (!this.nearCoffin()) return false;
-    const st = this.coffin.state;
-    if (st.state === 'offer' && st.by === this.me) this.lastOffer = st.item;
-    this.link.send({ t: 'box' });
-    return true;
+    if (this.nearCoffin()) {
+      const st = this.coffin.state;
+      if (st.state === 'offer' && st.by === this.me && st.item) this.lastOffer = { item: st.item, flaw: st.flaw };
+      this.link.send({ t: 'box' });
+      return true;
+    }
+    return this.nearGap() !== null;
   }
 
-  /** E held (every tick): reviving the teammate down next to us; let go or walk away and it stops. */
+  /**
+   * E held (every tick): reviving the teammate down next to us, or else working on the barricade in reach
+   * (building it if we can pay, nailing boards back); let go or walk away and it stops.
+   */
   hold(held: boolean) {
-    const target = held && this.game.alive() && !this.downed ? this.nearDowned() : null;
-    if (target === this.reviveTarget) return;
-    if (this.reviveTarget !== null) this.link.send({ t: 'revive', id: this.reviveTarget, on: false });
-    this.reviveTarget = target;
-    if (target !== null) this.link.send({ t: 'revive', id: target, on: true });
+    const can = held && this.game.alive() && !this.downed;
+    const revive = can ? this.nearDowned() : null;
+    if (revive !== this.reviveTarget) {
+      if (this.reviveTarget !== null) this.link.send({ t: 'revive', id: this.reviveTarget, on: false });
+      this.reviveTarget = revive;
+      if (revive !== null) this.link.send({ t: 'revive', id: revive, on: true });
+    }
+    let gap = can && revive === null && !this.nearCoffin() ? this.nearGap() : null;
+    // A new barricade needs the money for it.
+    if (gap !== null && !this.bars[gap].built && this.money < ZOMBIE.barricadas.custo) gap = null;
+    if (gap === this.workTarget) return;
+    if (this.workTarget !== null) this.link.send({ t: 'barricade', i: this.workTarget, on: false });
+    this.workTarget = gap;
+    if (gap !== null) this.link.send({ t: 'barricade', i: gap, on: true });
   }
 
-  /** Busy reviving (no shooting meanwhile). */
-  get reviving() {
-    return this.reviveTarget !== null;
+  /** Hands busy with E (reviving, nailing boards): no shooting meanwhile. */
+  get busyHands() {
+    return this.reviveTarget !== null || this.workTarget !== null;
   }
 
   /** The context prompt: [E] text and a bar (0..1), or null. */
@@ -393,7 +504,11 @@ export class ZombieClient {
     }
     const d = this.nearDowned();
     if (d !== null) return { text: t('zRevivePrompt', { name: this.game.nameOf(d) }), frac: 1 - Math.max(0, (this.down.get(d) ?? now) - now) / (ZOMBIE.jogador.caidoSegundos * 1000) };
-    if (!this.nearCoffin()) return null;
+    if (this.nearCoffin()) return this.coffinPrompt(now);
+    return this.barricadePrompt(now);
+  }
+
+  private coffinPrompt(now: number): { text: string; frac: number } | null {
     const st = this.coffin.state;
     const cost = ZOMBIE.caixa.custo;
     const left = st.until ? Math.max(0, st.until - now) : 0;
@@ -404,14 +519,55 @@ export class ZombieClient {
         return { text: t('zBoxSpinning'), frac: 1 - left / (ZOMBIE.caixa.girarSegundos * 1000) };
       case 'offer': {
         const it = itemOf(st.item);
-        if (st.by !== this.me || !it) return { text: t('zBoxOther', { name: this.game.nameOf(st.by ?? -1) }), frac: left / (ZOMBIE.caixa.ofertaSegundos * 1000) };
-        return { text: t('zBoxTake', { item: t(`zitem_${it.id}` as StringKey), rarity: t(`rar_${it.raridade}` as StringKey) }), frac: left / (ZOMBIE.caixa.ofertaSegundos * 1000) };
+        const frac = left / (ZOMBIE.caixa.ofertaSegundos * 1000);
+        if (st.by !== this.me || !it) return { text: t('zBoxOther', { name: this.game.nameOf(st.by ?? -1) }), frac };
+        const names = { item: t(`zitem_${it.id}` as StringKey), rarity: t(`rar_${it.raridade}` as StringKey) };
+        return { text: st.flaw ? t('zBoxTakeDamaged', { ...names, flaw: t(`zFlaw_${st.flaw}` as StringKey) }) : t('zBoxTake', names), frac };
       }
-      case 'duck':
-        return { text: t('zBoxDuck'), frac: 0 };
-      default:
-        return null;
     }
+  }
+
+  /** At a gap: what holding E does there (build it, for its price; nail boards back), and its progress. */
+  private barricadePrompt(now: number): { text: string; frac: number } | null {
+    const i = this.workTarget ?? this.nearGap();
+    if (i === null) return null;
+    const b = this.bars[i];
+    const B = ZOMBIE.barricadas;
+    const w = this.work.get(i);
+    const mine = w?.by === this.me ? w : null;
+    const total = (b.built ? B.repararSegundos : B.erguerSegundos) * 1000;
+    const frac = mine ? Math.min(1, 1 - Math.max(0, mine.until - now) / total) : 0;
+    // Shutting the gap waits for it to be clear.
+    if (b.boards === 0 && this.gapBusy(i)) return { text: t('zBarBlocked'), frac };
+    if (!b.built) {
+      if (mine) return { text: t('zBarBuilding'), frac };
+      if (this.money < B.custo) return { text: t('zBarPoor', { cost: B.custo, money: this.money }), frac: Math.min(1, this.money / B.custo) };
+      return { text: t('zBarBuild', { gap: this.gapName(i), cost: B.custo }), frac: 0 };
+    }
+    const n = { n: b.boards, max: B.tabuas };
+    return { text: t(mine ? 'zBarRepairing' : 'zBarRepair', n), frac };
+  }
+
+  /**
+   * The gaps the horde is coming through right now: zombies outside the wall near a gap (or rising there), as
+   * arrows around the crosshair pointing to each gap (`level`: how many, 1..3).
+   */
+  private entrances(): { angle: number; level: number; label: string }[] {
+    const f = this.game.feet();
+    const yaw = this.game.yaw();
+    const out: { angle: number; level: number; label: string }[] = [];
+    const zs = this.view.targets().map((z): Vec3 => [z.position.x, z.position.y, z.position.z]);
+    this.map.barricadas.forEach((g, i) => {
+      let n = 0;
+      for (const p of zs) if (!insideWall(this.map, p) && Math.hypot(p[0] - g.centro[0], p[2] - g.centro[2]) < GAP_WATCH) n++;
+      if (!n) return;
+      const dx = g.centro[0] - f.x;
+      const dz = g.centro[2] - f.z;
+      const fwd = -Math.sin(yaw) * dx - Math.cos(yaw) * dz;
+      const side = Math.cos(yaw) * dx - Math.sin(yaw) * dz;
+      out.push({ angle: Math.atan2(side, fwd), level: n >= 6 ? 3 : n >= 3 ? 2 : 1, label: this.bars[i].boards > 0 ? '▦' : String(n) });
+    });
+    return out;
   }
 
   // --- Rules the game asks about -----------------------------------------------------------------------------
@@ -437,6 +593,7 @@ export class ZombieClient {
     const now = this.link.now();
     this.view.update(this.link.renderTime(), dt, now);
     this.coffin.update(dt, now);
+    this.barricades.update(dt);
     this.view.render(dt, now);
     this.renderMarkers();
     // The HUD, a few times a second is enough.
@@ -480,6 +637,7 @@ export class ZombieClient {
       boss: b && b.max > 0 ? { name: bz?.name ?? t(`zboss_${this.bossKind ?? 'coveiro'}` as StringKey), frac: b.hp / b.max, enraged: !!(bz && bz.flags & ZF.enraged) } : null,
     });
     g.hud.setMoney(this.money);
+    g.hud.setEntrances(this.phase === 'wave' && g.alive() && !this.downed ? this.entrances() : []);
     if (this.summary) g.hud.setZombieSummaryNext(t('zSumNext', { s: Math.max(0, Math.ceil((this.summary.restartAt - now) / 1000)) }));
     // Down: the bleed-out countdown (and a heartbeat), or who's coming to help.
     if (this.downed) {

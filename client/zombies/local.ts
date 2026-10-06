@@ -1,8 +1,9 @@
 // The solo zumbi game: the same match engine as the server (shared/zombieMatch.ts), run here on the game's
 // clock over the navmesh the browser builds for the map (the very one baked for the server), for one player.
 // It answers the zombie side (client.ts) with the same messages the server sends, so everything on screen is
-// the same online and alone. There's no account XP without the server (like every offline mode), and with
-// nobody to revive you, going down alone ends the run.
+// the same online and alone: the coffin's rolls (damaged ones included), the barricades with their prices,
+// boards and the zombies going around them. There's no account XP without the server (like every offline mode),
+// and with nobody to revive you, going down alone ends the run.
 import type { NavMesh } from 'recast-navigation';
 import { gunStats, grenadeStats, type Loadout } from '@shared/arsenal';
 import { isGun } from '@shared/progression';
@@ -104,6 +105,9 @@ export class LocalZombies implements ZombieLink {
       }
       case 'box':
         m.useBox(me);
+        return;
+      case 'barricade':
+        m.barricadeWork(me, msg.i, msg.on);
         return;
     }
   }

@@ -9,22 +9,45 @@
 // winding up a swipe (hits if the player is still in reach when it lands), and its kind's special (a bloater
 // bursts, a spitter spits from a distance, bosses have telegraphed moves). Everything is decided here, on the
 // host's clock, and told to the players as events: the clients only draw and report their own shots.
+//
+// Zombies come out of the grave field outside the cemetery wall (a telegraph first: 'zfx' 'rise') and get in
+// through its gaps. Players can barricade a gap (shared/barricades.ts): its polygons, baked apart with a flag of
+// their own, are then excluded from the crowd's main query filter, so the horde paths around to the gaps still
+// open. Bruisers and bosses use a second filter that ignores barricades: they walk up to the boards and tear them
+// down, and so does everyone else when there's no open way left. A zombie at the boards switches back to the
+// main filter, which holds it in front of them until the last board falls.
 import { Crowd, NavMeshQuery, type CrowdAgent, type NavMesh } from 'recast-navigation';
 import type { Loadout } from './arsenal';
-import type { BoxInfo, ServerMsg, Vec3, ZombiePlayer, ZombieSync, ZPhase, ZSummaryRow } from './protocol';
+import type { BoxInfo, ServerMsg, Vec3, ZBarricade, ZombiePlayer, ZombieSync, ZPhase, ZSummaryRow } from './protocol';
 import {
-  duckChance,
+  atGap,
+  boardDamage,
+  buildBarricade,
+  emptyBarricade,
+  gapFrame,
+  gateFlag,
+  hitBarricade,
+  inGap,
+  inReach,
+  insideWall,
+  isClosed,
+  nailBoard,
+  needsWork,
+  smashesThrough,
+} from './barricades';
+import {
   isBoss,
   itemOf,
-  itemSlot,
   kindScale,
   killMoney,
   killXp,
   pickType,
   rollBox,
+  rollFlaw,
   startItems,
   waveSpec,
   WAVES,
+  withItem,
   Z_KINDS,
   ZF,
   zombieHit,
@@ -34,6 +57,7 @@ import {
   type BossId,
   type KillHow,
   type WaveSpec,
+  type ZFlaw,
   type ZItems,
   type ZKind,
   type ZNet,
@@ -91,9 +115,15 @@ interface Part {
   alive: boolean;
   items: ZItems;
   reviving: { target: number; since: number } | null;
+  /** Money earned nailing boards since the last wave ended (capped by barricadas.reparoTetoOnda). */
+  repairPaid: number;
 }
 
-type Act = 'swipe' | 'fuse' | 'spit' | 'slam' | 'summon' | 'scream' | 'blink' | 'chargeWindup' | 'charge' | 'pound';
+type Act = 'swipe' | 'fuse' | 'spit' | 'slam' | 'summon' | 'scream' | 'blink' | 'chargeWindup' | 'charge' | 'pound' | 'smash';
+
+/** The crowd's query filters: around shut gaps (everyone, and anyone at the boards), or through them. */
+const FILTER_AROUND = 0;
+const FILTER_THROUGH = 1;
 
 interface Zombie {
   id: number;
@@ -126,6 +156,10 @@ interface Zombie {
   /** Called by a boss: doesn't count toward the wave's zombies. */
   extra: boolean;
   dead: boolean;
+  /** The crowd filter it walks with (FILTER_AROUND / FILTER_THROUGH). */
+  filter: number;
+  /** The gap whose boards it's tearing at (-1: none). */
+  smash: number;
 }
 
 interface Shockwave {
@@ -140,8 +174,9 @@ interface Shockwave {
 
 const RISE_MS = 1200;
 const BOSS_RISE_MS = 2600;
+/** How long before a zombie comes out its spot is shown (hands out of the ground, a glow, a groan). */
+const RISE_TELL_MS = 900;
 const RETARGET_MS = 500;
-const REPATH_MS = 900;
 const HALF = { x: 2, y: 4, z: 2 };
 const dist2 = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[2] - b[2]);
 const v3 = (p: { x: number; y: number; z: number }): Vec3 => [p.x, p.y, p.z];
@@ -149,6 +184,8 @@ const pt = (p: Vec3) => ({ x: p[0], y: p[1], z: p[2] });
 const r2 = (n: number) => Math.round(n * 100) / 100;
 /** Facing a direction, in the game's convention (yaw 0 looks down -Z). */
 const yawTo = (dx: number, dz: number) => Math.atan2(-dx, -dz);
+/** A copy of a player's items (the damaged ones' list included). */
+const copyItems = (i: ZItems): ZItems => ({ ...i, ...(i.danificadas ? { danificadas: { ...i.danificadas } } : {}) });
 
 export class ZombieMatch {
   phase: ZPhase = 'waiting';
@@ -164,9 +201,16 @@ export class ZombieMatch {
   private nextId = 1;
   private boss: Zombie | null = null;
   private startedAt = 0;
-  private box: BoxInfo & { rolls: number; pending: string | null } = { spot: 0, state: 'idle', by: null, item: null, until: 0, rolls: 0, pending: null };
+  /** The coffin, and the roll it's spinning toward (decided when paid, shown when it stops). */
+  private box: BoxInfo & { pending: string | null; pendingFlaw: ZFlaw | null } = { state: 'idle', by: null, item: null, flaw: null, until: 0, pending: null, pendingFlaw: null };
   private spits: { to: Vec3; at: number; damage: number; radius: number; from: Vec3 }[] = [];
   private waves: Shockwave[] = [];
+  /** Zombies about to come out (their spot already shown), and when. */
+  private rising: { at: Vec3; kind: ZType; run: boolean; time: number }[] = [];
+  /** The barricades, in the map's gap order. */
+  private readonly bars: ZBarricade[];
+  /** Who's working on which barricade, and when the next board (or the frame) is done. */
+  private readonly work = new Map<number, { gap: number; until: number }>();
   private crowd: Crowd;
   private query: NavMeshQuery;
 
@@ -177,7 +221,8 @@ export class ZombieMatch {
   ) {
     this.crowd = new Crowd(navMesh, { maxAgents: 64, maxAgentRadius: 1 });
     this.query = new NavMeshQuery(navMesh);
-    this.box.spot = Math.floor(host.rng() * map.caixa.length);
+    this.bars = map.barricadas.map(() => emptyBarricade());
+    this.updateGates();
   }
 
   dispose() {
@@ -209,14 +254,16 @@ export class ZombieMatch {
       alive: false,
       items: startItems(),
       reviving: null,
+      repairPaid: 0,
     });
     if (this.phase === 'waiting') this.countdown();
   }
 
   leave(id: number) {
+    this.stopWork(id);
     this.parts.delete(id);
     for (const p of this.parts.values()) if (p.reviving?.target === id) p.reviving = null;
-    if (this.box.by === id && (this.box.state === 'offer' || this.box.state === 'rolling')) this.setBox('idle', null, null, 0);
+    if (this.box.by === id && (this.box.state === 'offer' || this.box.state === 'rolling')) this.setBox('idle', null, null, null, 0);
     if (!this.parts.size) this.reset();
   }
 
@@ -232,19 +279,26 @@ export class ZombieMatch {
   /** A player's match state, for the scoreboard. */
   info(id: number): ZombiePlayer | undefined {
     const p = this.parts.get(id);
-    return p && { money: p.money, kills: p.kills, downs: p.downs, revives: p.revives, state: p.state, items: { ...p.items } };
+    return p && { money: p.money, kills: p.kills, downs: p.downs, revives: p.revives, state: p.state, items: copyItems(p.items) };
   }
 
   sync(): ZombieSync {
-    const { spot, state, by, item, until } = this.box;
+    const { state, by, item, flaw, until } = this.box;
     return {
       phase: this.phase,
       wave: this.wave,
       until: this.until,
       total: this.spec.total,
-      box: { spot, state, by, item, until },
+      box: { state, by, item, flaw, until },
       down: [...this.parts.values()].filter((p) => p.state === 'down').map((p) => [p.id, p.downUntil]),
+      bars: this.bars.map((b) => ({ ...b })),
     };
+  }
+
+  /** A barricade as it is (a copy). */
+  barricade(i: number): ZBarricade | undefined {
+    const b = this.bars[i];
+    return b && { ...b };
   }
 
   /**
@@ -293,53 +347,163 @@ export class ZombieMatch {
 
   // --- The Mystery Coffin ------------------------------------------------------------------------------------
 
-  /** E at the coffin: takes the weapon it's offering this player, or pays and spins it. */
+  /**
+   * E at the coffin: takes the weapon it's offering this player, or pays and spins it. The roll (the item, and
+   * whether it comes damaged) is made here when paid; everyone sees it when the coffin stops.
+   */
   useBox(id: number) {
     const p = this.parts.get(id);
     if (!p || p.state !== 'up' || this.phase === 'waiting' || this.phase === 'over') return;
-    const [x, y, z] = this.map.caixa[this.box.spot];
+    const [x, y, z] = this.map.caixa;
     if (Math.hypot(p.feet[0] - x, p.feet[2] - z) > ZOMBIE.caixa.alcance + 1 || Math.abs(p.feet[1] - y) > 2) return;
     if (this.box.state === 'offer' && this.box.by === id) return this.takeBox(p);
     if (this.box.state !== 'idle' || p.money < ZOMBIE.caixa.custo) return;
     p.money -= ZOMBIE.caixa.custo;
-    const rolls = this.box.rolls++;
-    if (this.host.rng() < duckChance(rolls)) {
-      // The rubber duck: the money back, a quack, and the coffin flies off somewhere else.
-      p.money += ZOMBIE.caixa.custo;
-      this.setBox('duck', id, null, this.now + ZOMBIE.caixa.patoSegundos * 1000, p.money);
-      return;
-    }
-    this.box.pending = rollBox(() => this.host.rng(), p.items).id;
-    this.setBox('rolling', id, null, this.now + ZOMBIE.caixa.girarSegundos * 1000, p.money);
+    const rng = () => this.host.rng();
+    const it = rollBox(rng, p.items);
+    this.box.pending = it.id;
+    this.box.pendingFlaw = rollFlaw(rng, it);
+    this.setBox('rolling', id, null, null, this.now + ZOMBIE.caixa.girarSegundos * 1000, p.money);
   }
 
   private takeBox(p: Part) {
     const it = itemOf(this.box.item);
     if (!it) return;
-    // The weapon in that slot is thrown away.
-    p.items = { ...p.items, [itemSlot(it)]: it.id };
+    // The weapon in that slot is thrown away (damaged or not: there's no repair, only another roll).
+    p.items = withItem(p.items, it, this.box.flaw);
     this.host.setLoadout(p.id, zombieLoadout(p.items));
-    this.setBox('idle', null, null, 0);
+    this.setBox('idle', null, null, null, 0);
   }
 
-  private setBox(state: BoxInfo['state'], by: number | null, item: string | null, until: number, money?: number) {
-    Object.assign(this.box, { state, by, item, until });
-    const { spot } = this.box;
-    this.host.emit({ t: 'zbox', spot, state, by, item, until, ...(money !== undefined ? { money } : {}) });
+  private setBox(state: BoxInfo['state'], by: number | null, item: string | null, flaw: ZFlaw | null, until: number, money?: number) {
+    Object.assign(this.box, { state, by, item, flaw, until });
+    this.host.emit({ t: 'zbox', state, by, item, flaw, until, ...(money !== undefined ? { money } : {}) });
   }
 
   private tickBox(now: number) {
     const b = this.box;
     if (b.state === 'idle' || now < b.until) return;
-    if (b.state === 'rolling') this.setBox('offer', b.by, b.pending, now + ZOMBIE.caixa.ofertaSegundos * 1000);
-    else if (b.state === 'offer') this.setBox('idle', null, null, 0);
-    else if (b.state === 'duck') this.setBox('moving', null, null, now + ZOMBIE.caixa.mudarSegundos * 1000);
-    else if (b.state === 'moving') {
-      const n = this.map.caixa.length;
-      b.spot = (b.spot + 1 + Math.floor(this.host.rng() * (n - 1))) % n;
-      b.rolls = 0;
-      this.setBox('idle', null, null, 0);
+    // Left on offer too long: gone (that's how a weapon is turned down).
+    if (b.state === 'rolling') this.setBox('offer', b.by, b.pending, b.pendingFlaw, now + ZOMBIE.caixa.ofertaSegundos * 1000);
+    else this.setBox('idle', null, null, null, 0);
+  }
+
+  // --- Barricades ----------------------------------------------------------------------------------------------
+
+  /**
+   * Holding E at gap `i` (`on` false: let go): with no barricade there, building it (paid when done, every board
+   * at once); otherwise nailing back the boards it lost, one at a time, for a small reward.
+   */
+  barricadeWork(by: number, i: number, on: boolean) {
+    const p = this.parts.get(by);
+    if (!p) return;
+    const cur = this.work.get(by);
+    const valid = Number.isInteger(i) && i >= 0 && i < this.bars.length;
+    if (!on || !valid) return this.stopWork(by);
+    if (cur?.gap === i) return;
+    this.stopWork(by);
+    if (p.state !== 'up' || this.phase === 'waiting' || this.phase === 'over') return;
+    const b = this.bars[i];
+    if (!inReach(this.map.barricadas[i], p.feet) || !needsWork(b)) return;
+    if (!b.built && p.money < ZOMBIE.barricadas.custo) return;
+    const until = this.now + (b.built ? ZOMBIE.barricadas.repararSegundos : ZOMBIE.barricadas.erguerSegundos) * 1000;
+    this.work.set(by, { gap: i, until });
+    this.host.emit({ t: 'zbarwork', i, by, until });
+  }
+
+  private stopWork(by: number) {
+    const w = this.work.get(by);
+    if (!w) return;
+    this.work.delete(by);
+    this.host.emit({ t: 'zbarwork', i: w.gap, by, until: 0 });
+  }
+
+  /** Someone (a zombie, or a player) standing in the gap itself: it can't be shut on them. */
+  private gapBusy(i: number): boolean {
+    const g = this.map.barricadas[i];
+    for (const z of this.zombies.values()) if (!z.dead && inGap(g, z.pos, 0.35)) return true;
+    for (const p of this.parts.values()) if (p.state !== 'dead' && p.alive && inGap(g, p.feet, 0.3)) return true;
+    return false;
+  }
+
+  private tickWork(now: number) {
+    const B = ZOMBIE.barricadas;
+    for (const [id, w] of [...this.work]) {
+      const p = this.parts.get(id);
+      const b = this.bars[w.gap];
+      if (!p || p.state !== 'up' || !inReach(this.map.barricadas[w.gap], p.feet) || !needsWork(b) || this.phase === 'waiting' || this.phase === 'over') {
+        this.stopWork(id);
+        continue;
+      }
+      if (now < w.until) continue;
+      // The gap shuts with this board: it waits until nobody stands in it.
+      if (!isClosed(b) && this.gapBusy(w.gap)) continue;
+      if (!b.built) {
+        if (p.money < B.custo) {
+          this.stopWork(id);
+          continue;
+        }
+        p.money -= B.custo;
+        buildBarricade(b);
+        this.updateGates();
+        this.emitBar(w.gap, 'build', { by: id, money: p.money });
+        this.stopWork(id);
+        continue;
+      }
+      const wasClosed = isClosed(b);
+      nailBoard(b);
+      if (!wasClosed) this.updateGates();
+      const award = Math.max(0, Math.min(B.reparoDinheiro, B.reparoTetoOnda - p.repairPaid));
+      if (award > 0) {
+        this.pay(p, award);
+        p.repairPaid += award;
+      }
+      this.emitBar(w.gap, 'nail', { by: id, ...(award > 0 ? { award, money: p.money } : {}) });
+      if (!needsWork(b)) this.stopWork(id);
+      else {
+        w.until = now + B.repararSegundos * 1000;
+        this.host.emit({ t: 'zbarwork', i: w.gap, by: id, until: w.until });
+      }
     }
+  }
+
+  private emitBar(i: number, fx: 'build' | 'nail' | 'hit' | 'break' | 'reset', extra: { by?: number; award?: number; money?: number } = {}) {
+    this.host.emit({ t: 'zbar', i, fx, ...this.bars[i], ...extra });
+  }
+
+  /** A blow (or a blast) on barricade `i`'s boards; the last board falling opens the gap again. */
+  private hurtBarricade(i: number, amount: number) {
+    const b = this.bars[i];
+    if (!b || !isClosed(b) || amount <= 0) return;
+    hitBarricade(b, amount);
+    if (isClosed(b)) return this.emitBar(i, 'hit');
+    this.updateGates();
+    this.emitBar(i, 'break');
+  }
+
+  /** The shut gaps leave the crowd's main filter and the match's queries; the through filter keeps them all. */
+  private updateGates() {
+    let mask = 0;
+    this.bars.forEach((b, i) => {
+      if (isClosed(b)) mask |= gateFlag(i);
+    });
+    this.crowd.getFilter(FILTER_AROUND).excludeFlags = mask;
+    this.crowd.getFilter(FILTER_THROUGH).excludeFlags = 0;
+    this.query.defaultFilter.excludeFlags = mask;
+    // Paths through a gap that just shut are replanned by the crowd itself; a gap that just opened may be the
+    // shorter way now: everyone asks for a new path.
+    for (const z of this.zombies.values()) z.goal = null;
+  }
+
+  /** Back to no barricades at all (a new match); `announce`: tell the players. */
+  private resetBarricades(announce: boolean) {
+    for (const id of [...this.work.keys()]) this.stopWork(id);
+    this.bars.forEach((b, i) => {
+      const had = b.built;
+      Object.assign(b, emptyBarricade());
+      if (had && announce) this.emitBar(i, 'reset');
+    });
+    this.updateGates();
   }
 
   // --- Damage to zombies -------------------------------------------------------------------------------------
@@ -429,6 +593,10 @@ export class ZombieMatch {
       if (o.dead || dist2(o.pos, z.pos) > e.raio || Math.abs(o.pos[1] - z.pos[1]) > 2.5) continue;
       this.damage(o.id, credit, e.danoZumbi, 'blast');
     }
+    // The blast blows boards off the barricades it reaches.
+    this.map.barricadas.forEach((g, i) => {
+      if (dist2(g.centro, z.pos) <= e.raio + g.largura / 2 && Math.abs(g.centro[1] - z.pos[1]) < 2.5) this.hurtBarricade(i, ZOMBIE.barricadas.dano.explosao);
+    });
   }
 
   // --- Match flow ----------------------------------------------------------------------------------------------
@@ -468,6 +636,8 @@ export class ZombieMatch {
         money.push([p.id, p.money]);
       }
       if (p.state === 'down') this.standUp(p, null);
+      // A new cap on the money for nailing boards: for the break and the next wave.
+      p.repairPaid = 0;
     }
     if (money.length) this.host.emit({ t: 'zmoney', m: money, why: 'wave' });
     if (this.wave >= WAVES) return this.finish(true);
@@ -504,34 +674,35 @@ export class ZombieMatch {
     this.phase = 'over';
     this.until = now + ZOMBIE.fimSegundos * 1000;
     this.clearZombies(true);
-    if (this.box.state !== 'idle' && this.box.state !== 'moving') this.setBox('idle', null, null, 0);
+    for (const id of [...this.work.keys()]) this.stopWork(id);
+    if (this.box.state !== 'idle') this.setBox('idle', null, null, null, 0);
     const players: ZSummaryRow[] = [...this.parts.values()].map((p) => ({ id: p.id, name: p.name, kills: p.kills, headshots: p.headshots, earned: p.earned, downs: p.downs, revives: p.revives, xp: p.xp }));
     this.host.emit({ t: 'zend', won, wave: this.wave, secs: Math.round((now - this.startedAt) / 1000), players, restartAt: this.until });
     this.emitWave();
   }
 
-  /** A new match for whoever is there: fresh money and weapons, everyone back at once. */
+  /** A new match for whoever is there: fresh money and weapons, no barricades, everyone back at once. */
   private restart() {
     for (const p of this.parts.values()) {
-      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems() });
+      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0 });
       this.host.setLoadout(p.id, zombieLoadout(p.items));
     }
+    this.resetBarricades(true);
     this.spec = waveSpec(1, this.parts.size);
     this.host.newMatch([...this.parts.keys()]);
     this.countdown();
   }
 
-  /** Nobody left: back to waiting, no zombies. */
+  /** Nobody left: back to waiting, no zombies, no barricades. */
   private reset() {
     this.clearZombies(false);
+    this.resetBarricades(false);
     this.phase = 'waiting';
     this.wave = 0;
     this.until = 0;
     this.spits = [];
     this.waves = [];
-    this.box.state = 'idle';
-    this.box.by = this.box.item = this.box.pending = null;
-    this.box.until = 0;
+    Object.assign(this.box, { state: 'idle', by: null, item: null, flaw: null, until: 0, pending: null, pendingFlaw: null });
   }
 
   private clearZombies(announce: boolean) {
@@ -541,6 +712,7 @@ export class ZombieMatch {
       if (announce) this.host.emit({ t: 'zdie', id: z.id, by: null, how: 'blast' });
     }
     this.zombies.clear();
+    this.rising = [];
     this.boss = null;
     this.spits = [];
     this.waves = [];
@@ -566,8 +738,9 @@ export class ZombieMatch {
     const c = this.query.findClosestPoint(pt(p), { halfExtents: HALF });
     if (!c.success || !c.polyRef) return p;
     if (radius > 0) {
+      // (Detour picks a polygon touching the circle, then a point anywhere in it: a big one reaches far past it.)
       const r = this.query.findRandomPointAroundCircle(c.point, radius, { startRef: c.polyRef, halfExtents: HALF });
-      if (r.success && Math.abs(r.randomPoint.y - c.point.y) < 1.5) return v3(r.randomPoint);
+      if (r.success && Math.abs(r.randomPoint.y - c.point.y) < 1.5 && Math.hypot(r.randomPoint.x - c.point.x, r.randomPoint.z - c.point.z) <= radius * 1.5) return v3(r.randomPoint);
     }
     return v3(c.point);
   }
@@ -618,6 +791,8 @@ export class ZombieMatch {
       stuckPos: [...at],
       extra,
       dead: false,
+      filter: FILTER_AROUND,
+      smash: -1,
     };
     // The first boss moves come a little after it rises.
     if (kind === 'coveiro') z.cd.summon = now + (ZOMBIE.chefes.coveiro.invocar?.primeira ?? 6) * 1000;
@@ -635,13 +810,28 @@ export class ZombieMatch {
     this.host.emit({ t: 'zfx', fx: 'intro', id: z.id, at, t0: now, t1: now + BOSS_RISE_MS });
   }
 
+  /**
+   * The wave's zombies, one every `interval` while there's room: its spot is shown first (the 'rise' telegraph:
+   * hands out of the ground, a glow and a groan on the clients) and it comes out RISE_TELL_MS later.
+   */
   private tickSpawns(now: number) {
+    this.rising = this.rising.filter((r) => {
+      if (now < r.time) return true;
+      // A full crowd (it never should be: the wave caps how many walk at once): tried again later.
+      if (!this.spawn(r.kind, r.at, false, r.run)) this.spawned--;
+      return false;
+    });
     const s = this.spec;
-    if (this.spawned >= s.total || now < this.nextSpawnAt || this.zombies.size >= s.maxAlive) return;
+    if (this.spawned >= s.total || now < this.nextSpawnAt || this.zombies.size + this.rising.length >= s.maxAlive) return;
     this.nextSpawnAt = now + s.interval * 1000;
     const kind = pickType(s, () => this.host.rng());
     const run = kind === 'comum' && this.host.rng() < s.runFrac;
-    this.spawn(kind, this.walkable(this.spawnPoint(), 1.5), false, run);
+    const spot = this.spawnPoint();
+    let at = this.walkable(spot, 1.5);
+    // Always outside the wall (a random point can land in a big polygon reaching past the circle).
+    if (insideWall(this.map, at)) at = this.walkable(spot);
+    this.rising.push({ at, kind, run, time: now + RISE_TELL_MS });
+    this.host.emit({ t: 'zfx', fx: 'rise', at, t0: now, t1: now + RISE_TELL_MS });
     this.spawned++;
   }
 
@@ -677,9 +867,10 @@ export class ZombieMatch {
         break;
     }
     this.tickRevives(now);
+    this.tickWork(now);
     this.tickZombies(dt, now);
     this.tickProjectiles(now);
-    if (this.phase === 'wave' && this.spawned >= this.spec.total && this.zombies.size === 0) this.endWave();
+    if (this.phase === 'wave' && this.spawned >= this.spec.total && this.zombies.size === 0 && this.rising.length === 0) this.endWave();
   }
 
   private tickRevives(now: number) {
@@ -780,6 +971,13 @@ export class ZombieMatch {
     }
     const d = dist2(z.pos, t.feet);
     const dy = Math.abs(t.feet[1] - z.pos[1]);
+    // The way to its target: around the shut gaps, or through one, tearing the boards down (the bruiser and the
+    // bosses always; everyone else only when no gap is left open).
+    const cross = insideWall(this.map, z.pos) !== insideWall(this.map, t.feet);
+    const through = cross && (smashesThrough(z.kind) || this.bars.every(isClosed));
+    const gap = through ? this.blockingGap(z) : -1;
+    if (gap !== z.smash) this.atBoards(z, gap, t);
+    this.setFilter(z, through && gap < 0 ? FILTER_THROUGH : FILTER_AROUND);
     if (isBoss(z.kind) && this.bossMove(z, t, d, now, standing)) return;
     const type = isBoss(z.kind) ? null : ZOMBIE.tipos[z.kind as ZType];
     const reach = isBoss(z.kind) ? ZOMBIE.chefes[z.kind as BossId].alcance : type!.alcance;
@@ -803,13 +1001,69 @@ export class ZombieMatch {
       const windup = isBoss(z.kind) ? ZOMBIE.chefes[z.kind as BossId].preparo : type!.preparo;
       return this.startAct(z, 'swipe', now + windup * 1000);
     }
+    if (gap >= 0) return this.smashBoards(z, gap, now);
     this.chase(z, t.feet, now);
   }
 
+  /** The shut gap a zombie stands at, in its way (its target is on the other side of the wall); -1: none. */
+  private blockingGap(z: Zombie): number {
+    return this.map.barricadas.findIndex((g, i) => isClosed(this.bars[i]) && atGap(g, z.pos));
+  }
+
+  /**
+   * A zombie arrives at the boards of gap `gap` (or leaves them: -1). Arriving, it stops dead in front of them,
+   * on its own side, and its filter (set right after) holds it there: the shut gap is off its map now.
+   */
+  private atBoards(z: Zombie, gap: number, t: Part) {
+    z.smash = gap;
+    z.goal = null;
+    z.repathAt = 0;
+    if (gap < 0) return;
+    const g = this.map.barricadas[gap];
+    const f = gapFrame(g, z.pos);
+    const side = Math.abs(f.across) > 0.05 ? Math.sign(f.across) : -Math.sign(gapFrame(g, t.feet).across) || 1;
+    const across = side * Math.max(Math.abs(f.across), 0.95);
+    const [cx, , cz] = g.centro;
+    const hold = this.walkable(g.eixo === 'x' ? [cx + f.along, z.pos[1], cz + across] : [cx + across, z.pos[1], cz + f.along]);
+    z.agent.teleport(pt(hold));
+    z.pos = hold;
+  }
+
+  private setFilter(z: Zombie, filter: number) {
+    if (z.filter === filter) return;
+    z.filter = filter;
+    z.agent.updateParameters({ queryFilterType: filter });
+    z.goal = null;
+    z.repathAt = 0;
+  }
+
+  /** At the boards: a blow every so often (a bloater bursts on them). */
+  private smashBoards(z: Zombie, gap: number, now: number) {
+    const g = this.map.barricadas[gap];
+    z.yaw = yawTo(g.centro[0] - z.pos[0], g.centro[2] - z.pos[2]);
+    if (z.goal) z.agent.resetMoveTarget();
+    z.goal = null;
+    if (z.kind === 'inchado') return this.startAct(z, 'fuse', now + ZOMBIE.tipos.inchado.preparo * 1000);
+    if (now < z.nextAttack) return;
+    const windup = isBoss(z.kind) ? ZOMBIE.chefes[z.kind as BossId].preparo : ZOMBIE.tipos[z.kind as ZType].preparo;
+    this.startAct(z, 'smash', now + windup * 1000);
+  }
+
+  /**
+   * Walks toward `goal`. A new path is asked for only when the goal moved enough for its distance, and not too
+   * often: every request restarts a search in the crowd's shared path queue (a few hundred steps for a long way
+   * round the wall, a hundred steps per tick for everyone), so a horde re-asking every second would never get its
+   * full paths and would only follow the quick partial ones (straight at the wall, by the shut gap nearest its
+   * target). A far zombie keeps its path; a close one follows every step of its target.
+   */
   private chase(z: Zombie, goal: Vec3, now: number) {
-    if (z.goal && dist2(z.goal, goal) < 1 && now < z.repathAt) return;
+    const d = dist2(z.pos, goal);
+    if (z.goal) {
+      const moved = dist2(z.goal, goal);
+      if (moved < Math.max(1, d * 0.3) && (now < z.repathAt || moved < 0.5)) return;
+    }
     z.goal = [...goal];
-    z.repathAt = now + REPATH_MS;
+    z.repathAt = now + (d < 6 ? 400 : d < 15 ? 1500 : 4000);
     const c = this.query.findClosestPoint(pt(goal), { halfExtents: HALF });
     if (c.success && c.polyRef) z.agent.requestMoveTarget(c.point);
   }
@@ -856,6 +1110,12 @@ export class ZombieMatch {
       case 'swipe': {
         const reach = isBoss(z.kind) ? ZOMBIE.chefes[z.kind as BossId].alcance : ZOMBIE.tipos[z.kind as ZType].alcance;
         if (t?.state === 'up' && dist2(z.pos, t.feet) <= reach + 0.6 && Math.abs(t.feet[1] - z.pos[1]) < 2.2) this.host.hurt(t.id, zombieHit(z.kind, wave), z.pos);
+        z.nextAttack = now + (isBoss(z.kind) ? ZOMBIE.chefes[z.kind as BossId].recarga : ZOMBIE.tipos[z.kind as ZType].recarga) * 1000;
+        break;
+      }
+      case 'smash': {
+        // A blow on the boards (if they're still there and so is the zombie).
+        if (z.smash >= 0 && atGap(this.map.barricadas[z.smash], z.pos)) this.hurtBarricade(z.smash, boardDamage(z.kind));
         z.nextAttack = now + (isBoss(z.kind) ? ZOMBIE.chefes[z.kind as BossId].recarga : ZOMBIE.tipos[z.kind as ZType].recarga) * 1000;
         break;
       }
@@ -1052,7 +1312,8 @@ export class ZombieMatch {
     const moved = dist2(z.pos, z.stuckPos);
     z.stuckPos = [...z.pos];
     const t = z.target !== null ? this.parts.get(z.target) : undefined;
-    if (z.act || moved > 0.6 || !t || dist2(z.pos, t.feet) < 6) return;
+    // Waiting at the boards isn't being stuck.
+    if (z.act || z.smash >= 0 || moved > 0.6 || !t || dist2(z.pos, t.feet) < 6) return;
     const to = this.walkable(this.spawnPoint(), 1.5);
     z.agent.teleport(pt(to));
     z.pos = to;
@@ -1071,7 +1332,7 @@ export class ZombieMatch {
       if (o.extra) extras++;
       let f = 0;
       if (now < o.riseUntil) f |= ZF.rising;
-      if (o.act === 'swipe') f |= ZF.attack;
+      if (o.act === 'swipe' || o.act === 'smash') f |= ZF.attack;
       if (o.act === 'fuse') f |= ZF.fuse;
       if (o.act === 'spit') f |= ZF.spit;
       if (o.act && ['slam', 'summon', 'scream', 'blink', 'chargeWindup', 'pound'].includes(o.act)) f |= ZF.special;

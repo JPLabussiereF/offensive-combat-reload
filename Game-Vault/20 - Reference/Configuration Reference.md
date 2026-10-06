@@ -82,7 +82,7 @@ No compose, o serviço `jogo` recebe `DATABASE_URL` e `REDIS_URL` montados inter
 | `deploy/offensive-combat.service` | `NODE_ENV=production HOST=127.0.0.1 PORT=8787`, usuário `www-data` |
 | `Dockerfile` | `NODE_ENV=production HOST=0.0.0.0 PORT=8787` na imagem `server` |
 | `shared/protocol.ts` (`NET`), `shared/constants.ts`, `shared/data/*.json` (armas em `weapons/*.json`, melhorias em `progression.json`) | Parâmetros de jogo — ver [[Constants Reference]] e [[Configurable Content]] |
-| `shared/data/zumbi.json` | Todos os números do modo zumbi: tempos, ondas, tipos de zumbi, chefes, dinheiro, XP, o caixão (preço, raridades, armas), pontos de surgimento e lugares do caixão por mapa — ver [[Zombie]] |
+| `shared/data/zumbi.json` | Todos os números do modo zumbi: tempos, ondas, tipos de zumbi, chefes, dinheiro, XP, o caixão (preço, raridades, armas, `danificada`: chances e penalidades), as barricadas (`barricadas`: tábuas, vida, preço, tempos, prêmio e teto, dano por tipo) e, por mapa (`mapas.cemiterio`), o muro (`dentro`), os pontos de surgimento, o lugar do caixão, os chefes e as brechas — ver [[Zombie]] |
 | `shared/data/navmesh/<mapa>.json` | Navmesh **gerada** (não editar) para os zumbis do servidor: `bun run navmesh` (`tools/bake-navmesh.ts`) a refaz a partir do código do mapa; um teste falha se estiver desatualizada — ver [[Navigation]] |
 | `localStorage` do navegador | Preferências do jogador (inclusive as teclas de troca de arma `weapon1`/`weapon2`/`swapWeapon`) — ver [[Settings]]. A escolha do Arsenal **não** fica aqui: vai para a conta (`player_profile.loadout`, [[Player Data]]) |
 

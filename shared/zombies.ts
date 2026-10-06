@@ -4,13 +4,15 @@
 //   zombies for more players and a boss on the milestone waves;
 // - the economy: money per kill (more for a headshot or a knife), assists and revives; the Mystery Coffin
 //   (Caixão Misterioso) rolls a random weapon (gun + fixed upgrades, of a rarity that multiplies its damage
-//   against zombies) for the coffin's price;
+//   against zombies) for the coffin's price, and now and then hands it out damaged (fewer rounds, less damage
+//   or both; even a legendary one can come broken);
 // - what everyone starts with: the Rifle Padrão with no upgrades and the plain knife, whatever the account
 //   has unlocked (the coffin is this mode's progression).
+// The barricades' rules (shared/barricades.ts) use the numbers here too.
 import data from './data/zumbi.json';
 import { isGun, upgradeOf, type GunId, type ProgWeapon } from './progression';
 import { damageAtDistance, LETHAL_DAMAGE, type HitRegion, type WeaponData } from './weapons';
-import type { Loadout } from './arsenal';
+import { WEAPON_FLAWS, type GunStats, type Loadout, type WeaponFlaw } from './arsenal';
 import type { MapId } from './maps';
 import type { Vec3 } from './protocol';
 
@@ -82,13 +84,28 @@ interface WaveData {
   chefe?: BossId;
 }
 
+/**
+ * A gap in the cemetery wall where a barricade can be built: the axis the wall runs along there ('x': a wall
+ * along X, crossed along Z), the middle of the gap (on the wall's center line) and its clear width.
+ */
+export interface BarricadeSpot {
+  id: string;
+  eixo: 'x' | 'z';
+  centro: Vec3;
+  largura: number;
+}
+
 export interface ZombieMapData {
-  /** Where zombies come out (they rise from the ground): graves, the forest, the road, the sewer... */
+  /** The wall's center line around the yard (x0, z0, x1, z1): inside it, the players' side; the gaps are the only way in. */
+  dentro: [number, number, number, number];
+  /** Where zombies come out (they rise from the ground): the grave field outside the wall, never inside. */
   surgir: Vec3[];
-  /** Where the coffin can be: x, y, z and its yaw. */
-  caixa: [number, number, number, number][];
+  /** Where the coffin stands (always): x, y, z and its yaw. */
+  caixa: [number, number, number, number];
   /** Where each boss rises. */
   chefe: Record<BossId, Vec3>;
+  /** The gaps in the wall, in the order the barricades are numbered (network, navmesh flags). */
+  barricadas: BarricadeSpot[];
 }
 
 /**
@@ -114,7 +131,29 @@ export const ZOMBIE = data as unknown as {
   xp: { onda: number; vitoria: number; reanimar: number };
   jogador: { caidoSegundos: number; reanimarSegundos: number; reanimarVida: number; reanimarAlcance: number };
   armas: { faca: number; granadaPorOnda: number; municaoReserva: number };
-  caixa: { custo: number; girarSegundos: number; ofertaSegundos: number; patoApos: number; patoChance: number; patoAumento: number; patoSegundos: number; mudarSegundos: number; alcance: number };
+  caixa: {
+    custo: number;
+    girarSegundos: number;
+    ofertaSegundos: number;
+    alcance: number;
+    /**
+     * Damaged rolls: the chance by rarity, how likely each flaw is once damaged, and the penalties (fraction
+     * of the magazine and of the reserve kept, damage multiplier).
+     */
+    danificada: { chance: Record<Rarity, number>; tipos: Record<ZFlaw, number>; pente: number; reserva: number; dano: number };
+  };
+  barricadas: {
+    tabuas: number;
+    vidaTabua: number;
+    custo: number;
+    erguerSegundos: number;
+    repararSegundos: number;
+    reparoDinheiro: number;
+    reparoTetoOnda: number;
+    alcance: number;
+    /** What one blow takes from the boards: each kind's swipe, a boss's, a bloater's burst ('explosao'). */
+    dano: Record<ZType | 'chefe' | 'explosao', number>;
+  };
   raridades: Record<Rarity, { peso: number; dano: number }>;
   inicial: string;
   itens: ZItem[];
@@ -127,14 +166,30 @@ export const itemSlot = (it: ZItem): ZSlot => (it.arma === 'faca' ? 'faca' : it.
 /** How much harder a weapon of this rarity hits zombies. */
 export const rarityMul = (r: Rarity) => ZOMBIE.raridades[r]?.dano ?? 1;
 
-/** What a player carries in this mode: an item per slot (null: empty secondary, plain knife). */
+/** What's wrong with a damaged weapon: fewer rounds, less damage, or both. */
+export type ZFlaw = WeaponFlaw;
+export const Z_FLAWS = WEAPON_FLAWS;
+
+/** What a player carries in this mode: an item per slot (null: empty secondary, plain knife), and which are damaged. */
 export interface ZItems {
   primaria: string;
   secundaria: string | null;
   faca: string | null;
+  /** The slots holding a damaged copy of their item, and its flaw (absent: everything intact). */
+  danificadas?: Partial<Record<ZSlot, ZFlaw>>;
 }
 
 export const startItems = (): ZItems => ({ primaria: ZOMBIE.inicial, secundaria: null, faca: null });
+
+/** Items with `it` (damaged with `flaw`, or intact) in its slot, in place of what was there. */
+export function withItem(items: ZItems, it: ZItem, flaw: ZFlaw | null): ZItems {
+  const slot = itemSlot(it);
+  const { danificadas, ...rest } = items;
+  const flaws: Partial<Record<ZSlot, ZFlaw>> = { ...danificadas };
+  if (flaw) flaws[slot] = flaw;
+  else delete flaws[slot];
+  return { ...rest, [slot]: it.id, ...(Object.keys(flaws).length ? { danificadas: flaws } : {}) };
+}
 
 /** The loadout of a player's items: the guns with their fixed upgrades, the saber on the knife; no grenade upgrades. */
 export function zombieLoadout(items: ZItems): Loadout {
@@ -147,20 +202,47 @@ export function zombieLoadout(items: ZItems): Loadout {
   const secGun: GunId | null = sec && isGun(sec.arma) ? sec.arma : null;
   if (sec && secGun) ativas[secGun] = [...sec.melhorias];
   if (knife) ativas.faca = [...knife.melhorias];
-  return { primaria: primGun, secundaria: secGun, ativas };
+  // A damaged item's flaw goes with its weapon (the client gives the gun fewer rounds).
+  const danificadas: Partial<Record<ProgWeapon, ZFlaw>> = {};
+  const flaws = items.danificadas ?? {};
+  if (flaws.primaria) danificadas[primGun] = flaws.primaria;
+  if (flaws.secundaria && secGun) danificadas[secGun] = flaws.secundaria;
+  if (flaws.faca && knife) danificadas.faca = flaws.faca;
+  return { primaria: primGun, secundaria: secGun, ativas, ...(Object.keys(danificadas).length ? { danificadas } : {}) };
 }
+
+/** The slot of the weapon a hit came from (the rifle is always the primary, the pistol and the SMG the secondary). */
+const slotOfGun = (gun: ProgWeapon): ZSlot => (gun === 'faca' ? 'faca' : gun === 'rifle' ? 'primaria' : 'secundaria');
 
 /** The item behind the gun a hit came from (by the gun: the rifle is always the primary). */
 export function itemOfGun(items: ZItems, gun: ProgWeapon): ZItem | undefined {
-  if (gun === 'faca') return itemOf(items.faca);
-  const prim = itemOf(items.primaria);
-  if (prim?.arma === gun) return prim;
-  const sec = itemOf(items.secundaria);
-  return sec?.arma === gun ? sec : undefined;
+  const it = itemOf(items[slotOfGun(gun)]);
+  return it?.arma === gun ? it : undefined;
 }
 
-/** The damage multiplier of whatever made a hit (guns and the knife by their item; the plain knife ×1). */
-export const weaponMul = (items: ZItems, gun: ProgWeapon) => rarityMul(itemOfGun(items, gun)?.raridade ?? 'inicial');
+/** The flaw of the weapon a hit came from, if it's a damaged one. */
+export const flawOfGun = (items: ZItems, gun: ProgWeapon): ZFlaw | null => (itemOfGun(items, gun) ? (items.danificadas?.[slotOfGun(gun)] ?? null) : null);
+
+/** A flaw's damage multiplier (less damage for 'dano' and 'ambos'). */
+export const flawDamageMul = (flaw: ZFlaw | null | undefined) => (flaw === 'dano' || flaw === 'ambos' ? ZOMBIE.caixa.danificada.dano : 1);
+
+/** A flaw's ammo: the fraction of the magazine and of the reserve kept (fewer rounds for 'municao' and 'ambos'). */
+export function flawAmmo(flaw: ZFlaw | null | undefined): { pente: number; reserva: number } {
+  const d = ZOMBIE.caixa.danificada;
+  return flaw === 'municao' || flaw === 'ambos' ? { pente: d.pente, reserva: d.reserva } : { pente: 1, reserva: 1 };
+}
+
+/**
+ * The damage multiplier of whatever made a hit: the item's rarity (the plain knife ×1), less for a damaged one.
+ * The server's hit checks (and the solo game's) use it.
+ */
+export const weaponMul = (items: ZItems, gun: ProgWeapon) => rarityMul(itemOfGun(items, gun)?.raridade ?? 'inicial') * flawDamageMul(flawOfGun(items, gun));
+
+/** A gun as this mode hands it out: a bigger reserve for hordes, minus a damaged gun's missing rounds. */
+export function zombieGunData(g: GunStats, flaw: ZFlaw | null | undefined): GunStats {
+  const a = flawAmmo(flaw);
+  return { ...g, pente: Math.max(1, Math.round(g.pente * a.pente)), reserva: Math.max(1, Math.round(g.reserva * ZOMBIE.armas.municaoReserva * a.reserva)) };
+}
 
 // --- Waves -------------------------------------------------------------------------------------------------
 
@@ -259,11 +341,13 @@ export const killXp = (kind: ZKind) => (isBoss(kind) ? ZOMBIE.chefes[kind].xp : 
 export const BOX_ITEMS = ZOMBIE.itens.filter((i) => i.raridade !== 'inicial');
 
 /**
- * A coffin roll: a rarity by its weight, then one of its items, never the one already in that slot (the
- * coffin always gives something new). Random numbers from `rng` (the server's online).
+ * A coffin roll: a rarity by its weight, then one of its items, never one already in hand intact (the coffin
+ * always gives something new; a damaged copy can come back whole: luck is the only repair). Random numbers
+ * from `rng` (the server's online).
  */
 export function rollBox(rng: () => number, held: ZItems): ZItem {
-  const has = new Set([held.primaria, held.secundaria, held.faca]);
+  const flaws = held.danificadas ?? {};
+  const has = new Set((['primaria', 'secundaria', 'faca'] as const).filter((s) => !flaws[s]).map((s) => held[s]));
   const pool = BOX_ITEMS.filter((i) => !has.has(i.id));
   const weights = RARITIES.map((r) => (pool.some((i) => i.raridade === r) ? ZOMBIE.raridades[r].peso : 0));
   const sum = weights.reduce((a, b) => a + b, 0);
@@ -280,10 +364,27 @@ export function rollBox(rng: () => number, held: ZItems): ZItem {
   return options[Math.min(options.length - 1, Math.floor(rng() * options.length))] ?? pool[0];
 }
 
-/** Chance that a roll is the rubber duck (the coffin then flies off somewhere else), after `rolls` at this spot. */
-export function duckChance(rolls: number): number {
-  const c = ZOMBIE.caixa;
-  return rolls < c.patoApos ? 0 : Math.min(0.9, c.patoChance + c.patoAumento * (rolls - c.patoApos));
+/** The chance that a roll of this item comes damaged (by its rarity: rarer is sturdier, never flawless). */
+export const flawChance = (it: ZItem) => ZOMBIE.caixa.danificada.chance[it.raridade] ?? 0;
+
+/**
+ * Whether the coffin's roll of `it` comes damaged, and how (null: intact): its rarity's chance, then a flaw by
+ * its weight. A blade has no rounds to lose: its flaw is always less damage.
+ */
+export function rollFlaw(rng: () => number, it: ZItem): ZFlaw | null {
+  if (rng() >= flawChance(it)) return null;
+  const w = ZOMBIE.caixa.danificada.tipos;
+  const sum = Z_FLAWS.reduce((s, f) => s + (w[f] ?? 0), 0);
+  let x = rng() * sum;
+  let flaw: ZFlaw = 'dano';
+  for (const f of Z_FLAWS) {
+    if (x < (w[f] ?? 0)) {
+      flaw = f;
+      break;
+    }
+    x -= w[f] ?? 0;
+  }
+  return it.arma === 'faca' ? 'dano' : flaw;
 }
 
 // --- Network -----------------------------------------------------------------------------------------------
@@ -331,10 +432,28 @@ export function zombieProblems(): string[] {
     if (w.chefe && !BOSS_IDS.includes(w.chefe)) out.push(`onda ${i + 1}: chefe desconhecido`);
   });
   if (!ZOMBIE.ondas[WAVES - 1]?.chefe) out.push('a última onda precisa de um chefe');
+  const d = ZOMBIE.caixa.danificada;
+  for (const r of RARITIES) if (r !== 'inicial' && !(d.chance[r] > 0 && d.chance[r] < 1)) out.push(`raridade ${r}: chance de vir danificada fora de (0, 1)`);
+  for (let i = 2; i < RARITIES.length; i++) if (d.chance[RARITIES[i]] > d.chance[RARITIES[i - 1]]) out.push(`${RARITIES[i]} quebra mais que ${RARITIES[i - 1]}`);
+  if (!Z_FLAWS.every((f) => d.tipos[f] > 0)) out.push('todo defeito precisa de um peso');
+  if (!(d.pente > 0 && d.pente < 1 && d.reserva > 0 && d.reserva < 1 && d.dano > 0 && d.dano < 1)) out.push('as penalidades de arma danificada devem ficar entre 0 e 1');
   for (const [map, m] of Object.entries(ZOMBIE.mapas)) {
-    if (!m || m.surgir.length < 6) out.push(`${map}: poucos pontos de surgimento`);
-    if (!m || m.caixa.length < 2) out.push(`${map}: o caixão precisa de ao menos 2 lugares`);
-    for (const b of BOSS_IDS) if (!m?.chefe[b]) out.push(`${map}: sem lugar para ${b}`);
+    if (!m) continue;
+    const [x0, z0, x1, z1] = m.dentro;
+    const inside = (p: Vec3) => p[0] > x0 && p[0] < x1 && p[2] > z0 && p[2] < z1;
+    if (m.surgir.length < 6) out.push(`${map}: poucos pontos de surgimento`);
+    // The horde comes from outside the wall, through the gaps: never from inside.
+    for (const p of m.surgir) if (inside(p)) out.push(`${map}: ponto de surgimento dentro do muro ${p.join(',')}`);
+    if (!inside(m.caixa as unknown as Vec3)) out.push(`${map}: o caixão fica dentro do muro`);
+    for (const b of BOSS_IDS) if (!m.chefe[b]) out.push(`${map}: sem lugar para ${b}`);
+    if (m.barricadas.length < 2 || m.barricadas.length > 15) out.push(`${map}: de 2 a 15 brechas no muro`);
+    for (const g of m.barricadas) {
+      const [gx, , gz] = g.centro;
+      // On the wall's line: a wall along X sits on z0 or z1, one along Z on x0 or x1.
+      const onWall = g.eixo === 'x' ? (gz === z0 || gz === z1) && gx > x0 && gx < x1 : (gx === x0 || gx === x1) && gz > z0 && gz < z1;
+      if (!onWall) out.push(`${map}: a brecha ${g.id} não está no muro`);
+      if (!(g.largura >= 1.8 && g.largura <= 4)) out.push(`${map}: a brecha ${g.id} deve ter de 1,8 a 4 m`);
+    }
   }
   return out;
 }

@@ -1,12 +1,14 @@
-// The walkable area of the maps where the server simulates enemies (the zumbi mode), baked from the client's
-// map code by tools/bake-navmesh.ts into shared/data/navmesh/<map>.json and bundled with the server. Loaded
-// once per process (Recast's WebAssembly starts on the first one) and shared by every session of the map:
-// each session's crowd only reads it.
+// The walkable area of the maps where the server simulates enemies (the zumbi mode's cemetery), baked from the
+// client's map code by tools/bake-navmesh.ts into shared/data/navmesh/<map>.json and bundled with the server.
+// Each gap of the cemetery wall is baked as polygons of their own with a flag per gap (shared/barricades.ts), so a
+// match can shut a gap for its zombies with a query filter. Loaded once per process (Recast's WebAssembly starts
+// on the first one) and shared by every session of the map: each session's crowd only reads it (the filters
+// that shut gaps belong to the session's crowd and queries, never to the navmesh).
 import { importNavMesh, init, type NavMesh } from 'recast-navigation';
 import type { MapId } from '@shared/maps';
-import halloween from '@shared/data/navmesh/halloween.json';
+import cemiterio from '@shared/data/navmesh/cemiterio.json';
 
-const BAKED: Partial<Record<MapId, { dados: string }>> = { halloween };
+const BAKED: Partial<Record<MapId, { dados: string }>> = { cemiterio };
 
 let ready: Promise<void> | null = null;
 const loaded = new Map<MapId, Promise<NavMesh>>();

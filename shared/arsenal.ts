@@ -46,9 +46,18 @@ export interface Loadout {
    * guns are put away and can't fire. Only corrida armada's last step hands this out.
    */
   soFaca?: boolean;
+  /**
+   * Damaged weapons (the zumbi mode's coffin), by weapon: fewer rounds ('municao'), less damage ('dano') or both
+   * ('ambos'). The server applies the damage part to its own hit checks; the client gives the gun fewer rounds.
+   */
+  danificadas?: Partial<Record<ProgWeapon, WeaponFlaw>>;
 }
 
-const noUpgrades = (): Record<ProgWeapon, string[]> => ({ rifle: [], pistola: [], smg: [], faca: [], granada: [] });
+/** What's wrong with a damaged weapon. */
+export type WeaponFlaw = 'municao' | 'dano' | 'ambos';
+export const WEAPON_FLAWS: readonly WeaponFlaw[] = ['municao', 'dano', 'ambos'];
+
+const noUpgrades =(): Record<ProgWeapon, string[]> => ({ rifle: [], pistola: [], smg: [], faca: [], granada: [] });
 
 /** The starting kit: rifle and pistol, no upgrades (players without an account, bots). */
 export const DEFAULT_LOADOUT: Loadout = { primaria: 'rifle', secundaria: DEFAULT_CHOICE.secundaria, ativas: noUpgrades() };
@@ -72,11 +81,15 @@ export function sanitizeLoadout(raw: unknown): Loadout {
     const list = src[w];
     if (Array.isArray(list)) ativas[w] = list.filter((id): id is string => typeof id === 'string' && !!upgradeOf(w, id));
   }
+  const flawsIn = (o.danificadas && typeof o.danificadas === 'object' ? o.danificadas : {}) as Partial<Record<ProgWeapon, unknown>>;
+  const danificadas: Partial<Record<ProgWeapon, WeaponFlaw>> = {};
+  for (const w of PROG_WEAPONS) if (WEAPON_FLAWS.includes(flawsIn[w] as WeaponFlaw)) danificadas[w] = flawsIn[w] as WeaponFlaw;
   return {
     primaria: isGun(o.primaria) ? o.primaria : DEFAULT_LOADOUT.primaria,
     secundaria: o.secundaria === null ? null : isGun(o.secundaria) ? o.secundaria : DEFAULT_LOADOUT.secundaria,
     ativas,
     ...(o.soFaca === true ? { soFaca: true } : {}),
+    ...(Object.keys(danificadas).length ? { danificadas } : {}),
   };
 }
 

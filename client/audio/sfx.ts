@@ -1224,21 +1224,59 @@ export class Sfx {
     if (level === 2) this.applause(1.2);
   }
 
-  /** The coffin flying off: a rising whoosh and flapping. */
-  coffinFly() {
+  /** The coffin stops on a damaged weapon: a crack, then a sour chord sliding down (a deflated "ta-da"). */
+  coffinBroken() {
     if (!this.ready) return;
     const t = this.ctx!.currentTime;
-    this.tone(t, 'sine', 200, 900, 1.2, 0.08, 'sfx', 0.2);
-    for (let i = 0; i < 8; i++) this.noiseBurst(t + i * 0.12, 0.06, 'bandpass', 700 + i * 60, 3, 0.07);
-    this.evilLaugh();
+    this.noiseBurst(t, 0.12, 'highpass', 2200, 1, 0.16);
+    this.tone(t, 'square', 180, 120, 0.08, 0.08, 'sfx', 0.002);
+    // A tritone, bending flat.
+    for (const [f, d] of [[523, 0], [740, 0.04], [622, 0.08]] as const) this.tone(t + 0.12 + d, 'triangle', f, f * 0.84, 0.9, 0.05, 'sfx', 0.01);
+    this.tone(t + 0.5, 'sawtooth', 160, 90, 0.5, 0.05, 'sfx', 0.02);
   }
 
-  /** The coffin landing somewhere new. */
-  coffinLand() {
+  /** A hammer knocking a nail in: two knocks on wood. */
+  boardNail() {
     if (!this.ready) return;
     const t = this.ctx!.currentTime;
-    this.noiseBurst(t, 0.3, 'lowpass', 500, 0.8, 0.25);
-    this.tone(t, 'sine', 90, 45, 0.25, 0.2);
+    for (const at of [0, 0.16]) {
+      this.noiseBurst(t + at, 0.05, 'bandpass', 1800, 2.5, 0.2);
+      this.tone(t + at, 'square', 420, 260, 0.05, 0.08, 'sfx', 0.001);
+    }
+    this.tone(t + 0.16, 'triangle', 1400, 1300, 0.08, 0.03, 'sfx', 0.001);
+  }
+
+  /** A barricade going up: a saw's strokes, then a run of hammer knocks. */
+  barricadeBuild() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    for (let i = 0; i < 3; i++) this.noiseBurst(t + i * 0.22, 0.18, 'bandpass', 2600 + (i % 2) * 500, 1.4, 0.08);
+    for (let i = 0; i < 5; i++) {
+      this.noiseBurst(t + 0.75 + i * 0.14, 0.05, 'bandpass', 1700, 2.5, 0.16);
+      this.tone(t + 0.75 + i * 0.14, 'square', 400, 250, 0.05, 0.06, 'sfx', 0.001);
+    }
+  }
+
+  /** A blow on the boards: a dull thump and a creak. */
+  boardHit() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.noiseBurst(t, 0.12, 'lowpass', 700, 1, 0.22);
+    this.tone(t, 'sine', 140, 70, 0.14, 0.18);
+    this.tone(t + 0.05, 'sawtooth', 300, 380, 0.22, 0.03, 'sfx', 0.02);
+  }
+
+  /** A board snapping off (`last`: the whole barricade gone, a bigger crash). */
+  boardBreak(last = false) {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.noiseBurst(t, 0.08, 'highpass', 2500, 0.9, last ? 0.3 : 0.2);
+    this.noiseBurst(t + 0.03, 0.25, 'bandpass', 900, 1.2, last ? 0.22 : 0.14);
+    this.tone(t, 'square', 260, 90, 0.18, 0.08, 'sfx', 0.001);
+    if (last) {
+      this.noiseBurst(t + 0.2, 0.45, 'lowpass', 500, 0.8, 0.25);
+      this.tone(t + 0.2, 'sine', 90, 40, 0.4, 0.2);
+    }
   }
 
   /** A wave starting: the church bell tolls (three times, lower on a boss wave). */

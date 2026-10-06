@@ -177,8 +177,10 @@ class GunGameMode implements SessionMode {
  * Zumbi: co-op waves against zombies simulated here, on the server (shared/zombieMatch.ts over the map's baked
  * navmesh). The session's players are the match's: their shots at zombies are checked like shots at players
  * (the gun they could have fired, its fire rate, the distance to the zombie's position here, with the lag
- * slack), and the money, the coffin's random rolls and the XP are all decided here. Players can't hurt each
- * other; health running out during a wave puts them down until a teammate revives them or they bleed out.
+ * slack, and the damage of the weapon the match says they carry: its rarity, less for a damaged one), and the
+ * money, the coffin's random rolls (damaged or not), the barricades and the XP are all decided here. Players
+ * can't hurt each other; health running out during a wave puts them down until a teammate revives them or they
+ * bleed out.
  */
 class ZombieMode implements SessionMode {
   readonly id = 'zumbi' as const;
@@ -328,6 +330,10 @@ class ZombieMode implements SessionMode {
         return m.useBox(p.id);
       case 'revive':
         if (typeof msg.id === 'number') m.revive(p.id, msg.id, !!msg.on);
+        return;
+      case 'barricade':
+        // The match checks the rest: the gap exists, the player is up and in reach, the money for a new one.
+        if (typeof msg.i === 'number') m.barricadeWork(p.id, msg.i, !!msg.on);
         return;
     }
   }

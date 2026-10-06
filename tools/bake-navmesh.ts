@@ -6,6 +6,9 @@
 // browser has) and the bots' Recast settings (client/ai/navmesh.ts), so server zombies walk exactly where
 // players and offline bots can. The build is deterministic (seeded randomness): the same map code always
 // gives the same bytes, and a test (server/tests/zombies.test.ts) fails while a baked file is stale.
+// The gaps of the cemetery wall (ZombieMapData.barricadas) are baked as polygons of their own, with an area id
+// and a flag per gap (shared/barricades.ts gateAreas), so a match can shut a barricaded gap with a query filter;
+// the browser's solo game builds the very same mesh (client/main.ts passes the same boxes).
 //
 //   bun run navmesh           bakes every zumbi map
 //
@@ -14,6 +17,8 @@
 import { join } from 'node:path';
 import type { MapId } from '@shared/maps';
 import { modeMaps } from '@shared/modes';
+import { gateAreas } from '@shared/barricades';
+import { ZOMBIE } from '@shared/zombies';
 
 export const NAVMESH_DIR = join(import.meta.dir, '..', 'shared', 'data', 'navmesh');
 
@@ -59,8 +64,7 @@ function installCanvasStandIn(): () => void {
 const load = (path: string): Promise<Record<string, any>> => import(join(import.meta.dir, '..', path));
 
 const BUILDERS: Partial<Record<MapId, [module: string, fn: string]>> = {
-  halloween: ['client/world/hauntedTown.ts', 'buildHauntedTownMap'],
-  jardim: ['client/world/dragonGarden.ts', 'buildDragonGardenMap'],
+  cemiterio: ['client/world/cemetery.ts', 'buildCemeteryMap'],
 };
 
 /** The navmesh of a map, built as the browser builds it for the bots. */
@@ -77,7 +81,8 @@ export async function bakeNavmesh(map: MapId): Promise<Uint8Array> {
     const physics = await createPhysics();
     const silent = new Proxy({}, { get: () => () => {} });
     await build(physics, new THREE.Scene(), silent);
-    const nav = await NavMap.build(physics, []);
+    const zmap = ZOMBIE.mapas[map];
+    const nav = await NavMap.build(physics, [], zmap ? gateAreas(zmap) : []);
     if (!nav) throw new Error(`a malha de navegação de ${map} não foi gerada`);
     return exportNavMesh(nav.navMesh);
   } finally {

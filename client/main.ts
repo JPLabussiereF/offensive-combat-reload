@@ -30,6 +30,7 @@ import { createPhysics } from './world/physics';
 import { buildBlockoutMap, type CritterHit, type SpawnPoint } from './world/blockoutMap';
 import { buildDragonGardenMap } from './world/dragonGarden';
 import { buildHauntedTownMap } from './world/hauntedTown';
+import { buildCemeteryMap } from './world/cemetery';
 import { loadTextureOverrides } from './world/surfaces';
 import { buildGltfMap } from './world/gltfMap';
 import { MapBuilder } from './world/mapBuilder';
@@ -66,10 +67,11 @@ import { FINAL_STEP, GUN_GAME, killsForStep, ladderLoadout, type LadderPos } fro
 import { renderLadder, stepName } from './ui/ladder';
 import { Scoreboard } from './ui/scoreboard';
 import { DEATH_MESSAGES, getLang, pick, t, type StringKey } from './ui/strings';
-import { itemOf, startItems, ZOMBIE, zombieLoadout, type ZItems } from '@shared/zombies';
+import { itemOf, startItems, ZOMBIE, zombieGunData, zombieLoadout, type ZItems } from '@shared/zombies';
+import { gateAreas } from '@shared/barricades';
 import { ZombieClient, type ZombieLink } from './zombies/client';
 import { LocalZombies } from './zombies/local';
-import { renderZombieArsenal, tintFog, zombieAtmosphere } from './zombies/ambience';
+import { flawText, renderZombieArsenal, tintFog, zombieAtmosphere } from './zombies/ambience';
 
 const DEG = Math.PI / 180;
 const MOUSE_DEG_PER_COUNT = 0.022;
@@ -144,7 +146,9 @@ async function boot() {
       ? buildDragonGardenMap(physics, ctx.scene, sfx)
       : choice.map === 'halloween'
         ? buildHauntedTownMap(physics, ctx.scene, sfx)
-        : buildBlockoutMap(physics, ctx.scene, ctx.renderer, sfx);
+        : choice.map === 'cemiterio'
+          ? buildCemeteryMap(physics, ctx.scene, sfx)
+          : buildBlockoutMap(physics, ctx.scene, ctx.renderer, sfx);
   const [map] = await Promise.all([buildMap, textures]);
   const mapBuildMs = performance.now() - tMap;
   if (map.atmosphere) applyAtmosphere(ctx, map.atmosphere);
@@ -284,8 +288,10 @@ async function boot() {
 
   // Bots mode: a navmesh from the map's colliders, and hitboxes on the local player so bots can hit us.
   let bots: BotManager | null = null;
-  // Bots route around Amora's bite zone (a little wider than the zone itself).
-  const nav = botMode ? await NavMap.build(physics, map.dog ? [map.dog.zone.clone().expandByScalar(0.3)] : []) : null;
+  // Bots route around Amora's bite zone (a little wider than the zone itself). The solo zumbi game builds the
+  // mesh the server bakes: the wall's gaps as polygons of their own, for its barricades (shared/barricades.ts).
+  const zombieNavMap = zombieMode ? ZOMBIE.mapas[choice.map] : undefined;
+  const nav = botMode ? await NavMap.build(physics, map.dog ? [map.dog.zone.clone().expandByScalar(0.3)] : [], zombieNavMap ? gateAreas(zombieNavMap) : []) : null;
   const playerPos = new THREE.Vector3();
   const playerTarget: Combatant & { yaw: number } = {
     id: me,
@@ -318,7 +324,7 @@ async function boot() {
   let zombies: ZombieClient | null = null;
   let localZombies: LocalZombies | null = null;
   if (zombieMode) {
-    const zmap = ZOMBIE.mapas[choice.map] ?? ZOMBIE.mapas.halloween!;
+    const zmap = ZOMBIE.mapas[choice.map] ?? ZOMBIE.mapas.cemiterio!;
     let link: ZombieLink | null = null;
     if (conn) {
       link = { online: true, send: (m) => conn.send(m), on: (type, fn) => conn.on(type, fn), now: () => conn.serverNow(), renderTime: () => conn.serverNow() - NET.interpDelayMs };
@@ -352,6 +358,7 @@ async function boot() {
           world: physics.world,
           feet: () => playerFeet(new THREE.Vector3()),
           alive: () => !player.dead,
+          yaw: () => player.yaw,
           nameOf: (id) => nameOf(id),
           teammates: () => [...(net?.players.values() ?? [])].map((p) => ({ id: p.id, position: p.position, alive: p.alive })),
           refill: () => {
@@ -834,6 +841,8 @@ async function boot() {
     return it ? t(`zitem_${it.id}` as StringKey) : weaponName(guns[s].data.arma);
   };
   const slotRarity = (s: GunSlot) => slotItem(s)?.raridade ?? '';
+  /** A damaged copy from the coffin in that slot (the HUD tags it). */
+  const slotDamaged = (s: GunSlot) => !!slotItem(s) && !!zItems().danificadas?.[s];
 
   /** Puts a slot's gun in the hands; `draw`: a switch (the gun comes up, with its draw time and sound). */
   const holdSlot = (next: GunSlot, draw: boolean) => {
@@ -844,7 +853,7 @@ async function boot() {
     slot = next;
     weapon = guns[next];
     viewmodel.setGun(weapon.data);
-    hud.setWeaponName(bladeOnly ? weaponLabel('faca', loadout.ativas.faca) : slotName(next), slotRarity(next));
+    hud.setWeaponName(bladeOnly ? weaponLabel('faca', loadout.ativas.faca) : slotName(next), slotRarity(next), !bladeOnly && slotDamaged(next));
     if (!draw) return;
     drawT = weapon.data.troca;
     viewmodel.draw(drawT);
@@ -872,8 +881,9 @@ async function boot() {
     }
     for (const s of ['primaria', 'secundaria'] as const) {
       const g = slotStats(lo, s);
-      // Zumbi: hordes need more bullets than a duel (the reserve is refilled at every break).
-      if (g) guns[s].setData(zombieMode ? { ...g, reserva: Math.round(g.reserva * ZOMBIE.armas.municaoReserva) } : g);
+      // Zumbi: hordes need more bullets than a duel (the reserve is refilled at every break); a damaged gun from
+      // the coffin holds fewer rounds (its damage penalty is the server's, on every hit).
+      if (g) guns[s].setData(zombieMode ? zombieGunData(g, lo.danificadas?.[g.arma]) : g);
       guns[s].reloadMul = body.reloadMul;
     }
     const knife = meleeStats(lo.ativas.faca);
@@ -918,7 +928,7 @@ async function boot() {
     // Zumbi: the coffin (what we carry, the rarities and their odds) instead of the account's Arsenal.
     document.getElementById('arsenal-title')!.textContent = t('zArsenalTitle');
     const r = ZOMBIE.raridades;
-    document.getElementById('arsenal-hint')!.textContent = t('zArsenalHint', { cost: ZOMBIE.caixa.custo, c: r.comum.dano, r: r.raro.dano, e: r.epico.dano, l: r.lendario.dano });
+    document.getElementById('arsenal-hint')!.textContent = t('zArsenalHint', { cost: ZOMBIE.caixa.custo, c: r.comum.dano, r: r.raro.dano, e: r.epico.dano, l: r.lendario.dano, ammo: flawText('municao'), damage: flawText('dano') });
     renderZombieArsenal(arsenalGrid, startItems());
   } else {
     if (lockedLoadout) document.getElementById('arsenal-hint')!.textContent = t('arsenalLockedHint');
@@ -1488,7 +1498,7 @@ async function boot() {
     if (key === shownItems) return;
     shownItems = key;
     renderZombieArsenal(arsenalGrid, items);
-    if (!bladeOnly) hud.setWeaponName(slotName(slot), slotRarity(slot));
+    if (!bladeOnly) hud.setWeaponName(slotName(slot), slotRarity(slot), slotDamaged(slot));
   };
   /** The round is over (who won, and when the next starts on the game clock); null while playing. */
   let roundOver: { title: string; won: boolean; restartAt: number } | null = null;
@@ -1650,7 +1660,7 @@ async function boot() {
       // in hand (the pin goes back in). They never interrupt a reload (no shooting until it ends; the knife
       // and grenades do cancel it), a knife swing (too quick: cancelling it would be an exploit) or a dance
       // (only death ends it). A slide keeps going: you can shoot while sliding.
-      const canShoot = !bladeOnly && !weapon.reloading && !melee.swinging && !taunt.active && drawT <= 0 && !downed && !zombies?.reviving;
+      const canShoot = !bladeOnly && !weapon.reloading && !melee.swinging && !taunt.active && drawT <= 0 && !downed && !zombies?.busyHands;
       const fireIntent = canShoot && (input.down('fire') || input.peek('fire'));
       if (fireIntent) {
         if (thrower.cookT !== null) thrower.cancel();
@@ -1797,7 +1807,7 @@ async function boot() {
           if (swap) switchTo(slot === 'primaria' ? 'secundaria' : 'primaria');
         }
         drawT = Math.max(0, drawT - dt);
-        const busy = taunt.active || melee.swinging || thrower.busy || drawT > 0 || downed || !!zombies?.reviving;
+        const busy = taunt.active || melee.swinging || thrower.busy || drawT > 0 || downed || !!zombies?.busyHands;
         // Only a blade in hand: no gun to aim, fire or reload.
         if (bladeOnly) input.consume('reload');
         else weapon.update(dt, {
@@ -2192,7 +2202,7 @@ async function boot() {
         (['primaria', 'secundaria'] as const)
           .filter((s) => !bladeOnly && gunIn(loadout, s))
           // On a controller there's no key per slot (the D-pad switches): no key cap.
-          .map((s) => ({ key: gamepad.device === 'pad' ? '' : screens.keyName(s === 'primaria' ? 'weapon1' : 'weapon2'), name: slotName(s), mag: guns[s].mag, reserve: guns[s].reserve, active: s === slot, rarity: slotRarity(s) || undefined })),
+          .map((s) => ({ key: gamepad.device === 'pad' ? '' : screens.keyName(s === 'primaria' ? 'weapon1' : 'weapon2'), name: slotName(s), mag: guns[s].mag, reserve: guns[s].reserve, active: s === slot, rarity: slotRarity(s) || undefined, damaged: slotDamaged(s) || undefined })),
         drawT > 0,
       );
       hud.setGrenades(thrower.count, thrower.data.quantidade, thrower.rechargeProgress);

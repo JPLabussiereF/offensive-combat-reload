@@ -1,9 +1,9 @@
 // The Caixão Misterioso (Mystery Coffin) of the zumbi mode: an old coffin with a glowing question mark and a
-// pale beam of light over it, so it can be found from across the haunted town. Paid for (E), its lid creaks
-// open and weapons spin up out of it, slowing down until one stays floating there, glowing in its rarity's
-// color, for whoever paid to take. Sometimes a rubber duck pops out instead: it quacks, the money comes back,
-// and the coffin flies off into the night to another spot. The match (shared/zombieMatch.ts) decides all of
-// it; this only draws and plays it.
+// pale beam of light over it, always on the same spot of the cemetery (by the east wall). Paid for (E), its lid
+// creaks open and weapons spin up out of it, slowing down until one stays floating there, glowing in its rarity's
+// color, for whoever paid to take. Now and then the weapon comes out damaged: it floats crooked and flickering,
+// cracked, with a "DANIFICADA" plate, and the coffin plays a sour chord instead of its chime. The match
+// (shared/zombieMatch.ts) decides all of it; this only draws and plays it.
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { gunStats } from '@shared/arsenal';
@@ -12,8 +12,8 @@ import { BOX_ITEMS, itemOf, ZOMBIE, type Rarity, type ZItem } from '@shared/zomb
 import { isGun } from '@shared/progression';
 import { toon } from '../render/materials';
 import { heldGun, heldKnife } from '../entities/heldWeapons';
-import { duckModel } from '../weapons/grenades';
 import { WORLD_GROUPS, type Physics } from '../world/physics';
+import { t } from '../ui/strings';
 import type { Sfx } from '../audio/sfx';
 
 /** Each rarity's color (the floating weapon's glow, the HUD's names). */
@@ -64,9 +64,41 @@ function questionTexture(): THREE.CanvasTexture {
   g.fillStyle = '#ffd76a';
   g.strokeText('?', 64, 70);
   g.fillText('?', 64, 70);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+/** The plate over a damaged weapon: a crack and the word, in the player's language. */
+function damagedTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 72;
+  const g = c.getContext('2d')!;
+  g.fillStyle = 'rgba(30,12,8,0.82)';
+  g.beginPath();
+  g.roundRect(4, 6, 248, 60, 14);
+  g.fill();
+  g.strokeStyle = '#ff6a3d';
+  g.lineWidth = 4;
+  g.stroke();
+  // The crack.
+  g.beginPath();
+  g.moveTo(26, 14);
+  g.lineTo(18, 32);
+  g.lineTo(30, 38);
+  g.lineTo(20, 58);
+  g.strokeStyle = '#ffb08a';
+  g.lineWidth = 5;
+  g.stroke();
+  g.font = '900 30px Nunito, system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillStyle = '#ffd0b8';
+  g.fillText(t('zDamaged').toUpperCase(), 140, 38);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
 
 export class Coffin {
@@ -76,11 +108,11 @@ export class Coffin {
   private mark: THREE.Sprite;
   private display = new THREE.Group();
   private glow: THREE.Sprite;
-  private duck: THREE.Group;
+  private plate: THREE.Sprite;
   private models = new Map<string, THREE.Object3D>();
   private shown: THREE.Object3D | null = null;
-  private collider: RAPIER.Collider | null = null;
-  private info: BoxInfo = { spot: -1, state: 'idle', by: null, item: null, until: 0 };
+  private collider: RAPIER.Collider;
+  private info: BoxInfo = { state: 'idle', by: null, item: null, flaw: null, until: 0 };
   /** When the current state began (match clock, ms). */
   private since = 0;
   private lidAngle = 0;
@@ -91,7 +123,7 @@ export class Coffin {
   constructor(
     private scene: THREE.Scene,
     private physics: Physics,
-    private spots: [number, number, number, number][],
+    spot: [number, number, number, number],
     private sfx: Sfx,
   ) {
     const wood = toon(0x4a2e1e);
@@ -128,14 +160,25 @@ export class Coffin {
     this.mark.position.y = 1.4;
     this.glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffffff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
     this.glow.scale.set(1.6, 1.6, 1);
-    this.display.add(this.glow);
+    this.plate = new THREE.Sprite(new THREE.SpriteMaterial({ map: damagedTexture(), depthWrite: false, transparent: true }));
+    this.plate.scale.set(1.1, 0.31, 1);
+    this.plate.position.y = 0.62;
+    this.plate.visible = false;
+    this.display.add(this.glow, this.plate);
     this.display.position.y = 1.1;
-    this.duck = duckModel();
-    this.duck.scale.setScalar(3.2);
-    this.duck.visible = false;
-    this.root.add(body, this.lid, candles, this.beam, this.mark, this.display, this.duck);
-    this.root.visible = false;
+    this.root.add(body, this.lid, candles, this.beam, this.mark, this.display);
     scene.add(this.root);
+    // Its spot never changes: placed once, with its collider (players don't walk through it).
+    const [x, y, z, yaw] = spot;
+    this.position.set(x, y, z);
+    this.root.position.set(x, y, z);
+    this.root.rotation.y = yaw;
+    const q = new THREE.Quaternion().setFromAxisAngle(UP, yaw);
+    this.collider = physics.world.createCollider(
+      RAPIER.ColliderDesc.cuboid(0.36, 0.25, 1).setTranslation(x, y + 0.25, z).setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }).setCollisionGroups(WORLD_GROUPS),
+      physics.staticBody,
+    );
+    physics.surfaces.set(this.collider.handle, { material: 'wood' });
   }
 
   /** The model of an item (a gun with its upgrades, or the saber), shown floating over the coffin. */
@@ -153,41 +196,25 @@ export class Coffin {
     return m;
   }
 
-  private show(it: ZItem | null) {
-    if (this.shown) this.display.remove(this.shown);
+  private show(it: ZItem | null, damaged = false) {
+    if (this.shown) {
+      this.display.remove(this.shown);
+      this.shown.rotation.z = 0;
+    }
     this.shown = it ? this.model(it) : null;
     if (this.shown) this.display.add(this.shown);
-    (this.glow.material as THREE.SpriteMaterial).color.set(it ? RARITY_COLOR[it.raridade] : '#ffffff');
-  }
-
-  /** Puts it on a spot: the mesh and its collider (players don't walk through it). */
-  private moveTo(spot: number) {
-    const s = this.spots[spot];
-    if (!s) return;
-    const [x, y, z, yaw] = s;
-    this.position.set(x, y, z);
-    this.root.position.set(x, y, z);
-    this.root.rotation.y = yaw;
-    if (this.collider) this.physics.world.removeCollider(this.collider, true);
-    const q = new THREE.Quaternion().setFromAxisAngle(UP, yaw);
-    this.collider = this.physics.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(0.36, 0.25, 1).setTranslation(x, y + 0.25, z).setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }).setCollisionGroups(WORLD_GROUPS),
-      this.physics.staticBody,
-    );
-    this.physics.surfaces.set(this.collider.handle, { material: 'wood' });
+    // A damaged weapon glows dimmer and redder than its rarity, and floats crooked under its plate.
+    const glow = this.glow.material as THREE.SpriteMaterial;
+    glow.color.set(it ? RARITY_COLOR[it.raridade] : '#ffffff');
+    if (it && damaged) glow.color.lerp(new THREE.Color('#ff4a2a'), 0.45);
+    this.plate.visible = !!it && damaged;
+    if (this.shown && damaged) this.shown.rotation.z = 0.35;
   }
 
   /** The match says the coffin changed (`now`: match clock, ms). */
   set(info: BoxInfo, now: number) {
-    const before = this.info;
     this.info = { ...info };
     this.since = now;
-    if (info.spot !== before.spot && info.state !== 'moving') {
-      this.moveTo(info.spot);
-      this.root.visible = true;
-      this.root.scale.setScalar(1);
-      if (before.spot >= 0) this.sfx.at(this.position, 'normal', (s) => s.coffinLand());
-    }
     const at = this.position.clone().setY(this.position.y + 1);
     switch (info.state) {
       case 'rolling':
@@ -196,18 +223,11 @@ export class Coffin {
         break;
       case 'offer': {
         const it = itemOf(info.item);
-        this.show(it ?? null);
-        if (it) this.sfx.at(at, 'normal', (s) => s.coffinReveal(it.raridade === 'lendario' ? 2 : it.raridade === 'epico' ? 1 : 0));
+        this.show(it ?? null, !!info.flaw);
+        if (it && info.flaw) this.sfx.at(at, 'normal', (s) => s.coffinBroken());
+        else if (it) this.sfx.at(at, 'normal', (s) => s.coffinReveal(it.raridade === 'lendario' ? 2 : it.raridade === 'epico' ? 1 : 0));
         break;
       }
-      case 'duck':
-        this.show(null);
-        this.sfx.at(at, 'normal', (s) => s.quack());
-        setTimeout(() => this.sfx.at(at, 'normal', (s) => s.quack()), 450);
-        break;
-      case 'moving':
-        this.sfx.at(at, 'normal', (s) => s.coffinFly());
-        break;
       case 'idle':
         this.show(null);
         break;
@@ -217,16 +237,13 @@ export class Coffin {
   update(dt: number, now: number) {
     this.time += dt;
     const st = this.info.state;
-    if (this.info.spot < 0) return;
-    const open = st === 'rolling' || st === 'offer' || st === 'duck';
+    const open = st === 'rolling' || st === 'offer';
     this.lidAngle += ((open ? LID_OPEN : 0) - this.lidAngle) * (1 - Math.exp(-8 * dt));
     this.lid.rotation.z = this.lidAngle;
     this.mark.visible = st === 'idle';
     this.mark.position.y = 1.4 + Math.sin(this.time * 2) * 0.08;
-    this.beam.visible = st !== 'moving';
     (this.beam.material as THREE.MeshBasicMaterial).opacity = 0.07 + 0.04 * Math.sin(this.time * 1.5);
-    this.display.visible = st === 'rolling' || st === 'offer';
-    this.duck.visible = st === 'duck';
+    this.display.visible = open;
     const k = (now - this.since) / 1000;
     if (st === 'rolling') {
       // Weapons cycling, faster at first, slowing down toward the end; rising out of the coffin.
@@ -242,22 +259,12 @@ export class Coffin {
     } else if (st === 'offer') {
       this.display.position.y = 1.1 + Math.sin(this.time * 2.4) * 0.06;
       this.display.rotation.y += dt * 1.2;
-    } else if (st === 'duck') {
-      this.duck.position.y = 0.5 + Math.abs(Math.sin(this.time * 6)) * 0.8;
-      this.duck.rotation.y += dt * 4;
-    } else if (st === 'moving') {
-      // Up into the night, spinning, and gone.
-      const u = Math.min(1, k / 1.6);
-      this.root.position.y = this.spots[this.info.spot][1] + u * u * 9;
-      this.root.rotation.y += dt * (2 + u * 8);
-      this.root.scale.setScalar(Math.max(0.01, 1 - u));
-      if (u >= 1 && this.root.visible) {
-        this.root.visible = false;
-        if (this.collider) {
-          this.physics.world.removeCollider(this.collider, true);
-          this.collider = null;
-        }
-      }
+      if (this.info.flaw) {
+        // Flickering like a bad bulb, and slower to turn.
+        const flick = Math.sin(this.time * 23) > 0.6 ? 0.25 : 0.8;
+        (this.glow.material as THREE.SpriteMaterial).opacity = flick;
+        this.display.rotation.y -= dt * 0.6;
+      } else (this.glow.material as THREE.SpriteMaterial).opacity = 0.8;
     }
   }
 
@@ -267,7 +274,7 @@ export class Coffin {
   }
 
   dispose() {
-    if (this.collider) this.physics.world.removeCollider(this.collider, true);
+    this.physics.world.removeCollider(this.collider, true);
     this.scene.remove(this.root);
   }
 }

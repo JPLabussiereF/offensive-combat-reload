@@ -54,9 +54,13 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Mata-mata (livre) | `'mata-mata'` (`GameModeId`), `DeathmatchMode` | Modo todos contra todos com o Arsenal da conta, escolhido antes e travado durante a partida | [[Free For All]] · [[Versus Bots]] |
 | Corrida armada (en: Gun game) | `'corrida-armada'`, `GunGameMode`, `shared/gunGame.ts` | Modo em que todos sobem a mesma escada de armas: 3 abates sobem, facada desce, abate com o Sabre de Luz vence a rodada | [[Gun Game]] |
 | Escada / degrau | `LADDER`, `LadderPos {step, kills}`, `PlayerInfo.ladder`, `ladder_<id>` | Sequência de 7 armas fixas da corrida armada e a posição de cada jogador nela ("ARMA N/7") | [[Gun Game]] |
-| Zumbi (en: Zombies) | `'zumbi'`, `ZombieMode`, `ZombieMatch`, `shared/zombies.ts` | Modo cooperativo de 12 ondas de zumbis e 3 chefes na Vila Assombrada; dinheiro da partida e armas do caixão | [[Zombie]] |
+| Zumbi (en: Zombies) | `'zumbi'`, `ZombieMode`, `ZombieMatch`, `shared/zombies.ts` | Modo cooperativo de 12 ondas de zumbis e 3 chefes no Cemitério da Capela (mapa só dele); dinheiro da partida, armas do caixão e barricadas | [[Zombie]] |
 | Onda / intervalo | `ZPhase` (`countdown`, `wave`, `break`, `over`), `zwave` | Uma leva de zumbis do modo zumbi; o intervalo de 20–25 s entre ondas (munição e granadas cheias, caídos levantam, mortos voltam) | [[Zombie]] |
-| Caixão Misterioso (en: Mystery Coffin) | `box`, `zbox`, `rollBox`, `client/zombies/coffin.ts` | A "caixa" do modo zumbi: $950 sorteiam uma arma (arma + melhorias fixas) de uma raridade; às vezes sai um **pato** e o caixão muda de lugar | [[Zombie]] |
+| Caixão Misterioso (en: Mystery Coffin) | `box`, `zbox`, `rollBox`, `client/zombies/coffin.ts` | A "caixa" do modo zumbi, num lugar fixo: $950 sorteiam uma arma (arma + melhorias fixas) de uma raridade, que às vezes vem **danificada** (o pato de borracha e a mudança de lugar de antes saíram) | [[Zombie]] |
+| Arma danificada (en: Damaged) | `ZFlaw`/`WeaponFlaw` (`municao`, `dano`, `ambos`), `ZItems.danificadas`, `Loadout.danificadas`, `rollFlaw`, `zDamaged` | Prêmio do caixão com defeito: menos munição (60% do pente, 50% da reserva), menos dano (×0,75) ou os dois; chance de 25% (comum) a 6% (lendária); sem conserto | [[Zombie]] · [[ADR - Caixão fixo com armas danificadas]] |
+| Barricada / brecha (en: Barricade / gap) | `barricade`, `zbar`, `zbarwork`, `ZBarricade`, `shared/barricades.ts`, `mapas.cemiterio.barricadas`, `zgap_<id>` | As 5 aberturas do muro do cemitério (Portão Principal, Brechas Oeste, Leste, Noroeste e Nordeste) e as tábuas que o time prega nelas ($300 para erguer, repregar de graça) para desviar a horda | [[Zombie]] · [[Map - Cemitério da Capela]] |
+| Telegrafia de surgimento | `zfx 'rise'`, `RISE_TELL_MS` | O aviso 0,9 s antes de um zumbi sair do chão: mãos saindo da terra, brilho e feixe verdes, gemido | [[Zombie]] |
+| Filtro de contornar / de atravessar | `FILTER_AROUND`, `FILTER_THROUGH`, `gateFlag` | Os dois filtros de navegação da horda: um tira as brechas barricadas do caminho, o outro não (Seguranças, chefes, e todos quando tudo está fechado) | [[Navigation]] · [[ADR - Barricadas como polígonos próprios na navmesh]] |
 | Raridade | `Rarity` (`inicial`, `comum`, `raro`, `epico`, `lendario`), `rar_<id>` | Cor e força de uma arma do caixão: multiplica o dano contra zumbis (×1 a ×3,5) | [[Zombie]] · [[Weapons]] |
 | Caído / reanimar / sangrar | `SPlayer.downed`, `zdown`, `revive`, `zrevive`, `zup`, `KillKind 'zombie'` | No modo zumbi, vida a zero numa onda derruba o jogador; um colega reanima segurando E (3 s); depois de 30 s ele sangra até morrer e volta no intervalo | [[Zombie]] |
 | Dinheiro (zumbi) | `ZombiePlayer.money`, `zmoney` | Moeda **só da partida** do modo zumbi, nunca salva | [[Zombie]] · [[Economy Design]] |
@@ -75,7 +79,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Prompt | `hud.setPrompt` | Dica de ação ("Oprimir {nome}", "Beber Poção") | [[HUD]] |
 | Sala / Sessão | `Session` | Uma partida online; ≠ sessão de login (cookie `oc_sessao`) | [[Sessions]] |
 | Primária | `primaria`, `PRIMARIES`, tecla `weapon1` | Espaço da arma de fogo principal: o Rifle Padrão. Toda vida começa com ela na mão | [[Weapons]] |
-| Sala permanente | ids `principal` (rua), `jardim`, `halloween` (mata-mata) e `corrida-armada-<mapa>` | Uma sala fixa por mapa e por modo | [[Sessions]] · [[Matchmaking]] |
+| Sala permanente | ids `principal` (rua), `jardim`, `halloween` (mata-mata), `corrida-armada-<mapa>` e `zumbi-cemiterio` | Uma sala fixa por mapa e por modo jogado nele | [[Sessions]] · [[Matchmaking]] |
 | Secundária | `secundaria`, `SECONDARIES`, `FLAG.secondary`, tecla `weapon2` | Segundo espaço de arma de fogo: Pistola do Porteiro (padrão) ou Submetralhadora Liquidificador, escolhida no Arsenal; troca com 1/2/roda | [[Weapons]] · [[Inventory]] |
 
 ## Mapas
@@ -85,6 +89,9 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `rua` / Rua dos Vizinhos | Mapa padrão (`DEFAULT_MAP`), de dia | [[Map - Rua dos Vizinhos]] |
 | `jardim` / Jardim do Dragão | Propriedade chinesa noturna com 6 setores em volta do anel | [[Map - Jardim do Dragão]] |
 | `halloween` / Vila Assombrada | Cidade de Halloween com 8 regiões e esgoto | [[Map - Vila Assombrada]] |
+| `cemiterio` / Cemitério da Capela | Cemitério murado do modo zumbi, exclusivo dele (`exclusivo: 'zumbi'`) | [[Map - Cemitério da Capela]] |
+| Mapa exclusivo / mapas abertos | `MAPS[id].exclusivo`, `PVP_MAPS` | Um mapa feito para um modo só (o cemitério); os abertos são os outros, os únicos dos modos versus, dos bots e do campo de tiro | [[Maps Index]] |
+| Alameda / Travessa / terraço | — | A avenida do Portão Principal até a capela (a zona de abate), o caminho entre as brechas laterais e a frente elevada da capela | [[Map - Cemitério da Capela]] |
 | `principal` | Id da sala fixa da Rua (legado de quando só existia a rua) | [[Sessions]] |
 | Amora | Chow Chow da Rua; quem entra na faixa em frente à casinha morre com uma mordida | [[Map - Rua dos Vizinhos]] |
 | Anel | Corredor entre a Casa Principal e os setores do Jardim | [[Map - Jardim do Dragão]] |
