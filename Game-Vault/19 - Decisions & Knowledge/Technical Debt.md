@@ -87,7 +87,7 @@ Lista consolidada da dívida técnica encontrada ao documentar o código (2026-1
 - `CorpseTimer` desenha o "E" e "OPRIMIDO!" fixos, sem keybind e sem i18n (`client/ui/corpseTimer.ts`).
 - `setLang` existe, mas não há seletor de idioma (`client/ui/strings.ts`). A mensagem `errOffline` é voltada ao desenvolvedor ("Rode bun run dev:online").
 - O painel de ajuste F6 fica disponível também em produção (`client/main.ts`). `?mapa=` vale também online, sem restrição de modo ([[Problem - Prévia glTF por URL sobrepõe o mapa da sessão]]).
-- Os tiros dos outros jogadores só desenham o traçante, sem decal nem partículas de impacto (`conn.on('shot')`).
+- ~~Os tiros dos outros jogadores só desenham o traçante, sem decal nem partículas de impacto (`conn.on('shot')`).~~ — resolvido na PF-5: marca, detritos, faíscas e som de impacto no mapa (ver [[Decals]]). Continuam só para quem atirou os furos de penetração e os efeitos de acerto em jogadores.
 - Google Fonts é uma dependência externa em tempo de execução (`index.html`).
 - Não há fim de partida ([[Problem - Partidas sem fim]]) e os bots só existem offline ([[Problem - Bots só existem offline]]).
 

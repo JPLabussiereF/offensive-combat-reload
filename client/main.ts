@@ -42,6 +42,7 @@ import { Weapon, type WeaponHooks } from './weapons/weapon';
 import { Melee, findMeleeTarget } from './weapons/melee';
 import { GrenadeProjectiles, GrenadeThrower } from './weapons/grenades';
 import { applySpread, traceShot } from './weapons/hitscan';
+import { remoteImpact, type ImpactCast } from './weapons/remoteImpact';
 import { Taunt } from './gameplay/taunt';
 import { nearestHumiliable, type HitboxRegistry, type Humiliable, type Target } from './gameplay/targets';
 import { RemoteWorld, type RemotePlayer } from './net/remote';
@@ -1302,6 +1303,15 @@ async function boot() {
     zombies?.syncInfo(online.joined.players);
     for (const c of online.joined.corpses) net.addCorpse(c);
     screens.setSubtitle(t('onlineSubtitle', { name: online.joined.session.name, mode: gameModeName(online.joined.session.mode) }));
+    /** The map alone (no players, no hitboxes) around the end of someone else's shot (weapons/remoteImpact.ts). */
+    const impactRay = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 });
+    const impactCast: ImpactCast = (from, dir, max) => {
+      impactRay.origin = from;
+      impactRay.dir = dir;
+      const hit = physics.world.castRayAndGetNormal(impactRay, max, true, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, WORLD_ONLY);
+      if (!hit) return null;
+      return { distance: hit.timeOfImpact, normal: new THREE.Vector3(hit.normal.x, hit.normal.y, hit.normal.z), surface: physics.surfaces.get(hit.collider.handle) };
+    };
 
     conn.on('snap', (m) => {
       net.snapshot(m.time, m.players);
@@ -1337,10 +1347,21 @@ async function boot() {
       rp.fire();
       // Their gun's own bang; a silencer: no tracer, and only those nearby hear it.
       const gun = rp.gun;
-      if (!gun.silenciador) effects.tracer(from, new THREE.Vector3(...m.e));
+      const end = new THREE.Vector3(...m.e);
+      if (!gun.silenciador) effects.tracer(from, end);
       // The bang comes from where their muzzle really was (sent with the shot), not the estimated one: a shooter
       // hugging a wall outside must not sound as if behind it.
       sfx.at({ x: m.o[0], y: m.o[1], z: m.o[2] }, gun.silenciador ? 'step' : 'gun', (s) => s.gunshot(1, gun.silenciador ? 'silenciado' : gun.arma));
+      // Where it hit the map: the same mark, dust, sparks and impact sound as our own shots. Never the
+      // surface's gag (onShot): the shooter already triggers it and the `prop` message syncs it.
+      const impact = remoteImpact(new THREE.Vector3(...m.o), end, impactCast);
+      if (impact) {
+        effects.decal(impact.point, impact.normal);
+        effects.burst('debris', impact.point, impact.normal, 5, 0x9a8f80);
+        effects.burst('spark', impact.point, impact.normal, 3);
+        const material = impact.surface?.material;
+        if (material) sfx.at(impact.point, 'normal', (s) => s.impact(material));
+      }
     });
     conn.on('swing', (m) => {
       const rp = net.players.get(m.id);
