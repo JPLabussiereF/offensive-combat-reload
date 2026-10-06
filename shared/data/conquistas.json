@@ -1,0 +1,106 @@
+{
+  "paginas": [
+    { "id": "carreira", "icone": "🏠", "cor": "#2f9bff", "nome": { "pt": "Carreira", "en": "Career" } },
+    { "id": "matar", "icone": "🎯", "cor": "#ff4a3d", "nome": { "pt": "Jeitos de matar", "en": "Ways to kill" } },
+    { "id": "opressao", "icone": "💃", "cor": "#b04aff", "nome": { "pt": "Opressão", "en": "Humiliation" } },
+    { "id": "zumbi", "icone": "🧟", "cor": "#3fae4a", "nome": { "pt": "Zumbi", "en": "Zombies" } },
+    { "id": "vexames", "icone": "🤡", "cor": "#ffb13d", "nome": { "pt": "Vexames", "en": "Fails" } }
+  ],
+  "figurinhas": [
+    {
+      "id": "endereco-fixo", "pagina": "carreira", "icone": "🏠", "tipo": "recorde", "fonte": "nivel", "metas": [5, 15, 30, 50],
+      "nome": { "pt": "Endereço Fixo", "en": "Fixed Address" },
+      "como": { "pt": "Chegue ao nível {meta} da conta", "en": "Reach account level {meta}" }
+    },
+    {
+      "id": "bate-ponto", "pagina": "carreira", "icone": "⏰", "tipo": "contador", "fonte": "segundos", "formato": "horas", "metas": [3600, 36000, 180000, 720000],
+      "nome": { "pt": "Bate-Ponto", "en": "Clocking In" },
+      "como": { "pt": "Jogue {meta} online", "en": "Play {meta} online" }
+    },
+    {
+      "id": "morador-assiduo", "pagina": "carreira", "icone": "🚪", "tipo": "contador", "fonte": "entradas", "metas": [10, 50, 200, 1000],
+      "nome": { "pt": "Morador Assíduo", "en": "Regular Neighbor" },
+      "como": { "pt": "Entre em {meta} salas online", "en": "Join {meta} online sessions" }
+    },
+    {
+      "id": "oficina-do-seu-ze", "pagina": "carreira", "icone": "🔧", "tipo": "recorde", "fonte": "armasNoMaximo", "metas": [1, 2, 3, 5],
+      "nome": { "pt": "Oficina do Seu Zé", "en": "Zé's Workshop" },
+      "como": { "pt": "Libere todas as melhorias de {meta} armas", "en": "Unlock every upgrade of {meta} weapons" }
+    },
+    {
+      "id": "vizinho-perigoso", "pagina": "matar", "icone": "💥", "tipo": "contador", "fonte": "abates", "metas": [50, 250, 1000, 5000],
+      "nome": { "pt": "Vizinho Perigoso", "en": "Dangerous Neighbor" },
+      "como": { "pt": "Faça {meta} abates", "en": "Get {meta} kills" }
+    },
+    {
+      "id": "na-testa", "pagina": "matar", "icone": "🎯", "tipo": "contador", "fonte": "cabeca", "metas": [25, 150, 600, 2500],
+      "nome": { "pt": "Na Testa", "en": "Right Between the Eyes" },
+      "como": { "pt": "Mate {meta} com tiro na cabeça", "en": "Get {meta} headshot kills" }
+    },
+    {
+      "id": "no-passaro", "pagina": "matar", "icone": "🐦", "tipo": "contador", "fonte": "passaro", "metas": [5, 30, 120, 500],
+      "nome": { "pt": "No Pássaro!", "en": "Right in the Birdie!" },
+      "como": { "pt": "Mate {meta} no pássaro", "en": "Get {meta} kills below the belt" }
+    },
+    {
+      "id": "facada", "pagina": "matar", "icone": "🔪", "tipo": "contador", "fonte": "facadas", "metas": [10, 50, 200, 800],
+      "nome": { "pt": "Facada", "en": "Stabby" },
+      "como": { "pt": "Mate {meta} na faca", "en": "Get {meta} knife kills" }
+    },
+    {
+      "id": "pelas-costas", "pagina": "matar", "icone": "🗡️", "tipo": "contador", "fonte": "pelasCostas", "metas": [5, 25, 100, 400],
+      "nome": { "pt": "Pelas Costas", "en": "Backstabber" },
+      "como": { "pt": "Mate {meta} pelas costas na faca", "en": "Get {meta} backstab kills" }
+    },
+    {
+      "id": "lancador", "pagina": "matar", "icone": "💣", "tipo": "contador", "fonte": "granadas", "metas": [10, 50, 200, 800],
+      "nome": { "pt": "Lançador", "en": "Pitcher" },
+      "como": { "pt": "Mate {meta} com granada", "en": "Get {meta} grenade kills" }
+    },
+    {
+      "id": "opressor", "pagina": "opressao", "icone": "💃", "tipo": "contador", "fonte": "opressoes", "metas": [3, 20, 80, 300],
+      "nome": { "pt": "Opressor", "en": "Oppressor" },
+      "como": { "pt": "Oprima {meta} corpos com a dancinha", "en": "Humiliate {meta} bodies with the dance" }
+    },
+    {
+      "id": "sobrevivente", "pagina": "zumbi", "icone": "🏆", "tipo": "contador", "fonte": "zumbiVitorias", "metas": [1, 5, 20, 50],
+      "nome": { "pt": "Sobrevivente", "en": "Survivor" },
+      "como": { "pt": "Vença {meta} partidas de zumbi", "en": "Win {meta} zombie matches" }
+    },
+    {
+      "id": "ate-onde-der", "pagina": "zumbi", "icone": "🌊", "tipo": "recorde", "fonte": "zumbiMelhorOnda", "metas": [4, 8, 10, 12],
+      "nome": { "pt": "Até Onde Der", "en": "As Far as It Goes" },
+      "como": { "pt": "Chegue à onda {meta}", "en": "Reach wave {meta}" }
+    },
+    {
+      "id": "faxina", "pagina": "zumbi", "icone": "🧹", "tipo": "contador", "fonte": "zumbiAbates", "metas": [100, 500, 2000, 10000],
+      "nome": { "pt": "Faxina", "en": "Clean Sweep" },
+      "como": { "pt": "Abata {meta} zumbis", "en": "Kill {meta} zombies" }
+    },
+    {
+      "id": "caca-chefes", "pagina": "zumbi", "icone": "👑", "tipo": "recorde", "fonte": "zumbiCadaChefe", "metas": [1, 5, 20, 50],
+      "nome": { "pt": "Caça-Chefes", "en": "Boss Hunter" },
+      "como": { "pt": "Dê o golpe final no Coveiro, na Noiva e no Prefeito {meta} vezes cada", "en": "Land the final blow on the Gravedigger, the Bride and the Mayor {meta} times each" }
+    },
+    {
+      "id": "anjo-da-guarda", "pagina": "zumbi", "icone": "😇", "tipo": "contador", "fonte": "zumbiReanimacoes", "metas": [10, 50, 200, 1000],
+      "nome": { "pt": "Anjo da Guarda", "en": "Guardian Angel" },
+      "como": { "pt": "Reanime {meta} colegas", "en": "Revive {meta} teammates" }
+    },
+    {
+      "id": "apostador", "pagina": "zumbi", "icone": "⚰️", "tipo": "contador", "fonte": "zumbiCaixao", "metas": [5, 25, 100, 400],
+      "nome": { "pt": "Apostador", "en": "High Roller" },
+      "como": { "pt": "Gire o caixão {meta} vezes", "en": "Spin the coffin {meta} times" }
+    },
+    {
+      "id": "saco-de-pancada", "pagina": "vexames", "icone": "🥊", "tipo": "contador", "fonte": "mortes", "metas": [50, 250, 1000, 5000],
+      "nome": { "pt": "Saco de Pancada", "en": "Punching Bag" },
+      "como": { "pt": "Morra {meta} vezes no versus", "en": "Die {meta} times in versus" }
+    },
+    {
+      "id": "beijando-o-chao", "pagina": "vexames", "icone": "😵", "tipo": "contador", "fonte": "zumbiQuedas", "metas": [10, 50, 200, 1000],
+      "nome": { "pt": "Beijando o Chão", "en": "Kissing the Floor" },
+      "como": { "pt": "Caia {meta} vezes no zumbi", "en": "Go down {meta} times in zombies" }
+    }
+  ]
+}
