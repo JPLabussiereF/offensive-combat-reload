@@ -5,6 +5,7 @@ status: documented
 area: backend
 source_paths:
   - server/api.ts
+  - server/app.ts
   - server/http.ts
   - server/auth/password.ts
   - server/auth/discord.ts
@@ -39,6 +40,7 @@ A API HTTP do jogo vive sob `/api/` e é atendida pelo próprio servidor do jogo
 
 | Método e caminho | Sessão? | O que faz | Respostas principais |
 | --- | --- | --- | --- |
+| `GET /api/sessoes` | não | Lista pública das salas abertas (`SessionInfo[]`, mesma ordem do lobby), sem cache. Respondida direto em `server/app.ts`, onde as salas vivem. A tela inicial a usa para mostrar quantas salas cada mapa tem antes de conectar. | 200 |
 | `GET /api/me` | sim | Dados resumidos da conta (tag `Nome#1234`, data de exclusão, etc.). | 200, 401 |
 | `GET /api/auth/provedores` | não | `{ discord: boolean }` — se o botão do Discord deve aparecer para o endereço atual. | 200 |
 | `POST /api/auth/cadastro` | não | Cria conta por e-mail/senha/nome e já abre sessão. | 201 + Set-Cookie; 400 `email_invalido`/`senha_invalida`/`nome_invalido`; 409 `email_em_uso`; 429 |

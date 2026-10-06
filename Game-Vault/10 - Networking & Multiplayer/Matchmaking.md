@@ -45,14 +45,22 @@ Ao iniciar, o servidor cria **uma sala fixa por mapa**, que nunca é removida:
 
 O id `principal` foi mantido "de quando só havia a rua" (comentário em `server/app.ts`). Ver [[Maps Index]].
 
+## Sempre uma vaga por mapa
+
+Todo mapa tem sempre **pelo menos uma sala com vaga** (`keepRoomPerMap()` em `server/app.ts`, chamado em cada rodada de `sessionsChanged()`):
+
+- Quando todas as salas de um mapa estão cheias (`players >= 10`), o servidor abre outra, não permanente, chamada `<Mapa> 2` (ou o próximo número livre: `<Mapa> 3`…).
+- Uma sala vazia não permanente só é removida se o mapa tiver vaga em **outra** sala. Assim, a sala extra fica aberta enquanto for a única vaga do mapa e fecha quando a fixa volta a ter lugar.
+- Como `sessionsChanged()` agrupa as mudanças em 100 ms, a sala extra aparece até 100 ms depois da sala que lotou.
+
 ## Salas criadas por jogadores
 
 - id aleatório de 6 caracteres base36 (`Math.random`), único no processo.
-- Removidas (com `dispose()` do timer) quando ficam **vazias**, na próxima rodada de `sessionsChanged()`.
+- Removidas (com `dispose()` do timer) quando ficam **vazias**, na próxima rodada de `sessionsChanged()`, salvo se forem a única vaga do mapa (ver acima).
 
 ## Ordenação da lista
 
-Permanentes primeiro; depois por número de jogadores (decrescente). Cada item é um `SessionInfo`: `{ id, name, map, players, max, permanent }`.
+Permanentes primeiro; depois por número de jogadores (decrescente). Cada item é um `SessionInfo`: `{ id, name, map, players, max, permanent }`. A mesma lista sai no `welcome`/`sessions` do WebSocket e em `GET /api/sessoes` (sem conexão de jogo, ver [[APIs]]).
 
 ## Regras da sala
 

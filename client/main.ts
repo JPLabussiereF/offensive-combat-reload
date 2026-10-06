@@ -106,8 +106,18 @@ async function boot() {
   applyKeybinds(settings.keybinds);
   quality.set(settings.quality);
   if (quality.software) screens.showGpuWarning(quality.gpu);
+  // Bound before the home: its Settings tab shows the same controls (the touch controls only exist later).
+  let relayoutTouch = () => {};
+  screens.bindSettings(settings, (s) => {
+    saveSettings(s);
+    applyKeybinds(s.keybinds);
+    sfx.setVolume(s.volume);
+    sfx.setSpatialMode(spatialMode(s));
+    if (s.quality !== quality.current) quality.set(s.quality);
+    relayoutTouch();
+  });
 
-  // --- Home: name + online session or offline training ---------------------------------------------
+  // --- Home: the account, then an online session, bots or offline training -------------------------
   screens.hideLoading();
   const choice = await showHome();
   const online = choice.mode === 'online' ? choice : null;
@@ -713,7 +723,7 @@ async function boot() {
     }
     sfx.levelUp();
   });
-  new Arsenal(progress, () => applyLoadout());
+  new Arsenal(progress, () => applyLoadout(), document.getElementById('arsenal-grid')!);
   applyLoadout();
   const scopeEl = document.getElementById('scope')!;
 
@@ -1205,14 +1215,7 @@ async function boot() {
   }
 
   // --- Menus and pointer lock ---------------------------------------------------------------------
-  screens.bindSettings(settings, (s) => {
-    saveSettings(s);
-    applyKeybinds(s.keybinds);
-    sfx.setVolume(s.volume);
-    sfx.setSpatialMode(spatialMode(s));
-    if (s.quality !== quality.current) quality.set(s.quality);
-    touch?.layout();
-  });
+  relayoutTouch = () => touch?.layout();
   screens.onPlay(() => {
     sfx.unlock();
     sfx.ui();

@@ -55,6 +55,7 @@ Como o servidor confia em `X-Forwarded-For` só vindo de endereço privado, e os
 - Conexão nova derruba a antiga (`4002`); sair da conta encerra a partida (`4001`); banimento encerra a partida e bloqueia a API.
 - Mapas: cada mapa tem uma sala fixa (`principal`/`rua`, `jardim`, `halloween`); sala criada leva o mapa; mapa desconhecido cai em `rua`.
 - Chat: chega a todos já limpo; quem manda rápido demais é segurado; silenciar/dessilenciar vale na partida em andamento.
+- Vaga por mapa: `GET /api/sessoes` lista as salas dos três mapas sem conexão de jogo; com 10 jogadores na `halloween`, abre "Vila Assombrada 2" vazia, que fecha quando um sai.
 - Regras de partida — ver [[Gameplay Tests]].
 
 ### `appearance.test.ts` — blocos "perfil" e "no online"

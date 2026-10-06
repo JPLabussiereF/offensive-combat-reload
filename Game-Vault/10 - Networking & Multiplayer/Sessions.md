@@ -71,13 +71,13 @@ Ao fechar: sai da sala (grava o progresso com `close = true`), remove do conjunt
 stateDiagram-v2
     [*] --> Ativa: createSession (início do servidor ou create)
     Ativa --> Ativa: join / leave / tick 20 Hz
-    Ativa --> Removida: vazia e não permanente (sessionsChanged)
+    Ativa --> Removida: vazia, não permanente e o mapa tem vaga em outra sala (sessionsChanged)
     Ativa --> Removida: servidor desligando (dispose)
     Removida --> [*]
 ```
 
 - Cada sala tem seu próprio `setInterval` de 50 ms (`tick`) e um tópico pub/sub `sessao:<id>`.
-- Salas permanentes (uma por mapa) nunca são removidas. Ver [[Matchmaking]].
+- Salas permanentes (uma por mapa) nunca são removidas, e todo mapa sempre tem uma sala com vaga (o servidor abre `<Mapa> 2` quando as do mapa lotam). Ver [[Matchmaking]].
 
 ### Estado mantido por sala
 

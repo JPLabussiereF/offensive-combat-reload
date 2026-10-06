@@ -3,7 +3,7 @@
 import type { Server } from 'bun';
 import { join, normalize } from 'node:path';
 import { CLOSE, NET, sanitizeName, type ClientMsg, type ServerMsg } from '@shared/protocol';
-import { DEFAULT_MAP, isMapId, MAPS, type MapId } from '@shared/maps';
+import { DEFAULT_MAP, isMapId, MAP_IDS, MAPS, type MapId } from '@shared/maps';
 import { activeBan, chatMutedUntil, emptyDelta, flushProgress, getAccount, loadGameProfile, openParticipation } from './accounts';
 import { handleApi, ticketKey } from './api';
 import type { Deps } from './auth/sessions';
@@ -74,11 +74,13 @@ export async function startServer(opts: Options): Promise<GameServer> {
     setTimeout(() => {
       listDirty = false;
       for (const s of [...sessions.values()]) {
-        if (!s.permanent && s.players.size === 0) {
-          s.dispose();
-          sessions.delete(s.id);
-        }
+        if (s.permanent || s.players.size > 0) continue;
+        // An empty session closes, unless it is the room its map has left (see keepRoomPerMap).
+        if (![...sessions.values()].some((o) => o !== s && o.map === s.map && !o.full)) continue;
+        s.dispose();
+        sessions.delete(s.id);
       }
+      keepRoomPerMap();
       const list = sessionList();
       for (const c of conns) if (!c.session) c.send({ t: 'sessions', list });
     }, 100);
@@ -94,6 +96,17 @@ export async function startServer(opts: Options): Promise<GameServer> {
     const s = new Session(permanentId ?? id, name, map, permanentId !== undefined, now, sessionsChanged, publish);
     sessions.set(s.id, s);
     return s;
+  }
+
+  /** Every map always has a session with room: when all of a map's are full, another opens ("Nome 2", "Nome 3"…). */
+  function keepRoomPerMap() {
+    for (const map of MAP_IDS) {
+      const ofMap = [...sessions.values()].filter((s) => s.map === map);
+      if (ofMap.some((s) => !s.full)) continue;
+      let n = 2;
+      while (ofMap.some((s) => s.name === `${MAPS[map].nome} ${n}`)) n++;
+      createSession(`${MAPS[map].nome} ${n}`, map);
+    }
   }
 
   // One permanent session per map; "principal" keeps its id from when there was only the street.
@@ -194,6 +207,8 @@ export async function startServer(opts: Options): Promise<GameServer> {
           return refuse(500);
         });
       }
+      // The open sessions, without a game connection (the home shows them before anyone connects).
+      if (req.method === 'GET' && url.pathname === '/api/sessoes') return Response.json(sessionList(), { headers: { 'Cache-Control': 'no-store' } });
       return (await handleApi(deps, req, url)) ?? staticFile(url);
     },
 

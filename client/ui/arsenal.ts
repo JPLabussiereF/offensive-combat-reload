@@ -1,4 +1,4 @@
-// Menu panel with the weapon progression: for each weapon, the equipped level, the points toward the next
+// Arsenal panel (pause menu and the home's tab) with the weapon progression: for each weapon, the equipped level, the points toward the next
 // one, every level (unlocked ones can be equipped with a click) and what each level does.
 import { PROG_WEAPONS, PROGRESSION, levelInfo, type ProgWeapon } from '@shared/progression';
 import type { Progress } from '../gameplay/progress';
@@ -9,17 +9,15 @@ const LABEL: Record<ProgWeapon, StringKey> = { rifle: 'weaponRifle', faca: 'weap
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 export class Arsenal {
-  private grid: HTMLElement;
   /** Level whose details are shown per weapon (hovered chip), null = the equipped one. */
   private preview: Record<ProgWeapon, number | null> = { rifle: null, faca: null, granada: null };
 
+  /** `grid`: where the cards go (the pause menu's, or the home's Arsenal tab). */
   constructor(
     private progress: Progress,
     private onEquip: () => void,
+    private grid: HTMLElement,
   ) {
-    document.getElementById('arsenal-title')!.textContent = t('arsenal');
-    document.getElementById('arsenal-hint')!.textContent = t('arsenalHint');
-    this.grid = document.getElementById('arsenal-grid')!;
     this.grid.addEventListener('click', (e) => {
       const chip = (e.target as HTMLElement).closest<HTMLButtonElement>('.level-chip');
       if (!chip || chip.disabled) return;

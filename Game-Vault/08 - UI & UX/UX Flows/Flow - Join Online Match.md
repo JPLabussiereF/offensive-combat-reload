@@ -29,13 +29,16 @@ sequenceDiagram
     participant H as Tela inicial (home.ts)
     participant S as Servidor (WebSocket)
     participant G as Jogo (main.ts)
-    J->>H: JOGAR ONLINE
-    H->>H: tem conta? (GET /api/me) e não está em exclusão?
+    J->>H: aba Jogar, modo Online
+    H->>S: GET /api/sessoes (HTTP, sem conexão de jogo; a cada 10 s)
+    H->>J: lista filtrada pelos mapas marcados (6 por vez, VER MAIS)
+    J->>H: JOGAR ONLINE, ENTRAR ou CRIAR
+    H->>H: tem conta? e não está em exclusão?
     H->>S: Connection.open() + {t:'hello'}
     S-->>H: welcome (nome, lista de sessões)
-    H->>J: lista "Sessões" (ENTRAR / LOTADA / CRIAR)
-    S-->>H: sessions (atualizações ao vivo)
-    J->>H: ENTRAR (ou CRIAR com nome e mapa)
+    opt JOGAR ONLINE
+        H->>H: escolhe a sessão mais cheia não lotada dos mapas marcados
+    end
     H->>S: {t:'join', session} ou {t:'create', name, map}
     S-->>H: joined (sessão, meu id, horário do servidor)
     H->>H: conn.hold() — guarda mensagens
@@ -49,10 +52,11 @@ sequenceDiagram
 
 ## Passo a passo
 
-1. **JOGAR ONLINE** na tela inicial. Sem conta: abre "Entrar" com "Entre na sua conta para jogar online.". Conta marcada para exclusão: bloqueado com instrução para cancelar no Perfil.
-2. **Conexão:** "Conectando ao servidor…" → abre o WebSocket, envia `hello`, espera `welcome`. A tela troca para a lista de sessões e mostra "Conectado como {nome}.".
-3. **Escolha:** cada sessão mostra nome, mapa, jogadores/máximo (máx. 10). Sessão cheia: botão **LOTADA** desabilitado. Ou cria uma nova (nome até 24 caracteres + mapa).
-4. **Entrada:** "Entrando…" → `join`/`create` → `joined`. A conexão passa a **segurar** as mensagens que chegam (`hold`) enquanto o mapa é construído, para que nada se perca antes de existirem os handlers.
+1. Na aba **Jogar** (só logado), modo **Online** e os mapas desejados marcados. Conta marcada para exclusão: bloqueado com instrução para cancelar no Perfil.
+2. **Lista:** já aparece ao abrir a aba, vinda de `GET /api/sessoes` (6 por vez; **VER MAIS** quando há mais).
+3. **Conexão** (só ao escolher entrar): "Conectando ao servidor…" → abre o WebSocket, envia `hello`, espera `welcome`, mostra "Conectado como {nome}.".
+4. **Escolha:** **JOGAR ONLINE** entra direto na sessão mais cheia não lotada dos mapas marcados. Na lista, cada sessão mostra nome, mapa e jogadores/máximo (máx. 10); sessão cheia tem **LOTADA** desabilitado; também dá para criar uma nova (nome até 24 caracteres + mapa).
+5. **Entrada:** "Entrando…" → `join`/`create` → `joined`. A conexão passa a **segurar** as mensagens que chegam (`hold`) enquanto o mapa é construído, para que nada se perca antes de existirem os handlers.
 5. **Carregamento do mapa da sessão** (não o do seletor da tela inicial). O relógio local é sincronizado com o do servidor (`seed`).
 6. **Menu inicial** com subtítulo "Sessão: {nome} · mata-mata livre"; a conexão libera as mensagens guardadas (`release`). O mundo online **já está rodando** mesmo antes de clicar JOGAR.
 7. **JOGAR:** captura do mouse, partida. Chat habilitado ([[Chat]]), placar com Tab ([[Scoreboard]]), avisos de entrada/saída no feed ([[Notifications]]).
@@ -63,11 +67,12 @@ sequenceDiagram
 | --- | --- |
 | Servidor fora do ar | "Servidor fora do ar. Rode "bun run dev:online" (ou jogue o treino offline)." |
 | Erro ao entrar/criar | Mensagem do erro no status da tela inicial; continua na lista. |
-| Conexão perdida durante a lista | Motivo do fechamento no status. |
+| Conexão perdida antes de entrar | Motivo do fechamento no status; a lista continua vindo por HTTP. |
+| Nenhuma sessão livre nos mapas marcados | "Nenhuma sessão aberta nos mapas selecionados." |
 | Conexão perdida em jogo | `#net-status`: "Sem conexão com o servidor". |
 | Sessão revogada (4001) | "Sua sessão foi encerrada (saída da conta, troca de senha, exclusão ou suspensão)." |
 | Mesma conta em outro lugar (4002) | "Sua conta entrou no jogo em outro lugar." |
-| Voltar na lista | Fecha a conexão e volta à tela inicial. |
+| Trocar para Contra bots / Campo de tiro | Fecha a conexão. |
 | Sair para o início (pausa) | Fecha a conexão e recarrega a página. |
 
 > [!info]
@@ -75,7 +80,7 @@ sequenceDiagram
 
 ## Código relacionado
 
-- `client/ui/home.ts` — handler de `#home-online`, `join`, `renderList`, `closeReason`.
+- `client/ui/home.ts` — `connect`, `join`, `renderLobby`, handlers de `#home-quick` e `#home-more`, `closeReason`.
 - `client/net/connection.ts` — `Connection.open`, `next`, `hold`, `release`, `seed`.
 - `client/net/api.ts` — `fetchMe`, `fetchProfile`.
 - `client/main.ts` — `boot()` (ramo online), `conn.onClose`.

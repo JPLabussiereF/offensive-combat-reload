@@ -1,7 +1,7 @@
 // The game connection: single-use tickets, origin check, one connection per account, revocation, and
 // progress earned only from kills the server validated.
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { CLOSE, NET } from '@shared/protocol';
+import { CLOSE, NET, type SessionInfo } from '@shared/protocol';
 import { BISCUIT, CHERRY, HEALTH, KOI, POTION, RAT } from '@shared/constants';
 import type { GameServer } from '../app';
 import { ticketKey } from '../api';
@@ -392,5 +392,33 @@ describe('chat da sala', () => {
     expect(b.p.msgs.some((m) => m.t === 'chat' && m.text === 'xingamento')).toBe(false);
     a.p.close();
     b.p.close();
+  });
+});
+
+describe('vaga por mapa', () => {
+  const list = async () => (await (await fetch(`http://127.0.0.1:${game.port}/api/sessoes`)).json()) as SessionInfo[];
+
+  it('lista as sessões sem conexão de jogo', async () => {
+    const maps = new Set((await list()).map((s) => s.map));
+    expect([...maps].sort()).toEqual(['halloween', 'jardim', 'rua']);
+  });
+
+  it('abre outra sessão quando as do mapa lotam, e fecha quando sobra vaga', async () => {
+    const players: Player[] = [];
+    for (let i = 0; i < NET.maxPlayers; i++) {
+      const p = await Player.connect(game, await (await signedIn(`Lotador ${i}`)).ticket());
+      p.send({ t: 'hello' });
+      await p.next('welcome');
+      p.send({ t: 'join', session: 'halloween' });
+      await p.next('joined');
+      players.push(p);
+    }
+    await sleep(250);
+    const extra = (await list()).find((s) => s.map === 'halloween' && !s.permanent);
+    expect(extra).toMatchObject({ name: 'Vila Assombrada 2', players: 0 });
+    players.pop()!.close();
+    await sleep(250);
+    expect((await list()).filter((s) => s.map === 'halloween')).toHaveLength(1);
+    for (const p of players) p.close();
   });
 });

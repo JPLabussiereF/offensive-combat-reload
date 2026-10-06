@@ -20,24 +20,30 @@ updated: 2026-10-05
 
 Não existe matchmaking automático (fila, busca por habilidade ou região). A "seleção de partida" online é um **navegador de sessões** na tela inicial: o jogador vê a lista de sessões abertas e escolhe uma, ou cria a própria. A lógica do servidor está em [[Matchmaking]] e [[Sessions]]; o fluxo completo em [[Flow - Join Online Match]].
 
-## Tela "Sessões" (`#home-lobby`)
+## Online na aba Jogar (`#home-lobby`)
+
+Com o modo **Online** escolhido na aba Jogar da tela inicial ([[Menus]]):
 
 | Elemento | Comportamento |
 | --- | --- |
-| Título | "Sessões". |
-| Lista (`#session-list`) | Uma linha por sessão: **nome** (em negrito), **mapa** em texto menor (omitido quando o nome da sessão já é o nome do mapa, caso das sessões fixas), **jogadores/máximo** e botão **ENTRAR** — ou **LOTADA** (desabilitado) quando cheia. Lista vazia: "Nenhuma sessão aberta. Crie a primeira!". |
-| Criar sessão | Campo de nome (máx. `NET.sessionNameMax` = 24 caracteres, placeholder "Nome da nova sessão"), seletor de mapa e botão **CRIAR** (Enter no campo também cria). |
-| Voltar | Fecha a conexão e volta à tela inicial. |
-| Status (`#home-status`) | "Conectando ao servidor…", "Conectado como {nome}.", "Entrando…", erros. |
+| Filtro de mapas | Os três mapas como caixas de marcar, numa grade que ocupa a linha inteira como os cartões de modo (todos marcados por padrão, salvos em `oc.bots.filtro`). Cada um mostra quantas sessões tem: antes de conectar, por `GET /api/sessoes` (ao abrir, ao voltar ao modo Online e a cada 10 s); conectado, pela lista ao vivo. Sem servidor, mostra o clima do mapa. Todo mapa tem sempre ao menos uma sessão com vaga ([[Matchmaking]]). |
+| **JOGAR ONLINE** (cartão do personagem) | **Entrada rápida:** conecta se preciso e entra na sessão **mais cheia que não esteja lotada** entre os mapas marcados. Sem mapa marcado: "Marque pelo menos um mapa."; sem sessão livre: "Nenhuma sessão aberta nos mapas selecionados.". A escolha é feita no cliente a partir da lista; o servidor só recebe um `join` comum. |
+| Título | "Sessões abertas (N)", contando só as dos mapas marcados. |
+| **VER MAIS (N)** | A lista mostra **6 sessões por vez**; o botão só aparece quando sobram sessões e mostra mais 6 a cada clique. Volta a 6 ao mudar o filtro ou o modo. |
+| Lista (`#session-list`) | **Já carregada ao abrir a aba** (`GET /api/sessoes`, atualizada a cada 10 s; ao vivo depois de conectar). Uma linha por sessão dos mapas marcados: **nome**, **mapa** em texto menor (omitido quando o nome da sessão já é o nome do mapa, caso das sessões fixas), **jogadores/máximo** e **ENTRAR** (conecta se preciso e entra), ou **LOTADA** (desabilitado) quando cheia. Vazia: "Nenhuma sessão aberta. Crie a primeira!" ou, se o filtro escondeu todas, "Nenhuma sessão aberta nos mapas selecionados.". |
+| Criar sessão | Campo de nome (máx. `NET.sessionNameMax` = 24 caracteres), seletor de mapa e **CRIAR** (Enter também cria); conecta se preciso. |
+| Status (`#home-status`) | Aviso no rodapé: "Conectando ao servidor…", "Conectado como {nome}.", "Entrando…", erros. |
 
-A lista é **atualizada ao vivo**: depois do `welcome`, o servidor envia mensagens `sessions` e a lista é redesenhada.
+A lista é **atualizada ao vivo**: depois do `welcome`, o servidor envia mensagens `sessions` e a aba é redesenhada.
+
+**A conexão de jogo só abre quando o jogador escolhe entrar** (ENTRAR, CRIAR ou JOGAR ONLINE); a lista vem antes, por HTTP. A conexão fecha ao trocar para Contra bots ou Campo de tiro, ao sair da conta ou ao começar um modo offline. Ver [[ADR - Conexão online aberta sob demanda na tela inicial]].
 
 > [!info]
 > Segundo o `README.md` do projeto, cada mapa tem uma sessão fixa sempre presente ("Rua dos Vizinhos", "Jardim do Dragão", "Vila Assombrada") e cada sessão é um mata-mata livre de até 10 jogadores (`NET.maxPlayers` = 10 em `shared/protocol.ts`). Ver [[Free For All]].
 
 ## Pré-condições e erros
 
-- **Exige conta:** sem login, abre o formulário de entrar com a mensagem "Entre na sua conta para jogar online.".
+- **Exige conta:** a aba Jogar só existe logado; se a sessão expirar, abre o formulário de entrar com a mensagem "Entre na sua conta para jogar online.".
 - **Conta marcada para exclusão:** bloqueia ("Esta conta está marcada para exclusão. Cancele no Perfil para jogar online.").
 - **Servidor fora do ar:** "Servidor fora do ar. Rode "bun run dev:online" (ou jogue o treino offline)." — a mensagem é voltada ao desenvolvedor local. Ver [[Local Development]].
 - **Conexão fechada pelo servidor:** motivo pelo código de fechamento (`closeReason`): sessão encerrada (4001: saída, troca de senha, exclusão ou suspensão), conta conectada em outro lugar (4002) ou conexão perdida.
@@ -45,11 +51,11 @@ A lista é **atualizada ao vivo**: depois do `welcome`, o servidor envia mensage
 
 ## Offline e bots
 
-Para os modos sem servidor não há lista: o mapa é escolhido no seletor da tela inicial (`#home-map`), junto com dificuldade e número de bots. Ver [[Menus]], [[Training]] e [[Versus Bots]].
+Para os modos sem servidor não há lista: o mapa é escolhido nos botões de mapa da aba Jogar (ou da landing, sem conta), junto com dificuldade e número de bots; no Campo de tiro, clicar no mapa já começa. Ver [[Menus]], [[Training]] e [[Versus Bots]].
 
 ## Código relacionado
 
-- `client/ui/home.ts` — `renderList`, `join`, handlers de `#home-online`, `#session-create`, `#home-back`, `closeReason`.
+- `client/ui/home.ts` — `renderPlay`, `renderLobby`, `connect`, `join`, handlers de `#home-quick`, `#home-more`, `#session-create-btn`, `closeReason`.
 - `client/net/connection.ts` — `Connection.open`, `next`, `hold`/`release`.
 - `shared/protocol.ts` — `SessionInfo`, mensagens `hello`/`welcome`/`sessions`/`join`/`create`/`joined`, `NET`, `CLOSE`.
 - `shared/maps.ts` — `MAP_IDS`, `MAPS[id].nome`.

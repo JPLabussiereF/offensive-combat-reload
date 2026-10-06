@@ -77,7 +77,7 @@ Cosméticos nunca mudam o jogo (comentário de `shared/catalog.ts`). Altura e bi
 - `shared/catalog.ts` (`SLOTS`, `REQUIRED_SLOTS`, `BIG_SLOTS`)
 - `shared/palette.ts` (`FAMILIES`, `snap`)
 - `client/entities/avatar.ts` (`appearanceToConfig`)
-- `client/ui/customize.ts` (editor e miniaturas)
+- `client/ui/customize.ts` (editor e miniaturas). O palco (`Stage`) e o retrato (`renderPortrait`) também mostram o personagem na tela inicial ([[Menus]]).
 - `client/render/viewmodel.ts` (`setBody`), `client/render/viewmodelArms.ts`
 
 ## Ver também
