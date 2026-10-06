@@ -215,6 +215,15 @@ export function addZombieStat(a: LiveAccount, s: ZStat) {
         z.bosses++;
         z[`${s.kind}Kills`]++;
       }
+      // Album: the Mayor's vote cancelled (below the belt), the Bride left at the altar again (a stab).
+      if (s.kind === 'prefeito' && s.how === 'groin') stickerAdd(a, 'voto-nulo');
+      if (s.kind === 'noiva' && s.how === 'knife') stickerAdd(a, 'divorcio');
+      return;
+    case 'chain':
+      stickerMax(a, 'churrasco-coletivo', s.kills);
+      return;
+    case 'board':
+      stickerAdd(a, 'marceneiro');
       return;
     case 'down':
       z.downs++;
@@ -235,6 +244,7 @@ export function addZombieStat(a: LiveAccount, s: ZStat) {
       z.matches++;
       if (s.won) z.wins++;
       z.bestWave = Math.max(z.bestWave, s.wave);
+      if (s.won && s.dead) stickerAdd(a, 'vitoria-do-alem');
       return;
   }
 }

@@ -75,7 +75,7 @@ export interface SPlayer {
   chatTokens: number;
   chatAt: number;
   /** Live grenades and mines, with the blast they had when thrown (upgrades can't grow it afterwards). */
-  grenades: Map<number, { thrownAt: number; fuse: number; impact: boolean; mine: boolean; origin: Vec3; speed: number; blast: GrenadeLevel }>;
+  grenades: Map<number, { thrownAt: number; fuse: number; impact: boolean; mine: boolean; origin: Vec3; speed: number; blast: GrenadeLevel; inHand: boolean }>;
   /** The dance going on: on which corpse, since when, and how much of the corpse's window was left then. */
   dance: { corpse: number; since: number; left: number } | null;
   /** Server time when the cherry's extra health runs out (0: none). */
@@ -101,6 +101,9 @@ export interface SPlayer {
   /** When the biscuit was last eaten, and whether health was low (30 or less) right before. */
   biscuitAt: number;
   biscuitLow: boolean;
+  /** The last player who hurt this one and when (null: none since the last death): a push off the map. */
+  lastHitBy: number | null;
+  lastHitAt: number;
 }
 
 /** Sticker album: the longest gap between two kills of a combo, and how long after the biscuit a kill counts. */
@@ -111,6 +114,10 @@ const SCOOBY_HEALTH = 30;
 const SPREE = 5;
 const GOLIATH_KILLS = 10;
 /** Sticker album: deaths with nobody to blame. */
+/** Sticker album: how soon after a hit a fall still counts as a push, a kill with this little health left, a laggy death. */
+const PUSH_MS = 5000;
+const LOW_HEALTH = 10;
+const LAG_MS = 250;
 const SELF_DEATH_STICKERS: Partial<Record<KillKind, string>> = { fall: 'gravidade', void: 'fora-do-mapa', dog: 'amora-mandou-lembrancas', explosion: 'tiro-no-pe' };
 
 interface Corpse extends CorpseInfo {
@@ -281,6 +288,8 @@ export class Session {
       lastOppressor: null,
       biscuitAt: 0,
       biscuitLow: false,
+      lastHitBy: null,
+      lastHitAt: 0,
     };
     // Fixed for the match in modes with a locked loadout (mata-mata: the account's Arsenal as it is now).
     p.loadout = p.loadoutBefore = this.mode.joinLoadout(p);
@@ -392,7 +401,9 @@ export class Session {
         const impact = !mine && !!msg.impact && grenade.impacto;
         const fuse = mine ? 0 : Math.max(0, Math.min(impact ? grenade.tempoMaximoVoo : grenade.pavio, msg.fuse));
         const speed = Math.hypot(msg.v[0], msg.v[1], msg.v[2]);
-        p.grenades.set(msg.id, { thrownAt: now, fuse, impact, mine, origin: msg.p, speed, blast: grenade.explosao });
+        // Cooked too long, it goes off in the hand: no fuse left, never thrown (an album sticker asks).
+        const inHand = !mine && !impact && fuse === 0 && speed === 0;
+        p.grenades.set(msg.id, { thrownAt: now, fuse, impact, mine, origin: msg.p, speed, blast: grenade.explosao, inHand });
         // A duck (the witch's potion) is only how it looks and sounds.
         this.broadcast({ t: 'grenade', owner: p.id, id: msg.id, p: msg.p, v: msg.v, fuse, impact, ...(mine ? { mine } : {}), ...(!mine && msg.duck === true ? { duck: true } : {}) }, p.id);
         return;
@@ -598,6 +609,8 @@ export class Session {
     // The mode's enemies the blast reached (zumbi), checked with the same tolerance as players.
     if (Array.isArray(msg.zs)) this.mode.blast?.(p, msg.p, msg.zs, g.blast);
     const seen = new Set<number>();
+    let kills = 0;
+    let self = false;
     for (const h of msg.hits.slice(0, NET.maxPlayers)) {
       const target = this.players.get(h?.target);
       if (!target || !target.alive || seen.has(target.id) || !finite(h.dist)) continue;
@@ -608,6 +621,16 @@ export class Session {
       const raw = explosionDamage(g.blast, h.dist);
       const dmg = target === p ? raw : clampExplosionDamage(g.blast, raw, target.health);
       if (dmg > 0) this.damage(target, target === p ? null : p, dmg, target === p ? 'explosion' : 'grenade', msg.p, [], target === p ? null : 'granada');
+      if (!target.alive) {
+        if (target === p) self = true;
+        else kills++;
+      }
+    }
+    // Sticker album: several with one grenade, the one that went off in the hand, taking them with you.
+    if (kills) {
+      stickerMax(p.conn.account, 'strike', kills);
+      if (g.inHand) stickerAdd(p.conn.account, 'abraco-de-urso');
+      if (self) stickerAdd(p.conn.account, 'kamikaze');
     }
   }
 
@@ -656,6 +679,10 @@ export class Session {
     const dealt = Math.min(target.health, amount);
     target.health -= dealt;
     target.lastDamageAt = this.now();
+    if (attacker && attacker !== target) {
+      target.lastHitBy = attacker.id;
+      target.lastHitAt = target.lastDamageAt;
+    }
     this.broadcast({ t: 'damage', target: target.id, attacker: attacker?.id ?? null, amount: dealt, health: target.health, from });
     if (target.health > 0) return;
     // The mode may take over instead of a death (zumbi: down, waiting for a revive).
@@ -686,6 +713,11 @@ export class Session {
     // Sticker album: dying on your own (a fall, the void, the dog, your own grenade).
     const own = attacker && attacker !== victim ? null : SELF_DEATH_STICKERS[kind];
     if (own) stickerAdd(victim.conn.account, own);
+    // ...and whoever hit them a moment before gets the credit for the push (not for their own grenade).
+    const pusher = victim.lastHitBy !== null && (kind === 'fall' || kind === 'void' || kind === 'dog') && now - victim.lastHitAt <= PUSH_MS ? this.players.get(victim.lastHitBy) : undefined;
+    if (pusher && pusher !== victim) stickerAdd(pusher.conn.account, 'empurraozinho');
+    victim.lastHitBy = null;
+    if (victim.ping > LAG_MS) stickerAdd(victim.conn.account, 'rip-lag');
     if (attacker && attacker !== victim) {
       awards.push({ label: 'kill', value: SCORE.kill }, ...bonus);
       const points = awards.reduce((s, a) => s + a.value, 0);
@@ -744,6 +776,7 @@ export class Session {
     }
     if (spree >= SPREE) stickerAdd(acct, 'estraga-sequencia');
     if (dancing) stickerAdd(acct, 'estraga-prazer');
+    if (a.alive && a.health <= LOW_HEALTH) stickerAdd(acct, 'com-um-pe-na-cova');
     if (a.humanity) stickerAdd(acct, 'humanidade-restaurada');
     if (a.boostUntil > now) stickerAdd(acct, 'cereja-do-bolo');
     if (a.potion?.kind === 'bebado' && a.potion.until > now) stickerAdd(acct, 'saude-hic');

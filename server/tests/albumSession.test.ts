@@ -187,6 +187,50 @@ describe('figurinhas próprias numa sessão (relógio falso)', () => {
     room.dispose();
   });
 
+  it('proezas com granada: explodiu na mão, levou dois e morreu junto (Abraço de Urso, Strike!, Kamikaze)', () => {
+    const room = new Room('mata-mata');
+    const A = room.join();
+    const B = room.join();
+    const C = room.join();
+    for (const s of [A, B, C]) room.p(s).health = 50;
+    // Cooked too long: no fuse left, never thrown. It goes off at A's chest, everyone at the same spot.
+    room.send(A, { t: 'grenade', id: 1, p: [0, 1, 0], v: [0, 0, 0], fuse: 0 });
+    const at = [0, room.p(A).state.p[1] + 1.2, 0];
+    const dist = (s: Stub) => Math.hypot(at[1] - (room.p(s).state.p[1] + 1.2));
+    room.send(A, { t: 'boom', id: 1, p: at, hits: [B, C, A].map((s) => ({ target: s.conn.id, dist: dist(s) })) });
+    expect([B, C, A].map((s) => room.p(s).alive)).toEqual([false, false, false]);
+    expect(room.own(A)).toMatchObject({ 'abraco-de-urso': 1, strike: 2, kamikaze: 1, 'tiro-no-pe': 1 });
+    room.dispose();
+  });
+
+  it('empurrãozinho (até 5 s), com um pé na cova e R.I.P. LAG', () => {
+    const room = new Room('mata-mata');
+    const A = room.join();
+    const B = room.join();
+    const hurt = (from: Stub, to: Stub) => (room.session as unknown as { damage: Function }).damage(room.p(to), room.p(from), 10, 'gun', null, [], 'rifle');
+    // A shoots B, B falls to their death 2 s later: A's push.
+    hurt(A, B);
+    room.t += 2000;
+    room.send(B, { t: 'selfDamage', amount: 9999, cause: 'fall' });
+    expect(room.own(A)).toMatchObject({ empurraozinho: 1 });
+    // Too late (6 s): just a fall.
+    room.t += 6000;
+    room.spawn(B);
+    hurt(A, B);
+    room.t += 6000;
+    room.send(B, { t: 'selfDamage', amount: 9999, cause: 'void' });
+    expect(room.own(A).empurraozinho).toBe(1);
+    // A kills with 5 health left; B dies with 300 ms of ping.
+    room.t += 6000;
+    room.spawn(B);
+    Object.assign(room.p(A), { health: 5 });
+    Object.assign(room.p(B), { ping: 300 });
+    room.kill(A, B);
+    expect(room.own(A)).toMatchObject({ 'com-um-pe-na-cova': 1 });
+    expect(room.own(B)).toMatchObject({ 'rip-lag': 1 });
+    room.dispose();
+  });
+
   it('corrida armada: rebaixar na faca, vencer, e vencer sem morrer', () => {
     const room = new Room('corrida-armada');
     const A = room.join();

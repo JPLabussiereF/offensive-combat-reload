@@ -74,6 +74,9 @@ export interface Sticker {
   nome: Text;
   /** How to get it: {meta} is the next target; {one|many} picks the word by it ("{vez|vezes}"). */
   como: Text;
+  /** A hidden sticker: "???" and only `dica` (a hint) until it's stuck in. */
+  oculta?: boolean;
+  dica?: Text;
 }
 
 export const PAGES = data.paginas as AlbumPage[];
@@ -151,6 +154,9 @@ export const titlesOf = (states: StickerState[]) =>
     return t.total > 0 && t.done === t.total;
   }).map((p) => p.id);
 
+/** A hidden sticker not stuck in yet: the album shows "???" and its hint. */
+export const isHidden = (st: StickerState) => !!st.sticker.oculta && st.tier === 0;
+
 /** A sticker can be shown once it's stuck in (any finish). */
 export const canFeature = (states: StickerState[], id: string) => states.some((s) => s.sticker.id === id && s.tier > 0);
 
@@ -211,6 +217,7 @@ export function albumProblems(): string[] {
     if (s.itens && (s.fonte !== 'propria' || !s.itens.length || new Set(s.itens.map((i) => i.id)).size !== s.itens.length)) out.push(`${s.id}: itens só em fonte própria, sem repetir`);
     if (s.itens && s.tipo !== 'recorde') out.push(`${s.id}: coleção é recorde (sem repetidas)`);
     for (const i of s.itens ?? []) if (!i.nome?.pt || !i.nome?.en) out.push(`${s.id}: item ${i.id} sem nome`);
+    if (s.oculta && (!s.dica?.pt || !s.dica?.en)) out.push(`${s.id}: oculta precisa de dica em pt e en`);
     if (s.tipo !== 'contador' && s.tipo !== 'recorde') out.push(`${s.id}: tipo ${s.tipo}`);
     if (s.metas.length < 1 || s.metas.length > FINISHES.length) out.push(`${s.id}: de 1 a ${FINISHES.length} metas`);
     if (s.metas.some((m, i) => !Number.isInteger(m) || m <= 0 || (i > 0 && m <= s.metas[i - 1]))) out.push(`${s.id}: metas devem crescer`);

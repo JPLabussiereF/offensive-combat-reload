@@ -25,7 +25,7 @@ As conquistas são um **álbum de figurinhas**. Cada figurinha tem **um desenho*
 - Um **contador** (abates, opressões, reanimações...) continua contando depois da Dourada, e cada nova volta inteira na última meta aparece como **repetidas** (×2, ×3...).
 - Um **recorde** (nível da conta, melhor onda, armas no máximo) termina na Dourada.
 
-Proposta completa e fases na issue #25 do repositório. Este documento descreve o que existe hoje: a **fase 1** (figurinhas derivadas das estatísticas), a **fase 2** (contadores próprios e o aviso no jogo) e a **fase 3** (figurinha em destaque e títulos que os outros veem). São 43 figurinhas em 8 páginas.
+Proposta completa e fases na issue #25 do repositório. Este documento descreve o que existe hoje: a **fase 1** (figurinhas derivadas das estatísticas), a **fase 2** (contadores próprios e o aviso no jogo) e a **fase 3** (figurinha em destaque e títulos que os outros veem). Com a fase 2b, são 56 figurinhas em 9 páginas.
 
 ## Fase 1: figurinhas derivadas
 
@@ -91,6 +91,24 @@ Figurinhas com `fonte: "propria"`: o servidor conta no momento do evento (`stick
 
 Os eventos ficam em `server/session.ts` (`albumKill`, `albumHumiliation`, `onPickup`, `onPotion`, `onFish`, mortes sem assassino em `kill`) e em `server/modes.ts` (corrida armada). Sequência e combo são de jogador contra jogador; zerados na morte e na rodada nova. Algumas condições usam dados que o cliente informa (queda, vazio e Amora são `selfDamage`), como o resto do jogo ([[ADR - Movimento confiado ao cliente]]).
 
+## Fase 2b: proezas, zumbi, secretas
+
+| Página | Figurinha | Como conta (servidor) | Tipo | Metas |
+| --- | --- | --- | --- | --- |
+| Proezas | Abraço de Urso 🔒 | matar alguém com uma granada que explodiu na mão (registrada com pavio 0 e velocidade 0: `inHand`) | contador | 1 · 3 · 5 |
+| Proezas | Kamikaze 🔒 | a própria granada mata alguém e você junto | contador | 1 · 5 · 10 |
+| Proezas | Strike! | jogadores mortos por uma granada só (recorde) | recorde | 2 · 3 · 4 |
+| Proezas | Empurrãozinho | alguém que você acertou morre de queda, no vazio ou para a Amora em até 5 s (`lastHitBy`, `lastHitAt`) | contador | 1 · 5 · 10 · 20 |
+| Proezas | Com um Pé na Cova | matar com 10 de vida ou menos | contador | 1 · 5 · 15 · 30 |
+| Zumbi | Voto Nulo 🔒 | golpe final no Prefeito com tiro no pássaro | recorde | 1 |
+| Zumbi | Divórcio 🔒 | golpe final na Noiva com a faca | recorde | 1 |
+| Zumbi | Churrasco Coletivo | zumbis levados por uma explosão de Tio do Churrasco que você matou (`ZStat` `chain`, recorde) | recorde | 3 · 5 · 8 |
+| Zumbi | Vitória do Além 🔒 | vencer a partida estando morto (`end.dead`) | recorde | 1 |
+| Zumbi | Marceneiro | barricadas erguidas e tábuas pregadas (`ZStat` `board`) | contador | 10 · 50 · 200 · 500 |
+| Vexames | R.I.P. LAG 🔒 | morrer com ping acima de 250 ms | recorde | 1 |
+
+🔒 = **secreta** (`oculta`): até ser colada, o cartão mostra "❓ ???" e o detalhe só a `dica`. Ao ser descoberta, o aviso diz "🔓 Figurinha secreta descoberta". A página Proezas dá o título **Lenda Urbana**.
+
 ## Aviso no jogo
 
 O `LiveAccount` guarda os totais e os contadores próprios da última gravação (`profile.totals`, `profile.album`); com o delta ainda não gravado, são os números ao vivo (`liveSources`, `liveOwn`). Uma vez por segundo, no `tick` da sessão, `stickerUps` compara o acabamento de cada figurinha com o que o jogador já sabe (`stickerTiers`, calculado no login) e manda `figurinha {id, nivel}` só ao dono. Vale para todas, derivadas e próprias, inclusive as do zumbi. O cliente mostra a faixa "🎯 Figurinha Brilhante: Na Testa!" (uma por vez, em fila) com o som de subir de nível. Repetidas não geram aviso.
@@ -107,6 +125,7 @@ O "calling card" do jogo: cada jogador escolhe **uma figurinha em destaque** (qu
   | Jeitos de matar | Ameaça do Bairro |
   | Opressão | Opressor-Mor |
   | Sequências | Imparável |
+  | Proezas | Lenda Urbana |
   | Cardápio | Chef da Vizinhança |
   | Corrida Armada | Piloto de Fuga |
   | Zumbi | Caça-Zumbis |
@@ -157,7 +176,6 @@ O "calling card" do jogo: cada jogador escolhe **uma figurinha em destaque** (qu
 ## Ainda não existe (fases seguintes da proposta)
 
 - **Molduras** para a figurinha em destaque e uma **dancinha nova** para o álbum completo (as recompensas por página hoje são só os títulos).
-- Figurinhas ocultas.
 - Datas em que cada acabamento foi pego (só o número é guardado).
 
 ## Notas relacionadas
