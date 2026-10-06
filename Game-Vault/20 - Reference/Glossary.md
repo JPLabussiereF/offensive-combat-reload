@@ -1,0 +1,169 @@
+---
+title: Glossary
+type: reference
+status: documented
+area: reference
+source_paths:
+  - shared/constants.ts
+  - shared/protocol.ts
+  - shared/maps.ts
+  - shared/weapons.ts
+  - shared/progression.ts
+  - client/main.ts
+  - server/session.ts
+  - server/app.ts
+tags:
+  - game
+  - reference
+  - glossary
+updated: 2026-10-05
+---
+
+# Glossário
+
+Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no código** e o significado. Organizado por área; dentro de cada área, por ordem alfabética.
+
+## Jogo (termos que o jogador vê)
+
+| Termo exibido | No código | Significado | Nota |
+|---|---|---|---|
+| Arsenal | `arsenal.ts`, `Loadout` | Tela para equipar os níveis liberados de rifle, faca e granada | [[Progression]] · [[Menus]] |
+| Banner | `hud.showBanner` | Texto grande animado (NO PÁSSARO!, OPRIMIDO!, nível) | [[Notifications]] |
+| Beber Poção | prompt `promptPotion` | Ação da tecla de contexto perto da bruxa | [[Interaction System]] |
+| Biscoito Scooby | `biscoito` | Coletável da Vila Assombrada: cura total; aparece com o armário da cozinha aberto | [[Pickups]] |
+| Campo de tiro / Treino | `mode: 'offline'`, `variant: 'range'` | Modo offline com bonecos | [[Training]] |
+| Carpa dourada / Mira afiada | `goldenKoi`, `KOI`, `galleryAim` | Bônus de dispersão ×0,5 e recuo ×0,6 por 60 s (carpa dourada do Jardim ou último alvo do tiro ao alvo da Vila) | [[Buffs & Debuffs]] |
+| Cereja do Dragão | `cereja`, `CHERRY` | Coletável do Jardim: +50 de vida máxima por 30 s | [[Pickups]] |
+| Contra bots | `mode: 'bots'` | Modo offline contra bots (`facil`/`normal`/`dificil`) | [[Versus Bots]] |
+| Cozinhar | `cookT` | Segurar G com o pino tirado; depois de 3 s a granada explode na mão | [[Grenades]] |
+| Dancinha da Vitória | `taunt`, `danceMusic` | A dança da Opressão (3,2 s, funk de 150 bpm) | [[Humiliation]] |
+| Dose Dupla | granada nível 3, `tipo: 'dupla'` | Duas granadas por carga, com 0,3 s entre elas | [[Grenades]] |
+| Frases rápidas | `QUICK_CHAT` | Mensagens de chat de um toque no celular | [[Chat]] |
+| Granada de pato | poção `pato` | Visual e som de pato de borracha nas granadas, sem efeito de jogo | [[Buffs & Debuffs]] |
+| Humanidade | `humanity`, `RAT.extraHealth` | +50 de vida máxima até morrer, por derrubar o rato gigante | [[Buffs & Debuffs]] |
+| Investida | `lunge` | Avanço da faca até o alvo próximo | [[Melee]] |
+| Kill feed | `hud.killfeed` | Linhas "Matador [arma] ícone Vítima" | [[HUD]] |
+| Mata-mata livre | `Session`, `spawnsFFA` | Modo online cada um por si | [[Free For All]] |
+| Mina Terrestre | granada nível 2, `tipo: 'mina'` | Mina plantada com G; arma em 1 s, no máximo 3 por jogador | [[Land Mines]] |
+| Modo PCD | membro ausente na aparência | Sem um membro: recarga ×1,3 ou velocidade ×0,75, e o membro não tem hitbox | [[Character Customization]] |
+| No pássaro! | região `virilha`, kind `groin` | Tiro na virilha: morte instantânea, +100 pontos | [[Damage System]] · [[Scoring]] |
+| Oprimir / Opressão (en: Humiliation) | `taunt`, `humiliation`, `HUMILIATION` | Dançar sobre um corpo até 6 s depois da morte; vale 150 pontos. Coluna "Opress." no placar e faixa OPRIMIDO! | [[Humiliation]] |
+| Pelas costas | `backstab`, `behind` | Bônus de +50 da faca atacando por trás | [[Melee]] · [[Scoring]] |
+| Poções da bruxa | `POTION`, `pato`/`veloz`/`lerdo`/`critico`/`bebado` | Efeito sorteado, uma poção por minuto | [[Buffs & Debuffs]] |
+| Prompt | `hud.setPrompt` | Dica de ação ("Oprimir {nome}", "Beber Poção") | [[HUD]] |
+| Sala / Sessão | `Session` | Uma partida online; ≠ sessão de login (cookie `oc_sessao`) | [[Sessions]] |
+| Sala permanente | ids `principal` (rua), `jardim`, `halloween` | Uma sala fixa por mapa | [[Sessions]] · [[Matchmaking]] |
+
+## Mapas
+
+| Termo | Significado | Nota |
+|---|---|---|
+| `rua` / Rua dos Vizinhos | Mapa padrão (`DEFAULT_MAP`), de dia | [[Map - Rua dos Vizinhos]] |
+| `jardim` / Jardim do Dragão | Propriedade chinesa noturna com 6 setores em volta do anel | [[Map - Jardim do Dragão]] |
+| `halloween` / Vila Assombrada | Cidade de Halloween com 8 regiões e esgoto | [[Map - Vila Assombrada]] |
+| `principal` | Id da sala fixa da Rua (legado de quando só existia a rua) | [[Sessions]] |
+| Amora | Chow Chow da Rua; quem entra na faixa em frente à casinha morre com uma mordida | [[Map - Rua dos Vizinhos]] |
+| Anel | Corredor entre a Casa Principal e os setores do Jardim | [[Map - Jardim do Dragão]] |
+| Setores do Jardim | Santuário Ancestral, Jardim de Bonsai, Lago de Lótus, Pátio das Lanternas, Pátio dos Guerreiros, Vale do Bambu | [[Map - Jardim do Dragão]] |
+| Regiões da Vila | Floresta, Estrada Maldita, Cemitério, Mansão, Vila, Parque, Praça da Lua Cheia, Esgoto | [[Map - Vila Assombrada]] |
+| `killY` / void | Altura abaixo da qual se morre por queda (−20 nos mapas em código, −10 na arena) | [[World Structure]] |
+| `spawnsA` / `spawnsB` / `spawnsFFA` | Pontos de nascimento: lado A (treino), lado B (sem uso), neutros (online e bots) | [[Spawn Design]] |
+| `?mapa=` | Parâmetro de URL que abre a prévia de um `.glb` | [[Map - Arena Teste (glTF)]] |
+| Convenções glTF (`COL_`, `NOCOL`, `SPAWN_A_`/`SPAWN_B_`/`SPAWN_FFA_`, `DUMMY_`, `KILLVOLUME`, `GAG_`, `MAT_<superfície>`) | Nomes de objetos no Blender que viram colisores, spawns, bonecos, zona de morte, piadas e materiais | [[Asset Pipeline]] |
+| `blocker` / `ironFence` | Barreiras que param jogadores e granadas, mas não balas | [[Cover & Combat Spaces]] |
+| `critters` | Coisas pequenas que tiro e faca acertam sem colisor próprio (carpas, frutas, rato, abóboras) | [[Interactive Objects]] |
+| `gentle` | Escada com degraus extras para ficar abaixo de 45° | [[ADR - Escadas com colisão em rampa sólida]] |
+| `seeded` | Gerador aleatório com semente: a colisão sai idêntica em todos os clientes | [[ADR - Aleatoriedade com semente na construção dos mapas]] |
+
+## Combate e dados
+
+| Termo | Significado | Nota |
+|---|---|---|
+| Bloom (`porTiro`) | Dispersão acumulada a cada tiro | [[Weapons]] |
+| `keep` | Fração do dano que sobra depois de atravessar superfícies (penetração) | [[Damage System]] |
+| `KillKind` | Causa da morte: `gun`, `head`, `groin`, `knife`, `grenade`, `fall`, `void`, `explosion`, `dog` | [[Scoring]] |
+| `LETHAL_DAMAGE` | 9999: dano que mata qualquer um | [[Constants Reference]] |
+| Prêmio (`Award`, `AwardLabel`) | Bônus de pontos de um abate | [[Scoring]] |
+| Traçante (`tracanteACada`) | Um traçante a cada N tiros (3) | [[Visual Effects]] |
+| Luneta / scoped | Mira ampliada com overlay em CSS | [[Camera]] |
+| XP de arma / XP da conta | `weapon_progress.xp` por arma; `ACCOUNT_XP` e `nivel_conta.json` para a conta | [[Progression]] |
+
+## Rede e servidor
+
+| Termo | Significado | Nota |
+|---|---|---|
+| `NET` | Constantes de rede: tick e envio a 20 Hz, interpolação de 100 ms, 10 jogadores, respawn 5 s, porta 8787, `/ws` | [[Networking Overview]] |
+| `ClientMsg` / `ServerMsg` | Uniões das mensagens JSON do WebSocket, identificadas pelo campo `t` | [[Remote Calls]] |
+| `snap` / `scores` / `joined` / `progresso` | Snapshot de todos os jogadores (20 Hz) / placar (1 Hz) / estado completo para quem entra / XP e níveis da conta | [[Replication]] |
+| Ticket do WebSocket | Token de uso único, 30 s, Redis `ws:ticket:<sha256>`, obtido em `POST /api/ws-ticket` | [[ADR - Ticket de uso único para o WebSocket]] |
+| `CLOSE.revoked` (4001) / `CLOSE.replaced` (4002) | Conexão revogada / mesma conta conectada em outro lugar | [[Sessions]] |
+| `LAG_SLACK` / `PICKUP_SLACK` | Folga de 4 m (+10%) nos acertos / 1,5 m para pegar itens | [[Validation]] |
+| `serverNow` | Relógio do servidor estimado pelo cliente a partir do ping | [[Synchronization]] |
+| `hold()` / `release()` | Enfileira as mensagens do servidor enquanto o mapa carrega | [[Events & Messaging]] |
+| `LiveAccount` / `ProgressDelta` / flush | Perfil em memória / ganho ainda não gravado / gravação no banco a cada 60 s ou ao sair | [[Save System]] |
+| Participação (`session_participation`) | Uma estadia numa sala: o equivalente persistido de "partida" | [[Player Data]] |
+| Tag `Nome#1234` / discriminator | Nome exibido mais um número de 1 a 9999; único ignorando maiúsculas | [[Player Data]] |
+| `oc_sessao` | Cookie HttpOnly da sessão de login (30 dias deslizantes; o banco guarda o SHA-256) | [[Authentication]] |
+| `oc:revogacao` / `oc:silencio` | Canais Redis de revogação de conexão e de silêncio do chat | [[Events & Messaging]] |
+| Sanção (`ban`, `chat_mute`) | Punição na tabela `sanction` (7d, 12h, 30m ou permanente) | [[Moderation]] |
+| `admin` / `offensive` | Console de moderação (`tools/admin.ts`) / CLI que sobe a pilha Docker (`tools/offensive.ts`) | [[Moderation]] · [[Local Development]] |
+| BFF | O servidor guarda a sessão; o navegador nunca vê o token | [[ADR - Sessão em cookie HttpOnly com servidor como BFF]] |
+| Carência de exclusão | 30 dias antes de anonimizar a conta ("Jogador excluído") | [[Sensitive Data]] |
+| `outbox` | Fila de e-mails em memória quando não há SMTP (o link vai para o log) | [[External Services]] |
+| `ORIGENS_PERMITIDAS` / `DISCORD_RETORNOS` | Origens extras aceitas / URLs de retorno do OAuth do Discord | [[Configuration Reference]] |
+
+## Código e arquitetura
+
+| Termo | Significado | Nota |
+|---|---|---|
+| `boot()` | Função de `client/main.ts` que monta e roda o cliente inteiro | [[Client Architecture]] |
+| `startServer()` | Função de `server/app.ts` que monta o servidor (Bun.serve, lobby, flush, Redis) | [[Server Architecture]] |
+| `Conn` / `Peer` / `SPlayer` | Conexão de socket / dados presos ao socket / jogador dentro de uma sala (servidor) | [[Server Architecture]] |
+| `HomeChoice` | O que a tela inicial devolve: `offline`, `bots` ou `online` | [[Client Architecture]] |
+| `GameMap` / `MapFrame` | Contrato que todo mapa devolve / informações por quadro passadas ao mapa | [[World Structure]] |
+| `MapBuilder` / célula | Construtor de mapas que funde geometria por (material, célula de 40/45/60 m) e cria colisores | [[ADR - Lotes estáticos por material e célula]] |
+| `PropBus` | Registro que sincroniza piadas de mapa (gatilho local → mensagem `prop` → `remote`) | [[Map Gags]] · [[Events & Messaging]] |
+| `Target` / `Humiliable` / `HitboxRegistry` / `Combatant` | Contratos que o código de combate usa nos 3 modos | [[Client Architecture]] |
+| `BotManager` / `Bot` / `BOT_SKILLS` / `NavMap` | Gerente da partida contra bots / um bot / tabela de dificuldades / navmesh Recast | [[AI Overview]] |
+| Modos do bot (`roam`, `engage`, `chase`, `flee`, `toTaunt`, `taunt`) | Estados de comportamento dos bots | [[States]] |
+| `GrenadeThrower` | A mão do jogador como máquina de estados (cozinhar, arremessar, recarga) | [[Controllers]] |
+| `SIM` | Passo fixo da simulação (1/60 s, até 5 passos por quadro) | [[ADR - Simulação em passo fixo com render interpolado]] |
+| `FLAG` | Bits de animação enviados junto com o estado | [[Replication]] |
+| `HttpError` / `ApiError` / `ApiErrorCode` | Códigos de erro estáveis em snake_case português | [[Error Handling]] |
+| `oc.settings.v1` / `oc.bots` | Chaves do `localStorage`: preferências / opções do modo bots | [[Settings]] · [[Save System]] |
+| `__oc` | Handle de depuração no `window`, só em dev (perf, stats, trace) | [[Troubleshooting]] |
+| F3 / F4 / F6 | Overlay de depuração / hitboxes e navmesh / painel de ajuste | [[Troubleshooting]] |
+| PadNav | Navegação dos menus pelo controle | [[Input & Controls]] |
+| Primária / Alternativa | Os dois espaços de tecla de cada ação | [[ADR - Teclas remapeáveis com primária e alternativa]] |
+
+## Renderização e arte
+
+| Termo | Significado | Nota |
+|---|---|---|
+| Viewmodel | Braços e arma em 1ª pessoa, em cena e câmera próprias (FOV 58°) | [[ADR - Viewmodel em cena e câmera próprias]] |
+| `VM_FEEL` / `ANIM` | Números de "sensação" da 1ª pessoa (balanço, recuo...) / da animação procedural em 3ª pessoa | [[Animation]] |
+| Superfície (`SurfaceKey`) | Chave da biblioteca de materiais do mapa (20 chaves): textura, repetição em metros e física | [[Materials]] · [[Material Palette]] |
+| Tint | Cor por vértice que multiplica a textura | [[ADR - Texturas procedurais claras tingidas por vértice]] |
+| Pintor (`PAINTERS`) / `metros` / `tingir` | Função que pinta a textura em canvas / tamanho de uma repetição / campo do `manifest.json` | [[Procedural Textures]] · [[Texture System]] |
+| `toonGradient` | Rampa toon de 3 tons [95, 175, 255] | [[ADR - Toon shading com rampa de 3 tons]] |
+| Atmosphere / `shadowExtent` | Céu, névoa e luzes de um mapa / meia-largura da câmera de sombra | [[Lighting]] |
+| `LightSpot` / `LightPool` / `LanternLights` | Pontos de luz e o pool fixo de luzes reais (6 no Jardim, 10 na Vila) | [[ADR - Pool fixo de luzes reais]] |
+| Glow | Mesh único, sem iluminação, das coisas acesas | [[Lighting]] |
+| Bake (personagem) | Fusão do personagem num SkinnedMesh com cores nos vértices e 3 LODs | [[ADR - Personagem bakeado em um mesh com LOD]] |
+| Atlas de paleta / canais P/S/D / `_TINT` / `_REGION` | Textura 256² dos personagens / cores primária, secundária e detalhe / atributos de canal e região do corpo | [[Character Customization]] |
+| Qualidade automática | Baixa/média/alta mais resolução dinâmica (piso 45 FPS, meta 57) | [[ADR - Qualidade automática com resolução dinâmica]] |
+
+## Áudio
+
+| Termo | Significado | Nota |
+|---|---|---|
+| `Sfx` | Motor de som procedural (Web Audio) | [[SFX]] |
+| `SPATIAL_KINDS` (`gun`, `boom`, `step`, `normal`, `loud`, `ambient`) | Categorias de propagação do som (alcance, eco, prioridade) | [[Spatial Audio]] |
+| Oclusão | Abafamento atrás de paredes, por raycast, com peso por material (papel 0,25, vidro 0,35, madeira 0,7, resto 1) | [[Spatial Audio]] |
+| Enclosure | Medida de 0 a 1 de quão fechado é um ponto (controla o eco) | [[Spatial Audio]] |
+| `BodySounds` | Passos, pouso, deslize e recarga dos outros, deduzidos do movimento replicado | [[SFX]] |
+| HRTF "Fone (3D)" / equalpower "Caixa de som (estéreo)" | Modos de som espacial; "Automático" usa estéreo no celular | [[Spatial Audio]] |
+
+## Documentos citados no código e ausentes do repositório
+
+O código cita um "documento de design (seção N)", um "Guia de Estilo de Personagens", o `README_Halloween.md` e um "plano de autenticação (P27)". Nenhum deles está no repositório; ver [[Documentation Status]].

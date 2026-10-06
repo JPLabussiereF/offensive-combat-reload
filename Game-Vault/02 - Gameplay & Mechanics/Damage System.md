@@ -1,0 +1,155 @@
+---
+title: Damage System
+type: system
+status: documented
+area: gameplay
+source_paths:
+  - shared/weapons.ts
+  - shared/data/weapons/rifle_padrao.json
+  - shared/data/weapons/granada_frag.json
+  - client/entities/hitboxes.ts
+  - client/entities/rig.ts
+  - client/weapons/hitscan.ts
+  - client/main.ts
+  - client/entities/localPlayer.ts
+  - server/session.ts
+  - shared/protocol.ts
+tags:
+  - game
+  - gameplay
+  - combat
+  - damage
+updated: 2026-10-05
+---
+
+# Damage System
+
+Nota central de **todas as fórmulas de dano**. Outras notas ([[Weapons]], [[Melee]], [[Grenades]], [[Combat]]) apontam para cá.
+
+> [!info] Evidência
+> Código confirmado: `shared/weapons.ts` (fórmulas compartilhadas por cliente e servidor), `server/session.ts` (aplicação autoritativa online), `client/entities/hitboxes.ts` (zonas).
+
+## Objetivo
+
+Transformar um acerto (bala, faca, explosão, queda, mapa) em perda de vida de forma idêntica offline, contra bots e online, com o servidor como autoridade online.
+
+## Tipos de dano (`KillKind`)
+
+| Tipo | Origem | Dano |
+|---|---|---|
+| `gun` | rifle no corpo | fórmula do rifle |
+| `head` | rifle na cabeça | fórmula do rifle (×2,5) |
+| `groin` | rifle na virilha | **morte instantânea** (9999) |
+| `knife` | faca | **morte instantânea** (`letal: true`) |
+| `grenade` | granada/mina de outro | fórmula de explosão |
+| `explosion` | sua própria granada/mina | fórmula de explosão (sem proteção) |
+| `fall` | queda > 6 m | `round((h − 6) × 15 + 10)` |
+| `void` | cair abaixo do `killY` do mapa | 9999 |
+| `dog` | mordida da Amora ([[Map - Rua dos Vizinhos]]) | 9999 |
+
+`LETHAL_DAMAGE = 9999`.
+
+## Rifle: fórmula
+
+```
+dano = max(1, round( danoPorDistância(dist) × multiplicador[região] × keep ))
+```
+
+1. **Queda por distância** (`damageAtDistance`): dano máximo até `distMax` (20 m), interpolação linear até o mínimo em `distMin` (45 m), mínimo depois disso. Nível 1: 30 → 20. A distância é o caminho total da bala, incluindo superfícies atravessadas.
+2. **Multiplicador por região** (nível 1, `rifle_padrao.json`):
+
+| Região (`HitRegion`) | Multiplicador | Dano nível 1 a ≤ 20 m |
+|---|---|---|
+| `cabeca` | 2,5 | 75 |
+| `pescoco` | 1,5 | 45 |
+| `peito` | 1,0 | 30 |
+| `abdomen` | 1,0 | 30 |
+| `quadril` | 0,9 | 27 |
+| `bracos` | 0,75 | 23 (22,5 arredondado) |
+| `maos` | 0,5 | 15 |
+| `coxas` | 0,75 | 23 |
+| `canelas` | 0,6 | 18 |
+| `virilha` | — | 9999 (instantâneo) |
+
+3. **`keep`** (penetração): produto das frações de cada superfície atravessada (madeira 0,6, vidro 0,9, papel 0,95; até 2 superfícies). Menor `keep` possível do rifle = 0,6² = 0,36.
+4. **Virilha ignora tudo**: mata mesmo atravessando madeira.
+5. **Poção do crítico**: enquanto ativa, todo tiro do jogador é calculado como `cabeca` (o acerto continua contando onde caiu para pontos). Ver [[Buffs & Debuffs]].
+
+## Hitboxes
+
+15 formas (esferas/cápsulas) presas aos ossos do esqueleto canônico, **iguais para todos os corpos** e independentes de roupas/altura (decisão em [[ADR - Altura e biotipo apenas visuais]]):
+
+- Cabeça: esfera de 12 cm × 1,12 (10–15% maior que a visual, para tiros de raspão contarem).
+- Pescoço, peito, abdômen, quadril: cápsulas.
+- Braços (braço + antebraço por lado), mãos (esfera), coxas, canelas.
+- **Virilha**: caixa no espaço do osso do quadril; um acerto em `quadril`, `abdomen` ou `coxas` que cai dentro dela é reclassificado como `virilha` ("No pássaro!") por `refineRegion`.
+- Modo PCD: membro ausente não tem hitbox (sem perna fica só o coto da coxa).
+- As poses (agachar, mirar, recarregar, dançar, slide) movem as hitboxes; F4 as mostra (virilha em amarelo). Ver [[Character Models]].
+
+## Faca
+
+`letal: true` ⇒ 9999 em qualquer acerto válido. Se algum dia `letal` for `false`, o código usa 55 fixo. Detalhes de alcance em [[Melee]].
+
+## Explosão (granada e mina)
+
+```
+dist ≤ raioDanoMaximo (2,5 m) → 85
+2,5 m < dist ≤ raioDano (7 m) → interpolação linear 85 → 12 (arredondado)
+dist > 7 m → 0
+```
+
+- A distância é medida da explosão a 3 pontos do corpo (pés + 0,3 m, 1,1 m e 1,6 m), usando o mais próximo **com linha livre** (paredes bloqueiam). Se todos estão bloqueados, não há dano.
+- `podeMatar: false` limitaria o dano a deixar o alvo com ≥ 1 HP — **só protege os outros, nunca o lançador**. O nível 1 atual tem `podeMatar: true` (ver [[Problem - Comentários dizem que a granada nível 1 não é letal]]).
+- Online, o servidor sempre usa o nível de granada `ONLINE_GRENADE_LEVEL = 1` (único nível de dano existente). Os tipos da progressão (mina, dupla) mudam o **comportamento**, não o dano.
+
+## Fluxo autoritativo online
+
+```mermaid
+sequenceDiagram
+    participant A as Cliente atirador
+    participant S as Servidor (Session)
+    participant V as Cliente vítima
+    A->>A: traceShot local (hitboxes interpoladas 100 ms no passado)
+    A->>S: hit {target, region, dist, keep}
+    S->>S: valida vivo, região, cadência, distância, keep
+    S->>S: computeDamage (crítico se poção)
+    S-->>V: damage {amount, health, from}
+    S-->>A: damage (broadcast)
+    alt vida ≤ 0
+        S-->>A: kill {kind, awards, corpse}
+        S-->>V: kill
+    end
+```
+
+Validações do servidor (`server/session.ts`):
+
+| Ação | Verificação |
+|---|---|
+| `hit` | atirador e alvo vivos; região válida; ≤ `ceil(cadência/60) + 2` acertos por segundo; distância servidor (olho 1,6 m → peito 1,1 m) ≤ alcance e `|servidor − relatado| ≤ 4 m + 10%`; `keep` limitado a [0,36; 1] |
+| `stab` | intervalo ≥ 75% do `intervalo` da faca; distância horizontal ≤ `alcanceInvestida + 1,5 m` |
+| `boom` | granada registrada; mina a ≤ 1,5 m de onde foi plantada; granada de impacto dentro do alcance físico possível (`v·t + 4,9·t² + 3`) e do tempo máximo de voo; granada por pavio não antes de `pavio − 0,5 s`; por alvo, distância ≤ `raioDano + 3` e `|servidor − relatado| ≤ 3` |
+| `selfDamage` | só quantidades positivas finitas, limitadas a 9999; causas `fall`/`void`/`dog` |
+
+Não há rewind de hitboxes nem checagem de linha de visão no servidor ("Not yet" no cabeçalho de `session.ts`). Ver [[Anti Cheat]], [[Validation]].
+
+## Aplicação
+
+`damage()` (servidor) e `LocalPlayer.damage()` / `Dummy.applyHit()` (cliente offline): `dealt = min(vida, quantidade)`, marca `lastDamageAt` (reinicia a regeneração — ver [[Health System]]); vida ≤ 0 ⇒ morte, corpo e pontos (ver [[Scoring]], [[Respawn]], [[Humiliation]]).
+
+## Exceções
+
+- Dano mínimo de bala é 1.
+- Offline (campo de tiro) o boneco recebe o dano direto; contra bots o `BotManager` aplica as mesmas regras do servidor.
+- Online o cliente só **mostra** hitmarker na hora; vida e morte vêm do servidor.
+
+## Código relacionado
+
+- `shared/weapons.ts` — `computeDamage`, `damageAtDistance`, `explosionDamage`, `clampExplosionDamage`, `minPenetrationKeep`, `INSTANT_KILL_REGIONS`, `LETHAL_DAMAGE`.
+- `client/entities/hitboxes.ts` — `ZONES`, `zonesFor`, `GROIN`, `GROIN_FROM`, `isBehind`.
+- `client/entities/rig.ts` — `refineRegion`.
+- `client/main.ts` — `shoot` hook, `resolveMelee`, `explode`, `blastDistance`.
+- `server/session.ts` — `onHit`, `onStab`, `onBoom`, `damage`, `kill`.
+
+## Configurações relacionadas
+
+`dano`, `multiplicadores`, `penetracao` (`rifle_padrao.json`); `niveis` (`granada_frag.json`); `letal` (`faca.json`); `MOVE.fallDamageHeight/fallDamagePerMeter`. Ver [[Constants Reference]].

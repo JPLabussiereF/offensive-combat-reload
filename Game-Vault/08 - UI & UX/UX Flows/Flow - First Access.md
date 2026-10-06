@@ -1,0 +1,74 @@
+---
+title: Flow - First Access
+type: system
+status: documented
+area: ui
+source_paths:
+  - client/main.ts
+  - client/ui/menu.ts
+  - client/ui/home.ts
+  - client/ui/auth.ts
+  - client/ui/profile.ts
+  - client/ui/customize.ts
+  - client/audio/sfx.ts
+  - client/core/input.ts
+tags:
+  - game
+  - ux
+  - flow
+updated: 2026-10-05
+---
+
+# Flow - First Access
+
+O que acontece da primeira abertura da página até o primeiro tiro. Não há tutorial, nem onboarding guiado, nem tela de termos: o jogador cai direto na tela inicial e pode jogar sem conta (treino e bots).
+
+## Fluxo
+
+```mermaid
+flowchart TD
+    A[Abre a página] --> B[Carregamento: física, renderizador, texturas<br/>dicas engraçadas]
+    B --> C{Tela inicial}
+    C -->|sem conta| D[Nome engraçado aleatório<br/>ex.: Cabo Chinelo]
+    C -->|Entrar / Criar conta| E[Formulário de conta]
+    E -->|e-mail + senha + nome| F[Conta criada e logada]
+    E -->|Entrar com Discord| G[Redireciona ao Discord]
+    G -->|primeiro login: #escolher-nome| H[Escolher nome]
+    F --> C
+    H --> C
+    C -->|Perfil| P[Corpo M/F, Personalizar personagem]
+    P --> C
+    D --> M{Escolhe o modo}
+    C --> M
+    M -->|Campo de tiro / Contra bots| L[Carrega o mapa escolhido]
+    M -->|Jogar online| O[[Flow - Join Online Match]]
+    L --> S[Menu inicial com o mapa ao fundo]
+    S -->|clique em JOGAR| Play[Partida]
+```
+
+## Passo a passo
+
+1. **Carregamento** (`Screens`, `client/ui/menu.ts`): logo, barra e dicas rotativas. O boot inicializa o Rapier, o renderizador, a qualidade gráfica (avisa se a GPU é por software) e as configurações salvas. Ver [[Loading Performance]].
+2. **Tela inicial** (`showHome`, `client/ui/home.ts`): consulta a conta (`/api/me`) e se o login por Discord está disponível (`/api/auth/provedores`). Apaga chaves antigas do `localStorage` (`oc.name`, `oc.sex`, `oc.profile`). Sem servidor, mostra o aviso "Servidor fora do ar…" mas treino e bots continuam disponíveis.
+3. **Conta (opcional para offline):**
+   - *Criar conta:* e-mail, senha (com dica de regras), nome no jogo; o corpo enviado é o atual (padrão masculino). O nome vira `Nome#1234`.
+   - *Entrar:* e-mail e senha; "Esqueci a senha" envia e-mail; o link volta com `#redefinir=<token>` e abre o formulário de nova senha.
+   - *Discord:* botão só aparece se o servidor tiver o provedor; no primeiro login volta com `#escolher-nome`; erros voltam com `#erro=<código>`, traduzido em mensagem.
+   - Detalhes de backend em [[Authentication]].
+4. **Personagem (opcional):** Perfil → escolha de corpo e **PERSONALIZAR PERSONAGEM** (editor 3D). Sem conta, joga-se com a aparência padrão. Ver [[Character Customization]].
+5. **Modo:** *Campo de tiro (bonecos parados)* ([[Training]]), *Contra bots* ([[Versus Bots]]) ou *Jogar online* (exige conta — [[Flow - Join Online Match]]).
+6. **Mapa:** a tela de carregamento volta enquanto o mapa é construído ([[Maps Index]]).
+7. **Menu inicial:** um quadro do mapa é renderizado atrás do cartão; o jogador pode ajustar [[Settings]], teclas ([[Input & Controls]]) e o [[Inventory UI]] (Arsenal) antes de jogar.
+8. **JOGAR:** o clique **libera o áudio** (`sfx.unlock()`, exigência do navegador — ver [[Audio Overview]]), toca o bip de UI, pede o **pointer lock** e, se configurado, **tela cheia** (celular: paisagem; computador com Keyboard Lock: o jogo fica com o Esc). Nascimento: ver [[Respawn]].
+
+## Pontos de atrito conhecidos
+
+- O áudio só começa no clique de JOGAR (a tela inicial é muda).
+- "Sair para o início" recarrega a página e refaz todo o carregamento.
+- No iPhone não há tela cheia pelo navegador; o menu orienta a "Adicionar à Tela de Início".
+- Idioma é automático pelo navegador; não há como trocar.
+
+## Código relacionado
+
+- `client/main.ts` — `boot()`.
+- `client/ui/home.ts`, `client/ui/auth.ts`, `client/ui/profile.ts`, `client/ui/customize.ts`, `client/ui/menu.ts`.
