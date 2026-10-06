@@ -110,7 +110,8 @@ export async function startServer(opts: Options): Promise<GameServer> {
   }
 
   /**
-   * Every map always has a session with room in every mode played there (zumbi only in the haunted town): when
+   * Every map always has a session with room in every mode played there (modeMaps: zumbi only in its cemetery,
+   * which no other mode gets): when
    * all of a map's sessions of a mode are full, another opens ("Nome 2", "Nome 3"…).
    */
   function keepRoom() {
@@ -295,7 +296,7 @@ export async function startServer(opts: Options): Promise<GameServer> {
             if (msg.t === 'create') {
               const name = sanitizeName(msg.name, NET.sessionNameMax) || `Sala de ${profile.tag.split('#')[0]}`;
               const mode = isGameModeId(msg.mode) ? msg.mode : DEFAULT_GAME_MODE;
-              // A map the mode isn't played on falls back to the first one it is (zumbi: the haunted town).
+              // A map the mode isn't played on falls back to the first one it is (zumbi: its cemetery; the others: never the cemetery).
               const maps = modeMaps(mode);
               const map = isMapId(msg.map) ? msg.map : DEFAULT_MAP;
               s = createSession(name, maps.includes(map) ? map : maps[0], mode);

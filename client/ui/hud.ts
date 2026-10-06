@@ -9,6 +9,16 @@ export type HitKind = 'hit' | 'head' | 'kill';
 export type FeedIcon = 'head' | 'knife' | 'bird' | 'taunt' | 'grenade' | 'dog' | 'zombie' | null;
 const FEED_ICONS: Record<Exclude<FeedIcon, null>, string> = { head: '✚', knife: '🔪', bird: '🐦', taunt: '💃', grenade: '💣', dog: '🐕', zombie: '🧟' };
 
+/** The crack icon of a damaged weapon (zumbi), and the word beside it when `withText`. */
+function flawTag(withText: boolean): HTMLElement {
+  const tag = document.createElement('span');
+  tag.className = 'flaw-tag';
+  tag.title = t('zDamaged');
+  tag.innerHTML = '<svg viewBox="0 0 12 14" width="10" height="12" aria-hidden="true"><path d="M7 0 L3.5 5.5 L7.5 7.5 L4 14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+  if (withText) tag.append(t('zDamaged'));
+  return tag;
+}
+
 /** An effect we're under, for the buff panel: `left`/`total` in seconds, no `total` when it lasts until we die. */
 export interface Buff {
   id: string;
@@ -58,6 +68,8 @@ export class Hud {
   private cook = $('cook');
   private cookFill = $('cook-fill');
   private warn = $('grenade-warn');
+  private entrances = $('zentrances');
+  private entriesKey = '';
   private bannerTimer = 0;
   private hitTimer = 0;
   private popupTotal = 0;
@@ -85,17 +97,18 @@ export class Hud {
     this.root.classList.toggle('hidden', !v);
   }
 
-  /** `rarity`: the zumbi mode's weapons are colored by it. */
-  setWeaponName(name: string, rarity = '') {
+  /** `rarity`: the zumbi mode's weapons are colored by it; `damaged`: a damaged one from the coffin (cracked tag). */
+  setWeaponName(name: string, rarity = '', damaged = false) {
     this.weaponName.textContent = name;
     this.weaponName.className = rarity ? `rar-${rarity}` : '';
+    if (damaged) this.weaponName.append(' ', flawTag(true));
   }
 
   /**
    * The guns carried, under the ammo: the key that picks each slot, its name and the ammo it has, the one in
    * hand lit (`drawing` while it comes up after a switch).
    */
-  setWeaponSlots(slots: { key: string; name: string; mag: number; reserve: number; active: boolean; rarity?: string }[], drawing: boolean) {
+  setWeaponSlots(slots: { key: string; name: string; mag: number; reserve: number; active: boolean; rarity?: string; damaged?: boolean }[], drawing: boolean) {
     const key = JSON.stringify(slots) + drawing;
     if (key === this.slotsKey) return;
     this.slotsKey = key;
@@ -107,6 +120,7 @@ export class Hud {
         row.querySelector('kbd')!.textContent = s.key;
         row.querySelector('.slot-name')!.textContent = s.name;
         if (s.rarity) row.querySelector('.slot-name')!.classList.add(`rar-${s.rarity}`);
+        if (s.damaged) row.querySelector('.slot-name')!.append(' ', flawTag(false));
         row.querySelector('.slot-ammo')!.textContent = `${s.mag}/${s.reserve}`;
         return row;
       }),
@@ -380,8 +394,33 @@ export class Hud {
     this.warn.style.opacity = String(0.55 + closeness * 0.45);
   }
 
+  /**
+   * Zumbi: arrows around the crosshair pointing to the gaps the horde is coming through (`angle` in radians, 0 =
+   * straight ahead; `level` 1..3 by how many; `label`: how many, or the boards' mark when it's barricaded).
+   */
+  setEntrances(list: { angle: number; level: number; label: string }[]) {
+    const key = list.map((e) => `${e.angle.toFixed(2)}|${e.level}|${e.label}`).join(',');
+    if (key === this.entriesKey) return;
+    this.entriesKey = key;
+    while (this.entrances.children.length < list.length) {
+      const el = document.createElement('div');
+      el.innerHTML = '<span class="arrow">▲</span><span class="n"></span>';
+      this.entrances.appendChild(el);
+    }
+    [...this.entrances.children].forEach((node, i) => {
+      const el = node as HTMLElement;
+      const e = list[i];
+      el.className = e ? `zentry lvl${e.level}` : 'zentry hidden';
+      if (!e) return;
+      const r = 132;
+      el.style.transform = `translate(${(Math.sin(e.angle) * r).toFixed(1)}px, ${(-Math.cos(e.angle) * r).toFixed(1)}px)`;
+      (el.querySelector('.arrow') as HTMLElement).style.transform = `rotate(${e.angle.toFixed(3)}rad)`;
+      el.querySelector('.n')!.textContent = e.label;
+    });
+  }
+
   /** Big animated banner ("NO PÁSSARO!", "OPRIMIDO!"). */
-  showBanner(text: string, variant: 'bird' | 'taunt' | 'level') {
+  showBanner(text: string, variant: 'bird' | 'taunt' | 'level' | 'flaw') {
     this.banner.textContent = text;
     this.banner.className = variant;
     void this.banner.offsetWidth;

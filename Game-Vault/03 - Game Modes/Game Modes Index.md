@@ -17,6 +17,7 @@ source_paths:
   - shared/zombies.ts
   - shared/zombieMatch.ts
   - client/zombies/client.ts
+  - client/world/cemetery.ts
 tags:
   - game
   - modes
@@ -39,7 +40,7 @@ As diferenças entre modos estão declaradas em `MODE_RULES` e, no servidor, em 
 | --- | --- | --- | --- | --- | --- |
 | **Mata-mata** | [[Free For All]] (online) · [[Versus Bots]] (offline) | `mata-mata` | todos contra todos com o Arsenal escolhido **antes** da partida, travado durante ela | Sim | Sim |
 | **Corrida armada** | [[Gun Game]] | `corrida-armada` | escada de 7 armas fixas: 3 abates sobem, facada desce, abate com o Sabre de Luz vence a rodada | Sim | Sim |
-| **Zumbi** | [[Zombie]] | `zumbi` | em equipe contra 12 ondas de zumbis e 3 chefes na Vila Assombrada; armas do Caixão Misterioso, compradas com o dinheiro da partida; caído/reanimar | Sim (só na Vila Assombrada) | Solo (você contra a horda) |
+| **Zumbi** | [[Zombie]] | `zumbi` | em equipe contra 12 ondas de zumbis e 3 chefes no Cemitério da Capela (mapa só dele); armas do Caixão Misterioso (às vezes danificadas) e barricadas nas brechas do muro, compradas com o dinheiro da partida; caído/reanimar | Sim (só no Cemitério da Capela) | Solo (você contra a horda) |
 
 ## Onde jogar
 
@@ -74,10 +75,10 @@ As diferenças entre modos estão declaradas em `MODE_RULES` e, no servidor, em 
 
 ## Seleção de mapa
 
-- **Online:** o mapa é o da sessão. Cada mapa tem uma sessão permanente **por modo** jogado nele (o zumbi só na Vila Assombrada: `MODE_RULES.zumbi.maps`), e quem cria uma sessão escolhe o mapa e o modo.
+- **Online:** o mapa é o da sessão. Cada mapa tem uma sessão permanente **por modo** jogado nele (o zumbi só no Cemitério da Capela, que nenhum outro modo usa: `MODE_RULES.zumbi.maps` e `PVP_MAPS`), e quem cria uma sessão escolhe o mapa e o modo (um mapa fora da lista do modo cai no primeiro dela).
 - **Contra bots e treino:** valem o seletor **Mapa** da home (`home-map`), salvo em `localStorage` (`oc.bots`).
 - **Qualquer modo:** `?mapa=/maps/arquivo.glb` na URL carrega um mapa glTF por cima da escolha ([[Map - Arena Teste (glTF)]]).
-- Mapas: [[Map - Rua dos Vizinhos]], [[Map - Jardim do Dragão]], [[Map - Vila Assombrada]]. Ver [[Maps Index]].
+- Mapas: [[Map - Rua dos Vizinhos]], [[Map - Jardim do Dragão]], [[Map - Vila Assombrada]] (versus, bots e treino) e [[Map - Cemitério da Capela]] (só zumbi). Ver [[Maps Index]].
 
 ## Regras globais × regras de modo
 

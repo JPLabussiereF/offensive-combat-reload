@@ -7,7 +7,7 @@
 // starting loadout inside its DOM closure) isn't run here: these are the pure pieces they call.
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test';
 import { importNavMesh, init, type NavMesh } from 'recast-navigation';
-import nav from '@shared/data/navmesh/halloween.json';
+import nav from '@shared/data/navmesh/cemiterio.json';
 import type { ProfileResponse } from '@shared/account';
 import { DEFAULT_LOADOUT, grenadeStats, gunStats, meleeStats, resolveLoadout, slotStats, type GunStats, type Loadout } from '@shared/arsenal';
 import { FINAL_STEP, killCounts, LADDER, ladderLoadout } from '@shared/gunGame';
@@ -24,7 +24,7 @@ import {
 } from '@shared/progression';
 import type { ServerMsg } from '@shared/protocol';
 import { computeDamage, explosionDamage, HIT_REGIONS } from '@shared/weapons';
-import { gunDamageToZombie, grenadeDamageToZombie, itemOf, itemSlot, knifeDamageToZombie, rarityMul, startItems, ZOMBIE, zombieLoadout } from '@shared/zombies';
+import { gunDamageToZombie, grenadeDamageToZombie, itemOf, itemSlot, knifeDamageToZombie, rarityMul, startItems, withItem, ZOMBIE, zombieGunData, zombieLoadout } from '@shared/zombies';
 import { Progress } from '../gameplay/progress';
 import { LocalZombies } from '../zombies/local';
 
@@ -177,17 +177,20 @@ beforeAll(async () => {
 
 describe('zumbi sozinho (LocalZombies)', () => {
   it('o mesmo motor e as mesmas regras de dano do servidor: rifle inicial, faca, granada e a arma do caixão com as melhorias dela', () => {
-    // Wave 1: only the gravedigger, standing still and harmless; a cheap, quick coffin that never gives the duck.
+    // Wave 1: only the gravedigger, standing still and harmless; a cheap, quick coffin whose first weapon comes
+    // intact (the damaged roll comes after).
     Object.assign(ZOMBIE, { inicioSegundos: 0.2 });
     Object.assign(ZOMBIE.ondas[0], { zumbis: 0, chefe: 'coveiro' });
     Object.assign(ZOMBIE.chefes.coveiro, { andar: 0.01, dano: 0 });
     Object.assign(ZOMBIE.chefes.coveiro.pancada!, { dano: 0 });
     Object.assign(ZOMBIE.chefes.coveiro.invocar!, { zumbis: 0 });
-    Object.assign(ZOMBIE.caixa, { custo: 100, girarSegundos: 0.2, patoApos: 99 });
+    Object.assign(ZOMBIE.caixa, { custo: 100, girarSegundos: 0.2 });
+    const chance = ZOMBIE.caixa.danificada.chance;
+    for (const r of Object.keys(chance) as (keyof typeof chance)[]) chance[r] = 0;
     const hurt: number[] = [];
     const handed: Loadout[] = [];
     const heard: Loadout[] = [];
-    const solo = new LocalZombies(navMesh, ZOMBIE.mapas.halloween!, { me: 1, name: 'Sozinho', hurt: (n) => hurt.push(n), setLoadout: (lo) => handed.push(lo), newMatch: () => {} });
+    const solo = new LocalZombies(navMesh, ZOMBIE.mapas.cemiterio!, { me: 1, name: 'Sozinho', hurt: (n) => hurt.push(n), setLoadout: (lo) => handed.push(lo), newMatch: () => {} });
     solo.on('playerLoadout', (m) => heard.push(m.lo));
     // Whatever the account has, the solo game starts with the plain rifle.
     expect(solo.loadout).toEqual(zombieLoadout(startItems()));
@@ -209,8 +212,8 @@ describe('zumbi sozinho (LocalZombies)', () => {
     expect(lost({ t: 'boom', id: 1, p: [0, 0.1, -25], hits: [], zs: [{ z: boss.id, dist: 2 }] })).toBe(grenadeDamageToZombie(explosionDamage(grenadeStats([]).explosao, 2), solo.match.wave));
 
     // The coffin: pay, take the weapon; it goes into our hands (and to the zombie HUD) with its own upgrades.
-    const [x, y, z] = ZOMBIE.mapas.halloween!.caixa[solo.match.sync().box.spot];
-    feet = [x + 1, y + 0.1, z];
+    const [x, y, z] = ZOMBIE.mapas.cemiterio!.caixa;
+    feet = [x - 1, y + 0.1, z];
     step(0.2);
     solo.send({ t: 'box' });
     step(ZOMBIE.caixa.girarSegundos + 0.2);
@@ -226,6 +229,41 @@ describe('zumbi sozinho (LocalZombies)', () => {
     if (offer.arma === 'faca') expect(lost({ t: 'zstab', z: boss.id })).toBe(knifeDamageToZombie(rarityMul(offer.raridade)));
     else expect(lost({ t: 'zhit', z: boss.id, region: 'peito', dist: 10, w: offer.arma })).toBe(gunDamageToZombie(gunStats(offer.arma, offer.melhorias), 10, 'peito', 1, rarityMul(offer.raridade), true));
     expect(hurt).toEqual([]);
+
+    // A damaged roll (both flaws): the same rules as the server's, less damage and, in our hands, fewer rounds.
+    for (const r of Object.keys(chance) as (keyof typeof chance)[]) chance[r] = 1;
+    ZOMBIE.caixa.danificada.tipos = { municao: 0, dano: 0, ambos: 1 };
+    const held = solo.match.itemsOf(1);
+    solo.send({ t: 'box' });
+    step(ZOMBIE.caixa.girarSegundos + 0.2);
+    const broken = solo.match.sync().box;
+    const bit = itemOf(broken.item)!;
+    expect(broken.flaw).toBe(bit.arma === 'faca' ? 'dano' : 'ambos');
+    solo.send({ t: 'box' });
+    const blo = zombieLoadout(withItem(held, bit, broken.flaw));
+    expect(solo.loadout).toEqual(blo);
+    expect(handed.at(-1)).toEqual(blo);
+    expect(blo.danificadas?.[bit.arma]).toBe(broken.flaw!);
+    const mul = rarityMul(bit.raridade) * ZOMBIE.caixa.danificada.dano;
+    if (bit.arma === 'faca') expect(lost({ t: 'zstab', z: boss.id })).toBe(knifeDamageToZombie(mul));
+    else {
+      expect(lost({ t: 'zhit', z: boss.id, region: 'peito', dist: 10, w: bit.arma })).toBe(gunDamageToZombie(gunStats(bit.arma, bit.melhorias), 10, 'peito', 1, mul, true));
+      const full = gunStats(bit.arma, bit.melhorias);
+      const ours = zombieGunData(full, blo.danificadas![bit.arma]);
+      expect(ours.pente).toBe(Math.max(1, Math.round(full.pente * ZOMBIE.caixa.danificada.pente)));
+      expect(ours.reserva).toBe(Math.max(1, Math.round(full.reserva * ZOMBIE.armas.municaoReserva * ZOMBIE.caixa.danificada.reserva)));
+    }
+
+    // A barricade alone: the same price and boards as online (the $300 left after two rolls of $100).
+    const gaps = ZOMBIE.mapas.cemiterio!.barricadas;
+    const west = gaps.findIndex((g) => g.id === 'oeste');
+    feet = [gaps[west].centro[0] + 1.4, 0.1, gaps[west].centro[2]];
+    step(0.2);
+    expect(solo.match.info(1)!.money).toBe(ZOMBIE.barricadas.custo);
+    solo.send({ t: 'barricade', i: west, on: true });
+    step(ZOMBIE.barricadas.erguerSegundos + 0.2);
+    expect(solo.match.sync().bars[west]).toEqual({ built: true, boards: ZOMBIE.barricadas.tabuas, hp: ZOMBIE.barricadas.vidaTabua });
+    expect(solo.match.info(1)!.money).toBe(0);
 
     // Alone, going down is the end of the run.
     const ends: Extract<ServerMsg, { t: 'zend' }>[] = [];

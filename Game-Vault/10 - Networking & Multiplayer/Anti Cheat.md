@@ -56,11 +56,12 @@ Não há anti-cheat no cliente (nenhuma ofuscação, detecção de memória ou d
 - Cada alvo: dentro de `raioDano + 3 m` da explosão e com `dist` informada a ≤ 3 m da do servidor; um alvo só conta uma vez; no máx. 10 alvos.
 - Dano calculado no servidor (`explosionDamage`, `clampExplosionDamage`).
 
-### Modo zumbi (`zhit`, `zstab`, `boom.zs`, `box`, `revive`)
+### Modo zumbi (`zhit`, `zstab`, `boom.zs`, `box`, `revive`, `barricade`)
 - Os zumbis são do servidor (posição, vida, morte): o cliente só informa o acerto. `zhit` passa pelas mesmas checagens de `hit` — arma disparável, **o mesmo contador de cadência** (acertos em zumbis e em jogadores somam), alcance — com a distância medida do olho do atirador até o peito do zumbi **na posição do servidor**, com folga de `LAG_SLACK` + 10% + o tamanho do zumbi (eles andam; os grandes são grandes). Atirador caído não acerta.
 - O dano é do servidor (`gunDamageToZombie` com a raridade da arma **que o servidor sabe** que o jogador carrega: os itens ficam no `ZombieMatch`, nunca vêm do cliente). Zumbi sumido (a Noiva entre os teleportes) não leva dano.
 - `zstab`: intervalo da faca e distância horizontal ≤ `alcanceInvestida + 1,5 m + 0,4 × tamanho`. Granadas: só depois de a granada passar pela validação de sempre; cada zumbi dentro de `raioDano + 3 m` e com `dist` a ≤ 3 m da do servidor, uma vez.
-- **Dinheiro, sorteio do caixão e XP** são todos do servidor (`Math.random` dele; o item só é revelado na oferta); o caixão exige estar de pé e perto do lugar dele, e o dinheiro suficiente. Reanimar exige os dois perto (a distância é rechecada a cada tick até completar). O XP total de uma partida fica limitado pelo número de zumbis que o servidor cria.
+- **Dinheiro, sorteio do caixão e XP** são todos do servidor (`Math.random` dele; o item e se ele vem **danificado** só são revelados na oferta, e a penalidade de dano entra no dano que o servidor calcula; a de munição é do cliente, como toda munição); o caixão exige estar de pé e perto do lugar dele, e o dinheiro suficiente.
+- **Barricadas**: o cliente só diz "segurando E na brecha i" (`barricade`); o servidor confere o índice, se está de pé, a distância (2,4 m), se há algo a fazer e o dinheiro ($300 para erguer), conta o tempo ele mesmo, cobra, paga a recompensa de repregar com o teto por onda e decide os golpes da horda nas tábuas. Soltar, afastar-se ou cair interrompe. Reanimar exige os dois perto (a distância é rechecada a cada tick até completar). O XP total de uma partida fica limitado pelo número de zumbis que o servidor cria.
 - Ainda vale a lacuna geral: o movimento é confiado ao cliente, então um trapaceiro pode se colocar onde quiser (por exemplo, fora do alcance dos zumbis); ver [[ADR - Movimento confiado ao cliente]].
 
 ### Outros

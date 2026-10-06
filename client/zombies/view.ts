@@ -9,6 +9,7 @@
 // Avatars and hitboxes are pooled per kind (building a character costs a few milliseconds): a dead zombie
 // sinks into the ground and waits for the next one of its kind.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type RAPIER from '@dimforge/rapier3d-compat';
 import type { HitRegion } from '@shared/weapons';
 import type { Vec3, ZFx } from '@shared/protocol';
@@ -23,6 +24,7 @@ import type { Effects } from '../render/effects';
 import type { Sfx } from '../audio/sfx';
 import { t, type StringKey } from '../ui/strings';
 import { addBossProps, zombieLook } from './looks';
+import { toon } from '../render/materials';
 
 const UP = new THREE.Vector3(0, 1, 0);
 /** How deep a zombie starts when it comes out of the ground (m). */
@@ -241,15 +243,27 @@ interface Mark {
   t1: number;
   /** Gone after this (match clock, ms). */
   end: number;
-  kind: 'ring' | 'lane' | 'wave' | 'glob';
+  kind: 'ring' | 'lane' | 'wave' | 'glob' | 'rise';
   r?: number;
   from?: THREE.Vector3;
   to?: THREE.Vector3;
   speed?: number;
   fill?: THREE.Mesh;
+  /** A rising zombie's hands, clawing out of the ground. */
+  hands?: THREE.Group;
 }
 
-const FX_COLOR: Partial<Record<ZFx, number>> = { slam: 0xff3b2f, scream: 0xb06bff, pound: 0xff8a1e, summon: 0x7dff6a, charge: 0xff3b2f, intro: 0x7dff6a };
+const FX_COLOR: Partial<Record<ZFx, number>> = { slam: 0xff3b2f, scream: 0xb06bff, pound: 0xff8a1e, summon: 0x7dff6a, charge: 0xff3b2f, intro: 0x7dff6a, rise: 0x7dff6a };
+
+/** A rotten hand, fingers up (palm, four fingers, a thumb), resting on y = 0. */
+function handGeometry(): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [new THREE.BoxGeometry(0.1, 0.12, 0.045).translate(0, 0.06, 0)];
+  for (let i = 0; i < 4; i++) parts.push(new THREE.BoxGeometry(0.02, 0.085 - Math.abs(i - 1.5) * 0.012, 0.022).rotateZ((i - 1.5) * 0.12).translate(-0.036 + i * 0.024, 0.155, 0));
+  parts.push(new THREE.BoxGeometry(0.022, 0.06, 0.022).rotateZ(0.9).translate(-0.065, 0.085, 0));
+  const out = mergeGeometries(parts, false)!;
+  for (const p of parts) p.dispose();
+  return out;
+}
 
 export interface ZombieViewHooks {
   /** The listener's position, for which zombies groan (the nearest few). */
@@ -265,6 +279,9 @@ export class ZombieView {
   private discGeo = new THREE.CircleGeometry(1, 40);
   private laneGeo = new THREE.PlaneGeometry(1, 1);
   private globGeo = new THREE.SphereGeometry(0.16, 8, 6);
+  private handGeo: THREE.BufferGeometry | null = null;
+  private shaftGeo = new THREE.CylinderGeometry(0.28, 0.55, 3.2, 12, 1, true);
+  private handMat: THREE.Material | null = null;
   private created = 0;
   /** The boss's id while there's one (its bar is the HUD's). */
   bossId: number | null = null;
@@ -374,6 +391,22 @@ export class ZombieView {
 
   // --- Telegraphs and effects ------------------------------------------------------------------------------
 
+  /** Two hands for a 'rise' telegraph (the geometry and material shared by all). */
+  private handPair(): THREE.Group {
+    this.handGeo ??= handGeometry();
+    this.handMat ??= toon(0x7d8c5a);
+    const g = new THREE.Group();
+    for (const sx of [-1, 1]) {
+      const h = new THREE.Mesh(this.handGeo, this.handMat);
+      h.position.set(sx * 0.22, 0, (Math.random() - 0.5) * 0.15);
+      h.rotation.set((Math.random() - 0.5) * 0.4, sx * 0.3, sx * 0.25);
+      h.scale.setScalar(1.6);
+      g.add(h);
+    }
+    g.position.y = -0.4;
+    return g;
+  }
+
   private flatMesh(geo: THREE.BufferGeometry, color: number, opacity: number) {
     const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }));
     m.rotation.x = -Math.PI / 2;
@@ -453,6 +486,28 @@ export class ZombieView {
         this.sfx.at(at, 'boom', (s) => s.bloaterPop());
         break;
       }
+      case 'rise': {
+        // A zombie is about to come out here: a green glow on the ground, two hands clawing out of it, the
+        // earth cracking and a groan heard across the yard. It appears at t1.
+        const disc = this.flatMesh(this.discGeo, color, 0.0);
+        disc.position.copy(at).setY(at.y + 0.04);
+        disc.scale.setScalar(0.95);
+        (disc.material as THREE.MeshBasicMaterial).blending = THREE.AdditiveBlending;
+        const hands = this.handPair();
+        hands.position.copy(at);
+        hands.rotation.y = Math.random() * Math.PI * 2;
+        this.scene.add(hands);
+        // A pale green shaft of light over the spot: seen over walls and graves, from anywhere in the yard.
+        const shaft = new THREE.Mesh(this.shaftGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+        shaft.position.copy(at).setY(at.y + 1.6);
+        shaft.renderOrder = 3;
+        this.scene.add(shaft);
+        this.marks.push({ mesh: disc, fill: shaft, hands, t0: msg.t0, t1: msg.t1, end: msg.t1 + 900, kind: 'rise' });
+        this.effects.burst('debris', at.clone().setY(at.y + 0.1), UP, 8, 0x4a3a2a);
+        this.sfx.at(at, 'normal', (s) => s.zombieRise());
+        this.sfx.at(at.clone().setY(at.y + 1), 'loud', (s) => s.zombieGroan(0.8 + Math.random() * 0.2));
+        break;
+      }
       case 'intro': {
         const ring = this.flatMesh(this.ringGeo, color, 0.7);
         ring.position.copy(at).setY(at.y + 0.06);
@@ -485,6 +540,18 @@ export class ZombieView {
         m.mesh.visible = now >= m.t0 && radius > 0.1;
         m.mesh.scale.setScalar(Math.max(0.1, radius));
         mat.opacity = 0.9 * (1 - radius / Math.max(1, m.r ?? 15));
+      } else if (m.kind === 'rise' && m.hands) {
+        // The glow swells and pulses until the zombie is out, then fades; the hands claw out, then sink as the
+        // body comes up.
+        const k = Math.min(1, Math.max(0, (now - m.t0) / Math.max(1, m.t1 - m.t0)));
+        const after = Math.max(0, (now - m.t1) / Math.max(1, m.end - m.t1));
+        mat.opacity = (0.25 + 0.3 * Math.abs(Math.sin(now * 0.01))) * Math.min(1, k * 3) * (1 - after);
+        if (m.fill) (m.fill.material as THREE.MeshBasicMaterial).opacity = 0.22 * Math.min(1, k * 2.5) * (1 - after);
+        const base = m.mesh.position.y - 0.04;
+        const out = Math.min(1, k / 0.45);
+        m.hands.position.y = base - 0.4 + out * 0.5 - after * 0.6;
+        m.hands.children.forEach((h, i) => (h.rotation.z = (i ? 0.25 : -0.25) + Math.sin(now * 0.02 + i * 2) * 0.35 * out));
+        m.hands.visible = after < 1;
       } else if (m.kind === 'glob' && m.from && m.to) {
         const k = Math.min(1, Math.max(0, (now - m.t0) / Math.max(1, m.t1 - m.t0)));
         m.mesh.position.lerpVectors(m.from, m.to, k);
@@ -502,6 +569,7 @@ export class ZombieView {
         this.scene.remove(m.fill);
         (m.fill.material as THREE.Material).dispose();
       }
+      if (m.hands) this.scene.remove(m.hands);
       return false;
     });
   }
@@ -513,6 +581,7 @@ export class ZombieView {
     for (const m of this.marks) {
       this.scene.remove(m.mesh);
       if (m.fill) this.scene.remove(m.fill);
+      if (m.hands) this.scene.remove(m.hands);
     }
     this.marks = [];
     this.bossId = null;

@@ -5,6 +5,7 @@ import { CLOSE, FLAG, NET, type SessionInfo } from '@shared/protocol';
 import { BISCUIT, CHERRY, HEALTH, KOI, POTION, RAT } from '@shared/constants';
 import { DEFAULT_LOADOUT, gunStats } from '@shared/arsenal';
 import { GAME_MODE_IDS } from '@shared/modes';
+import { MAP_IDS, PVP_MAPS } from '@shared/maps';
 import type { GameServer } from '../app';
 import { ticketKey } from '../api';
 import { ban, mute, unmute } from '../moderacao';
@@ -443,8 +444,11 @@ describe('vaga por mapa', () => {
 
   it('lista as sessões sem conexão de jogo, com o modo de cada uma', async () => {
     const all = await list();
-    expect([...new Set(all.map((s) => s.map))].sort()).toEqual(['halloween', 'jardim', 'rua']);
+    expect([...new Set(all.map((s) => s.map))].sort()).toEqual([...MAP_IDS].sort());
     expect([...new Set(all.map((s) => s.mode))].sort()).toEqual([...GAME_MODE_IDS].sort());
+    // The zumbi mode's cemetery only ever has zumbi sessions; the versus modes get every other map.
+    expect(all.filter((s) => s.map === 'cemiterio').map((s) => s.mode)).toEqual(['zumbi']);
+    for (const s of all.filter((x) => x.mode !== 'zumbi')) expect(PVP_MAPS).toContain(s.map);
   });
 
   it('abre outra sessão quando as do mapa lotam, e fecha quando sobra vaga', async () => {

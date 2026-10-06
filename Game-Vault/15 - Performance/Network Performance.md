@@ -34,7 +34,7 @@ Custos e escolhas de rede. O modelo de replicação está em [[Replication]] e [
 
 Com no máximo **10 jogadores** por sala, cada snapshot carrega até 10 entradas.
 
-**Modo zumbi:** numa onda, depois de cada `snap` vai um `zsnap` (também 20 Hz) com cada zumbi como 7 números arredondados (`[id, tipo, x, y, z, yaw, flags]`, 2 casas): ~45 bytes por zumbi em JSON, ~1–1,5 KB por mensagem com a horda cheia (até 24 andando + chefe e chamados), ~20–30 KB/s por jogador. Os eventos (`zdie`, `zfx`, `zbox`…) são esporádicos. No intervalo, sem zumbis, o `zsnap` não é enviado. Ver [[Zombie]].
+**Modo zumbi:** numa onda, depois de cada `snap` vai um `zsnap` (também 20 Hz) com cada zumbi como 7 números arredondados (`[id, tipo, x, y, z, yaw, flags]`, 2 casas): ~45 bytes por zumbi em JSON, ~1–1,5 KB por mensagem com a horda cheia (até 24 andando + chefe e chamados), ~20–30 KB/s por jogador. Os eventos (`zdie`, `zfx`, `zbox`…) são esporádicos; os que mais se repetem são o `zfx` `rise` (um por zumbi que surge, ~100 bytes) e o `zbar` `hit` (um por golpe nas tábuas, com vários zumbis batendo: alguns por segundo). No intervalo, sem zumbis, o `zsnap` não é enviado. Ver [[Zombie]].
 
 ## Otimizações
 

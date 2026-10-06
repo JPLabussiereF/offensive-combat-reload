@@ -12,7 +12,8 @@ source_paths:
   - package.json
   - tools/bake-navmesh.ts
   - server/navmesh.ts
-  - shared/data/navmesh/halloween.json
+  - shared/data/navmesh/cemiterio.json
+  - shared/barricades.ts
   - shared/zombieMatch.ts
 tags:
   - ai
@@ -94,11 +95,19 @@ Detalhes das decisões em [[AI Decisions]].
 
 O servidor não monta mapas; para mover os zumbis online ele carrega uma navmesh **gerada em tempo de desenvolvimento** ([[ADR - Zumbis simulados no servidor sobre navmesh pré-gerada]]):
 
-- `tools/bake-navmesh.ts` (`bun run navmesh`) monta o mapa **headless em Bun** com o próprio código do cliente (`client/world/*`, com um canvas que não desenha) e chama `NavMap.build`: as mesmas configurações e os mesmos colisores dos bots. Exporta com `exportNavMesh` para `shared/data/navmesh/<mapa>.json` (base64, ~265 KB na Vila Assombrada, com tamanho e hash). Hoje: só `halloween` (os mapas do modo zumbi, `modeMaps('zumbi')`).
+- `tools/bake-navmesh.ts` (`bun run navmesh`) monta o mapa **headless em Bun** com o próprio código do cliente (`client/world/*`, com um canvas que não desenha) e chama `NavMap.build`: as mesmas configurações e os mesmos colisores dos bots. Exporta com `exportNavMesh` para `shared/data/navmesh/<mapa>.json` (base64, com tamanho e hash). Hoje: só `cemiterio` (~116 KB, 781 polígonos), o mapa do modo zumbi (`modeMaps('zumbi')`).
 - `server/navmesh.ts` carrega a malha uma vez por processo (`importNavMesh`, depois de iniciar o WebAssembly do Recast), compartilhada por todas as sessões do mapa.
-- `ZombieMatch` (`shared/zombieMatch.ts`) usa uma `Crowd` do Detour por sessão (até 64 agentes) para seguir caminho e espaçar a horda, `findClosestPoint`/`findRandomPointAroundCircle` para pontos de surgimento e `raycast` na malha como linha de visão (cuspe da Tia da Fofoca, investida do Prefeito).
-- A geração é determinística (o mapa usa aleatoriedade com semente): `server/tests/zombies.test.ts` refaz a malha e compara o hash. **Mudou o mapa da Vila Assombrada, rode `bun run navmesh`**, senão o teste falha.
-- Offline, o zumbi solo usa a malha gerada na hora pelo navegador (é a mesma).
+- `ZombieMatch` (`shared/zombieMatch.ts`) usa uma `Crowd` do Detour por sessão (até 64 agentes) para seguir caminho e espaçar a horda, `findClosestPoint`/`findRandomPointAroundCircle` para pontos de surgimento (pontos além de 1,5× o raio são recusados: o Detour pode devolver um ponto qualquer de um polígono grande que só toca o círculo) e `raycast` na malha como linha de visão (cuspe da Tia da Fofoca, investida do Prefeito).
+- A geração é determinística (o mapa usa aleatoriedade com semente): `server/tests/zombies.test.ts` refaz a malha e compara o hash. **Mudou o mapa do cemitério (ou as brechas em `zumbi.json`), rode `bun run navmesh`**, senão o teste falha.
+- Offline, o zumbi solo gera a malha na hora no navegador com as mesmas caixas de brecha (é a mesma malha).
+
+### Brechas e barricadas
+
+O mapa do modo zumbi tem um muro com cinco brechas que os jogadores podem barricar ([[ADR - Barricadas como polígonos próprios na navmesh]]):
+
+- **Na geração**: com `areas` (as caixas de `gateAreas`, `shared/barricades.ts`), `NavMap.build` troca o `generateSoloNavMesh` por `soloNavMeshWithAreas`, o mesmo gerador passo a passo com `rcMarkBoxArea` depois da erosão: cada brecha vira **polígonos só dela** (área `i + 1`) com a flag `WALK_FLAG | gateFlag(i)`; o resto do chão, área 0 e `WALK_FLAG`. Sem `areas` (os mapas dos bots), nada muda.
+- **Na partida**: barricada fechada = a flag da brecha no `excludeFlags` do filtro 0 do crowd (`FILTER_AROUND`) e do filtro padrão das consultas da partida; o filtro 1 (`FILTER_THROUGH`) não exclui nada. A malha compartilhada nunca é alterada. Quem contorna usa o 0; o Segurança e os chefes (e todos, quando não há brecha aberta) usam o 1 até chegar às tábuas, e então trocam para o 0, que os segura ali até a última tábua cair.
+- **Caminhos sob demanda**: cada pedido de caminho reinicia uma busca na fila de caminhos do crowd (100 passos por tick, compartilhados). O motor só pede outro caminho quando o alvo andou o bastante para a distância e não antes de 0,4/1,5/4 s (perto/médio/longe); com o alvo parado, guarda o caminho. Sem isso, a horda com caminhos longos em volta do muro só seguia o caminho parcial rápido e encostava no muro pela brecha fechada mais próxima.
 
 ## Falhas
 
@@ -108,15 +117,15 @@ Se a geração falhar, `console.warn('[bots] falha ao gerar a malha de navegaç�
 
 - Malha estática, gerada uma vez: colisores que mudam durante a partida (por exemplo, os do rato gigante, desabilitados quando ele morre) não atualizam a malha (inferência: não há reconstrução nem obstáculos dinâmicos do Recast no código).
 - Sem links fora da malha (off-mesh links) para pulos; pular é só o recurso anti-travamento.
-- O custo de gerar a malha entra no carregamento do modo bots (medido em `buildMs`). Gerada headless em Bun, a da Vila Assombrada leva ~0,5 s (mapa ~0,6 s antes). Ver [[Loading Performance]].
-- O caixão do modo zumbi e outros objetos que não estão nos colisores estáticos do mapa não entram na malha: zumbis podem atravessá-los. Um jogador num lugar fora da malha (em cima de um carro) fica fora do alcance dos arranhões.
+- O custo de gerar a malha entra no carregamento do modo bots (medido em `buildMs`). Gerada headless em Bun, a da Vila Assombrada levava ~0,5 s (mapa ~0,6 s antes); a do cemitério, ~0,45 s com o mapa. Ver [[Loading Performance]].
+- O caixão e as tábuas das barricadas do modo zumbi (e outros objetos que não estão nos colisores estáticos do mapa) não entram na malha: zumbis podem encostar no caixão; nas brechas, as tábuas são regra do motor (os filtros), não geometria. Um jogador num lugar fora da malha (em cima de um carro) fica fora do alcance dos arranhões.
 
 ## Código relacionado
 
-- `client/ai/navmesh.ts` (`NavMap.build`, `path`, `randomPoint`, `randomAround`, `debugMesh`)
+- `client/ai/navmesh.ts` (`NavMap.build` com `areas`, `soloNavMeshWithAreas`, `path`, `randomPoint`, `randomAround`, `debugMesh`)
 - `client/ai/bot.ts` (`setGoal`, `followPath`, anti-travamento em `fixedUpdate`)
 - `client/main.ts` (construção em modo bots, depuração F4)
 - `shared/constants.ts` (`MOVE`)
-- `tools/bake-navmesh.ts`, `server/navmesh.ts`, `shared/data/navmesh/halloween.json`, `shared/zombieMatch.ts` (servidor, modo zumbi)
+- `tools/bake-navmesh.ts`, `server/navmesh.ts`, `shared/data/navmesh/cemiterio.json`, `shared/barricades.ts`, `shared/zombieMatch.ts` (servidor, modo zumbi)
 
 Ver também: [[AI Overview]], [[Movement]], [[World Structure]].

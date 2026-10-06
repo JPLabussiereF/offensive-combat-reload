@@ -9,7 +9,7 @@ import type { Appearance } from './appearance';
 import type { MapId } from './maps';
 import type { GameModeId } from './modes';
 import type { LadderPos } from './gunGame';
-import type { BossId, KillHow, ZItems, ZNet } from './zombies';
+import type { BossId, KillHow, ZFlaw, ZItems, ZNet } from './zombies';
 
 export const NET = {
   /** Server simulation/broadcast rate. */
@@ -109,17 +109,27 @@ export interface ZombiePlayer {
 /** Where a zumbi match is: no one there yet, the countdown to the first wave, a wave, the break after it, over. */
 export type ZPhase = 'waiting' | 'countdown' | 'wave' | 'break' | 'over';
 
-/** The Mystery Coffin: waiting, spinning (`by` paid), offering `item` to `by` until `until`, the duck, flying off. */
-export type BoxState = 'idle' | 'rolling' | 'offer' | 'duck' | 'moving';
+/** The Mystery Coffin (always on its spot): waiting, spinning (`by` paid), offering `item` to `by` until `until`. */
+export type BoxState = 'idle' | 'rolling' | 'offer';
 
 export interface BoxInfo {
-  /** Index of its spot in the map's list (shared/data/zumbi.json). */
-  spot: number;
   state: BoxState;
   by: number | null;
   item: string | null;
+  /** The offered item is a damaged copy, and how (null: intact, or nothing offered). */
+  flaw: ZFlaw | null;
   /** Server time the current state ends (0: it doesn't). */
   until: number;
+}
+
+/**
+ * A barricade in a gap of the cemetery wall (indexed like ZombieMapData.barricadas): whether its frame was
+ * built, how many boards stand and the health of the top one. Any board left closes the gap.
+ */
+export interface ZBarricade {
+  built: boolean;
+  boards: number;
+  hp: number;
 }
 
 /** A zumbi match as it is right now (sent when joining). */
@@ -133,10 +143,15 @@ export interface ZombieSync {
   box: BoxInfo;
   /** Players down, and when each bleeds out (server time). */
   down: [id: number, until: number][];
+  /** Every barricade, in the map's order. */
+  bars: ZBarricade[];
 }
 
-/** A boss move or a zombie effect, for the telegraphs everyone sees (the server applies the damage at t1). */
-export type ZFx = 'slam' | 'summon' | 'scream' | 'blink' | 'charge' | 'pound' | 'spit' | 'boom' | 'intro';
+/**
+ * A boss move or a zombie effect, for the telegraphs everyone sees (the server applies the damage at t1).
+ * 'rise': a zombie is about to come out of the ground at `at` (it appears at t1).
+ */
+export type ZFx = 'slam' | 'summon' | 'scream' | 'blink' | 'charge' | 'pound' | 'spit' | 'boom' | 'intro' | 'rise';
 
 /** One line of the end-of-match summary. */
 export interface ZSummaryRow {
@@ -223,7 +238,9 @@ export type ClientMsg =
   /** Zumbi: E at the Mystery Coffin: pays and spins it, or takes the weapon it's offering us. */
   | { t: 'box' }
   /** Zumbi: holding E over a teammate who's down (`on` false: let go). */
-  | { t: 'revive'; id: number; on: boolean };
+  | { t: 'revive'; id: number; on: boolean }
+  /** Zumbi: holding E at gap `i` of the wall: building its barricade (paid) or nailing boards back (`on` false: let go). */
+  | { t: 'barricade'; i: number; on: boolean };
 
 /** A fish of the map: dead until `ready` (server time; 0 = alive), golden when it's (back) there. */
 export interface FishState {
@@ -293,8 +310,16 @@ export type ServerMsg =
   | { t: 'zfx'; fx: ZFx; id?: number; at: Vec3; to?: Vec3; r?: number; t0: number; t1: number; hit?: number[] }
   /** Zumbi: something a zombie move did to a player: a push (`v`, m/s) and/or a slow (`slow`: speed factor until `until`). */
   | { t: 'zhitfx'; id: number; fx: ZFx; v?: Vec3; slow?: number; until?: number }
-  /** Zumbi: the Mystery Coffin changed; `money`: the buyer's after paying (or after the duck's refund). */
+  /** Zumbi: the Mystery Coffin changed; `money`: the buyer's after paying. */
   | ({ t: 'zbox'; money?: number } & BoxInfo)
+  /**
+   * Zumbi: barricade `i` changed: built ('build', `money` the builder's after paying), a board nailed back
+   * ('nail', `award` and `money` the repairer's), a blow on the boards ('hit'), the last board gone ('break'), or
+   * taken down for a new match ('reset').
+   */
+  | ({ t: 'zbar'; i: number; fx: 'build' | 'nail' | 'hit' | 'break' | 'reset'; by?: number; award?: number; money?: number } & ZBarricade)
+  /** Zumbi: `by` is working on barricade `i` (the next board, or the frame, at `until`; 0: stopped). */
+  | { t: 'zbarwork'; i: number; by: number; until: number }
   /** Zumbi: players' money changed (assists, the wave bonus, a boss's reward). */
   | { t: 'zmoney'; m: [id: number, money: number][]; why: 'assist' | 'wave' | 'boss' }
   /** Zumbi: a player went down; they bleed out at `until` unless someone revives them. */

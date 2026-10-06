@@ -13,6 +13,10 @@ source_paths:
   - client/world/decor.ts
   - client/world/oriental.ts
   - client/weapons/mines.ts
+  - client/zombies/view.ts
+  - client/zombies/barricades.ts
+  - client/zombies/coffin.ts
+  - client/world/cemetery.ts
   - shared/data/weapons/rifle_padrao.json
   - shared/data/weapons/pistola.json
   - shared/data/weapons/smg.json
@@ -61,6 +65,12 @@ Sequência "cartoon" disparada por `explosionFx` em `main.ts`, com tamanho deriv
 - **Mina terrestre:** LED vermelho que pisca devagar enquanto arma e rápido depois de armada (`mines.ts`). Ver [[Land Mines]].
 - **Overlay de luneta** e **vinheta de dano**: CSS, ver [[Post Processing]] e [[HUD]].
 
+### Modo zumbi
+
+- **Telegrafia de surgimento** (`zfx 'rise'`, `ZombieView.fx`): 0,9 s antes de um zumbi aparecer, um disco verde aditivo no chão (pulsa e some 0,9 s depois), **duas mãos** de toon verde-acinzentado (`handGeometry`: palma, quatro dedos e polegar, geometria e material compartilhados) que sobem da terra e arranham, um **feixe de luz** verde aditivo de 3,2 m (cilindro aberto, visível por cima do muro do cemitério) e um punhado de terra (`burst('debris')`). Ver [[Zombie]].
+- **Barricadas** (`client/zombies/barricades.ts`): 5 tábuas de toon em tons de madeira, levemente tortas, com pregos, e dois postes, na face de fora da brecha. A tábua de cima frouxa (inclina) e, abaixo de 1/3 da vida, pendurada por um prego; cada golpe a faz tremer e solta lascas; uma tábua que cai vira uma cópia solta que gira, quica no chão e some em 1,6 s; tábuas pregadas entram deslizando. Ver [[Map - Cemitério da Capela]].
+- **Caixão** (`client/zombies/coffin.ts`): a arma danificada flutua torta, com o brilho da raridade puxado para o vermelho e piscando, sob uma placa (sprite de canvas) "DANIFICADA" com uma rachadura.
+
 ## Efeitos de ambiente por mapa
 
 | Mapa | Efeito | Implementação |
@@ -74,6 +84,7 @@ Sequência "cartoon" disparada por `explosionFx` em `main.ts`, com tamanho deriv
 | [[Map - Jardim do Dragão]] | céu com shader, 260 estrelas fracas, 650 lanternas de papel subindo com halo | `nightSky`, `SkyLanterns` (`jardim/luzes.ts`) |
 | Jardim do Dragão | halo em cada lanterna pendurada e de pedra (balançam com tiros) | `LanternLights` (`Points` aditivos) |
 | Jardim do Dragão | baforada de fogo do dragão da fonte | `FireBreath` (`oriental.ts`) |
+| [[Map - Cemitério da Capela]] | o céu, a névoa rasteira (só no campo de fora, baixa), morcegos em volta do campanário, lanternas das brechas e velas da capela (`Glow`) | `nightSky`, `GroundMist`, `Bats`, `Glow` (`halloween.ts`) |
 
 O comportamento de jogo desses objetos (o que acontece ao atirar, sincronização online) está em [[Map Gags]] e [[Interactive Objects]].
 
@@ -84,6 +95,7 @@ O comportamento de jogo desses objetos (o que acontece ao atirar, sincronizaçã
 - `client/main.ts` (`explosionFx`, `killFx`, `groinFx`, `humiliationFx`, `weapon.shoot`)
 - `client/world/halloween.ts`, `client/world/jardim/luzes.ts`, `client/world/decor.ts`, `client/world/oriental.ts`, `client/world/hydrant.ts`
 - `client/weapons/mines.ts`
+- `client/zombies/view.ts` (telegrafias do modo zumbi), `client/zombies/barricades.ts`, `client/zombies/coffin.ts`, `client/world/cemetery.ts`
 
 ## Ver também
 

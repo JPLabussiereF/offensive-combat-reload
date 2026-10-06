@@ -36,7 +36,7 @@ O que existe é um **lobby com lista de salas** (browser de servidores), no pró
 
 ## Salas permanentes
 
-Ao iniciar, o servidor cria **uma sala fixa por mapa e por modo de jogo** (cada modo nos mapas em que é jogado, `modeMaps`: o zumbi só na Vila Assombrada, sala `zumbi-halloween`), que nunca é removida. O nome é o do mapa; o modo aparece ao lado na lista:
+Ao iniciar, o servidor cria **uma sala fixa por mapa e por modo de jogo** (cada modo nos mapas em que é jogado, `modeMaps`: o zumbi só no Cemitério da Capela, sala `zumbi-cemiterio`; os outros modos só nos mapas abertos, `PVP_MAPS`, nunca no cemitério), que nunca é removida. O nome é o do mapa; o modo aparece ao lado na lista:
 
 | id (`permanentSessionId`) | Nome (de `MAPS[...].nome`) | Mapa | Modo |
 |---|---|---|---|
@@ -46,6 +46,7 @@ Ao iniciar, o servidor cria **uma sala fixa por mapa e por modo de jogo** (cada 
 | `corrida-armada-rua` | Rua dos Vizinhos | `rua` | corrida armada |
 | `corrida-armada-jardim` | Jardim do Dragão | `jardim` | corrida armada |
 | `corrida-armada-halloween` | Vila Assombrada | `halloween` | corrida armada |
+| `zumbi-cemiterio` | Cemitério da Capela | `cemiterio` | zumbi |
 
 Os ids do mata-mata são os de antes dos modos (`principal` foi mantido "de quando só havia a rua"); os outros modos usam `<modo>-<mapa>`. Ver [[Maps Index]] e [[Game Modes Index]].
 

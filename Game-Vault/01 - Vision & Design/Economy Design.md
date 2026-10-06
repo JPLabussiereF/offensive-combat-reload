@@ -14,6 +14,7 @@ source_paths:
   - shared/data/zumbi.json
   - shared/zombies.ts
   - shared/zombieMatch.ts
+  - shared/barricades.ts
 tags:
   - game
   - design
@@ -36,10 +37,10 @@ updated: 2026-10-06
 
 O [[Zombie|modo zumbi]] tem uma economia **fechada na partida** ([[ADR - Modo zumbi cooperativo com caixão e raridades]]):
 
-- **Fontes**: $500 ao começar (ou entrar), cada abate de zumbi ($60–120 conforme o tipo, $500 um chefe; +$40 tiro na cabeça, +$60 facada), ajuda (+$25), reanimar um colega (+$100), onda vencida (+$100), chefe derrotado (+$1.000 a $1.500 para o time).
-- **Ralo**: o **Caixão Misterioso**, $950 por rodada, que sorteia uma arma de uma raridade (o pato de borracha devolve o dinheiro).
+- **Fontes**: $500 ao começar (ou entrar), cada abate de zumbi ($60–120 conforme o tipo, $500 um chefe; +$40 tiro na cabeça, +$60 facada), ajuda (+$25), reanimar um colega (+$100), onda vencida (+$100), chefe derrotado (+$1.000 a $1.500 para o time), repregar tábuas de barricada (+$10 por tábua, até $150 por jogador por onda: o teto evita deixar a horda arrancar tábuas para ganhar dinheiro repregando).
+- **Ralos**: o **Caixão Misterioso**, $950 por rodada, que sorteia uma arma de uma raridade — às vezes **danificada** (menos munição, menos dano ou os dois; 25% numa comum, 6% numa lendária), sem reembolso nem conserto ([[ADR - Caixão fixo com armas danificadas]]) — e as **barricadas**, $300 cada para erguer nas cinco brechas do muro; manter é de graça, só custa tempo ([[ADR - Mapa exclusivo e barricadas no modo zumbi]]). A escolha da partida é entre arma (caixão) e controle da horda (barricadas).
 - **Autoridade**: online, o servidor credita, cobra e sorteia (`shared/zombieMatch.ts` rodando em `server/modes.ts`); o cliente só mostra.
-- **Persistência**: nenhuma. Zera a cada partida, ao sair da sessão e ao entrar de novo. Valores em `shared/data/zumbi.json` (`dinheiroInicial`, `dinheiro`, `tipos.*.dinheiro`, `chefes.*`, `caixa.custo`).
+- **Persistência**: nenhuma. Zera a cada partida, ao sair da sessão e ao entrar de novo. Valores em `shared/data/zumbi.json` (`dinheiroInicial`, `dinheiro`, `tipos.*.dinheiro`, `chefes.*`, `caixa.custo`, `caixa.danificada`, `barricadas`).
 
 ## Rastros de uma economia planejada (não usados)
 

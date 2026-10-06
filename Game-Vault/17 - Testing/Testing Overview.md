@@ -20,6 +20,7 @@ source_paths:
   - client/tests/arsenalText.test.ts
   - server/tests/modes.test.ts
   - server/tests/zombies.test.ts
+  - server/tests/zombieBarricades.test.ts
   - server/tests/progression-modes.test.ts
   - client/tests/offlineModes.test.ts
 tags:
@@ -38,7 +39,8 @@ Os testes usam o executor nativo **`bun test`** (`bun:test`: `describe`, `it`, `
 | `server/tests/auth.test.ts` | Integração (HTTP) | 16 | cadastro, login, limites, sessão, origem, recuperação de senha, perfil, exclusão |
 | `server/tests/game.test.ts` | Integração (HTTP + WebSocket) / gameplay | 26 | ticket do WS, conexões por conta, progresso, mapas, pickups, Vila Assombrada, loadout, arma que atirou, chat |
 | `server/tests/modes.test.ts` | Integração (WebSocket) + regras puras | 13 | mata-mata (equipamento travado, melhorias da conta valendo, cliente ganancioso), corrida armada (escada, rodadas, a conta ignorada) |
-| `server/tests/zombies.test.ts` | Unitário + motor com relógio falso + integração | 25 | modo zumbi: regras, navmesh em dia, motor, servidor real (inclui progressão de armas, chefes com vários jogadores, entrar no meio da onda, sangrar) |
+| `server/tests/zombies.test.ts` | Unitário + motor com relógio falso + integração | 26 | modo zumbi: regras, navmesh em dia, motor, servidor real (inclui progressão de armas, chefes com vários jogadores, entrar no meio da onda, sangrar, arma danificada na validação do servidor, barricadas no servidor e na entrada no meio da onda) |
+| `server/tests/zombieBarricades.test.ts` | Unitário + motor com relógio falso | 11 | o mapa exclusivo do zumbi, as brechas na navmesh, barricadas (erguer, repregar com teto, desvio para a brecha aberta, tudo fechado, o Segurança arromba), armas danificadas (chances, defeitos, penalidades, caixão) |
 | `server/tests/progression-modes.test.ts` | `Session` real sobre sockets falsos (sem rede) | 9 (dois `it` repetidos por modo) | matriz progressão × modos (`GAME_MODE_IDS` × armas × níveis e melhorias) |
 | `server/tests/arsenal.test.ts` | Unitário | 18 | níveis, melhorias, escolha do Arsenal, atributos, migração 003 |
 | `server/tests/appearance.test.ts` | Unitário + integração | 12 | regras de aparência (puras), perfil, aparência online |
@@ -48,7 +50,7 @@ Os testes usam o executor nativo **`bun test`** (`bun:test`: `describe`, `it`, `
 | `client/tests/offlineModes.test.ts` | Unitário | 5 | treino e bots com o Arsenal da conta (`Progress`), armas dos bots e da escada, zumbi sozinho (`LocalZombies`) |
 | `client/tests/spatial.test.ts` | Unitário | 6 | som espacial |
 
-(Contagem dos casos em 2026-10-06; `bun test` roda 166 casos em ~85–90 s, dos quais ~25 s são esperas reais dos testes do modo zumbi e da corrida armada.)
+(Contagem dos casos em 2026-10-06; `bun test` roda 178 casos em 13 arquivos em ~95 s, dos quais ~25 s são esperas reais dos testes do modo zumbi e da corrida armada. Os testes de motor com relógio falso, como os de barricada, simulam minutos de jogo em poucos décimos de segundo.)
 
 ## Configuração (`bunfig.toml`)
 

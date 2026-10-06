@@ -1,5 +1,5 @@
 {
-  "_doc": "Modo zumbi (ondas cooperativas na Vila Assombrada). Todos começam com o Rifle Padrão sem melhorias (as melhorias da conta não valem) e a faca comum; as armas melhores saem do Caixão Misterioso, pago com o dinheiro da partida (não persiste). Cada onda tem 'zumbis' zumbis para 1 jogador, multiplicados por 1 + jogadoresFator × (jogadores − 1); 'vida' é a vida do zumbi comum na onda (os tipos multiplicam), 'intervalo' os segundos entre surgimentos, 'corrida' a fração de zumbis comuns que correm em vez de andar e 'tipos' a chance de cada variante. Ondas com 'chefe' trazem um chefe (vida × (1 + chefeVidaFator × (jogadores − 1))). Sobreviver à última onda vence; perder é ficar sem ninguém de pé. Velocidades em m/s, tempos em segundos, distâncias em metros. A raridade da arma multiplica o dano contra zumbis. Nomes em client/ui/strings.ts (zitem_<id>, ztype_<tipo>, zboss_<chefe>).",
+  "_doc": "Modo zumbi (ondas cooperativas no Cemitério da Capela, mapa exclusivo do modo). Todos começam com o Rifle Padrão sem melhorias (as melhorias da conta não valem) e a faca comum; as armas melhores saem do Caixão Misterioso, pago com o dinheiro da partida (não persiste). Cada onda tem 'zumbis' zumbis para 1 jogador, multiplicados por 1 + jogadoresFator × (jogadores − 1); 'vida' é a vida do zumbi comum na onda (os tipos multiplicam), 'intervalo' os segundos entre surgimentos, 'corrida' a fração de zumbis comuns que correm em vez de andar e 'tipos' a chance de cada variante. Ondas com 'chefe' trazem um chefe (vida × (1 + chefeVidaFator × (jogadores − 1))). Sobreviver à última onda vence; perder é ficar sem ninguém de pé. Velocidades em m/s, tempos em segundos, distâncias em metros. A raridade da arma multiplica o dano contra zumbis; uma arma danificada (caixa.danificada: a chance por raridade, o tipo de defeito e o tamanho de cada penalidade) tem menos munição no pente e na reserva, menos dano ou os dois. Barricadas (barricadas): erguer uma custa 'custo' e já vem com 'tabuas' tábuas de 'vidaTabua' de vida; repregar uma tábua é de graça e paga 'reparoDinheiro' (até 'reparoTetoOnda' por jogador por onda); 'dano' é o que cada golpe tira das tábuas. Nomes em client/ui/strings.ts (zitem_<id>, ztype_<tipo>, zboss_<chefe>).",
   "inicioSegundos": 15,
   "intervaloSegundos": 20,
   "intervaloChefeSegundos": 25,
@@ -57,7 +57,18 @@
   "xp": { "onda": 10, "vitoria": 250, "reanimar": 10 },
   "jogador": { "caidoSegundos": 30, "reanimarSegundos": 3, "reanimarVida": 0.5, "reanimarAlcance": 2.5 },
   "armas": { "faca": 120, "granadaPorOnda": 0.25, "municaoReserva": 3 },
-  "caixa": { "custo": 950, "girarSegundos": 3.5, "ofertaSegundos": 8, "patoApos": 3, "patoChance": 0.15, "patoAumento": 0.05, "patoSegundos": 3, "mudarSegundos": 6, "alcance": 2.5 },
+  "caixa": {
+    "custo": 950, "girarSegundos": 3.5, "ofertaSegundos": 8, "alcance": 2.5,
+    "danificada": {
+      "chance": { "inicial": 0, "comum": 0.25, "raro": 0.18, "epico": 0.12, "lendario": 0.06 },
+      "tipos": { "municao": 0.45, "dano": 0.45, "ambos": 0.1 },
+      "pente": 0.6, "reserva": 0.5, "dano": 0.75
+    }
+  },
+  "barricadas": {
+    "tabuas": 5, "vidaTabua": 150, "custo": 300, "erguerSegundos": 2.5, "repararSegundos": 0.8, "reparoDinheiro": 10, "reparoTetoOnda": 150, "alcance": 2.4,
+    "dano": { "comum": 30, "corredor": 20, "inchado": 30, "brutamontes": 110, "cuspidor": 30, "chefe": 260, "explosao": 400 }
+  },
   "raridades": {
     "inicial": { "peso": 0, "dano": 1 },
     "comum": { "peso": 50, "dano": 1.4 },
@@ -85,19 +96,25 @@
     { "id": "sabre", "arma": "faca", "melhorias": ["sabre"], "raridade": "lendario" }
   ],
   "mapas": {
-    "halloween": {
+    "cemiterio": {
+      "_doc": "O muro do cemitério (linha central) cerca 'dentro' (x0, z0, x1, z1); os zumbis surgem só no campo de covas de fora ('surgir') e entram pelas brechas ('barricadas': o eixo ao longo do qual o muro corre, o centro da brecha e a largura livre). O caixão fica sempre no mesmo lugar ('caixa': x, y, z, giro).",
+      "dentro": [-20, -18, 20, 18],
       "surgir": [
-        [-10, 0, -30], [-4, 0, -33], [4, 0, -30], [10, 0, -33], [0, 0, -18], [-14, 0, -20], [12, 0, -19],
-        [-50, 0, -25], [-30, 0, -50], [4.6, 0, -50], [-55, 0, -35],
-        [55, 0, -47], [39, 0, -30], [51, 0, -29],
-        [-50, 0, 15], [-45, 0, 24],
-        [-40, 0, 50], [40, 0, 52], [0, 0, 52],
-        [52, 0, 28], [25, 0, 20],
-        [-30, -4, 31.5], [7.5, -4, 44],
-        [-15, 0, 20], [10, 0, 22]
+        [-26, 0, -24.3], [-18, 0, -24.3], [-6, 0, -24.3], [5, 0, -24.3], [18, 0, -24.3], [26, 0, -24.3],
+        [-26, 0, 24.5], [-17, 0, 25.5], [-7, 0, 23.6], [7, 0, 23.6], [17, 0, 25.5], [26, 0, 24.5],
+        [-26, 0, -12], [-26, 0, -3], [-26, 0, 11], [-26, 0, 15],
+        [26, 0, -12], [26, 0, -3], [26, 0, 11], [26, 0, 15],
+        [-27, 0, -21], [27, 0, -21], [-27, 0, 21], [27, 0, 21]
       ],
-      "caixa": [[2.6, 0, -22.4, 0], [-14, 0, 37.5, 0], [-48, 0, 20, 0], [25, 0, 20, 1.57], [-6, 0, 4.4, 0]],
-      "chefe": { "coveiro": [0, 0, -27], "noiva": [-14, 0, -20], "prefeito": [0, 0, 38] }
+      "caixa": [17.6, 0, -9, 1.5708],
+      "chefe": { "coveiro": [0, 0, -24.3], "noiva": [-26, 0, -8], "prefeito": [-11, 0, 24.5] },
+      "barricadas": [
+        { "id": "portao", "eixo": "x", "centro": [0, 0, 18], "largura": 3 },
+        { "id": "oeste", "eixo": "z", "centro": [-20, 0, 5], "largura": 2.4 },
+        { "id": "leste", "eixo": "z", "centro": [20, 0, 5], "largura": 2.4 },
+        { "id": "noroeste", "eixo": "x", "centro": [-12, 0, -18], "largura": 2.4 },
+        { "id": "nordeste", "eixo": "x", "centro": [12, 0, -18], "largura": 2.4 }
+      ]
     }
   }
 }

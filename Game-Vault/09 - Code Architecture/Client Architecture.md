@@ -8,6 +8,8 @@ source_paths:
   - client/main.ts
   - client/zombies/client.ts
   - client/zombies/link.ts
+  - client/zombies/barricades.ts
+  - client/world/cemetery.ts
   - client/core/loop.ts
   - client/core/input.ts
   - client/core/settings.ts
@@ -65,7 +67,7 @@ Detalhes:
 
 - **Carregamento**: `createPhysics()` (`client/world/physics.ts`) inicializa o WASM do Rapier e cria um `World` com gravidade −22 e `timestep` 1/60. `createRenderContext` cria renderer, cena, câmera, sol e a cena separada do viewmodel.
 - **Home**: `showHome()` (`client/ui/home.ts`) resolve com um `HomeChoice` que é uma união discriminada por `mode`: `'offline'` (treino), `'bots'` (`count`, `skill`) ou `'online'` (`conn`, `joined`). Ver [[Menus]] e [[Flow - Join Online Match]].
-- **Mapa**: escolhido por `choice.map` (`rua` → `buildBlockoutMap`, `jardim` → `buildDragonGardenMap`, `halloween` → `buildHauntedTownMap`) ou por `?mapa=/maps/x.glb` (`buildGltfMap`). Todos devolvem a interface `GameMap` (`client/world/blockoutMap.ts`): spawns, bonecos, `killY`, `props` (um `PropBus`), `update()`, `dog`, coletáveis, peixes, ratos, poção, recompensas e atmosfera. Ver [[World Structure]].
+- **Mapa**: escolhido por `choice.map` (`rua` → `buildBlockoutMap`, `jardim` → `buildDragonGardenMap`, `halloween` → `buildHauntedTownMap`, `cemiterio` → `buildCemeteryMap`, só no modo zumbi) ou por `?mapa=/maps/x.glb` (`buildGltfMap`). Todos devolvem a interface `GameMap` (`client/world/blockoutMap.ts`): spawns, bonecos, `killY`, `props` (um `PropBus`), `update()`, `dog`, coletáveis, peixes, ratos, poção, recompensas e atmosfera. Ver [[World Structure]].
 - **Criação de sistemas**: tudo é instanciado como `const` local dentro de `boot()` (ex.: `dummies`, `net`, `effects`, `viewmodel`, `progress`, `mines`, `player`, `avatar`, `melee`, `thrower`, `grenades`, `taunt`, `hud`, `scoreboard`, `input`, `chat`, `bots`).
 - **Retenção de mensagens**: a home chama `conn.hold()` logo depois do `'joined'`; o `boot()` só chama `conn.release()` quando todos os handlers existem, para não perder abates/corpos enviados durante a montagem do mapa (`client/net/connection.ts`).
 
@@ -93,7 +95,7 @@ Interpola posições, atualiza câmera/viewmodel, `dummies.render`, `bots.render
 | `client/character/` | Sistema modular de personagens (corpo, peças, atlas, animador) | [[Character Models]], [[Animation]] |
 | `client/weapons/` | Lógica de arma de fogo, hitscan, faca, granadas, minas | [[Weapons]], [[Grenades]], [[Melee]] |
 | `client/gameplay/` | Alvos, corpos, opressão, escolha de spawn, progressão, assistência de mira | [[Humiliation]], [[Spawn Design]] |
-| `client/zombies/` | Modo zumbi no cliente: `client.ts` (eventos da partida, HUD, `E` no caixão e para reanimar, caído), `view.ts` (zumbis interpolados com hitboxes, telegrafias), `coffin.ts` (o Caixão Misterioso), `looks.ts` (visuais dos zumbis e adereços dos chefes), `local.ts` (jogo solo: o motor `shared/zombieMatch.ts` no navegador), `link.ts` (interface `ZombieLink`, a mesma para a partida online e a solo; sem DOM), `ambience.ts` (névoa e página do caixão) | [[Zombie]] |
+| `client/zombies/` | Modo zumbi no cliente: `client.ts` (eventos da partida, HUD, `E` no caixão, nas barricadas e para reanimar, setas das brechas, caído), `view.ts` (zumbis interpolados com hitboxes, telegrafias, inclusive a de surgimento), `coffin.ts` (o Caixão Misterioso, fixo, com a placa de arma danificada), `barricades.ts` (as tábuas nas brechas: estágios de dano, colisor para jogadores, sons), `looks.ts` (visuais dos zumbis e adereços dos chefes), `local.ts` (jogo solo: o motor `shared/zombieMatch.ts` no navegador), `link.ts` (interface `ZombieLink`, a mesma para a partida online e a solo; sem DOM), `ambience.ts` (névoa e página do caixão) | [[Zombie]] |
 | `client/ai/` | Bots, gerenciador do mata-mata contra bots, navmesh | [[AI Overview]] |
 | `client/net/` | API HTTP, conexão WebSocket, jogadores remotos | [[Networking Overview]] |
 | `client/audio/` | Sons procedurais e matemática de som espacial | [[Audio Overview]] |

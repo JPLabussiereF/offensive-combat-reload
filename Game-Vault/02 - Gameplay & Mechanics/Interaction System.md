@@ -5,6 +5,7 @@ status: documented
 area: gameplay
 source_paths:
   - client/main.ts
+  - client/zombies/client.ts
   - client/core/keybinds.ts
   - client/gameplay/targets.ts
   - client/world/props.ts
@@ -14,7 +15,7 @@ tags:
   - game
   - gameplay
   - interaction
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Interaction System
@@ -41,6 +42,8 @@ O mesmo botão faz coisas diferentes conforme o que está perto, nesta prioridad
 | 1 | Corpo oprimível a ≤ 2 m dos pés (e diferença de altura ≤ 1,5 m) | Começa a dança — ver [[Humiliation]] | `[E] Oprimir {nome}` (barra = tempo restante da janela de 6 s) |
 | 2 | Perto da bruxa (≤ 2,4 m, `POTION.radius`; diferença de altura < 1,5 m) e poção liberada | Bebe a poção — ver [[Buffs & Debuffs]] | `[E] Beber Poção` |
 | — | Dançando | (mostra progresso) | `Oprimindo {nome}…` |
+
+No [[Zombie|modo zumbi]] (sem opressão), o `E` vale antes de tudo isso, nesta ordem (`ZombieClient.press`/`hold`, `client/zombies/client.ts`): **segurar** sobre um colega caído (reanimar, 3 s); **apertar** no Caixão Misterioso (girar por $950 ou pegar a arma oferecida; o prompt diz se ela veio danificada); **segurar** numa brecha do muro do cemitério (erguer a barricada por $300 em 2,5 s, ou repregar tábuas de graça, 0,8 s cada). Enquanto segura E reanimando ou pregando, não atira. Tudo decidido pelo servidor online ([[Remote Calls]]: `revive`, `box`, `barricade`).
 
 - A tecla é remapeável; o prompt mostra a tecla atual (`screens.keyName('taunt')`).
 - Controle: △/Y. Toque: a própria caixa do prompt é o botão (ver [[Touch Controls]]).

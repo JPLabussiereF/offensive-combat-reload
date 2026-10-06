@@ -40,7 +40,7 @@ import {
 } from '@shared/progression';
 import { FLAG, NET, type ClientMsg, type ServerMsg } from '@shared/protocol';
 import { computeDamage, explosionDamage, HIT_REGIONS, idealTtk } from '@shared/weapons';
-import { BOX_ITEMS, itemOf, itemSlot, startItems, ZOMBIE, zombieLoadout, type ZItems } from '@shared/zombies';
+import { BOX_ITEMS, flawAmmo, itemOf, itemSlot, startItems, Z_FLAWS, ZOMBIE, zombieGunData, zombieLoadout, type ZFlaw, type ZItems, type ZSlot } from '@shared/zombies';
 import { equip, levelsOf, liveAccount, loadoutOf, type LiveAccount } from '../progress';
 import { Session, type Conn } from '../session';
 
@@ -195,10 +195,30 @@ function loadoutProblems(lo: Loadout): string[] {
 const MODE_LOADOUTS: Partial<Record<GameModeId, () => Loadout[]>> = {
   'corrida-armada': () => LADDER.map((_, step) => ladderLoadout(step)),
   zumbi: () => {
-    // Every combination of the coffin's items in the three slots (the starting rifle included).
-    const slot = (s: 'primaria' | 'secundaria' | 'faca') => ZOMBIE.itens.filter((i) => itemSlot(i) === s).map((i) => i.id);
+    // Every combination of the coffin's items in the three slots (the starting rifle included), each coffin item
+    // intact or damaged in every way it can come (a blade only with less damage; the starting rifle never).
+    const slot = (s: ZSlot) => ZOMBIE.itens.filter((i) => itemSlot(i) === s);
+    const variants = (s: ZSlot, empty: boolean) => {
+      const out: { id: string | null; flaw: ZFlaw | null }[] = empty ? [{ id: null, flaw: null }] : [];
+      for (const it of slot(s)) {
+        out.push({ id: it.id, flaw: null });
+        if (it.raridade === 'inicial') continue;
+        for (const flaw of it.arma === 'faca' ? (['dano'] as const) : Z_FLAWS) out.push({ id: it.id, flaw });
+      }
+      return out;
+    };
     const out: Loadout[] = [];
-    for (const primaria of slot('primaria')) for (const secundaria of [null, ...slot('secundaria')]) for (const faca of [null, ...slot('faca')]) out.push(zombieLoadout({ primaria, secundaria, faca }));
+    for (const p of variants('primaria', false)) {
+      for (const s of variants('secundaria', true)) {
+        for (const k of variants('faca', true)) {
+          const danificadas: Partial<Record<ZSlot, ZFlaw>> = {};
+          if (p.flaw) danificadas.primaria = p.flaw;
+          if (s.flaw) danificadas.secundaria = s.flaw;
+          if (k.flaw) danificadas.faca = k.flaw;
+          out.push(zombieLoadout({ primaria: p.id!, secundaria: s.id, faca: k.id, ...(Object.keys(danificadas).length ? { danificadas } : {}) }));
+        }
+      }
+    }
     return out;
   },
 };
@@ -250,6 +270,22 @@ describe('matriz progressão × modos', () => {
       if (m !== 'zumbi') continue;
       // Zumbi: basic grenades only, whatever the coffin gave; every item's gun with its own fixed upgrades.
       for (const lo of list) expect(lo.ativas.granada).toEqual([]);
+      // Damaged ones: the flaw crosses the network untouched, and the gun the client builds with fewer rounds (the
+      // mode's bigger reserve, minus the flaw's) is still a valid gun.
+      const damaged = list.filter((lo) => lo.danificadas);
+      expect(damaged.length).toBeGreaterThan(list.length / 2);
+      for (const lo of list) {
+        expect(sanitizeLoadout(JSON.parse(JSON.stringify(lo)))).toEqual(lo);
+        for (const s of ['primaria', 'secundaria'] as const) {
+          const g = slotStats(lo, s);
+          if (!g) continue;
+          const flaw = lo.danificadas?.[g.arma];
+          const held = zombieGunData(g, flaw);
+          expect({ lo, s, problems: gunProblems(held) }).toEqual({ lo, s, problems: [] });
+          expect(held.pente).toBe(Math.max(1, Math.round(g.pente * flawAmmo(flaw).pente)));
+          if (flaw === 'municao' || flaw === 'ambos') expect(held.reserva).toBeLessThan(zombieGunData(g, null).reserva);
+        }
+      }
       for (const it of BOX_ITEMS) {
         const items: ZItems = { ...startItems(), [itemSlot(it)]: it.id };
         const lo = zombieLoadout(items);
