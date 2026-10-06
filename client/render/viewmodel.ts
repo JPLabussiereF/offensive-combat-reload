@@ -84,6 +84,8 @@ export const VM_FEEL = {
     left: { wrist: [-0.045, -0.088, -0.13] as V3, elbow: [-0.21, -0.28, 0.13] as V3, roll: 2.55, grip: 0.42 },
     pistolLeft: { wrist: [-0.03, -0.1, 0.07] as V3, elbow: [-0.2, -0.3, 0.3] as V3, roll: 2.3, grip: 0.75 },
   },
+  /** One hand (PCD) reloading: how much further the resting gun tilts (rad) and drops (m). */
+  oneHandReload: { tilt: 0.2, drop: 0.05 },
   /** Drawing a gun: how far below it starts (m) and its tilt (rad). */
   draw: { drop: 0.22, tilt: 0.9 },
   /** Only a blade in hand (corrida armada's lightsaber): where the knife's fist rests between swings. */
@@ -472,8 +474,8 @@ export class Viewmodel {
       // One hand: the gun rests against the body (lower, turned further) while that hand leaves the grip,
       // takes the magazine down out of view and brings the new one.
       if (this.oneHand && this.gripArm) {
-        rx += tiltIn * 0.2;
-        pos.y -= tiltIn * 0.05;
+        rx += tiltIn * F.oneHandReload.tilt;
+        pos.y -= tiltIn * F.oneHandReload.drop;
         const toMag = THREE.MathUtils.smoothstep(r, 0.04, 0.12) * (1 - THREE.MathUtils.smoothstep(r, 0.62, 0.78));
         const mag = this.kit.mag.position;
         this.gripArm.position.copy(this.gripWrist).lerp(this.tmpMag.set(mag.x, mag.y - 0.05, mag.z), toMag);

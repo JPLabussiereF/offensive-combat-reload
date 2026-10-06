@@ -93,7 +93,7 @@ Pose base do rifle no espaço da câmera, misturada entre quadril, ADS (*ease-ou
 | Troca de arma | a arma nova sobe de baixo, inclinada, durante o tempo de saque (`troca`) | `Viewmodel.draw`, `VM_FEEL.draw` |
 | Granada | o rifle abaixa, a mão esquerda segura a granada tremendo e arremessa por cima | — |
 
-Os braços em primeira pessoa são do próprio personagem (pele, manga, luvas, PCD). Sem a mão direita, a arma inteira é espelhada para o lado esquerdo da tela, segura pela mão esquerda na empunhadura; mirando, o ponto continua no centro (`Viewmodel.sightCameraSpace` em x = y = 0), e o sway e a inclinação do strafe desfazem o espelho para seguir o lado da visão. Com uma mão só, a recarga abaixa e gira mais a arma enquanto a mão leva o carregador para fora do quadro, e a arma sai da tela durante a faca e a granada. Ver [[Weapon Models]] e [[Character Customization]].
+Os braços em primeira pessoa são do próprio personagem (pele, manga, luvas, PCD). Sem a mão direita, a arma inteira é espelhada para o lado esquerdo da tela, segura pela mão esquerda na empunhadura; mirando, o ponto continua no centro (`Viewmodel.sightCameraSpace` em x = y = 0), e o sway e a inclinação do strafe desfazem o espelho para seguir o lado da visão. Com uma mão só, a recarga abaixa e gira mais a arma (`VM_FEEL.oneHandReload`: inclinação extra 0,2 rad e descida 0,05 m, ajustáveis no F6) enquanto a mão leva o carregador para fora do quadro, e a arma sai da tela durante a faca e a granada. Ver [[Weapon Models]] e [[Character Customization]].
 
 ## Props animados do mapa
 
