@@ -1,11 +1,11 @@
 // The map data format (shared/mapData.ts) and the piece catalog (shared/mapCatalog.ts): the official maps pass
-// validateMapData, broken maps are refused with a reason, every kind of piece has its adapter in the client
-// and the objects the server still reads from shared/maps.ts (collectibles, the witch, rats, fish) match the
-// official maps' data.
+// validateMapData, broken maps are refused with a reason, every kind of piece has its adapter in the client,
+// the pieces of the witch, the rat and the biscuit cabinet match the objects the server tracks, and the home's
+// table of the official maps (names, the mode each is made for) matches their data.
 import { describe, expect, it } from 'bun:test';
 import { MAP_BUDGET, MAP_FORMAT, validateMapData, type MapData } from '@shared/mapData';
 import { checkParam, checkPieceParams, MAP_CATALOG, SUPERFICIES } from '@shared/mapCatalog';
-import { FISH, MAPS, PICKUPS, RATS, WITCHES, type MapId } from '@shared/maps';
+import { OFFICIAL_MAPS, type OfficialMapId } from '@shared/maps';
 import { ZOMBIE } from '@shared/zombies';
 import rua from '@shared/data/mapas/rua.json';
 import jardim from '@shared/data/mapas/jardim.json';
@@ -13,7 +13,7 @@ import halloween from '@shared/data/mapas/halloween.json';
 import cemiterio from '@shared/data/mapas/cemiterio.json';
 import { installCanvasStandIn, loadClient } from '../../tools/headless';
 
-const OFFICIAL: Record<MapId, MapData> = { rua, jardim, halloween, cemiterio } as unknown as Record<MapId, MapData>;
+const OFFICIAL: Record<OfficialMapId, MapData> = { rua, jardim, halloween, cemiterio } as unknown as Record<OfficialMapId, MapData>;
 const copy = (m: MapData): MapData => structuredClone(m);
 const errorsOf = (raw: unknown) => validateMapData(raw).erros;
 
@@ -193,20 +193,15 @@ describe('esquema das peças', () => {
   });
 });
 
-describe('mapas oficiais e as tabelas que o servidor ainda lê', () => {
-  it('nome e exclusividade iguais aos de MAPS', () => {
-    for (const [id, m] of Object.entries(OFFICIAL) as [MapId, MapData][]) {
-      expect(m.nome).toBe(MAPS[id].nome);
-      expect(m.exclusivo).toBe(MAPS[id].exclusivo);
-    }
-  });
-
-  it('coletáveis, bruxa, ratos e peixes iguais a PICKUPS, WITCHES, RATS e FISH', () => {
-    for (const [id, m] of Object.entries(OFFICIAL) as [MapId, MapData][]) {
-      expect(m.objetos.coletaveis).toEqual(PICKUPS[id].map((k) => ({ id: k.id, tipo: k.kind, p: k.p })));
-      expect(m.objetos.bruxa).toEqual(WITCHES[id]);
-      expect(m.objetos.ratos).toEqual(RATS[id]);
-      expect(m.objetos.peixes).toEqual(FISH[id].map((f) => ({ id: f.id, lago: f.pond, volta: f.loop, y: f.y })));
+describe('mapas oficiais', () => {
+  it('nome e exclusividade iguais aos da tabela dos seletores da tela inicial (OFFICIAL_INFO)', async () => {
+    const restore = installCanvasStandIn();
+    try {
+      const { OFFICIAL_INFO } = await loadClient('client/world/mapLoader.ts');
+      expect(Object.keys(OFFICIAL_INFO)).toEqual([...OFFICIAL_MAPS]);
+      for (const id of OFFICIAL_MAPS) expect({ id, nome: OFFICIAL[id].nome, exclusivo: OFFICIAL[id].exclusivo }).toEqual({ id, nome: OFFICIAL_INFO[id].nome, exclusivo: OFFICIAL_INFO[id].exclusivo });
+    } finally {
+      restore();
     }
   });
 

@@ -7,12 +7,20 @@
 // inside one sector (or one room). The cherry under the courtyard's tree gives extra max health for a while
 // (CHERRY); the koi can be shot for a little XP (KOI).
 import { MAP_FORMAT, type Vec3 } from '@shared/mapData';
-import { FISH } from '@shared/maps';
 import { ORIENTAL as C } from '../oriental';
 import { MID_X, MID_Z, rect, W } from '../jardim/kit';
 import { NIGHT } from '../jardim/luzes';
 import type { MapMeta, Recorder } from './recorder';
 import { anel, bambu, bonsai, casa, guerreiros, lago, lanternas, santuario } from './jardimSetores';
+
+/**
+ * The koi of the two ponds (KOI): each swims a loop (center x, z and radius) at depth y. Until PF-6 they were
+ * shared/maps.ts FISH; the map's data (objetos.peixes) carries them now.
+ */
+const FISH = [
+  ...([[-12, -40.6, 1.2], [-8, -35.6, 1.4], [-11.5, -35.4, 1.0], [-7, -41, 0.9]] as const).map((loop, i) => ({ id: `koi:${i}`, pond: 'bonsai', loop: [...loop] as Vec3, y: -0.38 })),
+  ...([[25.5, -33, 2.0], [39.5, -22, 2.2], [27, -12.5, 2.4], [38.5, -36, 1.6], [30.5, -31, 1.4]] as const).map((loop, i) => ({ id: `koi:${4 + i}`, pond: 'lago', loop: [...loop] as Vec3, y: -0.4 })),
+];
 
 /** Same seed on every client: rocks, trees and bamboo collide identically online. */
 export const SEED = 8128;
@@ -92,7 +100,7 @@ export function meta(): MapMeta {
       coletaveis: [{ id: 'cereja', tipo: 'cereja', p: [0, 0.36, 2.1] }],
       bruxa: null,
       ratos: [],
-      peixes: FISH.jardim.map((f) => ({ id: f.id, lago: f.pond, volta: [...f.loop] as Vec3, y: f.y })),
+      peixes: FISH.map((f) => ({ id: f.id, lago: f.pond, volta: [...f.loop] as Vec3, y: f.y })),
     },
   };
 }

@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
-// Bakes the walkable area of every map where the server simulates enemies (the zumbi mode's maps, see
-// MODE_RULES in shared/modes.ts) into shared/data/navmesh/<map>.json, which the server loads (server/navmesh.ts).
+// Bakes the walkable area of every official map where the server simulates enemies (the zumbi mode's maps:
+// `exclusivo: "zumbi"` in their data) into shared/data/navmesh/<map>.json, which seeds version 1 of the map on the
+// server (server/maps.ts seedOfficialMaps; server/navmesh.ts loads it). Maps saved through the editor get theirs
+// from the map builder thread (server/mapWorker.ts), the same way.
 //
 // The map is built headless, here in Bun, from its data (shared/data/mapas/<map>.json) with the client's own
 // loader (client/world/mapLoader.ts: the same colliders the browser has) and the bots' Recast settings
@@ -11,16 +13,15 @@
 // and a flag per gap (shared/barricades.ts gateAreas), so a match can shut a barricaded gap with a query filter;
 // the browser's solo game builds the very same mesh (client/main.ts passes the same boxes).
 //
-//   bun run navmesh           bakes every zumbi map
+//   bun run navmesh           bakes every official zumbi map
 //
 // The client code is imported through variable paths so the server's typecheck (no DOM types) doesn't
 // follow it; canvas textures get a do-nothing stand-in (nothing is drawn, only the colliders matter): see
 // tools/headless.ts.
 import { join } from 'node:path';
-import type { MapId } from '@shared/maps';
-import { modeMaps } from '@shared/modes';
+import { OFFICIAL_MAPS, type MapId } from '@shared/maps';
+import type { MapData } from '@shared/mapData';
 import { gateAreas } from '@shared/barricades';
-import { ZOMBIE } from '@shared/zombies';
 import { fakeRenderer, installCanvasStandIn, loadClient, servePublicFromDisk, silentSfx } from './headless';
 
 export const NAVMESH_DIR = join(import.meta.dir, '..', 'shared', 'data', 'navmesh');
@@ -45,10 +46,9 @@ export async function bakeNavmesh(map: MapId): Promise<Uint8Array> {
     const { NavMap } = await loadClient('client/ai/navmesh.ts');
     const { exportNavMesh } = await import('recast-navigation');
     const physics = await createPhysics();
-    const data = await loadOfficialMap(map);
+    const data: MapData = await loadOfficialMap(map);
     await buildMapFromData(data, { physics, scene: new THREE.Scene(), renderer: fakeRenderer, sfx: silentSfx, modo: 'jogo' });
-    const zmap = data.zumbi ?? ZOMBIE.mapas[map];
-    const nav = await NavMap.build(physics, [], zmap ? gateAreas(zmap) : []);
+    const nav = await NavMap.build(physics, [], data.zumbi ? gateAreas(data.zumbi) : []);
     if (!nav) throw new Error(`a malha de navegação de ${map} não foi gerada`);
     return exportNavMesh(nav.navMesh);
   } finally {
@@ -69,7 +69,9 @@ export function bakedFile(map: MapId, data: Uint8Array): BakedNavmesh {
 }
 
 if (import.meta.main) {
-  for (const map of modeMaps('zumbi')) {
+  const { loadOfficialMap } = await loadClient('client/world/mapLoader.ts');
+  for (const map of OFFICIAL_MAPS) {
+    if ((await loadOfficialMap(map)).exclusivo !== 'zumbi') continue;
     const t0 = performance.now();
     const data = await bakeNavmesh(map);
     await Bun.write(join(NAVMESH_DIR, `${map}.json`), JSON.stringify(bakedFile(map, data)) + '\n');

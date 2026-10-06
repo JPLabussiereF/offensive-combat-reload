@@ -28,6 +28,8 @@ import { QualityManager } from './render/quality';
 import { createPhysics } from './world/physics';
 import type { CritterHit, SpawnPoint } from './world/gameMap';
 import { buildMapFromData, loadOfficialMap } from './world/mapLoader';
+import { fetchMapVersion } from './net/maps';
+import { api } from './net/api';
 import { loadTextureOverrides } from './world/surfaces';
 import { buildGltfMap } from './world/gltfMap';
 import { MapBuilder } from './world/mapBuilder';
@@ -137,8 +139,11 @@ async function boot() {
   const tMap = performance.now();
   // ?mapa=/maps/arquivo.glb loads a map made in Blender over whatever was picked (map makers' preview).
   const mapUrl = new URLSearchParams(location.search).get('mapa');
-  // The official maps' data ship with the client (shared/data/mapas): training and bots work without the server.
-  const mapData = mapUrl ? null : await loadOfficialMap(choice.map);
+  // Online: the version the session plays, downloaded from the server (cached). Offline: the official maps' data
+  // ship with the client (shared/data/mapas), so training and bots work without the server.
+  const mapData = mapUrl ? null : online ? await fetchMapVersion(online.joined.session.map, online.joined.session.versao) : await loadOfficialMap(choice.map);
+  // An offline match counts as a play of the map (the server counts the online ones itself).
+  if (!online && !mapUrl) api('POST', `/api/mapas/${encodeURIComponent(choice.map)}/jogadas`).catch(() => {});
   const buildMap = mapData ? buildMapFromData(mapData, { physics, scene: ctx.scene, renderer: ctx.renderer, sfx, modo: 'jogo' }) : buildGltfMap(mapUrl!, new MapBuilder(physics, ctx.scene), ctx.renderer);
   const [map] = await Promise.all([buildMap, textures]);
   const mapBuildMs = performance.now() - tMap;
@@ -286,7 +291,8 @@ async function boot() {
   let bots: BotManager | null = null;
   // Bots route around Amora's bite zone (a little wider than the zone itself). The solo zumbi game builds the
   // mesh the server bakes: the wall's gaps as polygons of their own, for its barricades (shared/barricades.ts).
-  const zombieNavMap = zombieMode ? (mapData?.zumbi ?? ZOMBIE.mapas[choice.map]) : undefined;
+  // (a glTF preview, ?mapa=, has no data: the cemetery's layout stands in)
+  const zombieNavMap = zombieMode ? (mapData?.zumbi ?? ZOMBIE.mapas.cemiterio) : undefined;
   const nav = botMode ? await NavMap.build(physics, map.dog ? [map.dog.zone.clone().expandByScalar(0.3)] : [], zombieNavMap ? gateAreas(zombieNavMap) : []) : null;
   const playerPos = new THREE.Vector3();
   const playerTarget: Combatant & { yaw: number } = {
@@ -320,7 +326,7 @@ async function boot() {
   let zombies: ZombieClient | null = null;
   let localZombies: LocalZombies | null = null;
   if (zombieMode) {
-    const zmap = mapData?.zumbi ?? ZOMBIE.mapas[choice.map] ?? ZOMBIE.mapas.cemiterio!;
+    const zmap = zombieNavMap!;
     let link: ZombieLink | null = null;
     if (conn) {
       link = { online: true, send: (m) => conn.send(m), on: (type, fn) => conn.on(type, fn), now: () => conn.serverNow(), renderTime: () => conn.serverNow() - NET.interpDelayMs };
@@ -374,7 +380,7 @@ async function boot() {
             if (head) effects.burst('star', at, UP, 12);
           },
         },
-        choice.map,
+        zmap,
         online?.joined.zumbi ?? localZombies?.match.sync(),
       );
       // The horde's bodies are built now, on the loading screen, not when the first wave comes.

@@ -9,20 +9,20 @@ import { FLAG, NET, type ClientMsg, type KillKind, type PlayerInfo, type ServerM
 import { MODE_RULES, type GameModeId, type ModeRules } from '@shared/modes';
 import { meleeStats, type GunStats, type Loadout } from '@shared/arsenal';
 import type { ProgWeapon } from '@shared/progression';
-import type { MapId } from '@shared/maps';
 import { explosionDamage, HIT_REGIONS, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
 import { afterDeath, afterKill, GUN_GAME, ladderLoadout, ladderStart, type LadderPos } from '@shared/gunGame';
-import { grenadeDamageToZombie, gunDamageToZombie, isBoss, kindScale, knifeDamageToZombie, startItems, weaponMul, ZOMBIE, zombieLoadout, type ZKind } from '@shared/zombies';
+import { grenadeDamageToZombie, gunDamageToZombie, isBoss, kindScale, knifeDamageToZombie, startItems, weaponMul, zombieLoadout, type ZKind } from '@shared/zombies';
 import { ZombieMatch, type ZombieHost } from '@shared/zombieMatch';
 import { loadoutOf } from './progress';
 import { loadNavmesh } from './navmesh';
+import type { MapRuntime } from './maps';
 import { EYE, LAG_SLACK, type SPlayer } from './session';
 
 /** What a mode can do to its session. */
 export interface ModeHost {
   readonly players: ReadonlyMap<number, SPlayer>;
-  /** The session's map. */
-  readonly map: MapId;
+  /** The session's map: the version it plays (its zumbi layout and navmesh). */
+  readonly map: MapRuntime;
   now(): number;
   /** To everyone in the session. */
   broadcast(msg: ServerMsg): void;
@@ -190,9 +190,9 @@ class ZombieMode implements SessionMode {
   private disposed = false;
 
   constructor(private host: ModeHost) {
-    const data = ZOMBIE.mapas[host.map];
+    const data = host.map.data.zumbi;
     if (!data) {
-      console.error(`[zumbi] o mapa ${host.map} não tem dados do modo zumbi`);
+      console.error(`[zumbi] o mapa ${host.map.id} não tem dados do modo zumbi`);
       return;
     }
     loadNavmesh(host.map)

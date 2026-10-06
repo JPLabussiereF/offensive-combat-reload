@@ -300,3 +300,41 @@ export function validateMapData(raw: unknown): { ok: boolean; erros: string[] } 
   if (d.servicos !== undefined && !(isObj(d.servicos) && (d.servicos.luzes === undefined || (Number.isInteger(d.servicos.luzes) && (d.servicos.luzes as number) >= 0 && (d.servicos.luzes as number) <= 16)))) out.push('servicos.luzes: de 0 a 16');
   return { ok: out.length === 0, erros: out };
 }
+
+// --- The maps API (GET /api/mapas...) ------------------------------------------------------------------------
+
+/** 'oficial' (kept by the staff) or 'comunidade' (any account's). */
+export type TipoMapa = 'oficial' | 'comunidade';
+
+/** A map as the lists show it (GET /api/mapas, GET /api/mapas/:id). */
+export interface MapaResumo {
+  id: string;
+  tipo: TipoMapa;
+  nome: string;
+  /** The author's tag (null: an official map shipped with the game). */
+  autor: string | null;
+  /** The version played now. */
+  versao: number;
+  exclusivo: 'zumbi' | null;
+  cartao: { emoji: string; cor: string };
+  jogadas: number;
+  /** The map it was duplicated from. */
+  copiaDe: string | null;
+  criadoEm: string;
+  atualizadoEm: string;
+  /** Set when the staff hid it (only its author and the staff still see it). */
+  oculto: { em: string; motivo: string | null } | null;
+  /** What the one asking may do with it (signed out: nothing). */
+  pode: { editar: boolean; apagar: boolean; ocultar: boolean; duplicar: boolean };
+}
+
+/** One saved version (GET /api/mapas/:id/versoes). */
+export interface VersaoMapa {
+  versao: number;
+  criadoEm: string;
+  /** Who saved it (null: the game's own). */
+  autor: string | null;
+  drawCalls: number | null;
+  triangulos: number | null;
+  atual: boolean;
+}

@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import type { MapData, Peca } from '@shared/mapData';
+import { isOfficialMap, type OfficialMapId } from '@shared/maps';
 import type { Atmosphere } from '../render/renderer';
 import { skySpot } from '../audio/spatial';
 import type { Physics } from './physics';
@@ -42,16 +43,27 @@ export interface BuiltMap extends GameMap {
   pieces?: Map<string, EditorPiece>;
 }
 
-const OFFICIAL: Record<string, () => Promise<{ default: unknown }>> = {
+const OFFICIAL: Record<OfficialMapId, () => Promise<{ default: unknown }>> = {
   rua: () => import('@shared/data/mapas/rua.json'),
   jardim: () => import('@shared/data/mapas/jardim.json'),
   halloween: () => import('@shared/data/mapas/halloween.json'),
   cemiterio: () => import('@shared/data/mapas/cemiterio.json'),
 };
 
+/**
+ * The official maps' names and the mode each is made for, for the home's pickers before any map data is loaded
+ * (the same as their JSON says: client/tests/mapData.test.ts checks it).
+ */
+export const OFFICIAL_INFO: Record<OfficialMapId, { nome: string; exclusivo?: 'zumbi' }> = {
+  rua: { nome: 'Rua dos Vizinhos' },
+  jardim: { nome: 'Jardim do Dragão' },
+  halloween: { nome: 'Vila Assombrada' },
+  cemiterio: { nome: 'Cemitério da Capela', exclusivo: 'zumbi' },
+};
+
 /** One of the official maps, shipped with the client (training and bots work without the server). */
 export async function loadOfficialMap(id: string): Promise<MapData> {
-  const load = OFFICIAL[id];
+  const load = isOfficialMap(id) ? OFFICIAL[id] : undefined;
   if (!load) throw new Error(`mapa oficial desconhecido "${id}"`);
   return (await load()).default as MapData;
 }

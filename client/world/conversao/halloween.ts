@@ -9,7 +9,6 @@
 // sewer from the mansion basement to the plaza and the park.
 import * as THREE from 'three';
 import { MAP_FORMAT, type Vec3 } from '@shared/mapData';
-import { PICKUPS, RATS, WITCHES } from '@shared/maps';
 import { MapBuilder, STEP_D, stairRun, stairSteps, type Opening } from '../mapBuilder';
 import { deadTree, SPOOKY as C, type TombKind } from '../halloween';
 import type { SurfaceKey } from '../surfaces';
@@ -17,6 +16,14 @@ import type { MapMeta, Recorder } from './recorder';
 
 /** Same seed on every client: trees, rocks and tombstones collide identically online. */
 export const SEED = 1031;
+
+/**
+ * What the server tracks on this map: the biscuit box, the witch and the giant rat (until PF-6 they were tables
+ * in shared/maps.ts; the map's data, objetos, carries them now).
+ */
+const PICKUPS = [{ id: 'biscoito', kind: 'biscoito' as const, p: [-44.4, 0, 9] as Vec3 }];
+const WITCH: Vec3 = [-41.2, 0, -46];
+const RATS = [{ id: 'rato', p: [7.5, -4, 47.5] as Vec3 }];
 
 /** Moon direction: the shadows come from it too. */
 const MOON: Vec3 = [45, 62, -38];
@@ -109,9 +116,9 @@ export function meta(): MapMeta {
       dummy(0, 0.6, 40.5, S),
     ],
     objetos: {
-      coletaveis: PICKUPS.halloween.map((k) => ({ id: k.id, tipo: k.kind, p: [...k.p] as Vec3 })),
-      bruxa: [...WITCHES.halloween!] as Vec3,
-      ratos: RATS.halloween.map((k) => ({ id: k.id, p: [...k.p] as Vec3 })),
+      coletaveis: PICKUPS.map((k) => ({ id: k.id, tipo: k.kind, p: [...k.p] as Vec3 })),
+      bruxa: [...WITCH] as Vec3,
+      ratos: RATS.map((k) => ({ id: k.id, p: [...k.p] as Vec3 })),
       peixes: [],
     },
     servicos: { luzes: 10 },
@@ -265,7 +272,7 @@ export function pieces(r: Recorder) {
   // The broom leaning by the south door.
   b.box(-38.4, 0.75, -41.5, 0.05, 1.5, 0.05, 'madeira', { tint: 0x8a6a3a, collide: false, rot: new THREE.Euler(0.22, 0, 0) });
   b.box(-38.4, 0.14, -41.38, 0.3, 0.32, 0.18, 'feno', { tint: 0xc8a050, collide: false, rot: new THREE.Euler(0.22, 0, 0) });
-  r.place('bruxa', {}, { p: [...WITCHES.halloween!] as Vec3, yaw: Math.PI / 2, prop: 'bruxa' });
+  r.place('bruxa', {}, { p: [...WITCH] as Vec3, yaw: Math.PI / 2, prop: 'bruxa' });
   r.place('caldeirao', { area: { x0: -46.3, x1: -33.7, z0: -50.2, z1: -41.7 } }, { p: [-40, 0, -46], prop: 'caldeirao' });
   signBoard(['CUIDADO', 'Bruxa trabalhando', '(e de mau humor)'], -36.5, -39.6, 0, { bg: '#4a3a5a', fg: '#e6d8ff', height: 1.3 });
 
@@ -532,7 +539,7 @@ export function pieces(r: Recorder) {
     hangingLamp(-48.6, FH - 0.25, 9.3, { intensity: 12, range: 8 });
     railing('x', H_MANSION.z1 + 0.05, H_MANSION.x0, H_MANSION.x1, 0, { h: 1.0, tint: 0x2a1a14 });
     railing('z', H_MANSION.x0 - 0.05, H_MANSION.z0, H_MANSION.z1 + 0.05, 0, { h: 1.0, tint: 0x2a1a14 });
-    const [biscuit] = PICKUPS.halloween;
+    const [biscuit] = PICKUPS;
     r.place('armarioBiscoito', { som: [-43.7, 1.2, 9] }, { p: [-43.125 - 0.3, 0, 9], yaw: -Math.PI / 2, prop: 'armario', coletavel: biscuit.id });
     // Parlor: the fireplace on the wall shared with the kitchen, the sofa and armchairs facing it, a rug.
     b.box(-42.55, 0.75, 10, 0.6, 1.5, 2.3, 'pedra', { tint: 0x7a706a });
@@ -878,7 +885,7 @@ export function pieces(r: Recorder) {
       b.box(bx, UG + 0.05, bz, 0.5 + rand() * 0.3, 0.07, 0.07, 'pintura', { tint: 0xe8e0c8, collide: false, castShadow: false, rot: new THREE.Euler(0, rand() * 6, 0) });
     }
     for (const [sx, sz] of [[4, 50.6], [11, 45.2]]) r.shape('pintura', 0xe8e0c8, 'esfera', [0.16, 8, 6], [['scale', 1, 0.85, 1.1], ['translate', sx, UG + 0.14, sz]]);
-    const [ratAt] = RATS.halloween;
+    const [ratAt] = RATS;
     r.place('ratoGigante', { id: ratAt.id }, { p: [...ratAt.p] as Vec3, yaw: Math.PI });
     // Basement: the boiler, barrels, shelves. Maintenance room: generator, panels, fuses, a lever.
     b.cylinder(-45, UG, 10.2, 0.8, 2.2, 'metal', { tint: 0x5a3a2a, segments: 12 });

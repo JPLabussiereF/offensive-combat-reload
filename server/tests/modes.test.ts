@@ -29,16 +29,19 @@ async function signedIn(name: string) {
   return b;
 }
 
+/** Where `enter` goes: plays a map in a mode (a session with room, or a new one: sessions open on demand). */
+const play = (map: string, mode = 'mata-mata') => ({ play: map, mode });
+
 /**
- * Connects, says hello, sends `lobby` messages (they're processed in order) and joins `session`, or creates a
- * session of a mode on a map (fresh: no other test's round or ladder in it).
+ * Connects, says hello, sends `lobby` messages (they're processed in order) and joins `session` (its id), plays a
+ * map in a mode (`play`), or creates a session of a mode on a map (fresh: no other test's round or ladder in it).
  */
-async function enter(b: Browser, session: string | { mode: string; map: string }, lobby: object[] = []) {
+async function enter(b: Browser, session: string | { play: string; mode: string } | { mode: string; map: string }, lobby: object[] = []) {
   const p = await Player.connect(game, await b.ticket());
   p.send({ t: 'hello' });
   const welcome = await p.next('welcome');
   for (const m of lobby) p.send(m);
-  p.send(typeof session === 'string' ? { t: 'join', session } : { t: 'create', name: 'Sala de teste', ...session });
+  p.send(typeof session === 'string' ? { t: 'join', session } : 'play' in session ? { t: 'play', map: session.play, mode: session.mode } : { t: 'create', name: 'Sala de teste', ...session });
   const joined = await p.next('joined');
   return { p, welcome, joined, id: joined.you, me: joined.players.find((x) => x.id === joined.you)! };
 }
@@ -113,10 +116,10 @@ describe('escada da corrida armada (regras puras)', () => {
 
 describe('mata-mata: equipamento travado durante a partida', () => {
   it('o Arsenal escolhido no saguão vale na partida, e a troca no meio dela é recusada', async () => {
-    const a = await enter(await signedIn('Travado'), 'principal', [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: {} } }]);
+    const a = await enter(await signedIn('Travado'), play('rua'), [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: {} } }]);
     expect(a.joined.session.mode).toBe('mata-mata');
     expect(a.me.lo).toEqual({ ...DEFAULT_LOADOUT, secundaria: 'smg' });
-    const v = await enter(await signedIn('Testemunha'), 'principal');
+    const v = await enter(await signedIn('Testemunha'), play('rua'));
     expect(v.joined.players.find((x) => x.id === a.id)?.lo?.secundaria).toBe('smg');
 
     // Mid-match: refused. The player hears the choice the server kept; nobody hears of a new loadout.
@@ -149,8 +152,8 @@ describe('mata-mata: equipamento travado durante a partida', () => {
       [name, Number(disc)],
     );
     await sleep(100);
-    const a = await enter(b, 'jardim');
-    const v = await enter(await signedIn('Alvo Fixo'), 'jardim');
+    const a = await enter(b, play('jardim'));
+    const v = await enter(await signedIn('Alvo Fixo'), play('jardim'));
     expect(a.me.lo?.ativas.rifle).toEqual([]);
     await spawn(a, [0, 0, 0], v);
     await spawn(v, [0, 0, 10]);
@@ -164,25 +167,21 @@ describe('mata-mata: equipamento travado durante a partida', () => {
     v.p.close();
     await sleep(300);
     // The next session joined picks it up.
-    const again = await enter(b, 'principal');
+    const again = await enter(b, play('rua'));
     expect(again.me.lo?.ativas.rifle).toEqual(['pontoVermelho']);
     again.p.close();
   });
 });
 
 describe('corrida armada (online)', () => {
-  it('cada mapa tem uma sala de corrida armada; ela entrega o primeiro degrau a todos', async () => {
-    const list = (await (await fetch(`http://127.0.0.1:${game.port}/api/sessoes`)).json()) as { id: string; mode: string; map: string; permanent: boolean }[];
-    const fixed = list.filter((s) => s.permanent && s.mode === 'corrida-armada').map((s) => [s.id, s.map]);
-    expect(fixed.sort()).toEqual([['corrida-armada-halloween', 'halloween'], ['corrida-armada-jardim', 'jardim'], ['corrida-armada-rua', 'rua']]);
-
-    const a = await enter(await signedIn('Corredor'), 'corrida-armada-rua', [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: {} } }]);
+  it('a sala de corrida armada entrega o primeiro degrau a todos', async () => {
+    const a = await enter(await signedIn('Corredor'), play('rua', 'corrida-armada'), [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: {} } }]);
     expect(a.joined.session.mode).toBe('corrida-armada');
     // The ladder's weapons, not the account's Arsenal.
     expect(a.me.lo).toEqual(ladderLoadout(0));
     expect(a.me.ladder).toEqual({ step: 0, kills: 0 });
     // No grenades in this mode: a throw never reaches the others.
-    const o = await enter(await signedIn('Observador'), 'corrida-armada-rua');
+    const o = await enter(await signedIn('Observador'), play('rua', 'corrida-armada'));
     await spawn(a, [0, 0, 0], o);
     a.p.send({ t: 'grenade', id: 1, p: [0, 1, 0], v: [0, 5, -5], fuse: 2 });
     await expect(o.p.next('grenade', () => true, 300)).rejects.toThrow();
@@ -191,10 +190,10 @@ describe('corrida armada (online)', () => {
   });
 
   it('três abates com a arma do degrau sobem; a facada desce; armas de fora não valem', async () => {
-    const a = await enter(await signedIn('Escalador'), 'corrida-armada-jardim');
+    const a = await enter(await signedIn('Escalador'), play('jardim', 'corrida-armada'));
     const vs: In[] = [];
-    for (const n of ['Degrau 1', 'Degrau 2', 'Degrau 3']) vs.push(await enter(await signedIn(n), 'corrida-armada-jardim'));
-    const knifer = await enter(await signedIn('Faqueiro'), 'corrida-armada-jardim');
+    for (const n of ['Degrau 1', 'Degrau 2', 'Degrau 3']) vs.push(await enter(await signedIn(n), play('jardim', 'corrida-armada')));
+    const knifer = await enter(await signedIn('Faqueiro'), play('jardim', 'corrida-armada'));
     await spawn(a, [0, 0, 0]);
     for (const [i, v] of vs.entries()) await spawn(v, [i * 2 - 2, 0, 10], a);
     await spawn(knifer, [0, 0, 2], a);
@@ -232,9 +231,9 @@ describe('corrida armada (online)', () => {
   });
 
   it('o abate com o sabre no último degrau vence a rodada, e uma nova começa do primeiro degrau', async () => {
-    const a = await enter(await signedIn('Campeao'), 'corrida-armada-halloween');
+    const a = await enter(await signedIn('Campeao'), play('halloween', 'corrida-armada'));
     const vs: In[] = [];
-    for (let i = 0; i < 9; i++) vs.push(await enter(await signedIn(`Vitima ${i}`), 'corrida-armada-halloween'));
+    for (let i = 0; i < 9; i++) vs.push(await enter(await signedIn(`Vitima ${i}`), play('halloween', 'corrida-armada')));
     await spawn(a, [0, 0, 0]);
     // A ring 10 m away (the hits report 10 m), and the last one close enough for the lightsaber.
     const ring = vs.slice(0, -1);
@@ -311,11 +310,11 @@ describe('progressão de armas no mata-mata (online)', () => {
     const levels = { rifle: 6, pistola: 2, granada: 2 };
     const choice = { secundaria: 'pistola' as const, ligadas: { rifle: ['silenciador'], granada: ['mina'] } };
     const lo = resolveLoadout(choice, { ...START_LEVELS, ...levels });
-    const a = await enter(await veteran('Veterana', levels), 'principal', [{ t: 'loadout', lo: choice }]);
+    const a = await enter(await veteran('Veterana', levels), play('rua'), [{ t: 'loadout', lo: choice }]);
     expect(a.me.lo).toEqual(lo);
     expect(lo.ativas).toMatchObject({ rifle: ['pontoVermelho', 'empunhadura', 'pente', 'silenciador'], pistola: ['gatilho'], granada: ['mina'] });
-    const v1 = await enter(await signedIn('Alvo Longe'), 'principal');
-    const v2 = await enter(await signedIn('Alvo Lado'), 'principal');
+    const v1 = await enter(await signedIn('Alvo Longe'), play('rua'));
+    const v2 = await enter(await signedIn('Alvo Lado'), play('rua'));
     await spawn(a, [0, 0, 0], v1);
     await spawn(v1, [0, 0, 30], a);
     await spawn(v2, [30, 0, 0], a);
@@ -368,10 +367,10 @@ describe('progressão de armas no mata-mata (online)', () => {
       soFaca: true,
       ativas: { rifle: ['silenciador'], faca: ['sabre'] },
     };
-    const a = await enter(b, 'jardim', [{ t: 'loadout', lo: greedy }]);
+    const a = await enter(b, play('jardim'), [{ t: 'loadout', lo: greedy }]);
     expect(lastProgress(a)?.escolha).toEqual({ secundaria: 'pistola', ligadas: {} });
     expect(a.me.lo).toEqual({ primaria: 'rifle', secundaria: 'pistola', ativas: { rifle: ['pontoVermelho', 'empunhadura'], pistola: [], smg: [], faca: [], granada: [] } });
-    const v = await enter(await signedIn('Conferente'), 'jardim');
+    const v = await enter(await signedIn('Conferente'), play('jardim'));
     await spawn(a, [0, 0, 0], v);
     await spawn(v, [0, 0, 30], a);
     at(a, [0, 0, 0]);

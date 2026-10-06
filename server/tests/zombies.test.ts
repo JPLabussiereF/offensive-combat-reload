@@ -10,7 +10,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test';
 import { importNavMesh, init, type NavMesh } from 'recast-navigation';
 import nav from '@shared/data/navmesh/cemiterio.json';
 import { gunStats, resolveLoadout } from '@shared/arsenal';
-import { modeMaps, MODE_RULES } from '@shared/modes';
+import { modeAllowsMap, MODE_RULES } from '@shared/modes';
 import { MAX_LEVELS, PROG_WEAPONS, xpForLevel, type ArsenalChoice, type ProgWeapon } from '@shared/progression';
 import { FLAG, type ServerMsg, type Vec3 } from '@shared/protocol';
 import {
@@ -70,7 +70,8 @@ describe('regras do modo zumbi', () => {
   it('os dados batem com as armas e o mapa', () => {
     expect(zombieProblems()).toEqual([]);
     expect(MODE_RULES.zumbi).toMatchObject({ weapons: 'mode', lockedLoadout: true, weaponXp: false, coop: true });
-    expect(modeMaps('zumbi')).toEqual(['cemiterio']);
+    // Only on maps made for it (the cemetery's data says exclusivo: zumbi).
+    expect([modeAllowsMap('zumbi', 'zumbi'), modeAllowsMap('zumbi', null)]).toEqual([true, false]);
   });
 
   it('todo mundo começa com o rifle sem melhorias e a faca comum', () => {
@@ -367,14 +368,18 @@ afterAll(async () => {
   await game?.close();
 });
 
-async function enter(name: string, session = 'zumbi-cemiterio', lobby: object[] = []) {
+/** Where the zumbi mode is played: the cemetery (sessions open on demand: the one with room, or a new one). */
+const CEMETERY = 'cemiterio';
+
+/** Signs up, connects and plays the cemetery in the zumbi mode, or joins `session` (an id). */
+async function enter(name: string, session = CEMETERY, lobby: object[] = []) {
   const b = new Browser(game);
   await b.register(name);
   const p = await Player.connect(game, await b.ticket());
   p.send({ t: 'hello' });
   await p.next('welcome');
   for (const m of lobby) p.send(m);
-  p.send({ t: 'join', session });
+  p.send(session === CEMETERY ? { t: 'play', map: CEMETERY, mode: 'zumbi' } : { t: 'join', session });
   const joined = await p.next('joined');
   return { p, joined, id: joined.you };
 }
@@ -390,11 +395,20 @@ async function stand(who: In, at: Vec3) {
 const eyeDist = (feet: Vec3, z: Vec3, scale = 1) => Math.hypot(z[0] - feet[0], z[1] + 1.1 * scale - (feet[1] + 1.6), z[2] - feet[2]);
 
 describe('modo zumbi no servidor', () => {
-  it('tem sala fixa só no Cemitério da Capela, e o cemitério só tem salas do modo zumbi', async () => {
-    const list = (await (await fetch(`http://127.0.0.1:${game.port}/api/sessoes`)).json()) as { id: string; mode: string; map: string; permanent: boolean }[];
-    expect(list.filter((s) => s.mode === 'zumbi' && s.permanent).map((s) => [s.id, s.map])).toEqual([['zumbi-cemiterio', 'cemiterio']]);
-    expect(list.filter((s) => s.mode === 'zumbi').every((s) => s.map === 'cemiterio')).toBe(true);
-    expect(list.filter((s) => s.map === 'cemiterio').every((s) => s.mode === 'zumbi')).toBe(true);
+  it('só se joga no Cemitério da Capela, e o cemitério só no modo zumbi', async () => {
+    const b = new Browser(game);
+    await b.register('Coveiro');
+    const p = await Player.connect(game, await b.ticket());
+    p.send({ t: 'hello' });
+    await p.next('welcome');
+    p.send({ t: 'play', map: 'rua', mode: 'zumbi' });
+    expect((await p.next('error')).message).toBe('Esse modo não é jogado nesse mapa.');
+    p.send({ t: 'play', map: CEMETERY, mode: 'mata-mata' });
+    expect((await p.next('error')).message).toBe('Esse modo não é jogado nesse mapa.');
+    p.send({ t: 'play', map: CEMETERY, mode: 'zumbi' });
+    expect((await p.next('joined')).session).toMatchObject({ map: CEMETERY, versao: 1, mapaNome: 'Cemitério da Capela', mode: 'zumbi' });
+    p.close();
+    await sleep(50);
   });
 
   it('criar uma sala zumbi em outro mapa cai no cemitério; criar outro modo no cemitério cai num mapa aberto', async () => {
@@ -423,7 +437,7 @@ describe('modo zumbi no servidor', () => {
   it('começa com o rifle sem melhorias (não o Arsenal), mata zumbis validados, ganha dinheiro e XP da conta', async () => {
     quick();
     Object.assign(ZOMBIE.tipos.comum, { dano: 0 });
-    const a = await enter('Caçador', 'zumbi-cemiterio', [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: {} } }]);
+    const a = await enter('Caçador', CEMETERY, [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: {} } }]);
     const me = a.joined.players.find((x) => x.id === a.id)!;
     expect(me.lo).toEqual(zombieLoadout(startItems()));
     expect(a.joined.zumbi).toBeDefined();
@@ -464,7 +478,7 @@ describe('modo zumbi no servidor', () => {
     quick();
     Object.assign(ZOMBIE.tipos.comum, { dano: 0 });
     Object.assign(ZOMBIE.caixa, { custo: 100, girarSegundos: 0.2 });
-    const s = await enter('Apostador', 'zumbi-cemiterio');
+    const s = await enter('Apostador', CEMETERY);
     expect(s.joined.zumbi!.box).toEqual({ state: 'idle', by: null, item: null, flaw: null, until: 0 });
     const [x, y, z] = ZOMBIE.mapas.cemiterio!.caixa;
     const at: Vec3 = [x - 1, y + 0.1, z];
@@ -487,7 +501,7 @@ describe('modo zumbi no servidor', () => {
     quick();
     Object.assign(ZOMBIE.tipos.comum, { dano: 5 });
     Object.assign(ZOMBIE.tipos.corredor, { dano: 5 });
-    const a = await enter('Isca', 'zumbi-cemiterio');
+    const a = await enter('Isca', CEMETERY);
     await stand(a, [0, 0.1, 0]);
     const hit = await a.p.next('damage', (m) => m.target === a.id && m.attacker === null, 45_000);
     expect(hit.amount).toBe(5);
@@ -500,8 +514,8 @@ describe('modo zumbi no servidor', () => {
     quick();
     Object.assign(ZOMBIE, { fimSegundos: 1 });
     for (const t of Object.values(ZOMBIE.tipos)) t.dano = 0;
-    const a = await enter('Vitima', 'zumbi-cemiterio');
-    const b = await enter('Medico', 'zumbi-cemiterio');
+    const a = await enter('Vitima', CEMETERY);
+    const b = await enter('Medico', CEMETERY);
     const at: Vec3 = [0, 0.1, 0];
     const near: Vec3 = [1.5, 0.1, 0];
     await stand(a, at);
@@ -556,10 +570,10 @@ async function lobby(b: Browser) {
   return p;
 }
 
-/** Sends the lobby messages, then joins `session` (an id) or creates a new session of the zumbi mode. */
+/** Sends the lobby messages, then plays the cemetery (CEMETERY), joins `session` (an id) or creates a new session of the zumbi mode ('nova'). */
 async function joinWith(p: Player, session: string, before: object[] = []): Promise<In> {
   for (const m of before) p.send(m);
-  p.send(session === 'nova' ? { t: 'create', name: 'Horda de teste', map: 'cemiterio', mode: 'zumbi' } : { t: 'join', session });
+  p.send(session === 'nova' ? { t: 'create', name: 'Horda de teste', map: 'cemiterio', mode: 'zumbi' } : session === CEMETERY ? { t: 'play', map: CEMETERY, mode: 'zumbi' } : { t: 'join', session });
   const joined = await p.next('joined');
   return { p, joined, id: joined.you };
 }
@@ -647,7 +661,7 @@ describe('modo zumbi no servidor: progressão de armas, chefes e quem entra no m
     // Everything unlocked, the trade-off upgrades on (the silencer would make the rifle weaker, the saber the knife deadly).
     const choice: ArsenalChoice = { secundaria: 'smg', ligadas: { rifle: ['silenciador'], pistola: ['batata'], smg: ['tambor'], faca: ['sabre'], granada: ['mina'] } };
     const own = resolveLoadout(choice, MAX_LEVELS);
-    const a = await joinWith(await lobby(await account('Veterano', MAX_LEVELS)), 'zumbi-cemiterio', [{ t: 'loadout', lo: choice }]);
+    const a = await joinWith(await lobby(await account('Veterano', MAX_LEVELS)), CEMETERY, [{ t: 'loadout', lo: choice }]);
     expect(a.joined.players.find((x) => x.id === a.id)!.lo).toEqual(zombieLoadout(startItems()));
 
     // The plain rifle's damage on the boss (the account's rifle would hit softer).
@@ -813,8 +827,8 @@ describe('modo zumbi no servidor: progressão de armas, chefes e quem entra no m
     for (const t of Object.values(ZOMBIE.tipos)) t.dano = 0;
     cheapCoffin();
     const [pa, pb, pc] = await Promise.all([lobby(await account('Anfitriao')), lobby(await account('Caido')), lobby(await account('Atrasado', MAX_LEVELS))]);
-    const a = await joinWith(pa, 'zumbi-cemiterio');
-    const b = await joinWith(pb, 'zumbi-cemiterio');
+    const a = await joinWith(pa, CEMETERY);
+    const b = await joinWith(pb, CEMETERY);
     await stand(a, [0, 0.1, 0]);
     await stand(b, [1.5, 0.1, 0]);
     const wave = await a.p.next('zwave', (m) => m.phase === 'wave', 5000);
@@ -825,7 +839,7 @@ describe('modo zumbi no servidor: progressão de armas, chefes e quem entra no m
     const seen = await fresh(a, (m) => m.z.length >= 2, 10_000);
 
     // C (with a maxed-out account and another Arsenal choice) joins now.
-    const c = await joinWith(pc, 'zumbi-cemiterio', [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: { rifle: ['silenciador'] } } }]);
+    const c = await joinWith(pc, CEMETERY, [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: { rifle: ['silenciador'] } } }]);
     expect(c.joined.zumbi).toMatchObject({ phase: 'wave', wave: 1, total: wave.total, box: { state: 'idle' } });
     expect(c.joined.zumbi!.down).toEqual([[b.id, down.until]]);
     const info = (id: number) => c.joined.players.find((p) => p.id === id)!;
@@ -852,8 +866,8 @@ describe('modo zumbi no servidor: progressão de armas, chefes e quem entra no m
     Object.assign(ZOMBIE.jogador, { caidoSegundos: 0.5 });
     cheapCoffin();
     const [pa, pb] = await Promise.all([lobby(await account('Limpador')), lobby(await account('Sangrador'))]);
-    const a = await joinWith(pa, 'zumbi-cemiterio');
-    const b = await joinWith(pb, 'zumbi-cemiterio');
+    const a = await joinWith(pa, CEMETERY);
+    const b = await joinWith(pb, CEMETERY);
     const atA: Vec3 = [0, 0.1, 0];
     await stand(a, atA);
     await stand(b, [1.5, 0.1, 0]);
