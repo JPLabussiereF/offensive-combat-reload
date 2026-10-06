@@ -53,7 +53,7 @@ Catálogo **espacial** dos objetos de cada mapa que reagem ao jogador: onde est�
 ## Sincronização (`PropBus`)
 
 - Cada objeto sincronizado registra um **id** (`props.register('nome:indice', efeito)`) e recebe o handler para usar como `onShot`.
-- Disparo local: executa o efeito e, online, avisa o servidor (`prop`), que repassa aos outros com o autor (`by`); os outros veem o mesmo efeito (`PropBus.remote`), às vezes virado para quem atirou (fantasma).
+- Disparo local: executa o efeito e, online, avisa o servidor (`prop`), que repassa aos outros com o autor (`by`) (os objetos de `PROPS`, que contam figurinha, são conferidos antes: mapa certo, vivo, até 80 m; ver [[Map Gags]]); os outros veem o mesmo efeito (`PropBus.remote`), às vezes virado para quem atirou (fantasma).
 - O servidor só aceita ids no formato `/^[a-z]{1,16}(:\d{1,3})?$/` e no máximo um a cada 150 ms por jogador; **não verifica** se o jogador estava perto ou mirando o objeto.
 - Coletáveis, carpas e o rato **não** passam pelo `PropBus` como simples piada: o servidor confere estado e distância (tabelas de `shared/maps.ts`) antes de dar o efeito. Ver [[Validation]].
 

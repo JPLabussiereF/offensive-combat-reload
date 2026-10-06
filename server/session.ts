@@ -14,7 +14,7 @@ import { BISCUIT, CHERRY, HEALTH, HUMILIATION, KOI, POTION, RAT, SCORE, type Pot
 import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, HIT_REGIONS, LETHAL_DAMAGE, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
 import { ACCOUNT_XP } from '@shared/accountLevel';
 import { bodyStats } from '@shared/appearance';
-import { FISH, PICKUPS, RATS, WITCHES, type MapId, type PickupKind } from '@shared/maps';
+import { CHECKED_PROPS, FISH, PICKUPS, PROP_RANGE, PROPS, RATS, WITCHES, type MapId, type PickupKind } from '@shared/maps';
 import { isGun, weaponOfKill, type GunId, type ProgWeapon } from '@shared/progression';
 import { DEFAULT_LOADOUT, grenadeStats, meleeStats, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import type { GameModeId } from '@shared/modes';
@@ -101,6 +101,9 @@ export interface SPlayer {
   /** When the biscuit was last eaten, and whether health was low (30 or less) right before. */
   biscuitAt: number;
   biscuitLow: boolean;
+  /** The checked map gags this player hit lately (the album's sequences) and when the truck last counted. */
+  propLog: { id: string; at: number }[];
+  truckAt: number;
   /** The last player who hurt this one and when (null: none since the last death): a push off the map. */
   lastHitBy: number | null;
   lastHitAt: number;
@@ -116,6 +119,8 @@ const GOLIATH_KILLS = 10;
 /** Sticker album: deaths with nobody to blame. */
 /** Sticker album: how soon after a hit a fall still counts as a push, a kill with this little health left, a laggy death. */
 const PUSH_MS = 5000;
+/** Sticker album: how long the map gags a player hit are kept for the sequences (the longest is 30 s). */
+const PROP_MEMORY_MS = 30_000;
 const LOW_HEALTH = 10;
 const LAG_MS = 250;
 const SELF_DEATH_STICKERS: Partial<Record<KillKind, string>> = { fall: 'gravidade', void: 'fora-do-mapa', dog: 'amora-mandou-lembrancas', explosion: 'tiro-no-pe' };
@@ -290,6 +295,8 @@ export class Session {
       biscuitLow: false,
       lastHitBy: null,
       lastHitAt: 0,
+      propLog: [],
+      truckAt: -Infinity,
     };
     // Fixed for the match in modes with a locked loadout (mata-mata: the account's Arsenal as it is now).
     p.loadout = p.loadoutBefore = this.mode.joinLoadout(p);
@@ -358,8 +365,14 @@ export class Session {
         return;
       }
       case 'prop': {
-        // Cosmetic relay; ids look like "hidrante:1", limited to a few per second per player.
+        // Ids look like "hidrante:1", limited to a few per second per player. Most are a cosmetic relay; the
+        // ones the album counts (PROPS) are checked: on this map, alive, within reach.
         if (typeof msg.id !== 'string' || !/^[a-z]{1,16}(:\d{1,3})?$/.test(msg.id) || now - p.lastProp < 150) return;
+        if (CHECKED_PROPS.has(msg.id)) {
+          const spot = PROPS[this.map].find((s) => s.id === msg.id);
+          if (!spot || !p.alive || dist3(p.state.p, spot.p) > PROP_RANGE) return;
+          this.albumProp(p, msg.id, now);
+        }
         p.lastProp = now;
         this.broadcast({ t: 'prop', id: msg.id, by: p.id }, p.id);
         return;
@@ -805,6 +818,59 @@ export class Session {
     else if (c.killer !== p.id) stickerAdd(acct, 'oportunista');
     if (left <= 1000) stickerAdd(acct, 'no-ultimo-segundo');
     stickerAdd(acct, `pe-de-valsa:${this.map}`);
+  }
+
+  /**
+   * The sticker album's map gags: a checked prop this player hit (`recent`: their last ones, for the sequences:
+   * the chime's scale, the drums and the gong, the bell and the horn that lose patience, the shooting gallery).
+   */
+  private albumProp(p: SPlayer, id: string, now: number) {
+    const acct = p.conn.account;
+    const recent = (p.propLog = [...p.propLog.filter((e) => now - e.at < PROP_MEMORY_MS), { id, at: now }]);
+    const within = (ms: number, test: (id: string) => boolean) => recent.filter((e) => now - e.at <= ms && test(e.id));
+    const forget = (test: (id: string) => boolean) => (p.propLog = recent.filter((e) => !test(e.id)));
+    if (id === 'caminhao') {
+      // The jingle plays at most every 4 s (client/world/blockoutMap.ts): one count per jingle.
+      if (now - p.truckAt >= 4000) {
+        p.truckAt = now;
+        stickerAdd(acct, 'sorveteiro-fantasma');
+      }
+    } else if (id === 'dragao') stickerAdd(acct, 'proibido-acordar');
+    else if (id === 'fantasma') stickerAdd(acct, 'mudou-pro-mausoleu');
+    else if (id === 'caldeirao') stickerAdd(acct, 'patinhos-em-fila');
+    else if (id.startsWith('carrilhao:')) {
+      // Dó, ré, mi, fá, sol: the last five chime notes in order, within 6 s.
+      const last = recent.filter((e) => e.id.startsWith('carrilhao:')).slice(-5);
+      if (last.length === 5 && now - last[0].at <= 6000 && last.every((e, i) => e.id === `carrilhao:${i}`)) {
+        stickerAdd(acct, 'maestro');
+        forget((x) => x.startsWith('carrilhao:'));
+      }
+    } else if (id.startsWith('tambor:') || id === 'gongo') {
+      // The four drums and the gong, within 30 s.
+      const band = new Set(within(30_000, (x) => x.startsWith('tambor:') || x === 'gongo').map((e) => e.id));
+      if (band.size === 5) {
+        stickerAdd(acct, 'banda-marcial');
+        forget((x) => x.startsWith('tambor:') || x === 'gongo');
+      }
+    } else if (id === 'sinocapela') {
+      // The chapel bell: 5 rings within 8 s and it says "EU JÁ OUVI." (client/world/hauntedTown.ts).
+      if (within(8000, (x) => x === id).length >= 5) {
+        stickerAdd(acct, 'eu-ja-ouvi');
+        forget((x) => x === id);
+      }
+    } else if (id === 'buzina') {
+      // The horn: 6 honks within 6 s and the neighbour yells "CHEGA.".
+      if (within(6000, (x) => x === id).length >= 6) {
+        stickerAdd(acct, 'chega');
+        forget((x) => x === id);
+      }
+    } else if (id.startsWith('alvo:')) {
+      // The shooting gallery: all seven targets before the first stands back up (5 s).
+      if (new Set(within(5000, (x) => x.startsWith('alvo:')).map((e) => e.id)).size === 7) {
+        stickerAdd(acct, 'mosca-no-alvo');
+        forget((x) => x.startsWith('alvo:'));
+      }
+    }
   }
 
   private tick() {
