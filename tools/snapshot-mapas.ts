@@ -79,7 +79,7 @@ const q = (v: number, step = 1e-4) => {
   return r === 0 ? 0 : r; // no "-0"
 };
 const r6 = (v: number) => Math.round(v * 1e6) / 1e6 || 0;
-const r6a = <T extends number[]>(a: T) => a.map(r6) as T;
+const r6a = <T extends number[]>(a: T): T => a.map(r6) as T;
 const hashOf = (parts: string[]) => Bun.hash(parts.sort().join(';')).toString(16);
 
 function materialSig(m: THREE.Material | THREE.Material[]): string {
@@ -153,15 +153,15 @@ function colliderSnap(c: RAPIER.Collider, physics: { surfaces: Map<number, { mat
   const s: ColliderSnap = {
     forma: RAPIER.ShapeType[type],
     corpo: body ? RAPIER.RigidBodyType[body.bodyType()] : 'nenhum',
-    t: r6a([t.x, t.y, t.z]),
-    r: r6a([r.x, r.y, r.z, r.w]),
+    t: r6a<Num3>([t.x, t.y, t.z]),
+    r: r6a<[number, number, number, number]>([r.x, r.y, r.z, r.w]),
     grupos: c.collisionGroups(),
     ativo: c.isEnabled(),
     onShot: false,
   };
   if (type === RAPIER.ShapeType.Cuboid) {
     const h = c.halfExtents()!;
-    s.meia = r6a([h.x, h.y, h.z]);
+    s.meia = r6a<Num3>([h.x, h.y, h.z]);
   } else if (type === RAPIER.ShapeType.Ball) s.raio = r6(c.radius());
   else if (type === RAPIER.ShapeType.Cylinder || type === RAPIER.ShapeType.Capsule || type === RAPIER.ShapeType.Cone) {
     s.raio = r6(c.radius());

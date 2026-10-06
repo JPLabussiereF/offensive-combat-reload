@@ -43,6 +43,7 @@ export interface BuiltMap extends GameMap {
 }
 
 const OFFICIAL: Record<string, () => Promise<{ default: unknown }>> = {
+  cemiterio: () => import('@shared/data/mapas/cemiterio.json'),
 };
 
 /** One of the official maps, shipped with the client (training and bots work without the server). */
