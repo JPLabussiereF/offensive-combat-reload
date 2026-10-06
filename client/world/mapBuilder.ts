@@ -74,12 +74,16 @@ export class MapBuilder {
   readonly openings: WallOpening[] = [];
   /** Enclosed places marked by hand (room), for the sound: echo and muffling inside. */
   readonly rooms: RoomVolume[] = [];
+  /** Where finish() puts the merged meshes: the scene, or one piece's group in the map editor. */
+  target: THREE.Object3D;
 
   constructor(
     readonly physics: Physics,
     readonly scene: THREE.Scene,
     private readonly cell = CELL,
-  ) {}
+  ) {
+    this.target = scene;
+  }
 
   // --- Low level --------------------------------------------------------------------------------
 
@@ -367,7 +371,7 @@ export class MapBuilder {
       mesh.receiveShadow = true;
       mesh.matrixAutoUpdate = false;
       mesh.name = `static:${batch.material.name}`;
-      this.scene.add(mesh);
+      this.target.add(mesh);
       this.stats.meshes++;
       this.stats.triangles += (merged.index ? merged.index.count : merged.getAttribute('position').count) / 3;
     }

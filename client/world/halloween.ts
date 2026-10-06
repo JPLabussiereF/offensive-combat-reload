@@ -907,7 +907,7 @@ export class Bell {
  * "abobora:N"). Bodies and faces are two instanced meshes.
  */
 export class Pumpkins {
-  private specs: { pos: THREE.Vector3; yaw: number; s: number; smashed: number; grow: number; col: RAPIER.Collider | null; hit: (() => void) | null }[] = [];
+  private specs: { pos: THREE.Vector3; yaw: number; s: number; id?: string; smashed: number; grow: number; col: RAPIER.Collider | null; hit: (() => void) | null }[] = [];
   private bodies!: THREE.InstancedMesh;
   private faces!: THREE.InstancedMesh;
   private m = new THREE.Matrix4();
@@ -916,8 +916,9 @@ export class Pumpkins {
   private sv = new THREE.Vector3();
   private t = 0;
 
-  add(x: number, y: number, z: number, yaw: number, s = 1) {
-    this.specs.push({ pos: V(x, y, z), yaw, s, smashed: 0, grow: 1, col: null, hit: null });
+  /** `id`: its PropBus id (default "abobora:N", N its order here). */
+  add(x: number, y: number, z: number, yaw: number, s = 1, id?: string) {
+    this.specs.push({ pos: V(x, y, z), yaw, s, id, smashed: 0, grow: 1, col: null, hit: null });
   }
 
   finish(scene: THREE.Scene, b: MapBuilder, props: PropBus, debris: Debris, onSmash: (at: THREE.Vector3) => void) {
@@ -930,7 +931,7 @@ export class Pumpkins {
     scene.add(this.bodies, this.faces);
     this.specs.forEach((p, i) => {
       const center = V(p.pos.x, p.pos.y + 0.26 * p.s, p.pos.z);
-      const onShot = props.register(`abobora:${i}`, () => {
+      const onShot = props.register(p.id ?? `abobora:${i}`, () => {
         if (p.smashed > 0) return;
         p.smashed = 28;
         p.col?.setEnabled(false);
@@ -994,13 +995,14 @@ export interface LampSpec {
 
 /** Old street lamps. Some flicker; shooting the lamp puts it out for a while ("poste:N"). */
 export class LampPosts {
-  private specs: (LampSpec & { head: THREE.Vector3; out: number; flick: number })[] = [];
+  private specs: (LampSpec & { id?: string; head: THREE.Vector3; out: number; flick: number })[] = [];
   private heads!: THREE.InstancedMesh;
   private c = new THREE.Color();
   private t = 0;
 
-  add(spec: LampSpec) {
-    this.specs.push({ ...spec, head: V(spec.x + spec.dir[0] * 0.85, 4.05, spec.z + spec.dir[1] * 0.85), out: 0, flick: 0 });
+  /** `id`: its PropBus id (default "poste:N", N its order here). */
+  add(spec: LampSpec, id?: string) {
+    this.specs.push({ ...spec, id, head: V(spec.x + spec.dir[0] * 0.85, 4.05, spec.z + spec.dir[1] * 0.85), out: 0, flick: 0 });
   }
 
   /** Where each lamp shines from and whether it's lit right now (for real lights, see LightPool). */
@@ -1028,7 +1030,7 @@ export class LampPosts {
       for (const [ox, oz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) b.box(p.head.x + ox * 0.13, 4.07, p.head.z + oz * 0.13, 0.03, 0.4, 0.03, 'metal', { ...iron, collide: false, castShadow: false });
       m.makeTranslation(p.head.x, p.head.y, p.head.z);
       this.heads.setMatrixAt(i, m);
-      const onShot = props.register(`poste:${i}`, () => {
+      const onShot = props.register(p.id ?? `poste:${i}`, () => {
         if (p.out > 0) return;
         p.out = 45;
         onOut(p.head);
@@ -1184,10 +1186,11 @@ export class Cauldron {
 
 /** Scarecrows: knocked over when shot, they lie there a moment and get back up ("espantalho:N"). */
 export class Scarecrows {
-  private specs: { x: number; z: number; yaw: number; pivot: THREE.Group; state: 'up' | 'falling' | 'down' | 'rising'; t: number; cols: RAPIER.Collider[] }[] = [];
+  private specs: { x: number; z: number; yaw: number; id?: string; pivot: THREE.Group; state: 'up' | 'falling' | 'down' | 'rising'; t: number; cols: RAPIER.Collider[] }[] = [];
 
-  add(x: number, z: number, yaw: number) {
-    this.specs.push({ x, z, yaw, pivot: new THREE.Group(), state: 'up', t: 0, cols: [] });
+  /** `id`: its PropBus id (default "espantalho:N", N its order here). */
+  add(x: number, z: number, yaw: number, id?: string) {
+    this.specs.push({ x, z, yaw, id, pivot: new THREE.Group(), state: 'up', t: 0, cols: [] });
   }
 
   finish(scene: THREE.Scene, b: MapBuilder, props: PropBus, onFall: (at: THREE.Vector3) => void) {
@@ -1218,7 +1221,7 @@ export class Scarecrows {
       p.pivot.rotation.y = p.yaw;
       scene.add(p.pivot);
       const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, p.yaw, 0));
-      const knock = props.register(`espantalho:${i}`, () => {
+      const knock = props.register(p.id ?? `espantalho:${i}`, () => {
         if (p.state !== 'up') return;
         p.state = 'falling';
         p.t = 0;
