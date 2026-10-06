@@ -90,6 +90,14 @@ export function buildCasa(c: Ctx): { cherry: CherryPickup; fruit: HangingCherrie
   // opposite sides of the partition; you go around its end in the middle of the wing).
   b.wall('z', MID, -IN + 0.08, -2, T_IN, LOW, 'madeira', [], 0, wood);
   b.wall('z', MID, 2, IN - 0.08, T_IN, LOW, 'madeira', [], 0, wood);
+  // For the sound: the four wings are closed rooms; the veranda under the eaves around the courtyard is open
+  // on the courtyard side.
+  b.room({ x: -H, y: 0, z: -H }, { x: H, y: TALL, z: -IN }, 1);
+  b.room({ x: -H, y: 0, z: IN }, { x: H, y: LOW, z: H }, 1);
+  for (const sx of [-1, 1]) b.room({ x: sx * IN, y: 0, z: -IN }, { x: sx * H, y: LOW, z: IN }, 1);
+  b.room({ x: -IN, y: 0, z: -IN }, { x: IN, y: TALL, z: -IN + 1.4 }, 0.6);
+  b.room({ x: -IN, y: 0, z: IN - 1.4 }, { x: IN, y: LOW, z: IN }, 0.6);
+  for (const sx of [-1, 1]) b.room({ x: sx * IN, y: 0, z: -IN }, { x: sx * (IN - 1.4), y: LOW, z: IN }, 0.6);
 
   // --- Roofs and the veranda around the courtyard --------------------------------------------------
   for (const h of curvedRoof(b, { outer: rect(-H - 1.4, -H - 1.4, H + 1.4, -IN + 1.4), top: rect(-8.6, -MID, 8.6, -MID), eaveY: TALL, topY: TALL + 2.7, curl: 1.0, ridges: true })) c.lanterns.hang(h, 0.9);
@@ -223,6 +231,7 @@ export function buildRing(c: Ctx) {
     for (const k of [0, 2, 3]) paperWall(b, 'x', zn, x0 + ((x1 - x0) * k) / bays + 0.15, x0 + ((x1 - x0) * (k + 1)) / bays - 0.15, 2.5, 0);
     b.span(x0, 2.7, zn - 0.12, x1, 3.0, zn + 0.12, 'pintura', { tint: C.beam, collide: false });
     b.span(x0, 2.7, zs - 0.12, x1, 3.0, zs + 0.12, 'pintura', { tint: C.beam, collide: false });
+    b.room({ x: x0, y: 0, z: zn }, { x: x1, y: 2.7, z: zs }, 0.4); // roofed, open on three sides
     curvedRoof(b, { outer: rect(x0 - 0.7, zn - 0.7, x1 + 0.7, zs + 0.7), top: rect(x0 + 0.6, (zn + zs) / 2, x1 - 0.6, (zn + zs) / 2), eaveY: 3.0, topY: 4.0, curl: 0.4, ridges: true });
     for (let k = 0; k < bays; k++) c.lanterns.hang(new THREE.Vector3(x0 + ((x1 - x0) * (k + 0.5)) / bays, 3.3, (zn + zs) / 2), 0.7);
     bench(b, (x0 + x1) / 2, zs + 0.55, 'x', 2.0);

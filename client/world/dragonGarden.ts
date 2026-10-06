@@ -208,6 +208,7 @@ export async function buildDragonGardenMap(physics: Physics, scene: THREE.Scene,
     atmosphere: NIGHT,
     stats: b.stats,
     openings: b.openings,
+    rooms: b.rooms,
     props: c.props,
     update(dt, frame) {
       for (const f of animated) f(dt, frame);
