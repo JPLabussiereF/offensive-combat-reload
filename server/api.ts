@@ -1,52 +1,31 @@
-// The account API under /api. JSON in and out; every state-changing request must come from this site
-// (Origin check) and carries the session cookie. Errors are { erro: code }.
+// The API under /api: accounts (here). JSON in and out unless a
+// route says otherwise; every state-changing request must come from this site (Origin check) and carries the
+// session cookie. Errors are { erro: code }.
+//
+// Routes are "METHOD /path"; a segment ":name" matches any one segment and reaches the handler in ctx.params.
+// An exact route wins over one with parameters.
 import { cleanName, validName } from '@shared/account';
 import { asSex } from '@shared/protocol';
-import { activeBan, audit, cancelDeletion, changeName, fullProfile, getAccount, me, requestDeletion, setAppearance, setArsenal, setSex } from './accounts';
+import { audit, cancelDeletion, changeName, fullProfile, getAccount, me, requestDeletion, setAppearance, setArsenal, setSex } from './accounts';
 import { discordAvailable, discordCallback, startDiscord, unlinkDiscord } from './auth/discord';
 import { login, register, requestReset, resetPassword } from './auth/password';
-import { authenticate, clearSessionCookie, revokeSession, type AuthSession, type Deps } from './auth/sessions';
-import { clientIp, HttpError, json, originAllowed, randomToken, readJson, sha256hex, userAgent } from './http';
+import { authenticate, clearSessionCookie, revokeSession, type Deps } from './auth/sessions';
+import { HttpError, json, originAllowed, randomToken, readJson, sha256hex } from './http';
 import { REVOCATION_CHANNEL } from './redis';
+import { rolesOf } from './roles';
+import { info, reply, requireSession, type Ctx, type Handler } from './route';
 
 /** WebSocket tickets: single use, short-lived. */
 export const TICKET_TTL_SECONDS = 30;
 export const ticketKey = (ticket: string) => `ws:ticket:${sha256hex(ticket)}`;
 
-type Handler = (ctx: Ctx) => Promise<Response>;
-
-interface Ctx {
-  deps: Deps;
-  req: Request;
-  url: URL;
-  /** Set-Cookie headers to add to the response (session renewal). */
-  cookies: string[];
-  session: AuthSession | null;
-}
-
 const MUTATING = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 
-async function requireSession(ctx: Ctx): Promise<AuthSession> {
-  const s = await authenticate(ctx.deps.db, ctx.req);
-  if (!s) throw new HttpError(401, 'nao_autorizado');
-  if (s.renewed) ctx.cookies.push(s.renewed);
-  const ban = await activeBan(ctx.deps.db, s.accountId);
-  if (ban) throw new HttpError(403, 'conta_suspensa', { ate: ban.expires_at?.toISOString() ?? null });
-  ctx.session = s;
-  return s;
-}
-
-const reply = (ctx: Ctx, status: number, body?: unknown, extraCookies: string[] = []) => {
-  const cookies = [...ctx.cookies, ...extraCookies];
-  return json(status, body, cookies.length ? { 'set-cookie': cookies } : {});
-};
-
-const info = (req: Request) => ({ ip: clientIp(req), userAgent: userAgent(req) });
-
-const routes: Record<string, Handler> = {
+const accountRoutes: Record<string, Handler> = {
   'GET /api/me': async (ctx) => {
     const s = await requireSession(ctx);
-    return reply(ctx, 200, await me(ctx.deps.db, s.accountId));
+    const [mine, papeis] = await Promise.all([me(ctx.deps.db, s.accountId), rolesOf(ctx.deps.db, s.accountId)]);
+    return reply(ctx, 200, { ...mine, papeis });
   },
 
   'GET /api/auth/provedores': async (ctx) => reply(ctx, 200, { discord: discordAvailable(ctx.req) }),
@@ -136,15 +115,63 @@ const routes: Record<string, Handler> = {
   },
 };
 
+interface Route {
+  method: string;
+  parts: string[];
+  handler: Handler;
+}
+
+/** The routes with ":name" segments, apart from the exact ones (looked up first). */
+function compile(all: Record<string, Handler>) {
+  const exact = new Map<string, Handler>();
+  const patterns: Route[] = [];
+  for (const [key, handler] of Object.entries(all)) {
+    if (!key.includes('/:')) exact.set(key, handler);
+    else {
+      const [method, path] = key.split(' ');
+      patterns.push({ method, parts: path.split('/'), handler });
+    }
+  }
+  return { exact, patterns };
+}
+
+const ROUTES = compile({ ...accountRoutes });
+
+/** The handler of a request and its parameters, or null. */
+function route(method: string, path: string): { handler: Handler; params: Record<string, string> } | null {
+  const exact = ROUTES.exact.get(`${method} ${path}`);
+  if (exact) return { handler: exact, params: {} };
+  const parts = path.split('/');
+  for (const r of ROUTES.patterns) {
+    if (r.method !== method || r.parts.length !== parts.length) continue;
+    const params: Record<string, string> = {};
+    let ok = true;
+    for (let i = 0; i < parts.length && ok; i++) {
+      const want = r.parts[i];
+      if (want.startsWith(':')) {
+        try {
+          params[want.slice(1)] = decodeURIComponent(parts[i]);
+        } catch {
+          ok = false;
+        }
+        ok &&= parts[i] !== '';
+      } else ok = want === parts[i];
+    }
+    if (ok) return { handler: r.handler, params };
+  }
+  return null;
+}
+
 /** Answers /api/* requests; returns null for anything else. */
 export async function handleApi(deps: Deps, req: Request, url: URL): Promise<Response | null> {
   if (!url.pathname.startsWith('/api/')) return null;
-  const ctx: Ctx = { deps, req, url, cookies: [], session: null };
+  const ctx: Ctx = { deps, req, url, params: {}, cookies: [], session: null };
   try {
-    const route = routes[`${req.method} ${url.pathname}`];
-    if (!route) throw new HttpError(404, 'nao_encontrado');
+    const found = route(req.method, url.pathname);
+    if (!found) throw new HttpError(404, 'nao_encontrado');
     if (MUTATING.has(req.method) && !originAllowed(req)) throw new HttpError(403, 'origem_invalida');
-    return await route(ctx);
+    ctx.params = found.params;
+    return await found.handler(ctx);
   } catch (err) {
     if (err instanceof HttpError) return json(err.status, { erro: err.code, ...err.extra }, ctx.cookies.length ? { 'set-cookie': ctx.cookies } : {});
     // Never log the request itself: it may carry cookies or passwords.
