@@ -36,6 +36,18 @@ export interface Peca {
   prop?: string;
   /** The collectible it holds (an id of MapData.objetos.coletaveis). */
   coletavel?: string;
+  /**
+   * Where the editor's gizmo moved and turned the whole piece (P32): a rigid transform applied to everything
+   * the piece builds (geometry, colliders, rooms, holes in walls, its objects and gags), after it's built where
+   * its params say. Any kind, any angle; absent, the piece builds exactly where its params put it.
+   */
+  pose?: Pose;
+}
+
+/** A rigid transform: turn `r` (Euler XYZ, radians), then move by `p`. */
+export interface Pose {
+  p: Vec3;
+  r: Vec3;
 }
 
 /** A map's sky and light (the client's Atmosphere). */
@@ -257,6 +269,8 @@ export function validateMapData(raw: unknown): { ok: boolean; erros: string[] } 
       if (p.yaw !== undefined && !isNum(p.yaw)) out.push(`${at}.yaw: número`);
       if (p.escala !== undefined && (!isNum(p.escala) || p.escala <= 0 || p.escala > 100)) out.push(`${at}.escala: de 0 a 100`);
       if (p.semente !== undefined && !Number.isInteger(p.semente)) out.push(`${at}.semente: inteiro`);
+      if (p.pose !== undefined && !(isObj(p.pose) && isVec3(p.pose.p) && isVec3(p.pose.r) && p.pose.p.every((v) => Math.abs(v) <= 10_000) && p.pose.r.every((v) => Math.abs(v) <= 100)))
+        out.push(`${at}.pose: { p: [x, y, z], r: [x, y, z] } (giro em radianos)`);
       if (p.prop !== undefined) {
         if (typeof p.prop !== 'string' || !PROP_ID.test(p.prop)) out.push(`${at}.prop: id do PropBus (minúsculas, ":N" opcional)`);
         else if (props.has(p.prop)) out.push(`${at}.prop: repetido "${p.prop}"`);

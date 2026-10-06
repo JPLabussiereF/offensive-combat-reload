@@ -20,8 +20,12 @@ import { skyClouds } from './decor';
 import { nightSky } from './halloween';
 import { LanternLights, nightSky as gardenSky, SkyLanterns } from './jardim/luzes';
 import { CATALOG } from './catalog';
-import { Collections, Services, type ServiceHost } from './catalog/services';
+import { Services, type ServiceHost } from './catalog/services';
 import type { BuildCtx, MapOutputs } from './catalog/types';
+import { pieceView, type PieceTrace } from './catalog/posed';
+import { poseColliders, poseMatrix, poseOpening, poseRoom } from './pose';
+import type { RoomVolume } from '../audio/spatial';
+import type { WallOpening } from './mapBuilder';
 import type { CritterHit, GameMap, MapFrame, MapSfx } from './gameMap';
 
 export interface LoadOptions {
@@ -92,6 +96,8 @@ export interface MapBuild {
   readonly ctx: BuildCtx;
   piece(peca: Peca): Promise<void>;
   finish(): BuiltMap;
+  /** Editor: takes a built piece away (its id), to build it again or delete it. */
+  remove(id: string): void;
 }
 
 export function startBuild(data: MapData, o: LoadOptions): MapBuild {
@@ -121,6 +127,7 @@ export function startBuild(data: MapData, o: LoadOptions): MapBuild {
     s,
     out,
     rewards: () => (out.rewards ??= { ratDown: null, aimBonus: null }),
+    local: (v) => v,
     loadGltf: (file): Promise<GLTF> => {
       const url = files.get(file);
       if (!url) return Promise.reject(new Error(`arquivo "${file}" não está em arquivos`));
@@ -129,33 +136,94 @@ export function startBuild(data: MapData, o: LoadOptions): MapBuild {
   };
 
   const pieces = modo === 'editor' ? new Map<string, EditorPiece>() : undefined;
+  const traces = new Map<string, { trace: PieceTrace; rooms: RoomVolume[]; openings: WallOpening[] }>();
+  /** Colliders seen so far: what a piece made is what's new after it. */
   const known = new Set<number>();
-  const piece = async (peca: Peca) => {
-    if (!pieces) return runPiece(ctx, peca);
-    // Editor: the piece's own group, collections and batches, finished with it.
-    const group = new THREE.Group();
-    group.name = `peca:${peca.id}`;
-    group.userData.peca = peca.id;
-    scene.add(group);
-    ctx.scene = group as unknown as THREE.Scene;
-    b.target = group;
-    s.c = new Collections({ ...host, scene: group as unknown as THREE.Scene }, s);
-    try {
-      await runPiece(ctx, peca);
-      s.c.finish(group);
-      b.finish();
-    } finally {
-      ctx.scene = scene;
-      b.target = scene;
-      s.c = s.all;
-    }
-    const colliders: number[] = [];
+  const fresh = () => {
+    const list: number[] = [];
     physics.world.forEachCollider((col) => {
       if (known.has(col.handle)) return;
       known.add(col.handle);
-      colliders.push(col.handle);
+      list.push(col.handle);
     });
-    pieces.set(peca.id, { group, colliders });
+    return list;
+  };
+  const piece = async (peca: Peca) => {
+    const pose = poseMatrix(peca.pose);
+    if (!pieces && !pose) return runPiece(ctx, peca);
+    // A posed piece (P32) builds in its own frame: its objects in a group the pose carries, its colliders,
+    // rooms and holes carried after it (see pose.ts). In the editor, every piece builds in its own group, with
+    // its own collections and batches, finished with it.
+    if (!pieces) fresh();
+    const group = pieces ? new THREE.Group() : null;
+    if (group) {
+      group.name = `peca:${peca.id}`;
+      group.userData.peca = peca.id;
+      scene.add(group);
+      b.target = group;
+    }
+    let root: THREE.Object3D = group ?? scene;
+    if (pose) {
+      const posed = new THREE.Group();
+      posed.name = `pose:${peca.id}`;
+      posed.matrixAutoUpdate = false;
+      posed.matrix.copy(pose);
+      root.add(posed);
+      root = posed;
+    }
+    const view = pieceView(ctx, root, pose);
+    const mark = { rooms: b.rooms.length, openings: b.openings.length };
+    b.pose = pose;
+    try {
+      await runPiece(view.ctx, peca);
+      view.collections.finish(root);
+      view.settle();
+      if (pieces) b.finish();
+    } finally {
+      b.pose = null;
+      b.target = scene;
+    }
+    const colliders = fresh();
+    const rooms = b.rooms.slice(mark.rooms);
+    const openings = b.openings.slice(mark.openings);
+    if (pose) {
+      poseColliders(physics, colliders, pose);
+      for (const r of rooms) poseRoom(r, pose);
+      for (const o of openings) poseOpening(o, pose);
+    }
+    if (pieces && group) {
+      pieces.set(peca.id, { group, colliders });
+      traces.set(peca.id, { trace: view.trace, rooms, openings });
+    }
+  };
+
+  /** Editor: takes a piece's group, colliders, updates, light spots, rooms and holes away (to rebuild or delete it). */
+  const remove = (id: string) => {
+    const p = pieces?.get(id);
+    if (!p) return;
+    p.group.removeFromParent();
+    p.group.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+    for (const h of p.colliders) {
+      const col = physics.world.getCollider(h);
+      if (col) physics.world.removeCollider(col, false);
+      physics.surfaces.delete(h);
+      known.delete(h);
+    }
+    const t = traces.get(id);
+    if (t) {
+      const gone = new Set<unknown>([...t.trace.updates, ...t.rooms, ...t.openings]);
+      const keep = <T>(list: T[]) => {
+        const left = list.filter((x) => !gone.has(x));
+        list.length = 0;
+        list.push(...left);
+      };
+      keep(animated);
+      keep(b.rooms);
+      keep(b.openings);
+      if (t.trace.lights.length) s.lights.remove(...t.trace.lights);
+    }
+    pieces!.delete(id);
+    traces.delete(id);
   };
 
   const finish = (): BuiltMap => {
@@ -225,7 +293,7 @@ export function startBuild(data: MapData, o: LoadOptions): MapBuild {
     return map;
   };
 
-  return { ctx, piece, finish };
+  return { ctx, piece, finish, remove };
 }
 /** Builds one piece with its own seeded randomness. */
 export async function runPiece(ctx: BuildCtx, peca: Peca) {

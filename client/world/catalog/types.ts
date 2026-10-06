@@ -63,6 +63,11 @@ export interface BuildCtx {
   rewards(): MapRewards;
   /** A model the map uses (an id of MapData.arquivos). */
   loadGltf(file: string): Promise<GLTF>;
+  /**
+   * A world point of the map's data (MapData.objetos: a collectible, a fish's loop) in the piece's own frame:
+   * a posed piece (Peca.pose) builds there, and its pose carries it back. The point itself without a pose.
+   */
+  local(v: Vec3): Vec3;
 }
 
 export type Adapter = (ctx: BuildCtx, p: Peca) => void | Promise<void>;

@@ -202,7 +202,7 @@ export const objects: Record<string, Adapter> = {
     const [sx, sy, sz] = P<{ som: Vec3 }>(p).som;
     const cabinet = new KitchenCabinet(c.scene, c.b, vec(p), yawOf(p), c.props, () => c.sfx.at({ x: sx, y: sy, z: sz }, 'normal', (s) => s.cabinetCreak()));
     const pickup = p.coletavel ? pickupAt(c, p.coletavel) : undefined;
-    const biscuit = pickup ? new ScoobyBiscuit(c.scene, pickup.id, V(...pickup.p), cabinet) : null;
+    const biscuit = pickup ? new ScoobyBiscuit(c.scene, pickup.id, V(...c.local(pickup.p)), cabinet) : null;
     c.animate((dt) => {
       cabinet.update(dt);
       biscuit?.update(dt);
@@ -227,7 +227,11 @@ export const objects: Record<string, Adapter> = {
 
   /** The koi of every pond (MapData.objetos.peixes): they swim on the game clock and can be shot. */
   peixes(c, p) {
-    const fish = c.data.objetos.peixes.map((f) => ({ id: f.id, pond: f.lago, loop: f.volta, y: f.y }));
+    // Their loops are world places (the server's); a posed piece swims them in its own frame.
+    const fish = c.data.objetos.peixes.map((f) => {
+      const [x, y, z] = c.local([f.volta[0], f.y, f.volta[1]]);
+      return { id: f.id, pond: f.lago, loop: [x, z, f.volta[2]] as Vec3, y };
+    });
     const koi = new KoiSchool(c.scene, fish, c.s.drops, seeded(p.semente ?? 4242));
     c.animate((dt, { time }) => koi.update(dt, time));
     c.out.fish = koi;

@@ -134,10 +134,20 @@ export function addGltfToMap(gltf: GLTF, builder: MapBuilder, placement?: { posi
       return;
     }
     if (/^ROOM_/i.test(name)) {
-      // Its world bounds (an empty scaled as a box counts as its unit cube).
-      const box = (obj as THREE.Mesh).isMesh ? new THREE.Box3().setFromObject(obj) : new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1)).applyMatrix4(obj.matrixWorld);
+      // Its world bounds (an empty scaled as a box counts as its unit cube); turned (the box, or the whole file
+      // placed with a yaw), the box keeps its own frame instead of growing into the world box around it.
       const f = Number(obj.userData?.fechamento ?? 1);
-      builder.room(box.min, box.max, Number.isFinite(f) ? f : 1);
+      const enclosure = Number.isFinite(f) ? f : 1;
+      const turn = obj.getWorldQuaternion(new THREE.Quaternion());
+      if (Math.abs(Math.abs(turn.w) - 1) > 1e-9) {
+        const mesh = obj as THREE.Mesh;
+        if (mesh.isMesh && !mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+        const local = mesh.isMesh ? mesh.geometry.boundingBox! : new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1));
+        builder.orientedRoom(local.min, local.max, obj.matrixWorld, enclosure);
+        return;
+      }
+      const box = (obj as THREE.Mesh).isMesh ? new THREE.Box3().setFromObject(obj) : new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1)).applyMatrix4(obj.matrixWorld);
+      builder.room(box.min, box.max, enclosure);
       return;
     }
     if (!(obj as THREE.Mesh).isMesh) return;

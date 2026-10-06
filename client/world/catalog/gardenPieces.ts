@@ -40,7 +40,7 @@ export const gardenPieces: Record<string, Adapter> = {
     c.out.fruit.push(tree.fruit);
     const spot = p.coletavel ? c.data.objetos.coletaveis.find((k) => k.id === p.coletavel) : undefined;
     if (!spot) return;
-    const feet = new THREE.Vector3(...spot.p);
+    const feet = new THREE.Vector3(...c.local(spot.p));
     const above = tree.crowns.reduce((best, k) => (Math.hypot(k.p.x - feet.x, k.p.z - feet.z) < Math.hypot(best.p.x - feet.x, best.p.z - feet.z) ? k : best));
     const cherry = new CherryPickup(c.scene, spot.id, feet, above.p.clone().setY(above.p.y - above.r * 0.5));
     c.animate((dt) => cherry.update(dt));

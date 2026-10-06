@@ -1743,6 +1743,14 @@ export class LightPool {
     this.spots.push(...spots);
   }
 
+  /** Takes spots away (the map editor rebuilding a piece); the lights are handed out again on the next pick. */
+  remove(...spots: LightSpot[]) {
+    const gone = new Set(spots);
+    this.spots = this.spots.filter((s) => !gone.has(s));
+    for (const l of this.lights) l.spot = -1;
+    this.pick = 0;
+  }
+
   update(dt: number, camera: THREE.Vector3) {
     this.t += dt;
     this.pick -= dt;
