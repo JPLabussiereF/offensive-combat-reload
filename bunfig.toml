@@ -12,4 +12,5 @@ bun = true
 # root; bun test never looks inside node_modules.
 root = "."
 preload = ["./server/tests/preload.ts"]
+# Bun 1.4.2 ignores this line (the default 5 s applied): server/tests/preload.ts sets it with setDefaultTimeout.
 timeout = 20000
