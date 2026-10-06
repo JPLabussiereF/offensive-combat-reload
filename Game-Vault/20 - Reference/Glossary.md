@@ -6,6 +6,8 @@ area: reference
 source_paths:
   - server/modes.ts
   - shared/gunGame.ts
+  - shared/zombies.ts
+  - shared/zombieMatch.ts
   - shared/modes.ts
   - shared/constants.ts
   - shared/protocol.ts
@@ -52,7 +54,15 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Mata-mata (livre) | `'mata-mata'` (`GameModeId`), `DeathmatchMode` | Modo todos contra todos com o Arsenal da conta, escolhido antes e travado durante a partida | [[Free For All]] · [[Versus Bots]] |
 | Corrida armada (en: Gun game) | `'corrida-armada'`, `GunGameMode`, `shared/gunGame.ts` | Modo em que todos sobem a mesma escada de armas: 3 abates sobem, facada desce, abate com o Sabre de Luz vence a rodada | [[Gun Game]] |
 | Escada / degrau | `LADDER`, `LadderPos {step, kills}`, `PlayerInfo.ladder`, `ladder_<id>` | Sequência de 7 armas fixas da corrida armada e a posição de cada jogador nela ("ARMA N/7") | [[Gun Game]] |
-| Tipo de partida | `#home-game`, `GameModeId` | Seletor de modo de jogo na home (Mata-mata / Corrida armada) | [[Matchmaking UI]] |
+| Zumbi (en: Zombies) | `'zumbi'`, `ZombieMode`, `ZombieMatch`, `shared/zombies.ts` | Modo cooperativo de 12 ondas de zumbis e 3 chefes na Vila Assombrada; dinheiro da partida e armas do caixão | [[Zombie]] |
+| Onda / intervalo | `ZPhase` (`countdown`, `wave`, `break`, `over`), `zwave` | Uma leva de zumbis do modo zumbi; o intervalo de 20–25 s entre ondas (munição e granadas cheias, caídos levantam, mortos voltam) | [[Zombie]] |
+| Caixão Misterioso (en: Mystery Coffin) | `box`, `zbox`, `rollBox`, `client/zombies/coffin.ts` | A "caixa" do modo zumbi: $950 sorteiam uma arma (arma + melhorias fixas) de uma raridade; às vezes sai um **pato** e o caixão muda de lugar | [[Zombie]] |
+| Raridade | `Rarity` (`inicial`, `comum`, `raro`, `epico`, `lendario`), `rar_<id>` | Cor e força de uma arma do caixão: multiplica o dano contra zumbis (×1 a ×3,5) | [[Zombie]] · [[Weapons]] |
+| Caído / reanimar / sangrar | `SPlayer.downed`, `zdown`, `revive`, `zrevive`, `zup`, `KillKind 'zombie'` | No modo zumbi, vida a zero numa onda derruba o jogador; um colega reanima segurando E (3 s); depois de 30 s ele sangra até morrer e volta no intervalo | [[Zombie]] |
+| Dinheiro (zumbi) | `ZombiePlayer.money`, `zmoney` | Moeda **só da partida** do modo zumbi, nunca salva | [[Zombie]] · [[Economy Design]] |
+| Chefes: Coveiro, Noiva, Prefeito | `BossId` (`coveiro`, `noiva`, `prefeito`), `zboss_<id>` | Os chefes das ondas 4, 8 e 12 do modo zumbi | [[Zombie]] |
+| Maratonista, Tio do Churrasco, Segurança da Balada, Tia da Fofoca | `ZType` (`corredor`, `inchado`, `brutamontes`, `cuspidor`), `ztype_<id>` | As variantes de zumbi (rápido, explode, tanque, cospe de longe); o comum é `comum` | [[Zombie]] |
+| Tipo de partida | `#home-game`, `GameModeId` | Seletor de modo de jogo na home (Mata-mata / Corrida armada / Zumbi) | [[Matchmaking UI]] |
 | Rodada | `roundEnd`, `roundStart` | Na corrida armada, do início até o abate com o sabre; 6 s de intervalo antes da próxima | [[Gun Game]] |
 | Melhoria (upgrade) | `Upgrade` em `progression.json` (`melhorias`), `upg_<arma>_<id>` | O que cada nível de arma ≥ 2 libera: muda atributos reais (e às vezes o visual). As **comuns** ficam ativas assim que liberadas | [[Weapons]] · [[Progression]] |
 | Melhoria opcional | `opcional: true`, `grupo`, `ArsenalChoice.ligadas` | Melhoria com troca (ganha algo, perde algo; ex.: silenciador, luneta, frango, sabre, mina). Vem desligada; o jogador liga no Arsenal. Num `grupo`, só uma fica ligada e ela substitui as comuns do grupo | [[Weapons]] · [[Inventory UI]] |

@@ -67,6 +67,9 @@ export class RemotePlayer implements Target {
   private loadoutKey = '';
   /** What they carry (guns, upgrades): what's in their hands, how their shots sound. */
   loadout: Loadout = DEFAULT_LOADOUT;
+  /** Down and waiting for a revive (zumbi): lying on the ground. */
+  downed = false;
+  private downT = 0;
   private lastPos = new THREE.Vector3();
 
   constructor(
@@ -197,6 +200,9 @@ export class RemotePlayer implements Target {
     this.avatar.root.rotation.y = this.yaw;
     if (this.flags & FLAG.dance) this.danceT = (this.danceT ?? 0) + dt;
     else this.danceT = null;
+    // Down (zumbi): fallen over, until someone revives them.
+    this.downT = this.downed ? this.downT + dt : 0;
+    if (this.downed) return this.avatar.die(this.downT);
     const pose = this.currentPose();
     if (pose.kind === 'dance') this.avatar.dance(pose.t);
     else if (pose.kind === 'armed') this.avatar.pose(dt, pose.pose);

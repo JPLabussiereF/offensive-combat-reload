@@ -82,4 +82,4 @@ updated: AAAA-MM-DD
 
 ## Exemplos preenchidos
 
-[[Free For All]] · [[Gun Game]] · [[Versus Bots]] · [[Training]]
+[[Free For All]] · [[Gun Game]] · [[Zombie]] · [[Versus Bots]] · [[Training]]

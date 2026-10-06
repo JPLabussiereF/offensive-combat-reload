@@ -8,7 +8,7 @@ import { catalogItem, type Slot } from '@shared/catalog';
 import type { Sex } from '@shared/protocol';
 import { bodyStats } from '@shared/appearance';
 import { DEFAULT_LOADOUT, meleeStats, slotStats, type Loadout } from '@shared/arsenal';
-import { CharacterAnimator, type AvatarPose } from '../character/animator';
+import { CharacterAnimator, type AvatarPose, type ZombiePose } from '../character/animator';
 import { Character, type CharacterConfig } from '../character/character';
 import { heldGrenade, heldGun, heldKnife } from './heldWeapons';
 
@@ -156,6 +156,28 @@ export class Avatar {
   /** Only the knife (corrida armada's lightsaber): the guns aren't drawn at all, not even on the back. */
   private bladeOnly = false;
 
+  /** False once disarmed: no gun is ever drawn (in the hands or on the back). */
+  private armed = true;
+
+  /** No weapons at all, ever (the zumbi mode's zombies): the loadout's models go away. */
+  disarm() {
+    this.armed = false;
+    for (const o of this.held) o.removeFromParent();
+    this.held = [];
+    this.primary = [];
+    this.secondary = [];
+    this.knife = this.grenade = null;
+    for (const slot of ['weapon_R', 'weapon_back'] as const) for (const o of this.character.objectsOf(slot)) o.visible = false;
+  }
+
+  /** A zombie's body (see CharacterAnimator.zombie): no weapons, the pose of its hitbox skeleton. */
+  zombie(dt: number, s: ZombiePose) {
+    const step = this.lod(dt);
+    if (step === null) return;
+    if (this.hitboxes) this.animator.syncFrom(this.hitboxes);
+    this.animator.zombie(this.hitboxes ? 0 : step, s);
+  }
+
   /** Which gun is in the hands (the other one, or none for a pistol, is put away). */
   private showGun(secondary: boolean) {
     this.holdingSecondary = secondary && this.secondary.length > 0;
@@ -198,8 +220,8 @@ export class Avatar {
 
   /** A gun in the hands (armed) or the primary slung on the back (also while the secondary is in the hands). */
   private rifle(inHands: boolean) {
-    for (const o of this.character.objectsOf('weapon_R')) o.visible = inHands && !this.bladeOnly;
-    for (const o of this.character.objectsOf('weapon_back')) o.visible = (!inHands || this.holdingSecondary) && !this.bladeOnly;
+    for (const o of this.character.objectsOf('weapon_R')) o.visible = inHands && !this.bladeOnly && this.armed;
+    for (const o of this.character.objectsOf('weapon_back')) o.visible = (!inHands || this.holdingSecondary) && !this.bladeOnly && this.armed;
   }
 
   /** Alive, armed: locomotion, aim offset, the gun in both hands, action layers (reload, knife, grenade). */

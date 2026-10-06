@@ -27,8 +27,8 @@ Com o modo **Online** escolhido na aba Jogar da tela inicial ([[Menus]]):
 
 | Elemento | Comportamento |
 | --- | --- |
-| Tipo de partida (`#home-game`) | **Mata-mata** ou **Corrida armada** (botões, salvo em `oc.bots.game`), com uma linha explicando o modo. Filtra a lista, as contagens dos mapas e a entrada rápida, e é o modo da sessão criada. Ver [[Free For All]] e [[Gun Game]]. |
-| Filtro de mapas | Os três mapas como caixas de marcar, numa grade que ocupa a linha inteira como os cartões de modo (todos marcados por padrão, salvos em `oc.bots.filtro`). Cada um mostra quantas sessões tem: antes de conectar, por `GET /api/sessoes` (ao abrir, ao voltar ao modo Online e a cada 10 s); conectado, pela lista ao vivo. Sem servidor, mostra o clima do mapa. Todo mapa tem sempre ao menos uma sessão com vaga ([[Matchmaking]]). |
+| Tipo de partida (`#home-game`) | **Mata-mata**, **Corrida armada** ou **Zumbi** (botões, salvo em `oc.bots.game`), com uma linha explicando o modo. Filtra a lista, as contagens dos mapas e a entrada rápida, e é o modo da sessão criada. Ver [[Free For All]], [[Gun Game]] e [[Zombie]]. |
+| Filtro de mapas | Os três mapas como caixas de marcar, numa grade que ocupa a linha inteira como os cartões de modo (todos marcados por padrão, salvos em `oc.bots.filtro`). Cada um mostra quantas sessões tem: antes de conectar, por `GET /api/sessoes` (ao abrir, ao voltar ao modo Online e a cada 10 s); conectado, pela lista ao vivo. Sem servidor, mostra o clima do mapa. Todo mapa tem sempre ao menos uma sessão com vaga ([[Matchmaking]]). Num modo de um mapa só (o **Zumbi**, só na Vila Assombrada) o filtro some: aparece só esse mapa, marcado, com "Só na Vila Assombrada", e a lista, a entrada rápida e o seletor de mapa de "Criar sessão" ficam nele (`modeMaps`). |
 | **JOGAR ONLINE** (cartão do personagem) | **Entrada rápida:** conecta se preciso e entra na sessão **mais cheia que não esteja lotada** do tipo de partida escolhido, entre os mapas marcados. Sem mapa marcado: "Marque pelo menos um mapa."; sem sessão livre: "Nenhuma sessão aberta nos mapas selecionados.". A escolha é feita no cliente a partir da lista; o servidor só recebe um `join` comum. |
 | Título | "Sessões abertas (N)", contando só as dos mapas marcados. |
 | **VER MAIS (N)** | A lista mostra **6 sessões por vez**; o botão só aparece quando sobram sessões e mostra mais 6 a cada clique. Volta a 6 ao mudar o filtro ou o modo. |
@@ -55,7 +55,10 @@ Antes do `join`/`create`, o cliente manda a escolha do Arsenal (`loadout`) para 
 
 ## Offline e bots
 
-Para os modos sem servidor não há lista: o mapa é escolhido nos botões de mapa da aba Jogar (ou da landing, sem conta), junto com o tipo de partida (os modos com `bots: true`), dificuldade e número de bots; no Campo de tiro, clicar no mapa já começa. Ver [[Menus]], [[Training]] e [[Versus Bots]].
+Para os modos sem servidor não há lista: o mapa é escolhido nos botões de mapa da aba Jogar (ou da landing, sem conta), junto com o tipo de partida (os modos com `bots: true`), dificuldade e número de bots; no Campo de tiro, clicar no mapa já começa. Com **Zumbi** escolhido em "Contra bots", dificuldade e número de bots somem, só a Vila Assombrada aparece e o botão vira **ENCARAR A HORDA SOZINHO** (o jogo solo, [[Zombie]]). Ver [[Menus]], [[Training]] e [[Versus Bots]].
+
+> [!info] Correção na landing (2026-10-06)
+> O seletor de tipo de partida da landing (sem conta) tinha o mesmo id da seção "Sobre" (`land-game`), e o preenchimento caía na seção errada. Agora é `#land-games`.
 
 ## Código relacionado
 

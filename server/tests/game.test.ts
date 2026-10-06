@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { CLOSE, FLAG, NET, type SessionInfo } from '@shared/protocol';
 import { BISCUIT, CHERRY, HEALTH, KOI, POTION, RAT } from '@shared/constants';
 import { DEFAULT_LOADOUT, gunStats } from '@shared/arsenal';
+import { GAME_MODE_IDS } from '@shared/modes';
 import type { GameServer } from '../app';
 import { ticketKey } from '../api';
 import { ban, mute, unmute } from '../moderacao';
@@ -443,7 +444,7 @@ describe('vaga por mapa', () => {
   it('lista as sessões sem conexão de jogo, com o modo de cada uma', async () => {
     const all = await list();
     expect([...new Set(all.map((s) => s.map))].sort()).toEqual(['halloween', 'jardim', 'rua']);
-    expect([...new Set(all.map((s) => s.mode))].sort()).toEqual(['corrida-armada', 'mata-mata']);
+    expect([...new Set(all.map((s) => s.mode))].sort()).toEqual([...GAME_MODE_IDS].sort());
   });
 
   it('abre outra sessão quando as do mapa lotam, e fecha quando sobra vaga', async () => {

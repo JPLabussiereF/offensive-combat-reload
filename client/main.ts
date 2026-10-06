@@ -66,6 +66,10 @@ import { FINAL_STEP, GUN_GAME, killsForStep, ladderLoadout, type LadderPos } fro
 import { renderLadder, stepName } from './ui/ladder';
 import { Scoreboard } from './ui/scoreboard';
 import { DEATH_MESSAGES, getLang, pick, t, type StringKey } from './ui/strings';
+import { itemOf, startItems, ZOMBIE, zombieLoadout, type ZItems } from '@shared/zombies';
+import { ZombieClient, type ZombieLink } from './zombies/client';
+import { LocalZombies } from './zombies/local';
+import { renderZombieArsenal, tintFog, zombieAtmosphere } from './zombies/ambience';
 
 const DEG = Math.PI / 180;
 const MOUSE_DEG_PER_COUNT = 0.022;
@@ -74,7 +78,7 @@ const UP = new THREE.Vector3(0, 1, 0);
 const WORLD_ONLY = groups(GROUP.BULLET, GROUP.WORLD);
 
 const vec3 = (v: THREE.Vector3): Vec3 => [+v.x.toFixed(3), +v.y.toFixed(3), +v.z.toFixed(3)];
-const KIND_ICON: Record<KillKind, FeedIcon> = { gun: null, head: 'head', groin: 'bird', knife: 'knife', grenade: 'grenade', fall: null, void: null, explosion: 'grenade', dog: 'dog' };
+const KIND_ICON: Record<KillKind, FeedIcon> = { gun: null, head: 'head', groin: 'bird', knife: 'knife', grenade: 'grenade', fall: null, void: null, explosion: 'grenade', dog: 'dog', zombie: 'zombie' };
 /** Dose Dupla: seconds between the two grenades of one throw. */
 const DOUBLE_THROW_GAP = 0.3;
 /** How each timed potion shows on the buff panel (the debuffs in colder colors). */
@@ -169,12 +173,17 @@ async function boot() {
   /** The weapons are fixed for the match: the Arsenal is read-only and new upgrades wait for the next one. */
   const lockedLoadout = !!rules?.lockedLoadout;
   const gunGame = gameMode === 'corrida-armada';
+  /** Zumbi: co-op waves; weapons from the Mystery Coffin (client/zombies). */
+  const zombieMode = gameMode === 'zumbi';
+  // The zombie night: thicker, greener fog (and red on boss waves, see the render frame).
+  if (zombieMode && map.atmosphere) applyAtmosphere(ctx, zombieAtmosphere(map.atmosphere));
   /**
    * What we enter the match with: online the server's (it validates our hits with it), corrida armada's first
-   * step against bots, otherwise the account's Arsenal (level 1 without an account).
+   * step against bots, the zombie mode's plain rifle alone, otherwise the account's Arsenal (level 1 without
+   * an account).
    */
   const mine = online?.joined.players.find((p) => p.id === me)?.lo;
-  const startLoadout: Loadout = mine ? sanitizeLoadout(mine) : gunGame ? ladderLoadout(0) : progress.loadout;
+  const startLoadout: Loadout = mine ? sanitizeLoadout(mine) : gunGame ? ladderLoadout(0) : zombieMode ? zombieLoadout(startItems()) : progress.loadout;
   const mines = new Mines(physics, ctx.scene);
   const player = new LocalPlayer(physics, map.killY);
   player.netControlled = !!online;
@@ -197,7 +206,7 @@ async function boot() {
   const taunt = new Taunt();
   const hud = new Hud();
   // Corrida armada orders it by the ladder, with a column for each player's weapon.
-  const scoreboard = new Scoreboard(gunGame);
+  const scoreboard = new Scoreboard(gunGame ? 'ladder' : zombieMode ? 'zombie' : 'plain');
   const input = new Input(ctx.renderer.domElement);
   sfx.setVolume(settings.volume);
   sfx.setSpatialMode(spatialMode(settings));
@@ -301,12 +310,79 @@ async function boot() {
     refineRegion: (pt, r) => playerRig?.refineRegion(pt, r) ?? r,
     isBehind: (pt) => isBehind(pt, playerFeet(playerPos), player.yaw),
   };
-  const playerRig = botMode ? new CharacterRig(physics.world, playerTarget, registry, body.missing) : null;
+  const playerRig = botMode && !zombieMode ? new CharacterRig(physics.world, playerTarget, registry, body.missing) : null;
   if (playerRig) player.mb.ignoreBody = playerRig.body;
 
-  /** Everything that can currently be shot / stabbed / blown up. */
-  const targets = (): Target[] => (net ? net.targets() : [...dummies.list, ...(bots?.bots ?? [])]);
-  const humiliables = (): Iterable<Humiliable> => (net ? net.corpses.values() : bots ? [...dummies.list, ...bots.corpses.values()] : dummies.list);
+  // --- Zumbi: the match's zombies, the Mystery Coffin and revives. Online the server runs the match; solo it
+  // runs here (client/zombies/local.ts) on the same navmesh the bots use. Either way, the same messages.
+  let zombies: ZombieClient | null = null;
+  let localZombies: LocalZombies | null = null;
+  if (zombieMode) {
+    const zmap = ZOMBIE.mapas[choice.map] ?? ZOMBIE.mapas.halloween!;
+    let link: ZombieLink | null = null;
+    if (conn) {
+      link = { online: true, send: (m) => conn.send(m), on: (type, fn) => conn.on(type, fn), now: () => conn.serverNow(), renderTime: () => conn.serverNow() - NET.interpDelayMs };
+    } else if (nav) {
+      localZombies = new LocalZombies(nav.navMesh, zmap, {
+        me,
+        name: choice.name,
+        hurt: (amount) => {
+          const dealt = player.damage(amount, simTime, 'zombie');
+          if (dealt > 0) {
+            hud.damageFlash(dealt);
+            sfx.hurt();
+          }
+        },
+        setLoadout: (lo) => takeLadderWeapons(lo),
+        newMatch: () => startRound(),
+      });
+      link = localZombies;
+    }
+    if (link) {
+      zombies = new ZombieClient(
+        link,
+        {
+          me,
+          hud,
+          sfx,
+          effects,
+          physics,
+          scene: ctx.scene,
+          registry,
+          world: physics.world,
+          feet: () => playerFeet(new THREE.Vector3()),
+          alive: () => !player.dead,
+          nameOf: (id) => nameOf(id),
+          teammates: () => [...(net?.players.values() ?? [])].map((p) => ({ id: p.id, position: p.position, alive: p.alive })),
+          refill: () => {
+            for (const g of Object.values(guns)) g.refill();
+            thrower.refill();
+          },
+          respawn: () => comeBack(),
+          push: (v) => player.launch(v[0], v[1], v[2]),
+          shake: (k) => (shake = Math.min(1, shake + k)),
+          setDowned: (id, down) => {
+            const rp = net?.players.get(id);
+            if (rp) rp.downed = down;
+          },
+          killFeedback: (at, head) => {
+            hud.hit('kill');
+            killFx(at);
+            if (head) effects.burst('star', at, UP, 12);
+          },
+        },
+        choice.map,
+        online?.joined.zumbi ?? localZombies?.match.sync(),
+      );
+      // The horde's bodies are built now, on the loading screen, not when the first wave comes.
+      zombies.view.prewarm();
+      mark('zombies');
+    }
+  }
+
+  /** Everything that can currently be shot / stabbed / blown up (in co-op: only the enemies). */
+  const targets = (): Target[] => (zombies ? zombies.view.targets() : net ? net.targets() : [...dummies.list, ...(bots?.bots ?? [])]);
+  const humiliables = (): Iterable<Humiliable> => (zombies ? [] : net ? net.corpses.values() : bots ? [...dummies.list, ...bots.corpses.values()] : dummies.list);
   const nameOf = (id: number | null) =>
     id === me ? t('you') : id === null ? '' : (net?.info.get(id)?.name ?? bots?.bots.find((b) => b.id === id)?.name ?? '?');
 
@@ -315,6 +391,16 @@ async function boot() {
   let lastSpawn: SpawnPoint | null = null;
   const pickSpawn = (): SpawnPoint => {
     if (bots) return bots.pickSpawn(playerTarget);
+    if (zombies) {
+      // Co-op: away from the zombies (12 m), and near a teammate who's still up, if any.
+      const zs = zombies.view.targets().map((z) => z.position);
+      const safe = allSpawns.filter((s) => zs.every((z) => z.distanceTo(s.position) >= 12));
+      const pool = safe.length ? safe : allSpawns;
+      const mates = [...(net?.players.values() ?? [])].filter((p) => p.alive && !p.downed);
+      if (!mates.length) return pick(pool);
+      const mate = pick(mates).position;
+      return pool.reduce((a, b) => (a.position.distanceTo(mate) <= b.position.distanceTo(mate) ? a : b));
+    }
     const options = allSpawns.filter((s) => s !== lastSpawn);
     if (!net) return pick(options);
     // Free-for-all: section 6 rules against every living remote player.
@@ -502,6 +588,9 @@ async function boot() {
     if (boostEnds) list.push({ id: 'cherry', icon: '🍒', label: t('buffCherry'), color: '#ff6fa0', left: Math.max(0, boostEnds - now), total: CHERRY.duration });
     if (potionKind) list.push({ id: 'potion', ...POTION_BUFFS[potionKind], label: t(POTION_BUFFS[potionKind].label), left: Math.max(0, potionEnds - now), total: POTION.duration });
     if (humanity) list.push({ id: 'humanity', icon: '💜', label: `${t('buffHumanity')} +${RAT.extraHealth}`, color: '#c9a2ff' });
+    // The bride's scream: slower for a few seconds.
+    const chill = zombies?.slowLeft() ?? 0;
+    if (chill > 0) list.push({ id: 'chill', icon: '😱', label: t('buffChilled'), color: '#b06bff', left: chill, total: ZOMBIE.chefes.noiva.grito?.duracao ?? 3 });
     if (duckAmmo) list.push({ id: 'duck', icon: '🦆', label: t('buffDuck'), color: '#ffe066' });
     return list;
   };
@@ -654,6 +743,17 @@ async function boot() {
         const groin = region === 'virilha';
         const head = region === 'cabeca';
         tmp.copy(shotDir).negate();
+        if (zombies?.isZombie(entity)) {
+          // A zombie: reported to the match (the server online), which decides the damage and the kill.
+          if (entity.dead) return;
+          zombies.shot(entity, region, hit.distance, weapon.data, keep);
+          hits++;
+          lastHitDist = hit.distance;
+          effects.burst(head || groin ? 'star' : 'debris', hit.point, tmp, head || groin ? 10 : 7, 0x6f8a3a);
+          sfx.hitmarker(head || groin);
+          hud.hit(head ? 'head' : 'hit');
+          return;
+        }
         if (net) {
           // Online: report the hit, show feedback now; the server confirms damage and kills.
           if (entity.dead) return;
@@ -724,6 +824,17 @@ async function boot() {
   /** Seconds left bringing the gun in hand up after a switch (it can't fire, aim or reload meanwhile). */
   let drawT = 0;
 
+  /** Zumbi: what we carry from the coffin (the local match's solo, the server's online). */
+  const zItems = (): ZItems => localZombies?.match.itemsOf(me) ?? zombies?.items ?? startItems();
+  /** The zumbi mode's item in a gun slot, if any. */
+  const slotItem = (s: GunSlot) => (zombieMode ? itemOf(zItems()[s]) : undefined);
+  /** A slot's name on the HUD: the coffin's item in the zumbi mode, the gun otherwise. */
+  const slotName = (s: GunSlot) => {
+    const it = slotItem(s);
+    return it ? t(`zitem_${it.id}` as StringKey) : weaponName(guns[s].data.arma);
+  };
+  const slotRarity = (s: GunSlot) => slotItem(s)?.raridade ?? '';
+
   /** Puts a slot's gun in the hands; `draw`: a switch (the gun comes up, with its draw time and sound). */
   const holdSlot = (next: GunSlot, draw: boolean) => {
     if (next !== slot) {
@@ -733,7 +844,7 @@ async function boot() {
     slot = next;
     weapon = guns[next];
     viewmodel.setGun(weapon.data);
-    hud.setWeaponName(bladeOnly ? weaponLabel('faca', loadout.ativas.faca) : weaponName(weapon.data.arma));
+    hud.setWeaponName(bladeOnly ? weaponLabel('faca', loadout.ativas.faca) : slotName(next), slotRarity(next));
     if (!draw) return;
     drawT = weapon.data.troca;
     viewmodel.draw(drawT);
@@ -761,7 +872,8 @@ async function boot() {
     }
     for (const s of ['primaria', 'secundaria'] as const) {
       const g = slotStats(lo, s);
-      if (g) guns[s].setData(g);
+      // Zumbi: hordes need more bullets than a duel (the reserve is refilled at every break).
+      if (g) guns[s].setData(zombieMode ? { ...g, reserva: Math.round(g.reserva * ZOMBIE.armas.municaoReserva) } : g);
       guns[s].reloadMul = body.reloadMul;
     }
     const knife = meleeStats(lo.ativas.faca);
@@ -770,8 +882,9 @@ async function boot() {
     knifeForm = knife.forma;
     holdSlot(gunIn(lo, slot) ? slot : 'primaria', false);
     grenadeData = grenadeStats(lo.ativas.granada);
-    // A mode without grenades (corrida armada): none carried, none coming back.
-    thrower.setData(rules && !rules.grenades ? { ...grenadeData, quantidade: 0 } : grenadeData);
+    // A mode without grenades (corrida armada): none carried, none coming back. Zumbi: they come back only
+    // between waves, not over time.
+    thrower.setData(rules && !rules.grenades ? { ...grenadeData, quantidade: 0 } : zombieMode ? { ...grenadeData, recargaSegundos: 0 } : grenadeData);
     thrower.kind = grenadeData.tipo;
     viewmodel.setGrenadeKind(grenadeData.tipo);
     if (tell) conn?.send({ t: 'loadout', lo: progress.choice });
@@ -801,11 +914,19 @@ async function boot() {
     document.getElementById('arsenal-title')!.textContent = t('ladderTitle');
     document.getElementById('arsenal-hint')!.textContent = t('ladderHint', { n: GUN_GAME.killsPerStep });
     renderLadder(arsenalGrid, { step: 0, kills: 0 });
+  } else if (zombieMode) {
+    // Zumbi: the coffin (what we carry, the rarities and their odds) instead of the account's Arsenal.
+    document.getElementById('arsenal-title')!.textContent = t('zArsenalTitle');
+    const r = ZOMBIE.raridades;
+    document.getElementById('arsenal-hint')!.textContent = t('zArsenalHint', { cost: ZOMBIE.caixa.custo, c: r.comum.dano, r: r.raro.dano, e: r.epico.dano, l: r.lendario.dano });
+    renderZombieArsenal(arsenalGrid, startItems());
   } else {
     if (lockedLoadout) document.getElementById('arsenal-hint')!.textContent = t('arsenalLockedHint');
     new Arsenal(progress, () => applyLoadout(progress.loadout, true), arsenalGrid, lockedLoadout);
   }
   applyLoadout(startLoadout);
+  // Zumbi: the bigger reserve from the start.
+  if (zombieMode) for (const g of Object.values(guns)) g.refill();
   const scopeEl = document.getElementById('scope')!;
 
   // --- Knife ----------------------------------------------------------------------------------------
@@ -837,6 +958,11 @@ async function boot() {
     const behind = target.isBehind(eye);
     sfx.knifeHit();
     effects.burst('star', new THREE.Vector3().copy(target.position).setY(target.position.y + 1.1), UP, 12);
+    if (zombies?.isZombie(target)) {
+      zombies.stab(target);
+      hud.hit('hit');
+      return;
+    }
     if (net) {
       conn!.send({ t: 'stab', target: (target as RemotePlayer).id, behind });
       hud.hit('hit');
@@ -967,20 +1093,28 @@ async function boot() {
     const f = playerFeet(feet);
     const selfDist = player.dead ? null : blastDistance(center, [new THREE.Vector3(f.x, f.y + 0.3, f.z), eye.clone()]);
 
+    // Zumbi: the zombies the blast reaches (walls block it), for the match to hurt.
+    const zs = zombies ? zombies.blast((samples) => blastDistance(center, samples), blast.raioDano) : [];
     if (net) {
       const reported: { target: number; dist: number }[] = [];
-      for (const p of net.targets()) {
+      // Teammates can't hurt each other (co-op): only ourselves.
+      for (const p of zombies ? [] : net.targets()) {
         if (p.dead) continue;
         const dist = blastDistance(center, bodySamples(p.position));
         if (dist !== null && dist <= blast.raioDano) reported.push({ target: p.id, dist: +dist.toFixed(2) });
       }
       if (selfDist !== null && selfDist <= blast.raioDano) reported.push({ target: me, dist: +selfDist.toFixed(2) });
-      conn!.send({ t: 'boom', id, p: vec3(center), hits: reported });
-      if (reported.some((r) => r.target !== me)) {
+      conn!.send({ t: 'boom', id, p: vec3(center), hits: reported, ...(zs.length ? { zs } : {}) });
+      if (reported.some((r) => r.target !== me) || zs.length) {
         sfx.hitmarker(false);
         hud.hit('hit');
       }
       return;
+    }
+    if (zombies && zs.length) {
+      zombies.link.send({ t: 'boom', id, p: vec3(center), hits: [], zs });
+      sfx.hitmarker(false);
+      hud.hit('hit');
     }
 
     let anyHit = false;
@@ -1085,7 +1219,8 @@ async function boot() {
     const w: ProgWeapon = weapon ?? (kind === 'knife' ? 'faca' : kind === 'grenade' || kind === 'explosion' ? 'granada' : 'rifle');
     return weaponLabel(w, lo.ativas[w]);
   };
-  if (botMode && nav) {
+  if (zombieMode && !online) screens.setSubtitle(t('zSoloSubtitle'));
+  if (botMode && nav && !zombieMode) {
     bots = new BotManager({
       physics,
       scene: ctx.scene,
@@ -1148,6 +1283,7 @@ async function boot() {
   // --- Online: server messages ----------------------------------------------------------------------
   if (net && online && conn) {
     for (const p of online.joined.players) net.upsertInfo(p);
+    zombies?.syncInfo(online.joined.players);
     for (const c of online.joined.corpses) net.addCorpse(c);
     screens.setSubtitle(t('onlineSubtitle', { name: online.joined.session.name, mode: gameModeName(online.joined.session.mode) }));
 
@@ -1174,7 +1310,10 @@ async function boot() {
       net.remove(m.id);
       if (name) hud.notice(t('playerLeft', { name }));
     });
-    conn.on('scores', (m) => m.players.forEach((p) => net.upsertInfo(p)));
+    conn.on('scores', (m) => {
+      m.players.forEach((p) => net.upsertInfo(p));
+      zombies?.syncInfo(m.players);
+    });
     conn.on('shot', (m) => {
       const rp = net.players.get(m.id);
       if (!rp) return;
@@ -1234,7 +1373,8 @@ async function boot() {
       const weaponName = weaponNameFor(m.kind, m.arma, killerLoadout);
       if (m.attacker !== null) hud.killfeed(nameOf(m.attacker), weaponName, victimName, KIND_ICON[m.kind]);
       else if (m.kind === 'dog') hud.killfeed('Amora', t('dogBite'), victimName, 'dog');
-      else hud.notice(`💀 ${victimName}`);
+      // Bleeding out (zumbi): the zombie side says it.
+      else if (m.kind !== 'zombie') hud.notice(`💀 ${victimName}`);
       if (m.attacker === me && m.victim !== me) {
         hud.hit('kill');
         killFx(new THREE.Vector3(...m.corpse.p));
@@ -1251,7 +1391,7 @@ async function boot() {
         const killer = m.attacker !== null && m.attacker !== me ? nameOf(m.attacker) : null;
         const msg = killer
           ? t('killedByWith', { name: killer, weapon: weaponName })
-          : pick(DEATH_MESSAGES[getLang()][m.kind === 'void' ? 'void' : m.kind === 'fall' ? 'fall' : m.kind === 'dog' ? 'dog' : 'explosion']);
+          : pick(DEATH_MESSAGES[getLang()][m.kind === 'void' ? 'void' : m.kind === 'fall' ? 'fall' : m.kind === 'dog' ? 'dog' : m.kind === 'zombie' ? 'zombie' : 'explosion']);
         hud.showDeath(msg);
       }
     });
@@ -1339,6 +1479,17 @@ async function boot() {
       sfx.levelUp();
     } else hud.showBanner(t('ladderDown', { weapon: stepName(l.step) }), 'bird');
   };
+  /** Zumbi: the coffin's weapons we carry, as last shown (the pause menu's page and the weapon's name follow them). */
+  let shownItems = '';
+  const watchZombieItems = () => {
+    if (!zombieMode) return;
+    const items = zItems();
+    const key = JSON.stringify(items);
+    if (key === shownItems) return;
+    shownItems = key;
+    renderZombieArsenal(arsenalGrid, items);
+    if (!bladeOnly) hud.setWeaponName(slotName(slot), slotRarity(slot));
+  };
   /** The round is over (who won, and when the next starts on the game clock); null while playing. */
   let roundOver: { title: string; won: boolean; restartAt: number } | null = null;
   function endRound(winner: number | null, name: string, restartAt: number) {
@@ -1354,12 +1505,16 @@ async function boot() {
     roundOver = null;
     hud.showRoundEnd(null);
     shownLadder = { step: 0, kills: 0 };
-    renderLadder(arsenalGrid, shownLadder);
+    if (gunGame) renderLadder(arsenalGrid, shownLadder);
+    if (zombies) {
+      zombies.reset();
+      renderZombieArsenal(arsenalGrid, startItems());
+    }
     taunt.cancel(simTime);
     thrower.cancel();
     secondThrowIn = null;
     comeBack();
-    hud.showBanner(t('roundStart'), 'level');
+    hud.showBanner(zombieMode ? t('zCountdown') : t('roundStart'), 'level');
   }
 
   // --- Menus and pointer lock ---------------------------------------------------------------------
@@ -1482,14 +1637,20 @@ async function boot() {
     if (player.dead) {
       // Dose Dupla: dying between the two throws loses the second one (it must not fly as we respawn).
       secondThrowIn = null;
-      hud.setDeathTimer(player.respawnIn(simTime));
-      if (player.canRespawn(simTime)) comeBack();
+      // Zumbi: dead during a wave means back at the break (the zombie side writes the death card's line).
+      if (!zombies || zombies.canRespawn()) {
+        hud.setDeathTimer(player.respawnIn(simTime));
+        if (player.canRespawn(simTime)) comeBack();
+      }
     } else {
+      // Zumbi: down (waiting for a revive) we can't move, shoot or throw; reviving someone, we don't shoot.
+      const downed = !!zombies?.downed;
+      player.eyeScale = downed ? 0.32 : 1;
       // Shots have priority over the sprint (dropped the same tick, see `move.sprint`) and over a grenade
       // in hand (the pin goes back in). They never interrupt a reload (no shooting until it ends; the knife
       // and grenades do cancel it), a knife swing (too quick: cancelling it would be an exploit) or a dance
       // (only death ends it). A slide keeps going: you can shoot while sliding.
-      const canShoot = !bladeOnly && !weapon.reloading && !melee.swinging && !taunt.active && drawT <= 0;
+      const canShoot = !bladeOnly && !weapon.reloading && !melee.swinging && !taunt.active && drawT <= 0 && !downed && !zombies?.reviving;
       const fireIntent = canShoot && (input.down('fire') || input.peek('fire'));
       if (fireIntent) {
         if (thrower.cookT !== null) thrower.cancel();
@@ -1499,18 +1660,24 @@ async function boot() {
       const dancing = taunt.active;
       // Humiliation start: E while standing over a fresh corpse.
       if (input.consume('taunt') && !fireIntent && !dancing && !melee.swinging && !thrower.busy) {
-        const corpse = nearestHumiliable(humiliables(), playerFeet(feet), HUMILIATION.radius, simTime);
-        if (corpse) {
-          weapon.cancelReload();
-          taunt.start(corpse, player.yaw, simTime, (d) => sfx.danceMusic(d));
-        } else if (nearPotion()) drinkPotion();
+        // Zumbi first: the Mystery Coffin (or a teammate down, held below).
+        if (zombies?.press()) {
+          /* used */
+        } else {
+          const corpse = nearestHumiliable(humiliables(), playerFeet(feet), HUMILIATION.radius, simTime);
+          if (corpse) {
+            weapon.cancelReload();
+            taunt.start(corpse, player.yaw, simTime, (d) => sfx.danceMusic(d));
+          } else if (nearPotion()) drinkPotion();
+        }
       }
+      zombies?.hold(input.down('taunt') && !fireIntent);
       // The melee key swings the knife; with only a blade in hand (the lightsaber) the fire button does too.
       const swing = input.consume('melee') || (bladeOnly && (input.consume('fire') || input.down('fire')));
-      if (swing && !fireIntent && !taunt.active && !thrower.busy) startMelee();
+      if (swing && !fireIntent && !taunt.active && !thrower.busy && !downed) startMelee();
 
       // Grenade: hold G to cook, release to throw.
-      const gEv = thrower.update(dt, input.down('grenade'), input.consume('grenade'), !fireIntent && !taunt.active && !melee.swinging);
+      const gEv = thrower.update(dt, input.down('grenade'), input.consume('grenade'), !fireIntent && !taunt.active && !melee.swinging && !downed);
       if (gEv?.type === 'pin') {
         sfx.pinPull();
         weapon.cancelReload();
@@ -1547,7 +1714,7 @@ async function boot() {
         sfx.fuseBeep(1 - fuse / grenadeData.pavio);
       }
 
-      const locked = taunt.active; // no moving, shooting or aiming while dancing
+      const locked = taunt.active || downed; // no moving, shooting or aiming while dancing (or down)
       let lunge: MoveInput['lunge'] = null;
       const wasLunging = lunging;
       if (melee.lunging && melee.target) {
@@ -1580,7 +1747,7 @@ async function boot() {
         sprint: !locked && !melee.swinging && !fireIntent && input.down('sprint'),
         ads: !locked && !bladeOnly && !melee.swinging && !thrower.busy && input.down('ads'),
         yaw: player.yaw,
-        speedMul: (bladeOnly ? 1 : weapon.data.movimento) * body.speedMul * potionSpeed(),
+        speedMul: (bladeOnly ? 1 : weapon.data.movimento) * body.speedMul * potionSpeed() * (zombies?.speedMul() ?? 1),
         lunge,
       };
       const ev = player.fixedStep(dt, move, simTime);
@@ -1613,6 +1780,8 @@ async function boot() {
         const own = ev.died === 'killed' ? null : pick(DEATH_MESSAGES[getLang()][ev.died]);
         hud.showDeath(ev.died === 'killed' ? (deathMessage ?? '💀') : own!);
         hud.setDeathTimer(player.respawnIn(simTime));
+        // Solo zumbi: nobody to revive us, the run is over.
+        localZombies?.died();
       } else if (!player.dead) {
         if (melee.update(dt) === 'impact') resolveMelee();
         const done = taunt.update(dt, simTime);
@@ -1628,7 +1797,7 @@ async function boot() {
           if (swap) switchTo(slot === 'primaria' ? 'secundaria' : 'primaria');
         }
         drawT = Math.max(0, drawT - dt);
-        const busy = taunt.active || melee.swinging || thrower.busy || drawT > 0;
+        const busy = taunt.active || melee.swinging || thrower.busy || drawT > 0 || downed || !!zombies?.reviving;
         // Only a blade in hand: no gun to aim, fire or reload.
         if (bladeOnly) input.consume('reload');
         else weapon.update(dt, {
@@ -1650,6 +1819,8 @@ async function boot() {
 
     for (const ex of grenades.fixedUpdate(dt)) explode(ex.position, ex.id);
     bots?.fixedUpdate(dt, simTime);
+    // Solo zumbi: the match runs here, on the game clock.
+    if (localZombies) localZombies.step(dt, vec3(playerFeet(feet)), player.move.grounded, !player.dead);
     if (playerRig) {
       // The hitboxes take the pose the others see (crouch, aim, reload...).
       const pose: HitPose = taunt.active
@@ -1787,6 +1958,7 @@ async function boot() {
       dummies.setDebug(chars);
       net?.setDebug(chars);
       bots?.setDebug(chars);
+      zombies?.setDebug(chars);
       const navDebug = (window as unknown as { __ocNavDebug?: THREE.Object3D }).__ocNavDebug;
       if (navDebug) navDebug.visible = debugView === 'all';
       worldDebug.visible = movingDebug.visible = debugView === 'all';
@@ -1905,7 +2077,7 @@ async function boot() {
     // Magnified scopes: fully aimed, the gun gives way to the scope view.
     const scopeView = viewmodel.scoped && weapon.ads > 0.85 && !player.dead && blend < 0.5;
     scopeEl.classList.toggle('hidden', !scopeView);
-    viewmodel.root.visible = !player.dead && blend < 0.5 && !scopeView;
+    viewmodel.root.visible = !player.dead && blend < 0.5 && !scopeView && !zombies?.downed;
     mines.update(frameDt);
     viewmodel.update(frameDt, {
       ads: weapon.ads,
@@ -1928,6 +2100,10 @@ async function boot() {
     dummies.render(alpha, frameDt, simTime);
     bots?.render(alpha, frameDt);
     net?.render(frameDt);
+    if (zombies) {
+      zombies.update(frameDt);
+      tintFog(ctx, zombies.bossWave, frameDt);
+    }
     for (const b of bots?.bots ?? []) {
       const m = b.move;
       playBody(-b.id, { feet: b.position, alive: !b.dead, grounded: m.grounded, sprint: m.sprinting, crouch: m.crouched, slide: m.sliding, reload: b.weapon.reloading }, frameDt, () => b.weapon.reloadDuration);
@@ -1958,7 +2134,9 @@ async function boot() {
       hud.setPrompt(screens.keyName('taunt'), t('dancing', { name: taunt.dummy.name }), taunt.t / taunt.duration);
     } else {
       const corpse = !player.dead && input.locked ? nearestHumiliable(humiliables(), feet, HUMILIATION.radius, simTime) : null;
-      if (corpse) hud.setPrompt(screens.keyName('taunt'), t('promptTaunt', { name: corpse.name }), corpse.humiliationTimeLeft(simTime) / HUMILIATION.window);
+      const zp = zombies && input.locked ? zombies.prompt() : null;
+      if (zp) hud.setPrompt(screens.keyName('taunt'), zp.text, zp.frac);
+      else if (corpse) hud.setPrompt(screens.keyName('taunt'), t('promptTaunt', { name: corpse.name }), corpse.humiliationTimeLeft(simTime) / HUMILIATION.window);
       else if (input.locked && nearPotion()) hud.setPrompt(screens.keyName('taunt'), t('promptPotion'), 1);
       else hud.setPrompt(null);
     }
@@ -2014,7 +2192,7 @@ async function boot() {
         (['primaria', 'secundaria'] as const)
           .filter((s) => !bladeOnly && gunIn(loadout, s))
           // On a controller there's no key per slot (the D-pad switches): no key cap.
-          .map((s) => ({ key: gamepad.device === 'pad' ? '' : screens.keyName(s === 'primaria' ? 'weapon1' : 'weapon2'), name: weaponName(guns[s].data.arma), mag: guns[s].mag, reserve: guns[s].reserve, active: s === slot })),
+          .map((s) => ({ key: gamepad.device === 'pad' ? '' : screens.keyName(s === 'primaria' ? 'weapon1' : 'weapon2'), name: slotName(s), mag: guns[s].mag, reserve: guns[s].reserve, active: s === slot, rarity: slotRarity(s) || undefined })),
         drawT > 0,
       );
       hud.setGrenades(thrower.count, thrower.data.quantidade, thrower.rechargeProgress);
@@ -2022,6 +2200,7 @@ async function boot() {
       hud.setScore(standing ? standing.score : points, standing ? standing.kills : kills, shots ? hits / shots : 0);
       // Corrida armada: our step on the ladder, and the round's winner with the countdown to the next.
       watchLadder();
+      watchZombieItems();
       const l = myLadder();
       hud.setLadder(l && { step: l.step, total: FINAL_STEP + 1, name: stepName(l.step), kills: l.kills, need: killsForStep(l.step), final: l.step === FINAL_STEP });
       if (roundOver) hud.showRoundEnd(roundOver.title, t('roundNext', { s: Math.max(0, Math.ceil(roundOver.restartAt - clock())) }), roundOver.won);
@@ -2053,7 +2232,7 @@ async function boot() {
     Object.assign(window, {
       __oc: {
         player, guns, melee, taunt, thrower, grenades, input, dummies, net, conn, me, ctx, physics, quality, map, effects, bots, nav, RAPIER,
-        mines, progress,
+        mines, progress, zombies, localZombies,
         get weapon() {
           return weapon;
         },

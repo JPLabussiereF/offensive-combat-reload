@@ -16,6 +16,9 @@ source_paths:
   - client/world/dog.ts
   - client/world/hydrant.ts
   - client/net/remote.ts
+  - client/zombies/view.ts
+  - client/zombies/coffin.ts
+  - client/zombies/client.ts
 tags:
   - game
   - audio
@@ -90,6 +93,31 @@ O comentário do arquivo diz que cada função "mapeia para uma futura entrada d
 | [[Map - Jardim do Dragão]] | `gong()`, `bell(tamanho, nota)` (sinos e carrilhão de cinco notas), `drum(tamanho)` (tambores), `roar()` (fonte do dragão), `lanternTap()` (lanterna de papel baleada). |
 | [[Map - Vila Assombrada]] | `churchBell(altura)`, `carHorn(segundos)` (cresce se alguém insiste), `clockChime(n)` (relógio de pêndulo), `evilLaugh()` (bruxa e abóbora gigante), `grumble()` (resmungos), `ghostMoan()`, `cauldronBubble()`, `cabinetCreak()`, `pumpkinSmash()`, `bulbPop()`, `strawThud()` (espantalho), `targetDing()` e `carnivalJingle()` (barraca de tiro ao alvo). |
 
+### Modo zumbi
+
+Todos via `at(...)` no lugar do zumbi, do chefe ou do caixão, exceto os do próprio jogador. Ver [[Zombie]].
+
+| Método | Som | Quando |
+| --- | --- | --- |
+| `zombieGroan(altura)` | vogal grave e trêmula num filtro de garganta ("uuuurgh") | a cada 3–9 s, só os **6 zumbis mais próximos** do ouvinte (senão vira uma parede de barulho); altura por tipo (chefes e o segurança mais graves, o maratonista e a tia mais agudos) |
+| `zombieRise()` | terra rachando e um suspiro | um zumbi sai do chão |
+| `zombieDeath(altura)` | gorgolejo e baque molhado | zumbi morreu |
+| `zombieSpit()` / `zombieSplat()` | escarro e assobio / "splat" | a Tia da Fofoca cospe / o cuspe cai |
+| `bloaterPop()` | a explosão + um peido longo | o Tio do Churrasco estoura |
+| `bossRoar(altura)` | três rosnados desafinados sobre um sub | um chefe surge; a investida do Prefeito |
+| `bossWindup()` | grunhido subindo e rangido | o Coveiro ergue a pá; o Prefeito ergue os punhos |
+| `bossScream()` | lamento agudo que oscila e cai | o grito da Noiva |
+| `bossSummon()` | cântico oco sobre pá cavando | o Coveiro chama os mortos |
+| `bossBlink()` | "whoosh" invertido com brilho | a Noiva some e reaparece |
+| `coffinOpen()` / `coffinTick()` / `coffinReveal(nível)` | tampa rangendo + caixinha de música / um clique por arma que passa / acorde (maior numa épica, com aplausos numa lendária) | o Caixão Misterioso gira e para |
+| `quack()` (já existia) | pato | o pato do caixão |
+| `coffinFly()` / `coffinLand()` | "whoosh" subindo, bater de asas e a risada malvada / baque | o caixão voa para outro lugar / chega |
+| `waveStart(chefe)` | o `churchBell` três vezes (mais grave numa onda de chefe) | começa uma onda |
+| `waveEnd()` | acorde de órgão | onda vencida |
+| `cashRegister()` | "ka-ching" (barramento `ui`) | dinheiro ganho |
+| `heartbeat()` | batimento lento | caído, a cada 1,1 s |
+| `reviveDone()` | arpejo subindo | reanimado |
+
 ### Interface
 
 - `ui()` — bip curto no barramento `ui`; toca ao clicar JOGAR e ao fechar o menu de pausa com Esc. Ver [[Menus]].
@@ -106,6 +134,7 @@ O comentário do arquivo diz que cada função "mapeia para uma futura entrada d
 - `client/main.ts` — chamadas do jogador local e de eventos de rede.
 - `client/ai/bots.ts` — tiros, impactos e facadas dos bots (via `at`).
 - `client/world/*.ts`, `client/world/jardim/*.ts` — sons de props e ambiente.
+- `client/zombies/view.ts`, `client/zombies/coffin.ts`, `client/zombies/client.ts` — sons do modo zumbi.
 
 ## Ver também
 

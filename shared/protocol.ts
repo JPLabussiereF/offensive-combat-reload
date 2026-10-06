@@ -9,6 +9,7 @@ import type { Appearance } from './appearance';
 import type { MapId } from './maps';
 import type { GameModeId } from './modes';
 import type { LadderPos } from './gunGame';
+import type { BossId, KillHow, ZItems, ZNet } from './zombies';
 
 export const NET = {
   /** Server simulation/broadcast rate. */
@@ -91,9 +92,66 @@ export interface PlayerInfo {
   ping: number;
   /** Corrida armada: the player's step on the weapon ladder and the kills made on it. */
   ladder?: LadderPos;
+  /** Zumbi: the match's money, zombie kills, times downed and revives given, whether they're standing, what they carry. */
+  zumbi?: ZombiePlayer;
 }
 
-export type KillKind = 'gun' | 'head' | 'groin' | 'knife' | 'grenade' | 'fall' | 'void' | 'explosion' | 'dog';
+/** A player in a zumbi match. */
+export interface ZombiePlayer {
+  money: number;
+  kills: number;
+  downs: number;
+  revives: number;
+  state: 'up' | 'down' | 'dead';
+  items: ZItems;
+}
+
+/** Where a zumbi match is: no one there yet, the countdown to the first wave, a wave, the break after it, over. */
+export type ZPhase = 'waiting' | 'countdown' | 'wave' | 'break' | 'over';
+
+/** The Mystery Coffin: waiting, spinning (`by` paid), offering `item` to `by` until `until`, the duck, flying off. */
+export type BoxState = 'idle' | 'rolling' | 'offer' | 'duck' | 'moving';
+
+export interface BoxInfo {
+  /** Index of its spot in the map's list (shared/data/zumbi.json). */
+  spot: number;
+  state: BoxState;
+  by: number | null;
+  item: string | null;
+  /** Server time the current state ends (0: it doesn't). */
+  until: number;
+}
+
+/** A zumbi match as it is right now (sent when joining). */
+export interface ZombieSync {
+  phase: ZPhase;
+  wave: number;
+  /** Server time the countdown, break or summary ends (0 during a wave). */
+  until: number;
+  /** Zombies of the wave (for "N left"). */
+  total: number;
+  box: BoxInfo;
+  /** Players down, and when each bleeds out (server time). */
+  down: [id: number, until: number][];
+}
+
+/** A boss move or a zombie effect, for the telegraphs everyone sees (the server applies the damage at t1). */
+export type ZFx = 'slam' | 'summon' | 'scream' | 'blink' | 'charge' | 'pound' | 'spit' | 'boom' | 'intro';
+
+/** One line of the end-of-match summary. */
+export interface ZSummaryRow {
+  id: number;
+  name: string;
+  kills: number;
+  headshots: number;
+  earned: number;
+  downs: number;
+  revives: number;
+  xp: number;
+}
+
+/** `zombie`: bled out after going down in the zumbi mode. */
+export type KillKind = 'gun' | 'head' | 'groin' | 'knife' | 'grenade' | 'fall' | 'void' | 'explosion' | 'dog' | 'zombie';
 export type AwardLabel = 'kill' | 'headshot' | 'groin' | 'knife' | 'backstab' | 'longShot' | 'humiliation';
 export interface Award {
   label: AwardLabel;
@@ -138,7 +196,8 @@ export type ClientMsg =
    * Sent from the lobby, before joining: modes with a locked loadout (all the online ones) ignore it mid-match.
    */
   | { t: 'loadout'; lo: ArsenalChoice }
-  | { t: 'boom'; id: number; p: Vec3; hits: { target: number; dist: number }[] }
+  /** `zs`: zombies the blast reached (zumbi), with the distance from the blast to each one. */
+  | { t: 'boom'; id: number; p: Vec3; hits: { target: number; dist: number }[]; zs?: { z: number; dist: number }[] }
   | { t: 'selfDamage'; amount: number; cause: 'fall' | 'void' | 'dog' }
   | { t: 'taunt'; corpse: number }
   | { t: 'tauntEnd'; corpse: number; done: boolean }
@@ -156,7 +215,15 @@ export type ClientMsg =
   /** A line in the session's chat (sanitized and rate-limited by the server). */
   | { t: 'chat'; text: string }
   /** `rtt` = the client's last measured round trip (ms), shown on the scoreboard. */
-  | { t: 'ping'; c: number; rtt?: number };
+  | { t: 'ping'; c: number; rtt?: number }
+  /** Zumbi: one of our bullets hit zombie `z` (same checks as 'hit', against the zombie's server position). */
+  | { t: 'zhit'; z: number; region: HitRegion; dist: number; w: GunId; keep?: number }
+  /** Zumbi: our knife hit zombie `z`. */
+  | { t: 'zstab'; z: number }
+  /** Zumbi: E at the Mystery Coffin: pays and spins it, or takes the weapon it's offering us. */
+  | { t: 'box' }
+  /** Zumbi: holding E over a teammate who's down (`on` false: let go). */
+  | { t: 'revive'; id: number; on: boolean };
 
 /** A fish of the map: dead until `ready` (server time; 0 = alive), golden when it's (back) there. */
 export interface FishState {
@@ -174,7 +241,7 @@ export type ServerMsg =
    * fish that aren't a plain live koi (dead until `ready`, and/or golden once back). `rats`: the giant rats
    * still dead (back at `ready`).
    */
-  | { t: 'joined'; session: SessionInfo; you: number; players: PlayerInfo[]; corpses: CorpseInfo[]; time: number; pickups?: { id: string; ready: number }[]; fish?: FishState[]; rats?: { id: string; ready: number }[] }
+  | { t: 'joined'; session: SessionInfo; you: number; players: PlayerInfo[]; corpses: CorpseInfo[]; time: number; pickups?: { id: string; ready: number }[]; fish?: FishState[]; rats?: { id: string; ready: number }[]; zumbi?: ZombieSync }
   | { t: 'error'; message: string }
   | { t: 'playerJoined'; player: PlayerInfo }
   | { t: 'playerLeft'; id: number }
@@ -216,6 +283,28 @@ export type ServerMsg =
   /** The player's chat line was dropped: their account is muted, or they're sending too fast. */
   | { t: 'chatRefused'; reason: 'muted' | 'slow' }
   | { t: 'pong'; c: number; s: number }
+  /** Zumbi: every zombie, 20 times a second; `left` of the wave; the boss's id, health and max health while there's one. */
+  | { t: 'zsnap'; time: number; z: ZNet[]; left: number; boss?: [id: number, hp: number, max: number] }
+  /** Zumbi: the match moved on (a countdown, a wave, a break, the end); `boss` on a boss wave. */
+  | { t: 'zwave'; phase: ZPhase; wave: number; until: number; total: number; boss?: BossId }
+  /** Zumbi: a zombie died (`by` null: not by a player); the killer's `award` and new `money`. */
+  | { t: 'zdie'; id: number; by: number | null; how: KillHow; award?: number; money?: number }
+  /** Zumbi: a boss move or a zombie effect (telegraph from t0, effect at t1, server times); `hit`: the players it got. */
+  | { t: 'zfx'; fx: ZFx; id?: number; at: Vec3; to?: Vec3; r?: number; t0: number; t1: number; hit?: number[] }
+  /** Zumbi: something a zombie move did to a player: a push (`v`, m/s) and/or a slow (`slow`: speed factor until `until`). */
+  | { t: 'zhitfx'; id: number; fx: ZFx; v?: Vec3; slow?: number; until?: number }
+  /** Zumbi: the Mystery Coffin changed; `money`: the buyer's after paying (or after the duck's refund). */
+  | ({ t: 'zbox'; money?: number } & BoxInfo)
+  /** Zumbi: players' money changed (assists, the wave bonus, a boss's reward). */
+  | { t: 'zmoney'; m: [id: number, money: number][]; why: 'assist' | 'wave' | 'boss' }
+  /** Zumbi: a player went down; they bleed out at `until` unless someone revives them. */
+  | { t: 'zdown'; id: number; until: number }
+  /** Zumbi: `by` is reviving `id` (done at `until`; 0: they let go). */
+  | { t: 'zrevive'; id: number; by: number; until: number }
+  /** Zumbi: a player is back up (`by` null: the wave ended); `money`: the reviver's. */
+  | { t: 'zup'; id: number; by: number | null; money?: number }
+  /** Zumbi: the match is over (won: the last wave survived); a new one starts at `restartAt`. */
+  | { t: 'zend'; won: boolean; wave: number; secs: number; players: ZSummaryRow[]; restartAt: number }
   /** The account's progress changed (points only come from the server online); `escolha` is the Arsenal choice it kept. */
   | { t: 'progresso'; armas: Record<ProgWeapon, { xp: number; nivel: number }>; escolha: ArsenalChoice; conta: { xp: number; nivel: number }; subiu?: { tipo: ProgWeapon | 'conta'; nivel: number } };
 

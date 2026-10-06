@@ -19,6 +19,9 @@ source_paths:
   - client/gameplay/progress.ts
   - client/ui/arsenal.ts
   - client/main.ts
+  - shared/zombies.ts
+  - shared/zombieMatch.ts
+  - shared/data/zumbi.json
 tags:
   - game
   - design
@@ -133,7 +136,11 @@ Fonte: `shared/data/nivel_conta.json` e `shared/accountLevel.ts`.
 | Opressão completa | 50 |
 | Carpa (Jardim do Dragão) | 1 |
 | Carpa dourada | 100 |
+| Modo zumbi: abate de zumbi | 3 (comum) a 8 (Segurança da Balada), conforme o tipo |
+| Modo zumbi: chefe | 50 a quem mata; 100 (150 o Prefeito) para cada um do time que não está morto |
+| Modo zumbi: onda vencida / reanimar / vitória | 10 / 10 / 250 |
 
+No modo zumbi o abate de um zumbi **não** dá os 25 XP do abate de jogador nem conta nas estatísticas da conta; os valores acima vêm de `shared/data/zumbi.json` e são dados pelo servidor ([[Zombie]]).
 **Curva:** custo do nível *n* para *n+1* = `round(1000 × n^1,5)`.
 
 | De → para | Custo | XP total acumulado |
@@ -153,7 +160,8 @@ Fonte: `shared/data/nivel_conta.json` e `shared/accountLevel.ts`.
 | --- | --- | --- |
 | Online, mata-mata | Sim, **as do momento em que entrou** na sessão: níveis subidos e mudanças no Arsenal valem na próxima ([[ADR - Equipamento travado no mata-mata]]) | Sim (validado pelo servidor) |
 | Online, corrida armada | **Não**: as armas são as da escada, iguais para todos | Só **XP de conta** (+150 ao vencer a rodada); **sem pontos de arma** ([[ADR - Corrida armada]]) |
-| Contra bots (com conta) | Mata-mata: sim, travadas na partida · corrida armada: a escada | **Não** |
+| Online, zumbi | **Não**: todos começam com o rifle sem melhorias; as armas vêm do Caixão Misterioso | Só **XP de conta** por zumbi, chefe, onda, reanimação e vitória; **sem pontos de arma** ([[ADR - Modo zumbi cooperativo com caixão e raridades]]) |
+| Contra bots (com conta) | Mata-mata: sim, travadas na partida · corrida armada: a escada · zumbi (solo): o caixão | **Não** |
 | Treino offline (com conta) | Sim | **Não** |
 | Sem conta (qualquer modo offline) | Não: sem melhorias (a secundária pode ser trocada no Arsenal da pausa, só para a partida) | Não |
 

@@ -140,7 +140,7 @@ No mata-mata, cada bot sorteia a arma a cada vida (60% rifle, 25% SMG, 15% pisto
 
 ## API para modos de jogo
 
-Os modos montam armas só com dados, pelas funções de `shared/arsenal.ts` (detalhes em [[Shared Systems]]). A [[Gun Game|corrida armada]] já usa isso: cada degrau da escada é `ladderLoadout(degrau)` (`shared/gunGame.ts`), uma arma com melhorias fixas, e o último é `{ soFaca: true, ativas.faca: ['sabre'] }`. No mata-mata o loadout é o da conta, travado na partida ([[ADR - Equipamento travado no mata-mata]]).
+Os modos montam armas só com dados, pelas funções de `shared/arsenal.ts` (detalhes em [[Shared Systems]]). A [[Gun Game|corrida armada]] já usa isso: cada degrau da escada é `ladderLoadout(degrau)` (`shared/gunGame.ts`), uma arma com melhorias fixas, e o último é `{ soFaca: true, ativas.faca: ['sabre'] }`. No mata-mata o loadout é o da conta, travado na partida ([[ADR - Equipamento travado no mata-mata]]). O [[Zombie|zumbi]] também: todos começam com `zombieLoadout(startItems())` (o rifle sem melhorias, nada na secundária) e cada prêmio do **Caixão Misterioso** é uma arma com melhorias fixas e uma **raridade** que multiplica o dano **só contra zumbis** (×1,4 a ×3,5; `gunDamageToZombie` em `shared/zombies.ts`); o servidor troca o loadout com `playerLoadout`. A reserva de munição é ×3 nesse modo e volta cheia a cada intervalo.
 
 | Função | Devolve |
 |---|---|

@@ -6,7 +6,7 @@ import type { MeResponse, ProfileResponse } from '@shared/account';
 import { defaultAppearance, type Appearance } from '@shared/appearance';
 import { CLOSE, NET, type ServerMsg, type SessionInfo, type Sex } from '@shared/protocol';
 import { DEFAULT_MAP, isMapId, MAP_IDS, MAPS, type MapId } from '@shared/maps';
-import { DEFAULT_GAME_MODE, GAME_MODE_IDS, isGameModeId, MODE_RULES, type GameModeId } from '@shared/modes';
+import { DEFAULT_GAME_MODE, GAME_MODE_IDS, isGameModeId, modeMaps, MODE_RULES, type GameModeId } from '@shared/modes';
 import { Progress } from '../gameplay/progress';
 import { api, fetchMe, fetchProfile } from '../net/api';
 import { Connection } from '../net/connection';
@@ -55,7 +55,11 @@ const MODES: { id: PlayMode; title: StringKey; desc: StringKey; color: string }[
 export const gameModeName = (m: GameModeId) => t(`gameMode_${m}` as StringKey);
 const gameModeDesc = (m: GameModeId) => t(`gameModeDesc_${m}` as StringKey);
 /** Colors of each game mode's tag in the session list. */
-const GAME_TINT: Record<GameModeId, string> = { 'mata-mata': '#ffe2b8', 'corrida-armada': '#e3dbff' };
+const GAME_TINT: Record<GameModeId, string> = { 'mata-mata': '#ffe2b8', 'corrida-armada': '#e3dbff', zumbi: '#c9f5b0' };
+/** A mode played on one map only (zumbi): the map filter and the map choice don't apply. */
+const oneMap = (m: GameModeId) => modeMaps(m).length === 1;
+/** The map a match of `m` is played on: the chosen one, if the mode is played there. */
+const mapFor = (m: GameModeId, wanted: MapId) => (modeMaps(m).includes(wanted) ? wanted : modeMaps(m)[0]);
 const BOT_GAMES = GAME_MODE_IDS.filter((m) => MODE_RULES[m].bots);
 
 /** Why the server closed the game connection, for the player. */
@@ -399,11 +403,17 @@ export function showHome(): Promise<HomeChoice> {
       $('home-game').innerHTML = segButtons(games.map((m) => ({ label: gameModeName(m), on: prefs.game === m, data: m })));
       $('home-game-hint').textContent = gameModeDesc(prefs.game);
       newModeSel.value = prefs.game;
-      $('home-map-title').textContent = t(online ? 'mapFilterTitle' : 'mapLabel');
-      $('home-map-hint').textContent = online ? t('mapFilterHint') : range ? t('mapHintRange') : t('mapHintBots');
-      $('home-maps').innerHTML = MAP_IDS.map((id) => {
+      // New sessions only on the maps the mode is played on.
+      const pickedMap = mapFor(prefs.game, isMapId(newMapSel.value) ? newMapSel.value : prefs.map);
+      newMapSel.innerHTML = modeMaps(prefs.game).map((id) => `<option value="${id}">${MAPS[id].nome}</option>`).join('');
+      newMapSel.value = pickedMap;
+      // A one-map mode (zumbi) only shows its map.
+      const single = !range && oneMap(prefs.game);
+      $('home-map-title').textContent = t(online && !single ? 'mapFilterTitle' : 'mapLabel');
+      $('home-map-hint').textContent = single ? t('zMapOnly') : online ? t('mapFilterHint') : range ? t('mapHintRange') : t('mapHintBots');
+      $('home-maps').innerHTML = (range ? MAP_IDS : modeMaps(prefs.game)).map((id) => {
         const look = MAP_LOOK[id];
-        const on = online ? prefs.filtro.includes(id) : !range && prefs.map === id;
+        const on = single || (online ? prefs.filtro.includes(id) : !range && prefs.map === id);
         const n = sessions.filter((s) => s.map === id && s.mode === prefs.game).length;
         const sub = online && listed ? (n === 1 ? t('sessionsOne') : t('sessionsMany', { n })) : t(look.when);
         return `<button type="button" class="map-btn${online ? ' filter' : ''}" data-map="${id}" aria-pressed="${on}">
@@ -413,7 +423,11 @@ export function showHome(): Promise<HomeChoice> {
       $('home-bot-opts').classList.toggle('hidden', prefs.mode !== 'bots');
       $('home-skills').innerHTML = segButtons(SKILLS.map(([v, k]) => ({ label: t(k), on: prefs.skill === v, data: v })));
       $('home-counts').innerHTML = segButtons(COUNTS.map((n) => ({ label: String(n), on: prefs.count === n, data: String(n) })));
-      $('home-bots').textContent = t('versusBots', { n: prefs.count });
+      // Zumbi offline is the player alone against the horde: no bots to pick.
+      const solo = prefs.game === 'zumbi';
+      $('home-skills').parentElement!.classList.toggle('hidden', solo);
+      $('home-counts').parentElement!.classList.toggle('hidden', solo);
+      $('home-bots').textContent = solo ? t('zSolo') : t('versusBots', { n: prefs.count });
       $('home-quick-box').classList.toggle('hidden', !online);
       $('home-lobby').classList.toggle('hidden', !online);
       renderLobby();
@@ -423,7 +437,7 @@ export function showHome(): Promise<HomeChoice> {
     /** The list is there as soon as the tab opens (GET /api/sessoes); long lists come a page at a time. */
     const renderLobby = () => {
       // The chosen match type and the ticked maps.
-      const shown = sessions.filter((s) => prefs.filtro.includes(s.map) && s.mode === prefs.game);
+      const shown = sessions.filter((s) => (oneMap(prefs.game) || prefs.filtro.includes(s.map)) && s.mode === prefs.game);
       $('home-lobby-title').textContent = listed ? t('openSessions', { n: shown.length }) : t('sessions');
       list.classList.toggle('hidden', !listed);
       list.innerHTML = '';
@@ -531,7 +545,7 @@ export function showHome(): Promise<HomeChoice> {
       savePrefs();
       const acct = await account();
       const game = BOT_GAMES.includes(prefs.game) ? prefs.game : DEFAULT_GAME_MODE;
-      leave({ mode: 'bots', name: playerName(), sex, account: acct, map: prefs.map, count: prefs.count, skill: prefs.skill, game });
+      leave({ mode: 'bots', name: playerName(), sex, account: acct, map: mapFor(game, prefs.map), count: prefs.count, skill: prefs.skill, game });
     };
 
     $('home-modes').onclick = (e) => {
@@ -551,6 +565,7 @@ export function showHome(): Promise<HomeChoice> {
       if (!b || !isMapId(b.dataset.map)) return;
       const id = b.dataset.map;
       if (prefs.mode === 'treino') return void startOffline(id);
+      if (oneMap(prefs.game)) return;
       if (prefs.mode === 'online') {
         prefs.filtro = prefs.filtro.includes(id) ? prefs.filtro.filter((m) => m !== id) : [...prefs.filtro, id];
         pageSize = PAGE;
@@ -574,7 +589,7 @@ export function showHome(): Promise<HomeChoice> {
       setGame(v);
       pageSize = PAGE;
     });
-    segClick('land-game', setGame);
+    segClick('land-games', setGame);
     newModeSel.onchange = () => {
       setGame(newModeSel.value);
       pageSize = PAGE;
@@ -594,9 +609,9 @@ export function showHome(): Promise<HomeChoice> {
     // Quick join: the fullest session (not full) of the filtered maps.
     $('home-quick').onclick = async () => {
       if (busy) return;
-      if (!prefs.filtro.length) return setStatus(t('pickAMap'), true);
+      if (!prefs.filtro.length && !oneMap(prefs.game)) return setStatus(t('pickAMap'), true);
       if (!(await connect())) return;
-      const best = sessions.filter((s) => prefs.filtro.includes(s.map) && s.mode === prefs.game && s.players < s.max).sort((a, b) => b.players - a.players)[0];
+      const best = sessions.filter((s) => (oneMap(prefs.game) || prefs.filtro.includes(s.map)) && s.mode === prefs.game && s.players < s.max).sort((a, b) => b.players - a.players)[0];
       if (!best) return setStatus(t('noSessionsFiltered'), true);
       void join({ t: 'join', session: best.id });
     };
@@ -610,11 +625,14 @@ export function showHome(): Promise<HomeChoice> {
     // --- Landing: a game against bots without an account ------------------------------------------------
     const renderGuest = () => {
       $('land-guest').innerHTML = t('startGuest', { name: `<b>${esc(guestName)}</b>` });
-      $('land-map-pick').innerHTML = segButtons(MAP_IDS.map((id) => ({ label: MAPS[id].nome, on: prefs.map === id, data: id })));
-      $('land-game').innerHTML = segButtons(BOT_GAMES.map((m) => ({ label: gameModeName(m), on: prefs.game === m, data: m })));
+      const game = BOT_GAMES.includes(prefs.game) ? prefs.game : DEFAULT_GAME_MODE;
+      const solo = game === 'zumbi';
+      $('land-map-pick').innerHTML = segButtons(modeMaps(game).map((id) => ({ label: MAPS[id].nome, on: mapFor(game, prefs.map) === id, data: id })));
+      $('land-games').innerHTML = segButtons(BOT_GAMES.map((m) => ({ label: gameModeName(m), on: game === m, data: m })));
       $('land-skills').innerHTML = segButtons(SKILLS.map(([v, k]) => ({ label: t(k), on: prefs.skill === v, data: v })));
       $('land-counts').innerHTML = segButtons(COUNTS.map((n) => ({ label: String(n), on: prefs.count === n, data: String(n) })));
-      $('land-bots').textContent = t('versusBots', { n: prefs.count });
+      $('land-skills').closest('.land-row')!.classList.toggle('hidden', solo);
+      $('land-bots').textContent = solo ? t('zSolo') : t('versusBots', { n: prefs.count });
     };
     $('land-bots').onclick = () => void startBots();
     $('land-range').onclick = () => void startOffline(prefs.map);

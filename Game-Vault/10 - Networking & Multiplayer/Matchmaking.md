@@ -36,7 +36,7 @@ O que existe é um **lobby com lista de salas** (browser de servidores), no pró
 
 ## Salas permanentes
 
-Ao iniciar, o servidor cria **uma sala fixa por mapa e por modo de jogo** (`GAME_MODE_IDS × MAP_IDS`), que nunca é removida. O nome é o do mapa; o modo aparece ao lado na lista:
+Ao iniciar, o servidor cria **uma sala fixa por mapa e por modo de jogo** (cada modo nos mapas em que é jogado, `modeMaps`: o zumbi só na Vila Assombrada, sala `zumbi-halloween`), que nunca é removida. O nome é o do mapa; o modo aparece ao lado na lista:
 
 | id (`permanentSessionId`) | Nome (de `MAPS[...].nome`) | Mapa | Modo |
 |---|---|---|---|

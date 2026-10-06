@@ -49,6 +49,24 @@
       <div id="round-end" class="hidden">
         <div class="round-card sticker"><div id="round-title"></div><div id="round-next"></div></div>
       </div>
+      <!-- Zumbi: the wave and the zombies left (or the countdown), the boss's health, the match's money and the
+           end-of-match summary. -->
+      <div id="zwave" class="hidden">
+        <div class="zwave-row"><b id="zwave-title"></b><span id="zwave-sub"></span></div>
+        <div id="zboss" class="hidden"><span id="zboss-name"></span><div class="zboss-bar"><div id="zboss-fill"></div></div></div>
+      </div>
+      <div id="zmoney" class="hidden"><span class="zmoney-sign">$</span><b id="zmoney-num">0</b></div>
+      <div id="zsummary" class="hidden">
+        <div class="zsum-card sticker">
+          <div id="zsum-title"></div>
+          <div id="zsum-sub"></div>
+          <table>
+            <thead><tr id="zsum-head"></tr></thead>
+            <tbody id="zsum-body"></tbody>
+          </table>
+          <div id="zsum-next"></div>
+        </div>
+      </div>
 
       <div id="killfeed"></div>
 
@@ -252,7 +270,7 @@
             <h3 data-t="startTitle"></h3>
             <p id="land-guest" class="hint"></p>
             <div><h4 data-t="mapLabel"></h4><div id="land-map-pick" class="seg"></div></div>
-            <div><h4 data-t="gameModeTitle"></h4><div id="land-game" class="seg"></div></div>
+            <div><h4 data-t="gameModeTitle"></h4><div id="land-games" class="seg"></div></div>
             <div class="land-row">
               <div><h4 data-t="botSkill"></h4><div id="land-skills" class="seg"></div></div>
               <div><h4 data-t="botCount"></h4><div id="land-counts" class="seg"></div></div>

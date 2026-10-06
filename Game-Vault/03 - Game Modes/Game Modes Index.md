@@ -14,6 +14,9 @@ source_paths:
   - server/session.ts
   - shared/protocol.ts
   - shared/maps.ts
+  - shared/zombies.ts
+  - shared/zombieMatch.ts
+  - client/zombies/client.ts
 tags:
   - game
   - modes
@@ -26,7 +29,7 @@ updated: 2026-10-06
 Porta de entrada da área de **modos de jogo**. Há duas escolhas na home (`showHome` em `client/ui/home.ts`):
 
 - **Onde jogar** (`HomeChoice.mode`): `'online'`, `'bots'` ou `'offline'` (campo de tiro).
-- **Que regra jogar** (o **modo de jogo**, `GameModeId` em `shared/modes.ts`): `'mata-mata'` ou `'corrida-armada'`. Online vem da sessão (`SessionInfo.mode`); contra bots, do seletor "Tipo de partida" (`HomeChoice.game`). O campo de tiro não tem modo.
+- **Que regra jogar** (o **modo de jogo**, `GameModeId` em `shared/modes.ts`): `'mata-mata'`, `'corrida-armada'` ou `'zumbi'`. Online vem da sessão (`SessionInfo.mode`); contra bots, do seletor "Tipo de partida" (`HomeChoice.game`; o zumbi offline é o jogo solo contra a horda). O campo de tiro não tem modo.
 
 As diferenças entre modos estão declaradas em `MODE_RULES` e, no servidor, em `server/modes.ts` ([[ADR - Modos de jogo com regras declaradas e ganchos no servidor]]).
 
@@ -36,12 +39,13 @@ As diferenças entre modos estão declaradas em `MODE_RULES` e, no servidor, em 
 | --- | --- | --- | --- | --- | --- |
 | **Mata-mata** | [[Free For All]] (online) · [[Versus Bots]] (offline) | `mata-mata` | todos contra todos com o Arsenal escolhido **antes** da partida, travado durante ela | Sim | Sim |
 | **Corrida armada** | [[Gun Game]] | `corrida-armada` | escada de 7 armas fixas: 3 abates sobem, facada desce, abate com o Sabre de Luz vence a rodada | Sim | Sim |
+| **Zumbi** | [[Zombie]] | `zumbi` | em equipe contra 12 ondas de zumbis e 3 chefes na Vila Assombrada; armas do Caixão Misterioso, compradas com o dinheiro da partida; caído/reanimar | Sim (só na Vila Assombrada) | Solo (você contra a horda) |
 
 ## Onde jogar
 
 | Onde | Nota | `mode` | Precisa de conta? | Precisa de servidor? |
 | --- | --- | --- | --- | --- |
-| **Online** (até 10 humanos por sessão) | [[Free For All]], [[Gun Game]] | `online` | Sim | Sim |
+| **Online** (até 10 humanos por sessão) | [[Free For All]], [[Gun Game]], [[Zombie]] | `online` | Sim | Sim |
 | **Contra bots** (você + 3/5/7/9 bots) | [[Versus Bots]] | `bots` | Não | Não |
 | **Campo de tiro / Treino offline** | [[Training]] | `offline` (`variant: 'range'`) | Não | Não |
 
@@ -57,20 +61,20 @@ As diferenças entre modos estão declaradas em `MODE_RULES` e, no servidor, em 
 
 | Aspecto | Online | Contra bots | Treino |
 | --- | --- | --- | --- |
-| Autoridade das regras | servidor (`server/session.ts` + `server/modes.ts`) | cliente (`BotManager`, mesmas regras) | cliente |
-| Pontos pontuam a progressão? | Sim (corrida armada: só XP de conta) | Não | Não |
-| Armas e melhorias usadas | mata-mata: Arsenal da conta, travado ao entrar · corrida armada: a escada | idem (sem melhorias sem conta) | Arsenal da conta, editável na pausa |
+| Autoridade das regras | servidor (`server/session.ts` + `server/modes.ts`; zumbi: o servidor simula a horda) | cliente (`BotManager`, mesmas regras; zumbi: o mesmo motor do servidor, `client/zombies/local.ts`) | cliente |
+| Pontos pontuam a progressão? | Sim (corrida armada e zumbi: só XP de conta) | Não | Não |
+| Armas e melhorias usadas | mata-mata: Arsenal da conta, travado ao entrar · corrida armada: a escada · zumbi: rifle inicial + o que sair do caixão | idem (sem melhorias sem conta) | Arsenal da conta, editável na pausa |
 | Pontos de nascimento | `spawnsFFA` + seletor seguro | `spawnsFFA` + seletor seguro | `spawnsA` (sorteio, sem repetir o último) |
-| Atraso de respawn | 5 s (servidor) | 5 s | 3 s |
+| Atraso de respawn | 5 s (servidor); zumbi: caído e reanimado, morto volta no intervalo | 5 s (zumbi solo: cair é perder) | 3 s |
 | Proteção ao nascer | Não | **2 s** (pisca, cancelada ao atirar) | Não |
 | Placar (`Tab`) | Sim, com nível e ping | Sim | Não (HUD mostra pontos, abates e precisão) |
 | Chat | Sim | Não | Não |
 | Pausa com o menu | Não (o mundo segue) | Sim | Sim |
-| Fim de partida | mata-mata: não existe · corrida armada: rodadas | idem | — |
+| Fim de partida | mata-mata: não existe · corrida armada: rodadas · zumbi: vitória na onda 12 ou derrota sem ninguém de pé | idem | — |
 
 ## Seleção de mapa
 
-- **Online:** o mapa é o da sessão. Cada mapa tem uma sessão permanente **por modo**, e quem cria uma sessão escolhe o mapa e o modo.
+- **Online:** o mapa é o da sessão. Cada mapa tem uma sessão permanente **por modo** jogado nele (o zumbi só na Vila Assombrada: `MODE_RULES.zumbi.maps`), e quem cria uma sessão escolhe o mapa e o modo.
 - **Contra bots e treino:** valem o seletor **Mapa** da home (`home-map`), salvo em `localStorage` (`oc.bots`).
 - **Qualquer modo:** `?mapa=/maps/arquivo.glb` na URL carrega um mapa glTF por cima da escolha ([[Map - Arena Teste (glTF)]]).
 - Mapas: [[Map - Rua dos Vizinhos]], [[Map - Jardim do Dragão]], [[Map - Vila Assombrada]]. Ver [[Maps Index]].

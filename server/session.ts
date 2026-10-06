@@ -23,10 +23,10 @@ import { createMode, type SessionMode } from './modes';
 import { FLAG, NET, sanitizeChat, type Award, type ClientMsg, type CorpseInfo, type KillKind, type NetState, type PlayerInfo, type ServerMsg, type Sex, type SessionInfo, type Vec3 } from '@shared/protocol';
 
 /** Eye and chest height: the same for every body (height is only a look). */
-const EYE = 1.6;
+export const EYE = 1.6;
 const CHEST = 1.1;
 /** Extra meters allowed between what the client saw and the server's latest positions (latency). */
-const LAG_SLACK = 4;
+export const LAG_SLACK = 4;
 /** After a weapon switch, hits from the gun put away still count for this long (shots already in flight, latency). */
 const SWITCH_GRACE_MS = 1000;
 
@@ -81,6 +81,11 @@ export interface SPlayer {
   boostUntil: number;
   /** Carries a giant rat's humanity: extra max health until death. */
   humanity: boolean;
+  /**
+   * Down but not dead (zumbi: health at 0, waiting for a teammate's revive): can't be hurt, doesn't heal,
+   * can't hit anything. The mode decides when it ends.
+   */
+  downed: boolean;
   /** The witch's potion being felt (until: server time) and when the next one can be drunk. */
   potion: { kind: PotionKind; until: number } | null;
   potionReady: number;
@@ -138,6 +143,13 @@ export class Session {
       info: (p) => this.playerInfo(p),
       giveAccountXp: (p, xp) => this.progress(p, [addAccountXp(p.conn.account, xp)]),
       resetForRound: (p) => this.resetForRound(p),
+      map,
+      damage: (p, amount, kind, from) => this.damage(p, null, amount, kind, from, [], null),
+      kill: (p, kind) => {
+        if (p.alive) this.kill(p, null, kind, [], null);
+      },
+      firedGun: (p, w, now) => this.firedGun(p, w, now),
+      fireRate: (p, gun, now) => this.fireRate(p, gun, now),
     });
     for (const k of PICKUPS[map] ?? []) this.pickups.set(k.id, { kind: k.kind, p: k.p, ready: 0 });
     for (const r of RATS[map] ?? []) this.rats.set(r.id, { p: r.p, ready: 0 });
@@ -155,6 +167,7 @@ export class Session {
 
   dispose() {
     clearInterval(this.timer);
+    this.mode.dispose?.();
   }
 
   /** `withLook`: include the appearance (only when a player appears, it doesn't change mid-session). */
@@ -226,6 +239,7 @@ export class Session {
       dance: null,
       boostUntil: 0,
       humanity: false,
+      downed: false,
       potion: null,
       potionReady: 0,
     };
@@ -245,6 +259,7 @@ export class Session {
       pickups: [...this.pickups].filter(([, k]) => k.ready > this.now()).map(([id, k]) => ({ id, ready: k.ready })),
       fish: [...this.fish].filter(([, f]) => f.ready > this.now() || f.golden).map(([id, f]) => ({ id, ready: f.ready > this.now() ? f.ready : 0, golden: f.golden })),
       rats: [...this.rats].filter(([, r]) => r.ready > this.now()).map(([id, r]) => ({ id, ready: r.ready })),
+      ...this.mode.joinState?.(),
     });
     this.broadcast({ t: 'playerJoined', player: this.playerInfo(p, true) }, p.id);
     this.onChange();
@@ -368,6 +383,7 @@ export class Session {
         if (p.alive || !vec(msg.p) || !finite(msg.yaw)) return;
         if (now - p.deadAt < NET.respawnDelay * 1000 - 250) return;
         p.alive = true;
+        p.downed = false;
         p.boostUntil = 0;
         p.health = p.body.maxHealth;
         p.lastDamageAt = 0;
@@ -380,6 +396,9 @@ export class Session {
         this.broadcast({ t: 'spawned', id: p.id, p: msg.p, yaw: msg.yaw });
         return;
       }
+      default:
+        // The mode's own messages (zumbi: shots at zombies, the coffin, revives).
+        this.mode.handle?.(p, msg, now);
     }
   }
 
@@ -471,19 +490,27 @@ export class Session {
     return null;
   }
 
+  /**
+   * Fire-rate check: no more confirmed hits per second than the gun can fire (+ slack for jitter), whatever
+   * they hit (players and the mode's enemies). Records the hit when it passes.
+   */
+  private fireRate(p: SPlayer, gun: { cadencia: number }, now: number): boolean {
+    p.hitTimes = p.hitTimes.filter((t) => now - t < 1000);
+    if (p.hitTimes.length >= Math.ceil(gun.cadencia / 60) + 2) return false;
+    p.hitTimes.push(now);
+    return true;
+  }
+
   private onHit(p: SPlayer, targetId: number, region: HitRegion, reportedDist: number, w: GunId, reportedKeep: number | undefined, now: number) {
     const target = this.players.get(targetId);
-    if (!target || target === p || !p.alive || !target.alive || !finite(reportedDist)) return;
+    if (!target || target === p || !p.alive || p.downed || !target.alive || !finite(reportedDist)) return;
     if (!(HIT_REGIONS as readonly string[]).includes(region)) return;
     const gun = this.firedGun(p, w, now);
     if (!gun) return;
-    // Fire-rate check: no more confirmed hits per second than the gun can fire (+ slack for jitter).
-    p.hitTimes = p.hitTimes.filter((t) => now - t < 1000);
-    if (p.hitTimes.length >= Math.ceil(gun.cadencia / 60) + 2) return;
     // Distance check against the server's view of both players.
     const serverDist = dist3(eye(p), chest(target));
     if (serverDist > gun.alcanceMaximo || Math.abs(serverDist - reportedDist) > LAG_SLACK + serverDist * 0.1) return;
-    p.hitTimes.push(now);
+    if (!this.fireRate(p, gun, now)) return;
     const dist = Math.min(reportedDist, gun.alcanceMaximo);
     const kind: KillKind = region === 'cabeca' ? 'head' : region === 'virilha' ? 'groin' : 'gun';
     const awards: Award[] = [];
@@ -499,7 +526,7 @@ export class Session {
 
   private onStab(p: SPlayer, targetId: number, behind: boolean, now: number) {
     const target = this.players.get(targetId);
-    if (!target || target === p || !p.alive || !target.alive) return;
+    if (!target || target === p || !p.alive || p.downed || !target.alive) return;
     const knife = meleeStats(p.loadout.ativas.faca);
     if (now - p.lastStab < knife.intervalo * 1000 * 0.75) return;
     const d = Math.hypot(p.state.p[0] - target.state.p[0], p.state.p[2] - target.state.p[2]);
@@ -524,6 +551,8 @@ export class Session {
     } else if (t < g.fuse - 0.5) return; // can't explode much earlier than its fuse allows
     p.grenades.delete(msg.id);
     this.broadcast({ t: 'boom', owner: p.id, id: msg.id, p: msg.p }, p.id);
+    // The mode's enemies the blast reached (zumbi), checked with the same tolerance as players.
+    if (Array.isArray(msg.zs)) this.mode.blast?.(p, msg.p, msg.zs, g.blast);
     const seen = new Set<number>();
     for (const h of msg.hits.slice(0, NET.maxPlayers)) {
       const target = this.players.get(h?.target);
@@ -539,6 +568,8 @@ export class Session {
   }
 
   private onTaunt(p: SPlayer, corpseId: number, now: number) {
+    // Teammates don't dance on each other (co-op modes).
+    if (this.mode.rules.coop) return;
     const c = this.corpses.get(corpseId);
     if (!c || !p.alive || p.dance || c.humiliated || c.claimedBy !== null || now > c.until || c.victim === p.id) return;
     if (Math.hypot(p.state.p[0] - c.p[0], p.state.p[2] - c.p[2]) > HUMILIATION.radius + 1.5) return;
@@ -573,19 +604,23 @@ export class Session {
 
   /** `weapon`: what dealt it (it gets the kill's points); null for falls, the dog, your own grenade. */
   private damage(target: SPlayer, attacker: SPlayer | null, amount: number, kind: KillKind, from: Vec3 | null, bonus: Award[], weapon: ProgWeapon | null) {
-    if (!target.alive || amount <= 0) return;
+    if (!target.alive || target.downed || amount <= 0) return;
     // Between rounds nobody hurts anybody (falls and the map still do).
     if (attacker && attacker !== target && !this.mode.combatOpen()) return;
     const dealt = Math.min(target.health, amount);
     target.health -= dealt;
     target.lastDamageAt = this.now();
     this.broadcast({ t: 'damage', target: target.id, attacker: attacker?.id ?? null, amount: dealt, health: target.health, from });
-    if (target.health <= 0) this.kill(target, attacker, kind, bonus, weapon);
+    if (target.health > 0) return;
+    // The mode may take over instead of a death (zumbi: down, waiting for a revive).
+    if (this.mode.onLethal?.(target, kind)) return;
+    this.kill(target, attacker, kind, bonus, weapon);
   }
 
   private kill(victim: SPlayer, attacker: SPlayer | null, kind: KillKind, bonus: Award[], weapon: ProgWeapon | null) {
     const now = this.now();
     victim.alive = false;
+    victim.downed = false;
     victim.health = 0;
     victim.boostUntil = 0;
     victim.humanity = false;
@@ -597,7 +632,8 @@ export class Session {
     // Only death ends a dance (damage doesn't): the corpse is released without points.
     if (victim.dance) this.onTauntEnd(victim, victim.dance.corpse, false, now);
     const awards: Award[] = [];
-    victim.conn.account.delta.deaths++;
+    // A co-op death isn't another player's kill: the account's kill/death stats don't change.
+    if (!this.mode.rules.coop) victim.conn.account.delta.deaths++;
     if (attacker && attacker !== victim) {
       awards.push({ label: 'kill', value: SCORE.kill }, ...bonus);
       const points = awards.reduce((s, a) => s + a.value, 0);
@@ -650,7 +686,7 @@ export class Session {
         p.health = Math.min(p.health, p.body.maxHealth);
       }
       const max = this.maxHealth(p, now);
-      if (p.alive && p.health < max && now - p.lastDamageAt > HEALTH.regenDelay * 1000) {
+      if (p.alive && !p.downed && p.health < max && now - p.lastDamageAt > HEALTH.regenDelay * 1000) {
         p.health = Math.min(max, p.health + HEALTH.regenPerSecond * dt);
       }
       const xpBefore = p.conn.account.profile.xp;
@@ -666,6 +702,9 @@ export class Session {
       time: now,
       players: [...this.players.values()].map((p) => ({ id: p.id, s: p.state, h: Math.ceil(p.health), alive: p.alive })),
     });
+    // The mode's own moving things (zumbi: the zombies), at the same rate.
+    const extra = this.mode.snapshot?.();
+    if (extra) this.broadcast(extra);
     this.scoreTimer += dt;
     if (this.scoreTimer >= 1) {
       this.scoreTimer = 0;
@@ -702,6 +741,7 @@ export class Session {
     const now = this.now();
     if (p.dance) this.onTauntEnd(p, p.dance.corpse, false, now);
     p.alive = false;
+    p.downed = false;
     p.health = 0;
     p.deadAt = now - NET.respawnDelay * 1000;
     p.boostUntil = 0;

@@ -13,11 +13,14 @@ source_paths:
   - shared/constants.ts
   - docs/MAPAS.md
   - README.md
+  - shared/data/zumbi.json
+  - shared/data/navmesh/halloween.json
+  - tools/bake-navmesh.ts
 tags:
   - world
   - map
   - halloween
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Map - Vila Assombrada
@@ -106,6 +109,16 @@ Mansão (2 andares + porão), casas da vila, capela, mausoléu, cabana da bruxa,
 - **FFA** (25): mansão (térreo, andar de cima a 3,8 m), porão e esgoto (−3,8 m), floresta, cabana, cemitério, estrada, celeiro, casas da vila, parque, praça, jardim e cantos. Ver [[Spawn Design]].
 
 13 bonecos de treino: ao longo da estrada, celeiro, portão do cemitério, mausoléu (dentro e no telhado), cova do fantasma, capela, vila, hall da mansão, parque e praça.
+
+## Modo zumbi
+
+É o único mapa do [[Zombie|modo zumbi]] (`MODE_RULES.zumbi.maps`; sala fixa `zumbi-halloween`). Dados em `mapas.halloween` de `shared/data/zumbi.json`:
+
+- **Pontos de surgimento** (25): covas do cemitério (7, entre x −14..12 e z −33..−18), floresta (4), Estrada Maldita e celeiro (3), jardim da mansão (2), cantos da praça (3), parque (2), **esgoto** (2: sob a mansão e a rua sem saída do rato) e quintais da vila (2). Os zumbis saem do chão nos que estão a pelo menos 14 m de todo jogador de pé.
+- **Lugares do Caixão Misterioso** (5): trilha do cemitério (2,6, −22,4), praça ao lado do quiosque do esgoto (−14, 37,5), jardim da mansão (−48, 20), parque fora dos carrinhos de bate-bate (25, 20) e calçada da vila em frente à loja de doces (−6, 4,4). Escolhidos fora das rotas e conferidos no navegador.
+- **Chefes**: o Coveiro sai do centro do cemitério (0, −27), a Noiva do oeste do cemitério perto da capela (−14, −20), o Prefeito da Praça da Lua Cheia (0, 38), a grande arena aberta para a luta final.
+- **Navmesh do servidor**: `shared/data/navmesh/halloween.json`, gerada deste código por `bun run navmesh` ([[Navigation]]). **Mudou o mapa, refaça a malha** (o teste avisa).
+- Clima do modo: névoa mais perto e verde, vermelha nas ondas de chefe (`client/zombies/ambience.ts`).
 
 ## Objetivos
 

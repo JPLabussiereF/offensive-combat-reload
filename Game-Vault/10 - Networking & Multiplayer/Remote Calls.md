@@ -15,6 +15,8 @@ source_paths:
   - client/ui/home.ts
   - shared/progression.ts
   - shared/arsenal.ts
+  - shared/zombies.ts
+  - client/zombies/client.ts
 tags:
   - game
   - networking
@@ -65,7 +67,7 @@ Convenções:
 | `swing` | — | por golpe | vivo | broadcast `swing {id}` (cosmético) |
 | `stab` | `target`, `behind` | por facada | ambos vivos; intervalo ≥ 75 % do `intervalo` da faca; distância horizontal ≤ `alcanceInvestida + 1,5 m` | `damage` (55 ou letal se a faca do nível for `letal`) |
 | `grenade` | `id`, `p`, `v`, `fuse`, `impact?`, `mine?`, `duck?` | por lançamento | o modo tem granadas (não na corrida armada), vivo, campos finitos; id não repetido; máx. **4 granadas** e **3 minas** vivas; mina só se o nível da granada for do tipo `mina`; `fuse` limitado a `[0, pavio]` (ou `[0, tempoMaximoVoo]` se impacto) | broadcast `grenade {owner, ...}` (exceto o autor) |
-| `boom` | `id`, `p`, `hits[] {target, dist}` | por explosão | granada registrada; mina: `p` a ≤ 1,5 m da origem; impacto: dentro do alcance físico possível; pavio: não antes de `fuse − 0,5 s`; cada alvo: `dist` informada vs servidor ≤ 3 m e dentro de `raioDano + 3` | broadcast `boom` + `damage`/`kill` |
+| `boom` | `id`, `p`, `hits[] {target, dist}`, `zs?[] {z, dist}` (zumbi) | por explosão | granada registrada; mina: `p` a ≤ 1,5 m da origem; impacto: dentro do alcance físico possível; pavio: não antes de `fuse − 0,5 s`; cada alvo: `dist` informada vs servidor ≤ 3 m e dentro de `raioDano + 3` | broadcast `boom` + `damage`/`kill` |
 | `loadout` | `lo` (`ArsenalChoice {secundaria, ligadas}`) | — (o cliente não manda mais em partida) | **recusado** em modos com `lockedLoadout` (todos os online): nada muda | só `progresso` para o autor, com a escolha que ficou ([[ADR - Equipamento travado no mata-mata]]) |
 | `selfDamage` | `amount`, `cause` (`fall`/`void`/`dog`) | por evento | vivo, `amount > 0`, limitado a `LETHAL_DAMAGE` | `damage` no próprio jogador |
 | `taunt` | `corpse` | ao começar a dançar | corpo existe, não humilhado, livre, dentro da janela, não é o próprio, distância ≤ raio + 1,5 m | broadcast `taunt {id, corpse}` |
@@ -77,6 +79,10 @@ Convenções:
 | `rat` | `id` | ao derrubar rato | vivo, distância 3D ≤ `RAT.range` | broadcast `rat {id, by, ready}` |
 | `potion` | — | ao beber (cliente: 800 ms entre pedidos) | mapa tem bruxa, vivo, fora do cooldown, perto da bruxa | broadcast `potion {by, kind, until}` |
 | `chat` | `text` | por mensagem | `sanitizeChat`; silêncio da conta; 4 de rajada + 1 a cada 1,5 s | broadcast `chat` para **todos, inclusive o autor**, ou `chatRefused` |
+| `zhit` | `z` (id do zumbi), `region`, `dist`, `w`, `keep?` | por acerto num zumbi ([[Zombie]]) | zumbi existe e não sumiu, atirador vivo e não caído, `w` disparável (como `hit`), **mesmo contador de cadência** de `hit`, distância do olho até o peito do zumbi **na posição do servidor** ≤ alcance e dentro de `LAG_SLACK` + 10% + o tamanho do zumbi | dano do servidor (`gunDamageToZombie` × raridade); morte → `zdie` (+ `zmoney`, XP) |
+| `zstab` | `z` | por facada num zumbi | intervalo da faca como `stab`; distância horizontal ≤ `alcanceInvestida + 1,5 m + 0,4 × tamanho` | 120 × raridade da faca |
+| `box` | — | `E` no Caixão Misterioso | de pé, a ≤ alcance + 1 m do lugar do caixão; caixão parado e dinheiro ≥ preço (girar), ou oferta para este jogador (pegar) | `zbox` (girando/oferta/pato/mudando); pegar → `playerLoadout` |
+| `revive` | `id`, `on` | segurando/soltando `E` sobre um colega caído | reanimador de pé, alvo caído, a ≤ 3,5 m; cancelado se ele se afasta | `zrevive`; completo (3 s) → `zup` |
 
 ## Servidor → Cliente (`ServerMsg`)
 
@@ -84,7 +90,7 @@ Convenções:
 |---|---|---|---|
 | `welcome` | `id`, `name`, `sessions` | resposta ao `hello` | conexão |
 | `sessions` | `list: SessionInfo[]` | `list`, `leave`, ou mudança no lobby (agrupada em 100 ms) | quem está no lobby |
-| `joined` | `session`, `you`, `players` (com aparência), `corpses`, `time`, `pickups?`, `fish?`, `rats?` | ao entrar numa sala | conexão |
+| `joined` | `session`, `you`, `players` (com aparência), `corpses`, `time`, `pickups?`, `fish?`, `rats?`, `zumbi?` (`ZombieSync`: fase, onda, fim da fase, total, caixão, caídos) | ao entrar numa sala | conexão |
 | `error` | `message` | falha em `create`/`join` | conexão |
 | `playerJoined` | `player` (com aparência) | alguém entrou | sala, exceto quem entrou |
 | `playerLeft` | `id` | alguém saiu | sala |
@@ -105,8 +111,17 @@ Convenções:
 | `chatRefused` | `reason: 'muted' \| 'slow'` | fala recusada | conexão |
 | `pong` | `c`, `s` | resposta ao `ping` | conexão |
 | `progresso` | `armas` (`{xp, nivel}` por arma), `escolha` (`ArsenalChoice`), `conta`, `subiu?` | `hello`, ao mudar a escolha, e sempre que o progresso muda | conexão |
+| `zsnap` | `time`, `z: ZNet[]` (`[id, tipo, x, y, z, yaw, flags]`), `left`, `boss?: [id, vida, máx]` | **20 Hz** logo depois do `snap`, durante a onda ou com zumbis vivos | sala |
+| `zwave` | `phase` (`waiting`/`countdown`/`wave`/`break`/`over`), `wave`, `until`, `total`, `boss?` | a partida muda de fase | sala |
+| `zdie` | `id`, `by`, `how`, `award?`, `money?` | zumbi morreu | sala |
+| `zfx` | `fx` (`slam`/`summon`/`scream`/`blink`/`charge`/`pound`/`spit`/`boom`/`intro`), `id?`, `at`, `to?`, `r?`, `t0`, `t1` | golpe telegrafado ou efeito (o dano cai em `t1`) | sala |
+| `zhitfx` | `id`, `fx`, `v?` (empurrão), `slow?`, `until?` | um golpe empurrou ou deixou alguém lento | sala (o cliente do jogador aplica) |
+| `zbox` | `spot`, `state`, `by`, `item`, `until`, `money?` | o caixão mudou | sala |
+| `zmoney` | `m: [id, dinheiro][]`, `why` (`assist`/`wave`/`boss`) | ajudas, bônus de onda, prêmio de chefe | sala |
+| `zdown`, `zrevive`, `zup` | `id`, (`until`), (`by`, `money?`) | caiu / reanimando / levantou | sala |
+| `zend` | `won`, `wave`, `secs`, `players: ZSummaryRow[]`, `restartAt` | fim da partida zumbi (resumo) | sala |
 
-`PlayerInfo` ganhou `ladder?: {step, kills}` (corrida armada) e `SessionInfo` ganhou `mode`. Ver [[Gun Game]].
+`PlayerInfo` ganhou `ladder?: {step, kills}` (corrida armada) e `zumbi?: {money, kills, downs, revives, state, items}` (zumbi); `SessionInfo` ganhou `mode`; `KillKind` ganhou `'zombie'` (sangrou caído). Ver [[Gun Game]] e [[Zombie]].
 
 `KillKind`: `gun`, `head`, `groin`, `knife`, `grenade`, `fall`, `void`, `explosion`, `dog`. `AwardLabel`: `kill`, `headshot`, `groin`, `knife`, `backstab`, `longShot`, `humiliation`.
 

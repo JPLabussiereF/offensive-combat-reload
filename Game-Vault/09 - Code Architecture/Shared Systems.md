@@ -7,6 +7,8 @@ source_paths:
   - shared/data/corrida_armada.json
   - shared/gunGame.ts
   - shared/modes.ts
+  - shared/zombies.ts
+  - shared/zombieMatch.ts
   - shared/protocol.ts
   - shared/constants.ts
   - shared/maps.ts
@@ -57,7 +59,9 @@ updated: 2026-10-06
 | `movement.ts` | `stepMovement` (passo de movimento em primeira pessoa sobre o Rapier), `createMoveState`, `configureController`, `eyeHeight` | sim (jogador e bots) | não (ainda) |
 | `progression.ts` | Ids das armas (`GunId`, `ProgWeapon`, `PRIMARIES`, `SECONDARIES`), árvores de melhorias de `data/progression.json` (`PROGRESSION`), níveis (`levelForXp`, `xpForLevel`, `levelCount`), melhorias em efeito (`activeUpgrades`), escolha do Arsenal (`ArsenalChoice`, `sanitizeChoice`, `legacyChoice`), `weaponOfKill` | sim | sim |
 | `arsenal.ts` | O que o jogador leva e os atributos **efetivos** (base + melhorias): `Loadout` (com `soFaca?`: só a faca na mão), `resolveLoadout`, `gunStats`, `meleeStats`, `grenadeStats`, `slotStats`, `gunIn`, `sanitizeLoadout`, `DEFAULT_LOADOUT` | sim | sim |
-| `modes.ts` | Modos de jogo: `GameModeId` (`mata-mata`, `corrida-armada`), `MODE_RULES` (armas do Arsenal ou do modo, `lockedLoadout`, granadas, XP de arma, rodadas, bots), `isGameModeId` | sim (home, regras do cliente) | sim (`server/modes.ts`, lobby) |
+| `modes.ts` | Modos de jogo: `GameModeId` (`mata-mata`, `corrida-armada`, `zumbi`), `MODE_RULES` (armas do Arsenal ou do modo, `lockedLoadout`, granadas, XP de arma, rodadas, bots, `coop`, `maps`), `isGameModeId`, `modeMaps` | sim (home, regras do cliente) | sim (`server/modes.ts`, lobby) |
+| `zombies.ts` | Modo zumbi: os números de `data/zumbi.json` (`ZOMBIE`) e as regras puras — ondas (`waveSpec`, `pickType`), vida e golpe por tipo, dano das armas nos zumbis com a raridade (`gunDamageToZombie`, `knifeDamageToZombie`, `grenadeDamageToZombie`, `weaponMul`), dinheiro e XP por abate, o sorteio do caixão (`rollBox`, `duckChance`), o que se carrega (`startItems`, `zombieLoadout`), flags `ZF` e o formato de rede `ZNet` | sim (`client/zombies/*`) | sim (`ZombieMode`) |
+| `zombieMatch.ts` | Modo zumbi: o motor da partida (`ZombieMatch`): ondas, a horda numa `Crowd` do Detour sobre a navmesh, ataques e chefes, o caixão, caído/reanimar, resumo. Fala com quem o hospeda por `ZombieHost` (aplicar dano, dar XP, trocar armas…) | sim (jogo solo, `client/zombies/local.ts`) | sim (sessões zumbi) |
 | `gunGame.ts` | Corrida armada: `LADDER` (de `data/corrida_armada.json`), `GUN_GAME`, `ladderLoadout`, `killCounts`, `afterKill`, `afterDeath`, `ladderProblems` — funções puras | sim (`BotManager`, HUD) | sim (`GunGameMode`) |
 | `accountLevel.ts` | XP e curva do nível da conta (`data/nivel_conta.json`) | sim | sim |
 | `account.ts` | Regras e formatos da API de contas (nome, senha, e-mail, `formatTag`, `ApiErrorCode`, tipos de resposta) | sim (formulários) | sim (validação) |

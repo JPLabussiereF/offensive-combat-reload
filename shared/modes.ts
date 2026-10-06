@@ -6,9 +6,10 @@
 //
 // Adding a mode: an id here with its rules, its server side in server/modes.ts (createMode), its strings
 // (gameMode_<id>, gameModeDesc_<id>) and, if it hands out weapons, a module like shared/gunGame.ts.
+import { MAP_IDS, type MapId } from './maps';
 
-export type GameModeId = 'mata-mata' | 'corrida-armada';
-export const GAME_MODE_IDS: GameModeId[] = ['mata-mata', 'corrida-armada'];
+export type GameModeId = 'mata-mata' | 'corrida-armada' | 'zumbi';
+export const GAME_MODE_IDS: GameModeId[] = ['mata-mata', 'corrida-armada', 'zumbi'];
 export const DEFAULT_GAME_MODE: GameModeId = 'mata-mata';
 export const isGameModeId = (v: unknown): v is GameModeId => GAME_MODE_IDS.includes(v as GameModeId);
 
@@ -26,8 +27,15 @@ export interface ModeRules {
   weaponXp: boolean;
   /** Matches end with a winner and a new round starts. */
   rounds: boolean;
-  /** Playable offline against bots. */
+  /** Playable offline (against bots; zumbi: alone against the zombies). */
   bots: boolean;
+  /**
+   * Everyone plays together against the mode's enemies (zumbi): no damage between players, no humiliation,
+   * and the account's kill/death stats don't count (the enemies aren't players).
+   */
+  coop?: boolean;
+  /** The maps it can be played on (all of them when absent): sessions and the home only offer these. */
+  maps?: readonly MapId[];
 }
 
 export const MODE_RULES: Record<GameModeId, ModeRules> = {
@@ -35,4 +43,10 @@ export const MODE_RULES: Record<GameModeId, ModeRules> = {
   'mata-mata': { weapons: 'arsenal', lockedLoadout: true, grenades: true, weaponXp: true, rounds: false, bots: true },
   // Gun game: everyone climbs the same ladder of weapons (shared/gunGame.ts); a lightsaber kill wins the round.
   'corrida-armada': { weapons: 'mode', lockedLoadout: true, grenades: false, weaponXp: false, rounds: true, bots: true },
+  // Zombie waves (shared/zombies.ts): co-op survival in the haunted town; weapons come from the mystery coffin,
+  // bought with the match's money; zombie kills give account XP only (the weapons aren't the player's Arsenal).
+  zumbi: { weapons: 'mode', lockedLoadout: true, grenades: true, weaponXp: false, rounds: true, bots: true, coop: true, maps: ['halloween'] },
 };
+
+/** The maps a mode can be played on. */
+export const modeMaps = (m: GameModeId): readonly MapId[] => MODE_RULES[m].maps ?? MAP_IDS;

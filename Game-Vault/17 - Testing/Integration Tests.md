@@ -10,6 +10,8 @@ source_paths:
   - server/tests/auth.test.ts
   - server/tests/game.test.ts
   - server/tests/appearance.test.ts
+  - server/tests/zombies.test.ts
+  - tools/bake-navmesh.ts
   - server/app.ts
 tags:
   - testes
@@ -27,7 +29,7 @@ Os testes de servidor sobem um **servidor de jogo real** (`startServer` de `serv
 | --- | --- |
 | `startTestServer()` | `startServer({ port: 0, host: '127.0.0.1', databaseUrl, redisUrl, jobs: false })` — um por arquivo (`beforeAll`), fechado no `afterAll`. Jobs desligados; testes chamam `anonymizeExpired` diretamente quando precisam. |
 | `Browser` | "Navegador mínimo": guarda cookies (pote de cookies a partir de `Set-Cookie`), manda `Origin` (o próprio site por padrão, ou outro para simular ataque) e um **IP próprio** em `X-Forwarded-For` (`uniqueIp()`, faixa `10.9.x.x`) para os limites por IP não vazarem entre testes. Atalhos `register()` e `ticket()`. |
-| `Player` | Conexão WebSocket que grava todas as mensagens; `next(tipo, filtro, timeout)` espera/consome uma mensagem; `waitClose()` devolve o código de fechamento. |
+| `Player` | Conexão WebSocket que grava todas as mensagens; `next(tipo, filtro, timeout)` espera/consome uma mensagem; `waitClose()` devolve o código de fechamento. Uma mensagem atende **um** só `next` (o mais antigo que a quer), um `next` que estourou o tempo sai da fila (antes, ele ainda consumia mensagens e o `splice(-1)` apagava outra da fila), e a entrega acontece **na tarefa seguinte**, fora do evento de mensagem: o cliente de WebSocket do Bun corrompia os quadros (o servidor fechava com 1002, "control frame is fragmented") quando um teste enviava de dentro do evento enquanto os `zsnap` do modo zumbi chegavam. |
 | `Player.refusal()` | Envia o pedido de *upgrade* manualmente via `fetch` para ler o **status HTTP** da recusa (um WebSocket só veria o código 1002). |
 | `uniqueEmail()` | E-mails únicos por execução. |
 | `outbox` (`server/email.ts`) | Sem SMTP, os e-mails ficam em memória — os testes leem o link de recuperação dali. |
@@ -55,8 +57,16 @@ Como o servidor confia em `X-Forwarded-For` só vindo de endereço privado, e os
 - Conexão nova derruba a antiga (`4002`); sair da conta encerra a partida (`4001`); banimento encerra a partida e bloqueia a API.
 - Mapas: cada mapa tem uma sala fixa (`principal`/`rua`, `jardim`, `halloween`); sala criada leva o mapa; mapa desconhecido cai em `rua`.
 - Chat: chega a todos já limpo; quem manda rápido demais é segurado; silenciar/dessilenciar vale na partida em andamento.
-- Vaga por mapa: `GET /api/sessoes` lista as salas dos três mapas sem conexão de jogo; com 10 jogadores na `halloween`, abre "Vila Assombrada 2" vazia, que fecha quando um sai.
+- Vaga por mapa: `GET /api/sessoes` lista as salas dos três mapas (e de todos os modos, `GAME_MODE_IDS`) sem conexão de jogo; com 10 jogadores na `halloween`, abre "Vila Assombrada 2" vazia, que fecha quando um sai.
 - Regras de partida — ver [[Gameplay Tests]].
+
+### `zombies.test.ts` — modo zumbi
+
+- **Regras puras** (`shared/zombies.ts`): dados consistentes com as armas e o mapa (`zombieProblems`); começo com o rifle sem melhorias; ondas crescendo, escalando com os jogadores e com chefes nas ondas 4, 8 e 12; o caixão nunca repete a arma da mão e respeita os pesos das raridades (4.000 sorteios com semente); o pato só depois de algumas rodadas; virilha mata zumbi comum e dobra no chefe; dinheiro por abate.
+- **Navmesh pré-gerada em dia**: refaz a malha da Vila Assombrada headless (`tools/bake-navmesh.ts`) e compara o hash com `shared/data/navmesh/halloween.json`.
+- **Motor com relógio falso** (`ZombieMatch` sobre a navmesh real, sem servidor): contagem → onda → dinheiro e XP por abate → intervalo → próxima onda; zumbis andam até o jogador e o derrubam, sozinho cair é perder, resumo e nova partida; em dupla, reanimar (dinheiro do reanimador) e sangrar (volta no intervalo com o rifle inicial); vencer as 12 ondas com os três chefes (XP de vitória); o caixão (sem dinheiro não gira, longe não gira, gira → oferta → arma no slot certo; o pato devolve o dinheiro e muda de lugar); o tio que explode leva os outros com o crédito de quem o matou; sair libera; snapshot com tipo e flags.
+- **No servidor real**: sala fixa só na Vila Assombrada; criar zumbi noutro mapa cai lá; começa com o rifle sem melhorias mesmo com outra escolha no Arsenal; acerto com distância errada ou arma que não tem é recusado; acerto válido mata, paga e dá XP de conta (`progresso`); troca de Arsenal recusada; o caixão gira no servidor e entrega a arma no slot dela (`playerLoadout`); zumbis do servidor machucam quem está de pé; sem fogo amigo; queda mortal numa onda derruba (sem `kill`), o colega reanima (`zrevive` → `zup` com o dinheiro), os dois caídos → `zend` (derrota, com as quedas e reanimações) → `roundStart`.
+- Os testes encurtam tempos e preços mexendo no objeto `ZOMBIE` (o servidor roda no mesmo processo) e o restauram depois de cada um.
 
 ### `appearance.test.ts` — blocos "perfil" e "no online"
 
@@ -70,6 +80,6 @@ Como o servidor confia em `X-Forwarded-For` só vindo de endereço privado, e os
 ## Código relacionado
 
 - `server/tests/helpers.ts`, `server/tests/preload.ts`, `server/tests/env.ts`
-- `server/tests/auth.test.ts`, `server/tests/game.test.ts`, `server/tests/appearance.test.ts`
+- `server/tests/auth.test.ts`, `server/tests/game.test.ts`, `server/tests/appearance.test.ts`, `server/tests/modes.test.ts`, `server/tests/zombies.test.ts`
 
 Ver também: [[Testing Overview]], [[Authentication]], [[APIs]].

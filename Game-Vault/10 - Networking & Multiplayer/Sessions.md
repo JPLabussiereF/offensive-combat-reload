@@ -5,6 +5,8 @@ status: documented
 area: networking
 source_paths:
   - server/modes.ts
+  - server/navmesh.ts
+  - shared/zombieMatch.ts
   - shared/modes.ts
   - server/app.ts
   - server/session.ts
@@ -80,8 +82,9 @@ stateDiagram-v2
 ```
 
 - Cada sala tem seu próprio `setInterval` de 50 ms (`tick`) e um tópico pub/sub `sessao:<id>`.
-- Cada sala tem um **modo de jogo** (`mata-mata` ou `corrida-armada`, `SessionInfo.mode`), fixo desde a criação: a `Session` recebe o id e cria o seu `SessionMode` (`server/modes.ts`), que decide o loadout de quem entra, campos extras do jogador, se há dano agora (`combatOpen`), o que um abate faz (`onKill`) e o que roda no tick. Ver [[ADR - Modos de jogo com regras declaradas e ganchos no servidor]].
-- Salas permanentes (uma por mapa **e por modo**) nunca são removidas, e todo par mapa/modo sempre tem uma sala com vaga (o servidor abre `<Mapa> 2` quando as do par lotam). Ver [[Matchmaking]].
+- Cada sala tem um **modo de jogo** (`mata-mata`, `corrida-armada` ou `zumbi`, `SessionInfo.mode`), fixo desde a criação: a `Session` recebe o id e cria o seu `SessionMode` (`server/modes.ts`), que decide o loadout de quem entra, campos extras do jogador, se há dano agora (`combatOpen`), o que um abate faz (`onKill`) e o que roda no tick. Ver [[ADR - Modos de jogo com regras declaradas e ganchos no servidor]].
+- Salas permanentes (uma por mapa **e por modo**, só nos mapas em que o modo é jogado: `modeMaps`) nunca são removidas, e todo par mapa/modo sempre tem uma sala com vaga (o servidor abre `<Mapa> 2` quando as do par lotam). Ver [[Matchmaking]]. O **zumbi** só existe na Vila Assombrada (sala fixa `zumbi-halloween`); `create` com `mode: 'zumbi'` num outro mapa cria a sala na Vila Assombrada.
+- Uma sala **zumbi** carrega a navmesh do mapa ao ser criada (`server/navmesh.ts`; a primeira do processo espera o WebAssembly do Recast) e roda a partida da horda no tick da sala (`ZombieMode`); quem entra recebe o estado da partida no `joined` (`zumbi`). Esvaziou, a partida volta a esperar e os zumbis somem. Ver [[Zombie]].
 
 ### Estado mantido por sala
 

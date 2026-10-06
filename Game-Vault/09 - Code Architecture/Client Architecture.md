@@ -6,6 +6,7 @@ area: code-architecture
 source_paths:
   - index.html
   - client/main.ts
+  - client/zombies/client.ts
   - client/core/loop.ts
   - client/core/input.ts
   - client/core/settings.ts
@@ -23,7 +24,7 @@ tags:
   - client
   - threejs
   - rapier
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Client Architecture
@@ -91,6 +92,7 @@ Interpola posições, atualiza câmera/viewmodel, `dummies.render`, `bots.render
 | `client/character/` | Sistema modular de personagens (corpo, peças, atlas, animador) | [[Character Models]], [[Animation]] |
 | `client/weapons/` | Lógica de arma de fogo, hitscan, faca, granadas, minas | [[Weapons]], [[Grenades]], [[Melee]] |
 | `client/gameplay/` | Alvos, corpos, opressão, escolha de spawn, progressão, assistência de mira | [[Humiliation]], [[Spawn Design]] |
+| `client/zombies/` | Modo zumbi no cliente: `client.ts` (eventos da partida, HUD, `E` no caixão e para reanimar, caído), `view.ts` (zumbis interpolados com hitboxes, telegrafias), `coffin.ts` (o Caixão Misterioso), `looks.ts` (visuais dos zumbis e adereços dos chefes), `local.ts` (jogo solo: o motor `shared/zombieMatch.ts` no navegador), `ambience.ts` (névoa e página do caixão) | [[Zombie]] |
 | `client/ai/` | Bots, gerenciador do mata-mata contra bots, navmesh | [[AI Overview]] |
 | `client/net/` | API HTTP, conexão WebSocket, jogadores remotos | [[Networking Overview]] |
 | `client/audio/` | Sons procedurais e matemática de som espacial | [[Audio Overview]] |

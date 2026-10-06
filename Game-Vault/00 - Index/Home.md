@@ -57,7 +57,7 @@ Porta de entrada do cofre. Ele explica **o que existe no jogo, por que existe, c
 ## O jogo em cinco linhas
 
 - FPS de navegador com visual cartoon (toon shading), feito em TypeScript: Three.js + Rapier no cliente e Bun + PostgreSQL + Redis no servidor. Ver [[Architecture Overview]].
-- Três modos: **online** (mata-mata livre de até 10 jogadores, exige conta), **contra bots** (offline) e **treino** (offline, com bonecos). Ver [[Game Modes Index]].
+- Três lugares para jogar: **online** (até 10 jogadores, exige conta), **contra bots** (offline) e **treino** (offline, com bonecos); e três modos de jogo: **mata-mata**, **corrida armada** e **zumbi** (em equipe contra 12 ondas de zumbis e 3 chefes, com armas compradas no Caixão Misterioso com o dinheiro da partida; ver [[Zombie]]). Ver [[Game Modes Index]].
 - Três mapas jogáveis: [[Map - Rua dos Vizinhos]], [[Map - Jardim do Dragão]] e [[Map - Vila Assombrada]], mais o mapa de teste [[Map - Arena Teste (glTF)]].
 - Mecânica-assinatura: **Oprimir**, uma dança sobre o corpo de quem você matou, que vale 150 pontos. Ver [[Humiliation]]. Arsenal com rifle, uma secundária à escolha (pistola ou submetralhadora), faca e granada; cada arma sobe de nível com o próprio XP e cada nível libera uma melhoria. Ver [[Weapons]] e [[Progression]].
 - Mapas cheios de piadas interativas e bônus: cereja, carpa dourada, rato gigante, poções da bruxa e outros. Ver [[Map Gags]] e [[Buffs & Debuffs]].

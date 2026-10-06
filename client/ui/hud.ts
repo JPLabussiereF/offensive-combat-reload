@@ -6,8 +6,8 @@ import { t } from './strings';
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
 export type HitKind = 'hit' | 'head' | 'kill';
-export type FeedIcon = 'head' | 'knife' | 'bird' | 'taunt' | 'grenade' | 'dog' | null;
-const FEED_ICONS: Record<Exclude<FeedIcon, null>, string> = { head: '✚', knife: '🔪', bird: '🐦', taunt: '💃', grenade: '💣', dog: '🐕' };
+export type FeedIcon = 'head' | 'knife' | 'bird' | 'taunt' | 'grenade' | 'dog' | 'zombie' | null;
+const FEED_ICONS: Record<Exclude<FeedIcon, null>, string> = { head: '✚', knife: '🔪', bird: '🐦', taunt: '💃', grenade: '💣', dog: '🐕', zombie: '🧟' };
 
 /** An effect we're under, for the buff panel: `left`/`total` in seconds, no `total` when it lasts until we die. */
 export interface Buff {
@@ -68,6 +68,11 @@ export class Hud {
   private ladderEl = $('ladder');
   private ladderKey = '';
   private roundEl = $('round-end');
+  private zwaveEl = $('zwave');
+  private zwaveKey = '';
+  private zmoneyEl = $('zmoney');
+  private zmoney = -1;
+  private zsumEl = $('zsummary');
 
   constructor() {
     $('score-points-label').textContent = t('points');
@@ -80,15 +85,17 @@ export class Hud {
     this.root.classList.toggle('hidden', !v);
   }
 
-  setWeaponName(name: string) {
+  /** `rarity`: the zumbi mode's weapons are colored by it. */
+  setWeaponName(name: string, rarity = '') {
     this.weaponName.textContent = name;
+    this.weaponName.className = rarity ? `rar-${rarity}` : '';
   }
 
   /**
    * The guns carried, under the ammo: the key that picks each slot, its name and the ammo it has, the one in
    * hand lit (`drawing` while it comes up after a switch).
    */
-  setWeaponSlots(slots: { key: string; name: string; mag: number; reserve: number; active: boolean }[], drawing: boolean) {
+  setWeaponSlots(slots: { key: string; name: string; mag: number; reserve: number; active: boolean; rarity?: string }[], drawing: boolean) {
     const key = JSON.stringify(slots) + drawing;
     if (key === this.slotsKey) return;
     this.slotsKey = key;
@@ -99,6 +106,7 @@ export class Hud {
         row.innerHTML = '<kbd></kbd><span class="slot-name"></span><span class="slot-ammo"></span>';
         row.querySelector('kbd')!.textContent = s.key;
         row.querySelector('.slot-name')!.textContent = s.name;
+        if (s.rarity) row.querySelector('.slot-name')!.classList.add(`rar-${s.rarity}`);
         row.querySelector('.slot-ammo')!.textContent = `${s.mag}/${s.reserve}`;
         return row;
       }),
@@ -212,6 +220,74 @@ export class Hud {
     this.roundEl.classList.toggle('won', won);
     $('round-title').textContent = title;
     $('round-next').textContent = next;
+  }
+
+  /**
+   * Zumbi: the wave line under the score ("ONDA 3/12 · 14 zumbis", a countdown, the break) and the boss's
+   * health bar while there's one; null hides it.
+   */
+  setZombie(z: { title: string; sub: string; boss: { name: string; frac: number; enraged: boolean } | null; bossWave: boolean } | null) {
+    const key = JSON.stringify(z && { ...z, boss: z.boss && { ...z.boss, frac: Math.round(z.boss.frac * 200) } });
+    if (key === this.zwaveKey) return;
+    this.zwaveKey = key;
+    this.zwaveEl.classList.toggle('hidden', !z);
+    if (!z) return;
+    this.zwaveEl.classList.toggle('boss', z.bossWave);
+    $('zwave-title').textContent = z.title;
+    $('zwave-sub').textContent = z.sub;
+    $('zboss').classList.toggle('hidden', !z.boss);
+    if (!z.boss) return;
+    $('zboss').classList.toggle('enraged', z.boss.enraged);
+    $('zboss-name').textContent = z.boss.name;
+    $('zboss-fill').style.width = `${(Math.max(0, Math.min(1, z.boss.frac)) * 100).toFixed(1)}%`;
+  }
+
+  /** Zumbi: the match's money over the health (null hides it); it bumps when it grows. */
+  setMoney(money: number | null) {
+    this.zmoneyEl.classList.toggle('hidden', money === null);
+    if (money === null || money === this.zmoney) return;
+    const grew = money > this.zmoney && this.zmoney >= 0;
+    this.zmoney = money;
+    $('zmoney-num').textContent = money.toLocaleString('pt-BR');
+    if (!grew) return;
+    this.zmoneyEl.classList.remove('bump');
+    void this.zmoneyEl.offsetWidth;
+    this.zmoneyEl.classList.add('bump');
+  }
+
+  /** Zumbi: money earned, in the score popups ("+$60 Tiro na cabeça"). */
+  cash(amount: number, label: string) {
+    const el = document.createElement('div');
+    el.className = 'popup cash';
+    el.innerHTML = `<b></b> `;
+    el.querySelector('b')!.textContent = `+$${amount}`;
+    el.append(label);
+    this.popups.appendChild(el);
+    setTimeout(() => el.remove(), 1600);
+  }
+
+  /** Zumbi: the end-of-match card (null hides it). */
+  showZombieSummary(s: { title: string; sub: string; won: boolean; head: string[]; rows: { cells: string[]; me: boolean }[]; next: string } | null) {
+    this.zsumEl.classList.toggle('hidden', !s);
+    if (!s) return;
+    this.zsumEl.classList.toggle('won', s.won);
+    $('zsum-title').textContent = s.title;
+    $('zsum-sub').textContent = s.sub;
+    $('zsum-next').textContent = s.next;
+    $('zsum-head').replaceChildren(...s.head.map((h) => Object.assign(document.createElement('th'), { textContent: h })));
+    $('zsum-body').replaceChildren(
+      ...s.rows.map((r) => {
+        const tr = document.createElement('tr');
+        if (r.me) tr.className = 'me';
+        for (const c of r.cells) tr.appendChild(Object.assign(document.createElement('td'), { textContent: c }));
+        return tr;
+      }),
+    );
+  }
+
+  /** Only the countdown line of the summary (it changes every second). */
+  setZombieSummaryNext(text: string) {
+    $('zsum-next').textContent = text;
   }
 
   /** Only a melee weapon in hand (the lightsaber): no ammo count, no gun slots. */
@@ -365,6 +441,11 @@ export class Hud {
 
   setDeathTimer(seconds: number) {
     this.deathTimer.textContent = t('respawnIn', { s: Math.ceil(seconds) });
+  }
+
+  /** The death card's second line, said another way (zumbi: back next wave, or down and waiting for help). */
+  setDeathText(text: string) {
+    this.deathTimer.textContent = text;
   }
 
   setDebug(text: string | null) {

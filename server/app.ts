@@ -4,8 +4,8 @@
 import type { Server } from 'bun';
 import { join, normalize } from 'node:path';
 import { CLOSE, NET, sanitizeName, type ClientMsg, type ServerMsg } from '@shared/protocol';
-import { DEFAULT_MAP, isMapId, MAP_IDS, MAPS, type MapId } from '@shared/maps';
-import { DEFAULT_GAME_MODE, GAME_MODE_IDS, isGameModeId, type GameModeId } from '@shared/modes';
+import { DEFAULT_MAP, isMapId, MAPS, type MapId } from '@shared/maps';
+import { DEFAULT_GAME_MODE, GAME_MODE_IDS, isGameModeId, modeMaps, type GameModeId } from '@shared/modes';
 import { activeBan, chatMutedUntil, emptyDelta, flushProgress, getAccount, loadGameProfile, openParticipation } from './accounts';
 import { handleApi, ticketKey } from './api';
 import type { Deps } from './auth/sessions';
@@ -110,12 +110,12 @@ export async function startServer(opts: Options): Promise<GameServer> {
   }
 
   /**
-   * Every map always has a session with room in every mode: when all of a map's sessions of a mode are full,
-   * another opens ("Nome 2", "Nome 3"…).
+   * Every map always has a session with room in every mode played there (zumbi only in the haunted town): when
+   * all of a map's sessions of a mode are full, another opens ("Nome 2", "Nome 3"…).
    */
   function keepRoom() {
     for (const mode of GAME_MODE_IDS) {
-      for (const map of MAP_IDS) {
+      for (const map of modeMaps(mode)) {
         const same = [...sessions.values()].filter((s) => s.map === map && s.mode.id === mode);
         if (same.some((s) => !s.full)) continue;
         let n = 2;
@@ -126,7 +126,7 @@ export async function startServer(opts: Options): Promise<GameServer> {
   }
 
   // One permanent session per map and mode, named after the map (the list shows the mode beside it).
-  for (const mode of GAME_MODE_IDS) for (const map of MAP_IDS) createSession(MAPS[map].nome, map, mode, permanentSessionId(mode, map));
+  for (const mode of GAME_MODE_IDS) for (const map of modeMaps(mode)) createSession(MAPS[map].nome, map, mode, permanentSessionId(mode, map));
 
   // --- Progress persistence ---------------------------------------------------------------------------
   async function flush(a: LiveAccount, close: boolean) {
@@ -294,7 +294,11 @@ export async function startServer(opts: Options): Promise<GameServer> {
             let s: Session | undefined;
             if (msg.t === 'create') {
               const name = sanitizeName(msg.name, NET.sessionNameMax) || `Sala de ${profile.tag.split('#')[0]}`;
-              s = createSession(name, isMapId(msg.map) ? msg.map : DEFAULT_MAP, isGameModeId(msg.mode) ? msg.mode : DEFAULT_GAME_MODE);
+              const mode = isGameModeId(msg.mode) ? msg.mode : DEFAULT_GAME_MODE;
+              // A map the mode isn't played on falls back to the first one it is (zumbi: the haunted town).
+              const maps = modeMaps(mode);
+              const map = isMapId(msg.map) ? msg.map : DEFAULT_MAP;
+              s = createSession(name, maps.includes(map) ? map : maps[0], mode);
             } else {
               s = sessions.get(String(msg.session));
               if (!s) return conn.send({ t: 'error', message: 'Essa sessão não existe mais.' });

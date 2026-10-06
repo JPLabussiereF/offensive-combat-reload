@@ -4,6 +4,7 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - client/zombies/ambience.ts
   - shared/modes.ts
   - client/ui/ladder.ts
   - index.html
@@ -79,7 +80,7 @@ Mesmo cartão para os dois modos (`showMenu('start' | 'pause')`):
 | --- | --- |
 | Cabeçalho | Logo, subtítulo ("Sessão: {nome} · {modo}", "Contra N bots · {modo}" ou "Protótipo de tiro · Fase 1"), aviso de GPU por software (se detectado). |
 | Botão principal | **JOGAR** (início) ou **VOLTAR AO JOGO** (pausa) + dica "Clique para voltar ao jogo" / "Toque…" / "Aperte ✕ ou Options…". |
-| **Arsenal** | Painel de armas e melhorias (`client/ui/arsenal.ts`): um cartão por arma (rifle, pistola, submetralhadora, faca, granada) com espaço, nível, barra de XP até o próximo nível, barras de atributos das armas de fogo com as melhorias em efeito, a lista de melhorias (🔒 com os pontos se bloqueada; ativa; substituída; ou botão liga/desliga nas opcionais) e a descrição sob o mouse. Os cartões das secundárias têm o botão para levá-la no espaço secundário. **Só leitura** no mata-mata (online e contra bots), com o aviso "Equipamento travado durante a partida…"; editável no campo de tiro. Na **corrida armada** a seção vira a **escada** (`client/ui/ladder.ts`): os 7 degraus com ícone, nome, pente/cadência e abates necessários, o degrau do jogador em amarelo. Ver [[Inventory UI]], [[Progression]] e [[Gun Game]]. |
+| **Arsenal** | Painel de armas e melhorias (`client/ui/arsenal.ts`): um cartão por arma (rifle, pistola, submetralhadora, faca, granada) com espaço, nível, barra de XP até o próximo nível, barras de atributos das armas de fogo com as melhorias em efeito, a lista de melhorias (🔒 com os pontos se bloqueada; ativa; substituída; ou botão liga/desliga nas opcionais) e a descrição sob o mouse. Os cartões das secundárias têm o botão para levá-la no espaço secundário. **Só leitura** no mata-mata (online e contra bots), com o aviso "Equipamento travado durante a partida…"; editável no campo de tiro. Na **corrida armada** a seção vira a **escada** (`client/ui/ladder.ts`): os 7 degraus com ícone, nome, pente/cadência e abates necessários, o degrau do jogador em amarelo. No **zumbi** vira a página do **Caixão Misterioso** (`renderZombieArsenal` em `client/zombies/ambience.ts`): o que o jogador carrega (na cor da raridade) e a chance e o multiplicador de cada raridade com as armas dela. Ver [[Inventory UI]], [[Progression]], [[Gun Game]] e [[Zombie]]. |
 | **Controles** | Tabela de teclas remapeáveis (computador), tabela de botões do controle (PlayStation ou Xbox) ou ajuda de toque (celular). Ver [[Input & Controls]]. |
 | **Configurações** | Ver [[Settings]]. A coluna de controles e configurações (`#menu-settings`) é a mesma que a tela inicial empresta para a aba Configurações. |
 | Rodapé | Dica de depuração (F3/F4), botão **Sair para o início** (só na pausa; recarrega a página). |

@@ -1057,6 +1057,226 @@ export class Sfx {
     o.stop(t + 3.2);
   }
 
+
+  // --- Zumbi mode -------------------------------------------------------------------------------------
+
+  /** A zombie's groan: a low, wobbly vowel through a throaty filter ("uuuurgh"); `pitch` per kind. */
+  zombieGroan(pitch = 1) {
+    if (!this.ready) return;
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const p = pitch * (0.9 + Math.random() * 0.2);
+    const dur = 0.7 + Math.random() * 0.6;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(95 * p, t);
+    o.frequency.linearRampToValueAtTime(120 * p, t + dur * 0.3);
+    o.frequency.linearRampToValueAtTime(70 * p, t + dur);
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 7 + Math.random() * 4;
+    const depth = ctx.createGain();
+    depth.gain.value = 9 * p;
+    lfo.connect(depth).connect(o.frequency);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 520 * p;
+    f.Q.value = 2.2;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.16, t + 0.12);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(f).connect(g).connect(this.out('sfx'));
+    o.start(t);
+    lfo.start(t);
+    o.stop(t + dur + 0.05);
+    lfo.stop(t + dur + 0.05);
+    this.noiseBurst(t, dur * 0.8, 'bandpass', 380 * p, 1.2, 0.04);
+  }
+
+  /** A zombie going down: a gurgle and a wet thud. */
+  zombieDeath(pitch = 1) {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sawtooth', 160 * pitch, 55 * pitch, 0.5, 0.12, 'sfx', 0.01);
+    for (let i = 0; i < 4; i++) this.tone(t + 0.08 + i * 0.07, 'sine', 140 + Math.random() * 120, 60, 0.06, 0.07);
+    this.noiseBurst(t + 0.45, 0.2, 'lowpass', 500, 0.8, 0.22);
+    this.tone(t + 0.45, 'sine', 120, 45, 0.18, 0.18);
+  }
+
+  /** Coming out of the ground: dirt cracking and a gasp. */
+  zombieRise() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.noiseBurst(t, 0.5, 'lowpass', 700, 0.7, 0.18);
+    this.noiseBurst(t + 0.1, 0.3, 'bandpass', 1800, 2, 0.06);
+    this.tone(t + 0.35, 'sawtooth', 110, 160, 0.3, 0.06, 'sfx', 0.05);
+  }
+
+  /** The gossip aunt's spit: a hork and a whoosh. */
+  zombieSpit() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.noiseBurst(t, 0.18, 'bandpass', 900, 3, 0.16);
+    this.tone(t, 'sawtooth', 220, 420, 0.12, 0.06, 'sfx', 0.01);
+    this.noiseBurst(t + 0.12, 0.3, 'highpass', 2500, 0.8, 0.06);
+  }
+
+  /** Spit landing: a splat. */
+  zombieSplat() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.noiseBurst(t, 0.16, 'lowpass', 1200, 1, 0.22);
+    this.tone(t, 'sine', 300, 90, 0.1, 0.12);
+  }
+
+  /** The barbecue uncle bursting: the blast and a long, rude squelch. */
+  bloaterPop() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.explosion();
+    this.tone(t + 0.05, 'sawtooth', 180, 40, 0.7, 0.14, 'sfx', 0.01);
+    this.noiseBurst(t + 0.1, 0.6, 'bandpass', 400, 1.5, 0.12);
+  }
+
+  /** A boss's roar: three detuned growls over a sub rumble; `pitch` lower for bigger bosses. */
+  bossRoar(pitch = 0.6) {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    for (const d of [0.97, 1, 1.04]) this.tone(t, 'sawtooth', 120 * pitch * d, 60 * pitch * d, 1.2, 0.09, 'sfx', 0.08);
+    this.tone(t, 'sine', 55, 35, 1.3, 0.25, 'sfx', 0.1);
+    this.noiseBurst(t, 1.1, 'bandpass', 600 * pitch, 1, 0.12);
+  }
+
+  /** A boss winding up a slam or a stomp: a rising grunt and a creak of strain. */
+  bossWindup() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sawtooth', 70, 140, 0.9, 0.12, 'sfx', 0.1);
+    this.noiseBurst(t, 0.9, 'bandpass', 300, 2, 0.06);
+  }
+
+  /** The bride's scream: a piercing wail that wobbles and falls. */
+  bossScream() {
+    if (!this.ready) return;
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(700, t);
+    o.frequency.exponentialRampToValueAtTime(1500, t + 0.9);
+    o.frequency.exponentialRampToValueAtTime(600, t + 1.8);
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 9;
+    const depth = ctx.createGain();
+    depth.gain.value = 60;
+    lfo.connect(depth).connect(o.frequency);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.13, t + 0.25);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.9);
+    o.connect(g).connect(this.out('sfx'));
+    o.start(t);
+    lfo.start(t);
+    o.stop(t + 2);
+    lfo.stop(t + 2);
+    this.noiseBurst(t, 1.6, 'highpass', 3000, 0.7, 0.04);
+  }
+
+  /** The gravedigger calling the dead: a hollow chant over digging. */
+  bossSummon() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    for (const [f, at] of [[110, 0], [104, 0.4], [98, 0.8]] as const) this.tone(t + at, 'square', f, f * 0.98, 0.45, 0.05, 'sfx', 0.05);
+    for (let i = 0; i < 4; i++) this.noiseBurst(t + i * 0.35, 0.18, 'lowpass', 800, 0.8, 0.14);
+  }
+
+  /** The bride vanishing or coming back: a reverse whoosh and a shimmer. */
+  bossBlink() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.noiseBurst(t, 0.35, 'bandpass', 1800, 1.5, 0.1);
+    for (let i = 0; i < 5; i++) this.tone(t + i * 0.04, 'sine', 900 + i * 260, 1400 + i * 260, 0.18, 0.03);
+  }
+
+  /** The coffin's lid creaking open, then its music box. */
+  coffinOpen() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sawtooth', 260, 420, 0.5, 0.05, 'sfx', 0.04);
+    this.noiseBurst(t, 0.5, 'bandpass', 1100, 6, 0.06);
+    const notes = [784, 659, 587, 659, 523, 587, 494, 523];
+    notes.forEach((f, i) => this.tone(t + 0.4 + i * 0.32, 'triangle', f, f, 0.3, 0.05, 'sfx', 0.005));
+  }
+
+  /** Each weapon flicking past in the coffin. */
+  coffinTick() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'square', 1800, 1600, 0.025, 0.025, 'sfx', 0.002);
+  }
+
+  /** The coffin stops on a weapon: a chime, bigger for an epic (1) or a legendary (2) one. */
+  coffinReveal(level = 0) {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    const chord = level === 2 ? [523, 659, 784, 1047, 1319] : level === 1 ? [523, 659, 784, 1047] : [659, 784, 988];
+    chord.forEach((f, i) => this.tone(t + i * 0.06, 'triangle', f, f, 0.6 + level * 0.3, 0.06, 'sfx', 0.01));
+    if (level === 2) this.applause(1.2);
+  }
+
+  /** The coffin flying off: a rising whoosh and flapping. */
+  coffinFly() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sine', 200, 900, 1.2, 0.08, 'sfx', 0.2);
+    for (let i = 0; i < 8; i++) this.noiseBurst(t + i * 0.12, 0.06, 'bandpass', 700 + i * 60, 3, 0.07);
+    this.evilLaugh();
+  }
+
+  /** The coffin landing somewhere new. */
+  coffinLand() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.noiseBurst(t, 0.3, 'lowpass', 500, 0.8, 0.25);
+    this.tone(t, 'sine', 90, 45, 0.25, 0.2);
+  }
+
+  /** A wave starting: the church bell tolls (three times, lower on a boss wave). */
+  waveStart(boss = false) {
+    if (!this.ready) return;
+    for (let i = 0; i < 3; i++) setTimeout(() => this.churchBell(boss ? 0.62 : 0.8), i * 900);
+  }
+
+  /** A wave cleared: a hopeful organ chord. */
+  waveEnd() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    for (const f of [262, 330, 392, 523]) this.tone(t, 'square', f, f, 1.4, 0.035, 'sfx', 0.15);
+  }
+
+  /** Money in: a cash register's "ka-ching". */
+  cashRegister() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.noiseBurst(t, 0.05, 'highpass', 3000, 0.8, 0.08);
+    this.tone(t + 0.05, 'triangle', 2093, 2093, 0.25, 0.05, 'ui');
+    this.tone(t + 0.05, 'triangle', 2637, 2637, 0.3, 0.04, 'ui');
+  }
+
+  /** Down and bleeding out: a slow heartbeat. */
+  heartbeat() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sine', 60, 40, 0.12, 0.3);
+    this.tone(t + 0.22, 'sine', 55, 38, 0.14, 0.22);
+  }
+
+  /** Back on your feet. */
+  reviveDone() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    for (const [f, at] of [[523, 0], [659, 0.08], [784, 0.16], [1047, 0.24]] as const) this.tone(t + at, 'triangle', f, f, 0.35, 0.06, 'sfx', 0.01);
+  }
   ui() {
     if (!this.ready) return;
     const t = this.ctx!.currentTime;
