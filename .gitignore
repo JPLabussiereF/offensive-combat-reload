@@ -4,3 +4,5 @@ dist
 build
 airam_memory/
 .env
+# Map models uploaded to a local server (MAPAS_DIR)
+dados/

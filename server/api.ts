@@ -1,4 +1,4 @@
-// The API under /api: accounts (here) and management (gestao.ts). JSON in and out unless a
+// The API under /api: accounts (here), maps (mapRoutes.ts) and management (gestao.ts). JSON in and out unless a
 // route says otherwise; every state-changing request must come from this site (Origin check) and carries the
 // session cookie. Errors are { erro: code }.
 //
@@ -12,6 +12,7 @@ import { login, register, requestReset, resetPassword } from './auth/password';
 import { authenticate, clearSessionCookie, revokeSession, type Deps } from './auth/sessions';
 import { gestaoRoutes } from './gestao';
 import { HttpError, json, originAllowed, randomToken, readJson, sha256hex } from './http';
+import { mapRoutes } from './mapRoutes';
 import { REVOCATION_CHANNEL } from './redis';
 import { rolesOf } from './roles';
 import { info, reply, requireSession, type Ctx, type Handler } from './route';
@@ -136,7 +137,7 @@ function compile(all: Record<string, Handler>) {
   return { exact, patterns };
 }
 
-const ROUTES = compile({ ...accountRoutes, ...gestaoRoutes });
+const ROUTES = compile({ ...accountRoutes, ...mapRoutes, ...gestaoRoutes });
 
 /** The handler of a request and its parameters, or null. */
 function route(method: string, path: string): { handler: Handler; params: Record<string, string> } | null {
