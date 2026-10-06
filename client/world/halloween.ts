@@ -405,7 +405,7 @@ export function deadTree(b: MapBuilder, x: number, z: number, scale: number, ran
     b.addGeometry(tg, paint, tint);
     tg.dispose();
   }
-  if (o.collide !== false) b.cuboidCollider(V(x + lx * 0.2 * s, y + h * 0.32, z + lz * 0.2 * s), V(0.3 * s, h * 0.32, 0.3 * s), NO_ROT, 'wood');
+  if (o.collide !== false) b.cuboidCollider(V(x + lx * 0.2 * s, y + h * 0.32, z + lz * 0.2 * s), V(0.3 * s, h * 0.32, 0.3 * s), NO_ROT, 'wood', undefined, 'trunk');
 }
 
 export type TombKind = 'arco' | 'cruz' | 'laje' | 'obelisco';

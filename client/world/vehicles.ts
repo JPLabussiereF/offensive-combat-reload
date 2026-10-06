@@ -136,7 +136,8 @@ class Kit {
 
   collider(cx: number, cy: number, cz: number, hx: number, hy: number, hz: number, onShot?: SurfaceInfo['onShot']) {
     const c = new THREE.Vector3(cx, cy, cz).applyMatrix4(this.m);
-    this.b.cuboidCollider(c, new THREE.Vector3(hx, hy, hz), this.q, 'metal', onShot);
+    // Sound wraps around a car: it blocks much less than a wall (audio/spatial.ts).
+    this.b.cuboidCollider(c, new THREE.Vector3(hx, hy, hz), this.q, 'metal', onShot, 'vehicle');
   }
 }
 
