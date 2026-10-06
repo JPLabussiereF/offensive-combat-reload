@@ -87,6 +87,18 @@ Regras de medida que o jogo checa automaticamente:
 - **Janela do térreo** que deve dar para atravessar pulando agachado: peitoril a até **0,9 m** e topo a **2,3 m** ou mais.
 - Todo vão fica registrado em `map.openings`. O teste de estrutura passa um raio por cada vão e tenta atravessar cada porta andando.
 
+### Salas para o som (mapas feitos em código)
+
+O som sabe se um lugar é fechado pelas **salas marcadas à mão**: `b.room(min, max, grau)` registra uma caixa alinhada aos eixos, do piso ao teto e por dentro das paredes. Dentro dela, os sons (tiros, passos, granadas, explosões) ficam levemente abafados e com eco de sala; fora, soam claros e com um eco aberto curto.
+
+- **Grau de fechamento** de 0 a 1. Use **1** para sala fechada (portas e janelas não contam como abertura). Use **0,3 a 0,6** para lugares cobertos e abertos dos lados. Os mapas atuais usam: **0,6** com um lado aberto (garagem, barraca de tiro ao alvo), **0,5** com dois (portões cobertos do Jardim), **0,4** com três (varandas, alpendres, sacadas, barracas de feira) e **0,3** com os quatro (pavilhões, coreto, mirante).
+- Onde caixas se sobrepõem vale o **maior grau**, então a caixa de uma varanda pode encostar na da casa sem problema.
+- Pode marcar a casa inteira numa caixa só quando todos os cômodos são fechados.
+- Fora de toda caixa, o jogo mede o lugar com raios (teto até 8 m e só com paredes em pelo menos 3 de 6 direções). Isso é uma **reserva**: marque todo lugar coberto onde se pode entrar.
+- Helpers que constroem lugares cobertos já marcam a própria caixa: `pavilion` (cada andar, sacadas e alpendre), `ting`, `gateway`, `house` da Vila Assombrada e a casa da Rua.
+
+Para a oclusão (sons atrás de obstáculos), cada colisor pesa pelo material, pela espessura atravessada (cheia a partir de 0,3 m) e pelo tipo. Carros e troncos de árvore abafam pouco: marque com `occluder: 'vehicle'` ou `'trunk'` (opção de `b.box`/`b.cylinder`, último argumento de `cuboidCollider`).
+
 ### Peças orientais
 
 [client/world/oriental.ts](../client/world/oriental.ts) tem as peças do "Jardim do Dragão" ([client/world/dragonGarden.ts](../client/world/dragonGarden.ts), com um arquivo por setor em [client/world/jardim/](../client/world/jardim/)), prontas para outros mapas:
@@ -177,6 +189,7 @@ Hidrantes, o caminhão de sorvete, os flamingos, as lanternas, o gongo e o drag�
 | `DUMMY_01` | Boneco de treino |
 | `KILLVOLUME` | Cair abaixo da altura deste objeto mata |
 | `GAG_LATIDO` (ou outro `GAG_*`) | Gatilho de piada ambiental, ligado no código do mapa |
+| `ROOM_nome` | Sala para o som (eco de sala e abafamento leve dentro). Uma caixa do piso ao teto, por dentro das paredes; invisível e sem colisão. Grau na propriedade `fechamento` |
 | qualquer nome com `NOCOL` | Visível, sem colisão (folhagem, fios, detalhes pequenos) |
 
 **Materiais:** nomeie `MAT_<superfície>` para usar a biblioteca, por exemplo `MAT_tijolo`, `MAT_telhado`, `MAT_madeira`. A **Base Color** do material vira o tint. O sufixo `.001` que o Blender adiciona em cópias é ignorado. Materiais com outros nomes mantêm a própria textura.
@@ -191,6 +204,7 @@ Hidrantes, o caminhão de sorvete, os flamingos, as lanternas, o gongo e o drag�
 | `nocol` | malhas | `true`: sem colisão |
 | `uv_proprio` | malhas com `MAT_` | `true`: usa as UVs do Blender em vez da projeção automática em metros |
 | `eixo`, `amplitude`, `velocidade` | `DUMMY_*` | patrulha: `eixo` = `x` ou `z`, `amplitude` em metros, `velocidade` em rad/s |
+| `fechamento` | `ROOM_*` | 0 a 1 (padrão 1): 1 sala fechada; 0,3 a 0,6 varanda ou pavilhão aberto dos lados (veja "Salas para o som") |
 
 ### Exportação
 
