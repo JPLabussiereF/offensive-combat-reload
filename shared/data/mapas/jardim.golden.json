@@ -1724,7 +1724,7 @@
     {"tipo":"Mesh","nome":"","material":"MeshBasicMaterial,,ffe6a0,-,-,-,-,0,dw,1","sombra":false,"n":756,"hash":"53eddfedd64100bf"},
     {"tipo":"Mesh","nome":"","material":"MeshBasicMaterial,,ffffff,-,-,-,t0.85,0,-,1","sombra":false,"n":3200,"hash":"659a3c06d4fcd30c"},
     {"tipo":"Mesh","nome":"","material":"MeshBasicMaterial,,ffffff,-,-,vc,-,0,dw,1","sombra":false,"n":37808,"hash":"e2cef29ec9eff9e0"},
-    {"tipo":"Mesh","nome":"","material":"MeshBasicMaterial,,ffffff,-,-,vc,-,2,dw,1","sombra":false,"n":81900,"hash":"4024a25a7cf27692"},
+    {"tipo":"Mesh","nome":"","material":"MeshBasicMaterial,,ffffff,-,-,vc,-,2,dw,1","sombra":false,"n":81900,"hash":"74be1b93d4bea95f"},
     {"tipo":"Mesh","nome":"","material":"MeshToonMaterial,,3fa49c,000000,-,-,t0.72,0,-,1","sombra":false,"n":28,"hash":"2134df08b58ec1a7"},
     {"tipo":"Mesh","nome":"","material":"MeshToonMaterial,,3fa49c,000000,-,-,t0.72,0,-,1","sombra":false,"n":2,"hash":"5c4e8373a602d886"},
     {"tipo":"Mesh","nome":"","material":"MeshToonMaterial,,3fa49c,000000,-,-,t0.72,0,-,1","sombra":false,"n":2,"hash":"7b73ebd6f9f7bbe7"},
@@ -1828,8 +1828,8 @@
     {"tipo":"PointLight","nome":"","material":"ffa24e,0,10,1.7","sombra":false,"n":0,"hash":"0,0,0"},
     {"tipo":"PointLight","nome":"","material":"ffa24e,0,10,1.7","sombra":false,"n":0,"hash":"0,0,0"},
     {"tipo":"PointLight","nome":"","material":"ffa24e,0,10,1.7","sombra":false,"n":0,"hash":"0,0,0"},
-    {"tipo":"Points","nome":"","material":"PointsMaterial,,ff9a3c,-,tex,-,t0.6,0,-,2","sombra":false,"n":193,"hash":"409638ee2bde459"},
-    {"tipo":"Points","nome":"","material":"PointsMaterial,,ffa046,-,tex,-,t0.75,0,-,2","sombra":false,"n":650,"hash":"409638ee2bde459"},
-    {"tipo":"Points","nome":"","material":"PointsMaterial,,fff4dc,-,-,-,t0.45,0,-,1","sombra":false,"n":260,"hash":"409638ee2bde459"}
+    {"tipo":"Points","nome":"","material":"PointsMaterial,,ff9a3c,-,tex,-,t0.6,0,-,2","sombra":false,"n":193,"hash":"fe7f86c95175d8ce"},
+    {"tipo":"Points","nome":"","material":"PointsMaterial,,ffa046,-,tex,-,t0.75,0,-,2","sombra":false,"n":650,"hash":"22715ae414d50382"},
+    {"tipo":"Points","nome":"","material":"PointsMaterial,,fff4dc,-,-,-,t0.45,0,-,1","sombra":false,"n":260,"hash":"60d3a402938e83e0"}
   ]
 }

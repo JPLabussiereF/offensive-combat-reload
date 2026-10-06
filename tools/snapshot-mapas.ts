@@ -8,8 +8,8 @@
 //
 // The summary doesn't depend on the order things were built in: colliders, batches and objects are sorted,
 // and a mesh's hash is the hash of its sorted triangles. The order can change (the map data's pieces, the
-// shared systems finishing at the end) without changing the map. Math.random is seeded while a map builds
-// (clouds, stars and fruit are drawn from it).
+// shared systems finishing at the end) without changing the map. Math.random is fixed while a map builds
+// (clouds, stars and fruit are drawn from it, and three.js's uuids: see tools/headless.ts).
 //
 //   bun tools/snapshot-mapas.ts            writes the golden of the 4 maps
 //   bun tools/snapshot-mapas.ts rua        just one
@@ -19,16 +19,13 @@
 import { join } from 'node:path';
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { fakeRenderer, installCanvasStandIn, loadClient, ROOT, servePublicFromDisk, silentSfx, withSeededRandom } from './headless';
+import { fakeRenderer, installCanvasStandIn, loadClient, ROOT, servePublicFromDisk, silentSfx, withFixedRandom } from './headless';
 
 export const OFFICIAL = ['rua', 'jardim', 'halloween', 'cemiterio'] as const;
 export type OfficialMap = (typeof OFFICIAL)[number];
 
 export const MAPS_DIR = join(ROOT, 'shared', 'data', 'mapas');
 export const goldenPath = (slug: string) => join(MAPS_DIR, `${slug}.golden.json`);
-
-/** Seed of Math.random while a map builds. */
-const RANDOM_SEED = 20261006;
 
 type Num3 = [number, number, number];
 
@@ -110,10 +107,7 @@ function geometrySig(obj: THREE.Mesh | THREE.Points | THREE.Line | THREE.Sprite,
     return s;
   };
   const parts: string[] = [];
-  // Point clouds are the night's stars (Math.random: anywhere on the dome, different on every load) and the
-  // lanterns' halos: their count is the map, where each point falls isn't.
-  if ((obj as THREE.Points).isPoints) return { n: pos.count, parts: [] };
-  if ((obj as THREE.Sprite).isSprite) {
+  if ((obj as THREE.Points).isPoints || (obj as THREE.Sprite).isSprite) {
     for (let i = 0; i < pos.count; i++) parts.push(vert(i));
     return { n: pos.count, parts };
   }
@@ -249,7 +243,7 @@ export function summarize(slug: string, b: Built): MapSnapshot {
 
 /**
  * Builds a map headless and records the LightPool's light spots on the way. `build` gets fresh physics and
- * scene; Math.random is seeded meanwhile.
+ * scene; Math.random is fixed meanwhile.
  */
 export async function buildHeadless(build: (physics: any, scene: THREE.Scene) => Promise<any>): Promise<Built> {
   const restore = installCanvasStandIn();
@@ -266,7 +260,7 @@ export async function buildHeadless(build: (physics: any, scene: THREE.Scene) =>
     try {
       const physics = await createPhysics();
       const scene = new THREE.Scene();
-      const map = await withSeededRandom(RANDOM_SEED, () => build(physics, scene));
+      const map = await withFixedRandom(() => build(physics, scene));
       return { map, scene, physics, lightSpots };
     } finally {
       LightPool.prototype.add = add;

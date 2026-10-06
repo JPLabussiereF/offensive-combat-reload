@@ -362,6 +362,6 @@
     {"tipo":"PointLight","nome":"","material":"ffffff,0,10,1.6","sombra":false,"n":0,"hash":"0,0,0"},
     {"tipo":"PointLight","nome":"","material":"ffffff,0,10,1.6","sombra":false,"n":0,"hash":"0,0,0"},
     {"tipo":"PointLight","nome":"","material":"ffffff,0,10,1.6","sombra":false,"n":0,"hash":"0,0,0"},
-    {"tipo":"Points","nome":"","material":"PointsMaterial,,e8e4ff,-,-,-,t0.85,0,-,1","sombra":false,"n":700,"hash":"409638ee2bde459"}
+    {"tipo":"Points","nome":"","material":"PointsMaterial,,e8e4ff,-,-,-,t0.85,0,-,1","sombra":false,"n":700,"hash":"2a2493f7523c2ffa"}
   ]
 }

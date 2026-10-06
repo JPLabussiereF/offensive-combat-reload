@@ -62,16 +62,15 @@ export async function servePublicFromDisk() {
   THREE.DefaultLoadingManager.setURLModifier((u: string) => (u.startsWith('/') ? 'file:///' + join(ROOT, 'public', u).replace(/\\/g, '/') : u));
 }
 
-/** Deterministic Math.random while `fn` runs (stars, clouds and fruit are drawn from it), then the real one back. */
-export async function withSeededRandom<T>(seed: number, fn: () => Promise<T>): Promise<T> {
+/**
+ * Math.random fixed while `fn` runs. What it draws at build time is decoration that changes on every load (where
+ * the clouds, the stars and the sky lanterns are, how a cherry half is turned) and three.js draws its objects'
+ * uuids from it too, so a seeded sequence would depend on how many objects were made before: a constant
+ * doesn't.
+ */
+export async function withFixedRandom<T>(fn: () => Promise<T>, value = 0.37): Promise<T> {
   const real = Math.random;
-  let s = seed | 0;
-  Math.random = () => {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+  Math.random = () => value;
   try {
     return await fn();
   } finally {
