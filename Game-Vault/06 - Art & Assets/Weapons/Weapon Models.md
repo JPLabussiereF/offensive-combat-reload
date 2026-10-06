@@ -28,7 +28,7 @@ updated: 2026-10-06
 
 ## Visão geral
 
-Todas as armas são **modelos feitos de primitivas em código** ("placeholder art", comentário de `weaponModels.ts`), sem arquivos. Cada arma de fogo tem o seu modelo (rifle, pistola, submetralhadora), e as **melhorias** mudam o que aparece nele: a mira, a pintura, o pente e o silenciador. A "faca" muda de forma com as melhorias opcionais (frango, sabre) e a granada vira mina ou Dose Dupla. Os mesmos modelos servem para a primeira pessoa (viewmodel) e para a terceira pessoa (o que os outros veem). Regras de jogo das melhorias: [[Weapons]] e [[Progression]].
+Todas as armas são **modelos feitos de primitivas em código** ("placeholder art", comentário de `weaponModels.ts`), sem arquivos. Cada arma de fogo tem o seu modelo (rifle, pistola, submetralhadora); os sete rifles usam o mesmo modelo com a **pintura** de cada um, e as **melhorias** mudam a mira, o pente e o silenciador. Cada uma das sete facas tem o seu modelo, e a granada vira mina ou Dose Dupla. Os rifles pintados, as miras com aumento e as facas antigas voltaram das primeiras versões do jogo (PF-8; recuperados do histórico do git). Os mesmos modelos servem para a primeira pessoa (viewmodel) e para a terceira pessoa (o que os outros veem). Regras de jogo das melhorias: [[Weapons]] e [[Progression]].
 
 ## Armas de fogo
 
@@ -46,27 +46,41 @@ Todas as armas são **modelos feitos de primitivas em código** ("placeholder ar
 | `pontoVermelho` | rifle (nível 2) e pistola (nível 3, versão mini, escala 0,65) | tubo com aros e ponto vermelho brilhante |
 | `holo` | submetralhadora (nível 3) | janela holográfica com **retículo de carinha feliz** amarelo |
 | `luneta` | rifle (nível 4, opcional) | luneta do vovô em latão com lente azulada; mirando por completo, o modelo some e entra o overlay de luneta ([[Camera]]) |
+| `holoLupa` | rifle (nível 7, opcional) | a holográfica de carinha feliz com uma **lupa** (tubo curto) atrás |
+| `luneta2x` / `luneta4x` | rifle (níveis 8 e 9, opcionais) | lunetas de latão como a do vovô, mais curta (2x) e mais comprida e larga (4x); mirando por completo, o overlay de luneta. `isScope(mira)`: toda mira que começa com `luneta` |
 
-| Pintura (`visual`) | Quando | Detalhe |
+A pintura vem do JSON de cada rifle (`visual`); as melhorias não a mudam.
+
+| Pintura (`visual`) | Rifle | Detalhe |
 | --- | --- | --- |
-| `padrao` | rifle sem melhorias visuais; pistola e submetralhadora sempre | metal escuro, madeira, faixa laranja |
-| `fita` | rifle com o Pente (nível 5) | voltas de fita cinza no guarda-mão e na coronha |
-| `vovo` | rifle com a Luneta (nível 4) | metal azulado, madeira avermelhada, latão |
+| `padrao` | Rifle Padrão; pistola e submetralhadora sempre | metal escuro, madeira, faixa laranja |
+| `fita` | Remendado com Fita | voltas de fita cinza no guarda-mão e na coronha |
+| `tia` | da Tia do Zap | branco e rosa, faixa verde-água, adesivo de florzinha na coronha |
+| `natal` | Pisca-Pisca de Natal | madeira vermelha, faixa verde, fio de luzinhas coloridas (brilhantes) no guarda-mão e no cano |
+| `chamas` | Tunado com Adesivo de Chama | preto fosco, faixa laranja, adesivos de chama nas laterais |
+| `vovo` | do Vovô | metal azulado, madeira avermelhada, latão |
+| `ouro` | Dourado Ostentação | todo dourado, um rubi de cada lado |
+
+O pente duplo com fita aparece em qualquer rifle com mais de 30 balas (o Pente, ou o Dourado, que já tem 40).
 
 - **Altura da linha de mira (`sightY`)** define a pose de ADS. A pistola e a submetralhadora têm também uma distância de ADS própria (`adsZ`: −0,46 e −0,42), "a pistol is held out farther".
 - Partes que brilham (ponto vermelho, retículo, ponto da massa da pistola, lente) são `MeshBasicMaterial` e ficam fora do merge, "para continuarem claras".
 
 Paletas em `LOOKS` (`weaponModels.ts`); ver também [[Material Palette]].
 
-## "Facas" (3 formas)
+## Facas (7)
 
-`knifeModel(form)` com `form` = `KnifeForm` (`faca`, `frango`, `sabre`), segurado pelo punho na origem, apontando para −Z. Em primeira pessoa, as que não são `faca` são 20% maiores e usam o golpe em arco (`SWING_KEYS`) em vez da estocada.
+`knifeModel(faca)` com `faca` = `KnifeId`, segurado pelo punho na origem, apontando para −Z. Em primeira pessoa, as que não são `faca` são 20% maiores e usam o golpe em arco (`SWING_KEYS`) em vez da estocada.
 
-| Forma | Quando | Construção |
-| --- | --- | --- |
-| `faca` | padrão | lâmina + ponta, guarda e cabo de madeira |
-| `frango` | melhoria opcional Frango de Borracha (nível 3) | frango amarelo segurado pelos pés: corpo comprido, asas, pescoço, crista vermelha, bico aberto, olhos |
-| `sabre` | melhoria opcional Sabre de Luz Paraguaio (nível 5) | cabo prateado e lâmina rosa-choque com brilho aditivo |
+| Faca | Construção |
+| --- | --- |
+| `faca` (padrão) | lâmina + ponta, guarda e cabo de madeira |
+| `colher` | colher de pau: cabo fino e concha oval de madeira clara |
+| `frango` | frango amarelo segurado pelos pés: corpo comprido, asas, pescoço, crista vermelha, bico aberto, olhos |
+| `baguete` | cápsula de casca dourada com cinco cortes claros |
+| `peixe` | peixe azul-acinzentado segurado pela cauda, com olho, barbatana e pontos de gelo |
+| `macarrao` | cilindro de espuma verde de 60 cm, com o furo na ponta |
+| `sabre` | cabo prateado e lâmina rosa-choque com brilho aditivo |
 
 ## Granadas e mina
 
@@ -98,7 +112,7 @@ Antebraço e mão do próprio personagem, gerados com o mesmo corpo facetado (`v
 
 ## Código relacionado
 
-- `client/render/weaponModels.ts` (`gunParts`, `gunModelKey`, `holdOf`, `sight`, `LOOKS`, `knifeModel`, `mineModel`, `glowMat`)
+- `client/render/weaponModels.ts` (`gunParts`, `gunModelKey`, `holdOf`, `sight`, `isScope`, `LOOKS`, `knifeModel`, `mineModel`, `glowMat`)
 - `client/render/viewmodel.ts` (`setGun`, `draw`, `setKnife`, `setGrenadeKind`, `bakeStaticParts`, `flashTexture`)
 - `client/render/viewmodelArms.ts` (`armMesh`, `placeArm`)
 - `client/entities/heldWeapons.ts` (`heldGun`, `heldKnife`, `heldGrenade`)
@@ -106,7 +120,7 @@ Antebraço e mão do próprio personagem, gerados com o mesmo corpo facetado (`v
 - `client/character/animator.ts` (`GunHold`, `ANIM.leftGrip`)
 - `client/weapons/grenades.ts` (`grenadeModel`, `duckModel`)
 - `client/character/registry.ts` (itens `rifle`, `rifle_costas`)
-- `shared/data/progression.json`, `shared/arsenal.ts` (`GunStats`: `mira`, `visual`, `silenciador`, `pente`)
+- `shared/data/progression.json` (miras), `shared/data/weapons/rifle_*.json` (`visual`), `shared/arsenal.ts` (`GunStats`: `mira`, `visual`, `silenciador`, `pente`)
 
 ## Ver também
 

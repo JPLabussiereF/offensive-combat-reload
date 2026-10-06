@@ -37,22 +37,22 @@ Os testes usam o executor nativo **`bun test`** (`bun:test`: `describe`, `it`, `
 
 | Arquivo | Tipo | Casos (`it`) | Assunto |
 | --- | --- | --- | --- |
-| `server/tests/auth.test.ts` | Integração (HTTP) | 17 | cadastro, login, limites, sessão, origem, recuperação de senha, perfil (Arsenal: melhoria e submetralhadora trancadas, comuns desligadas), exclusão |
+| `server/tests/auth.test.ts` | Integração (HTTP) | 19 | cadastro, login, limites, sessão, origem, recuperação de senha, perfil (Arsenal: melhoria, submetralhadora, rifle e faca trancados, comuns desligadas, o sabre-forma antigo virando a faca sabre), exclusão |
 | `server/tests/game.test.ts` | Integração (HTTP + WebSocket) / gameplay | 27 | ticket do WS, conexões por conta, progresso, mapas, pickups, Vila Assombrada, loadout (submetralhadora trancada no saguão), arma que atirou, chat |
-| `server/tests/modes.test.ts` | Integração (WebSocket) + regras puras | 13 | mata-mata (equipamento travado, melhorias da conta valendo, cliente ganancioso), corrida armada (escada, rodadas, a conta ignorada) |
+| `server/tests/modes.test.ts` | Integração (WebSocket) + regras puras | 15 | mata-mata (equipamento travado, melhorias da conta valendo, cliente ganancioso, rifles e facas antigos), corrida armada (escada, rodadas, a conta ignorada) |
 | `server/tests/zombies.test.ts` | Unitário + motor com relógio falso + integração | 26 | modo zumbi: regras, navmesh em dia, motor, servidor real (inclui progressão de armas, chefes com vários jogadores, entrar no meio da onda, sangrar, arma danificada na validação do servidor, barricadas no servidor e na entrada no meio da onda) |
 | `server/tests/zombieBarricades.test.ts` | Unitário + motor com relógio falso | 11 | o mapa exclusivo do zumbi, as brechas na navmesh, barricadas (erguer, repregar com teto, desvio para a brecha aberta, tudo fechado, o Segurança arromba), armas danificadas (chances, defeitos, penalidades, caixão) |
 | `server/tests/progression-modes.test.ts` | `Session` real sobre sockets falsos (sem rede) | 9 (dois `it` repetidos por modo) | matriz progressão × modos (`GAME_MODE_IDS` × armas × níveis e melhorias) |
-| `server/tests/arsenal.test.ts` | Unitário | 24 | níveis, melhorias (comuns desligadas), trava das armas, escolha do Arsenal, atributos, migração 003 |
+| `server/tests/arsenal.test.ts` | Unitário | 31 | níveis, melhorias (comuns desligadas), travas das armas (em pontos), escolha do Arsenal (rifle, secundária, faca), atributos, rifles e facas antigos, miras dos níveis 7 a 9, migração 003 |
 | `server/tests/appearance.test.ts` | Unitário + integração | 12 | regras de aparência (puras), perfil, aparência online |
 | `client/tests/aimAssist.test.ts` | Unitário | 4 | assistência de mira |
 | `client/tests/keybinds.test.ts` | Unitário | 28 | teclas configuráveis |
 | `client/tests/arsenalText.test.ts` | Unitário | 4 (dois `it` repetidos por idioma) | textos de armas, melhorias, linhas da árvore do Arsenal e modos nos dois idiomas |
-| `client/tests/arsenalTree.test.ts` | Unitário | 6 | modelo da árvore do Arsenal (linhas, armas trancadas, pontos que faltam, estado das melhorias) |
-| `client/tests/offlineModes.test.ts` | Unitário | 8 | treino e bots com o Arsenal da conta (`Progress`: trava da submetralhadora, comuns desligadas, fila de salvamento e falha desfeita), armas dos bots e da escada, zumbi sozinho (`LocalZombies`) |
+| `client/tests/arsenalTree.test.ts` | Unitário | 7 | modelo da árvore do Arsenal (linhas com 7, 2, 7 e 1 armas, armas trancadas, pontos que faltam, estado das melhorias) |
+| `client/tests/offlineModes.test.ts` | Unitário | 9 | treino e bots com o Arsenal da conta (`Progress`: travas, rifle e faca antigos, comuns desligadas, fila de salvamento e falha desfeita), armas dos bots e da escada, zumbi sozinho (`LocalZombies`) |
 | `client/tests/spatial.test.ts` | Unitário | 6 | som espacial |
 
-(Contagem dos casos em 2026-10-06; `bun test` roda 195 casos em 14 arquivos em ~97 s, dos quais ~25 s são esperas reais dos testes do modo zumbi e da corrida armada. Os testes de motor com relógio falso, como os de barricada, simulam minutos de jogo em poucos décimos de segundo.)
+(Contagem dos casos em 2026-10-06; `bun test` roda 208 casos em 14 arquivos em ~100 s, dos quais ~25 s são esperas reais dos testes do modo zumbi e da corrida armada. Os testes de motor com relógio falso, como os de barricada, simulam minutos de jogo em poucos décimos de segundo.)
 
 ## Configuração (`bunfig.toml`)
 

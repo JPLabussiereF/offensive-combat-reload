@@ -32,6 +32,9 @@ updated: 2026-10-06
 >
 > Origem: issue PF-7 do Jira ("Troca de armas do Arsenal"), com as decisões P1 a P15 respondidas pelo dev em 06/10/2026 (plano "PF-7 PLANO" no Confluence, espaço PF).
 
+> [!warning] Substituída em parte (06/10/2026, PF-8)
+> [[ADR - Rifles e facas antigos como armas próprias]] mudou dois pontos: a **primária** deixou de ser só o Rifle Padrão (item 2: voltaram seis rifles, e a linha Faca ganhou seis facas, todos com o botão Equipar) e a **trava** saiu de `progression.json` para o JSON de cada arma, em pontos (item 3: a submetralhadora agora é `"libera": { "arma": "pistola", "pontos": 1800 }` em `smg.json`, o mesmo nível 3). O resto continua valendo.
+
 ## Contexto
 
 O Arsenal mostrava um cartão por arma, lado a lado. A única troca de arma era um botão pequeno "Levar como secundária" no cartão da secundária fora de uso; o rifle não tinha controle nenhum. Só as melhorias opcionais tinham interruptor, e nada mostrava que ainda havia armas por vir.

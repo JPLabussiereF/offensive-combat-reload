@@ -9,7 +9,7 @@ import { FLAG, type PlayerInfo, type ServerMsg, type Vec3 } from '@shared/protoc
 import { DEFAULT_LOADOUT, gunStats, resolveLoadout } from '@shared/arsenal';
 import { afterDeath, afterKill, FINAL_STEP, GUN_GAME, LADDER, ladderLoadout, ladderProblems, killsForStep, stepWeapon } from '@shared/gunGame';
 import { GAME_MODE_IDS, MODE_RULES } from '@shared/modes';
-import { isGun, MAX_LEVELS, PROG_WEAPONS, START_LEVELS, xpForLevel, type GunId, type ProgWeapon } from '@shared/progression';
+import { isGun, MAX_LEVELS, progOf, PROG_WEAPONS, START_LEVELS, xpForLevel, type GunId, type KnifeId, type ProgWeapon } from '@shared/progression';
 import { ACCOUNT_XP } from '@shared/accountLevel';
 import { computeDamage } from '@shared/weapons';
 import type { GameServer } from '../app';
@@ -65,8 +65,8 @@ describe('escada da corrida armada (regras puras)', () => {
   it('a escada usa armas e melhorias que existem e termina no sabre', () => {
     expect(ladderProblems()).toEqual([]);
     expect(LADDER.length).toBeGreaterThan(4);
-    expect(stepWeapon(FINAL_STEP)).toBe('faca');
-    expect(ladderLoadout(FINAL_STEP)).toMatchObject({ soFaca: true, ativas: { faca: ['sabre'] } });
+    expect(stepWeapon(FINAL_STEP)).toBe('sabre');
+    expect(ladderLoadout(FINAL_STEP)).toMatchObject({ soFaca: true, faca: 'sabre', ativas: { faca: [] } });
     // Every gun step: that gun alone, a plain knife, no grenade upgrades.
     for (let i = 0; i < FINAL_STEP; i++) {
       const lo = ladderLoadout(i);
@@ -229,7 +229,7 @@ describe('corrida armada (online)', () => {
 
     // No weapon points in this mode (the account still gets its XP).
     const prog = [...a.p.msgs].reverse().find((m) => m.t === 'progresso');
-    expect(prog && prog.t === 'progresso' && prog.armas[gun0].xp).toBe(0);
+    expect(prog && prog.t === 'progresso' && prog.armas[progOf(gun0)].xp).toBe(0);
     expect(prog && prog.t === 'progresso' && prog.conta.xp).toBeGreaterThan(0);
     for (const x of [a, knifer, ...vs]) x.p.close();
   });
@@ -372,8 +372,8 @@ describe('progressão de armas no mata-mata (online)', () => {
       ativas: { rifle: ['silenciador'], faca: ['sabre'] },
     };
     const a = await enter(b, 'jardim', [{ t: 'loadout', lo: greedy }]);
-    expect(lastProgress(a)?.escolha).toEqual({ secundaria: 'pistola', ligadas: {}, desligadas: {} });
-    expect(a.me.lo).toEqual({ primaria: 'rifle', secundaria: 'pistola', ativas: { rifle: ['pontoVermelho', 'empunhadura'], pistola: [], smg: [], faca: [], granada: [] } });
+    expect(lastProgress(a)?.escolha).toEqual({ primaria: 'rifle', secundaria: 'pistola', faca: 'faca', ligadas: {}, desligadas: {} });
+    expect(a.me.lo).toEqual({ primaria: 'rifle', secundaria: 'pistola', faca: 'faca', ativas: { rifle: ['pontoVermelho', 'empunhadura'], pistola: [], smg: [], faca: [], granada: [] } });
     const v = await enter(await signedIn('Conferente'), 'jardim');
     await spawn(a, [0, 0, 0], v);
     await spawn(v, [0, 0, 30], a);
@@ -392,6 +392,56 @@ describe('progressão de armas no mata-mata (online)', () => {
   });
 });
 
+describe('rifles e facas antigos no mata-mata (online)', () => {
+  it('o servidor valida com os atributos do rifle escolhido, os outros o veem, e os pontos vão para o rifle', async () => {
+    const b = await signedIn('Colecionadora');
+    await setWeaponXp(b, { rifle: 2500, faca: 2800 });
+    const a = await enter(b, 'principal', [{ t: 'loadout', lo: { primaria: 'rifleTia', secundaria: 'pistola', faca: 'baguete', ligadas: {} } }]);
+    expect(a.me.lo).toMatchObject({ primaria: 'rifleTia', faca: 'baguete', ativas: { rifle: ['pontoVermelho', 'empunhadura'] } });
+    const v = await enter(await signedIn('Alvo da Tia'), 'principal');
+    expect(v.joined.players.find((x) => x.id === a.id)?.lo).toMatchObject({ primaria: 'rifleTia', faca: 'baguete' });
+    await spawn(a, [0, 0, 0], v);
+    await spawn(v, [0, 0, 10], a);
+    at(a, [0, 0, 0]);
+    // The Standard Rifle isn't in hand: its hits are ignored.
+    a.p.send({ t: 'hit', target: v.id, region: 'peito', dist: 10, w: 'rifle' });
+    await expect(a.p.next('damage', (m) => m.attacker === a.id, 300)).rejects.toThrow();
+    // Auntie's rifle: its own damage (28 in the chest at 10 m, the Standard does 30).
+    a.p.send({ t: 'hit', target: v.id, region: 'peito', dist: 10, w: 'rifleTia' });
+    expect((await a.p.next('damage', (m) => m.attacker === a.id)).amount).toBe(28);
+    // A kill with it: the feed names it, and its points go to the rifle.
+    await sleep(100);
+    const k = await groinKill(a, v, 'rifleTia');
+    expect(k.arma).toBe('rifleTia');
+    const points = k.awards.reduce((s, x) => s + x.value, 0);
+    expect((await a.p.next('progresso', (m) => m.armas.rifle.xp > 2500)).armas.rifle.xp).toBe(2500 + points);
+    for (const x of [a, v]) x.p.close();
+  });
+
+  it('a faca de cada um: o golpe vale até o alcance da investida dela', async () => {
+    // At 5 m, with the sneakers on (+0.6 m lunge, unlocked at 2,800 knife points): the baguette reaches
+    // (3.2 + 0.6 m lunge + the server's slack), the pool noodle doesn't (2.7 + 0.6 m + slack).
+    const run = async (name: string, faca: KnifeId) => {
+      const b = await signedIn(name);
+      await setWeaponXp(b, { faca: 6500 });
+      const a = await enter(b, 'principal', [{ t: 'loadout', lo: { secundaria: 'pistola', faca, ligadas: {} } }]);
+      expect(a.me.lo?.faca).toBe(faca);
+      const v = await enter(await signedIn(`Alvo ${name}`), 'principal');
+      await spawn(a, [0, 0, 0], v);
+      await spawn(v, [0, 0, 5], a);
+      at(a, [0, 0, 0]);
+      at(v, [0, 0, 5]);
+      await sleep(50);
+      a.p.send({ t: 'stab', target: v.id, behind: false });
+      const hit = await a.p.next('kill', (m) => m.victim === v.id, 400).then(() => true, () => false);
+      for (const x of [a, v]) x.p.close();
+      return hit;
+    };
+    expect(await run('Padeira', 'baguete')).toBe(true);
+    expect(await run('Nadadora', 'macarrao')).toBe(false);
+  });
+});
+
 describe('progressão de armas na corrida armada (online)', () => {
   it('a escada ignora as melhorias e a escolha da conta: valida com as armas do degrau (e da anterior por um instante), sem pontos para arma nenhuma', async () => {
     const b = await veteran('Mestre', MAX_LEVELS);
@@ -407,7 +457,7 @@ describe('progressão de armas na corrida armada (online)', () => {
     expect(isGun(s0.arma) && isGun(s1.arma) && s0.arma !== s1.arma).toBe(true);
     const g0 = gunStats(s0.arma as GunId, s0.melhorias);
     const g1 = gunStats(s1.arma as GunId, s1.melhorias);
-    expect(g0).not.toBe(gunStats(s0.arma as GunId, own.ativas[s0.arma]));
+    expect(g0).not.toBe(gunStats(s0.arma as GunId, own.ativas[progOf(s0.arma as GunId)]));
 
     const vs: In[] = [];
     for (const n of ['Degrau A', 'Degrau B', 'Degrau C', 'Saco de Pancada']) vs.push(await enter(await signedIn(n), a.joined.session.id));

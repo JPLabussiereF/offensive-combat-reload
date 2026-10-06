@@ -60,8 +60,8 @@ import { closeReason, gameModeName, showHome } from './ui/home';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
 import { Arsenal, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
-import { PROG_WEAPONS, upgradeAt, type KnifeForm, type ProgWeapon } from '@shared/progression';
-import { DEFAULT_LOADOUT, grenadeStats, gunIn, meleeStats, sanitizeLoadout, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
+import { GUN_IDS, isKnife, KNIVES, progOf, upgradeAt, type KnifeId, type WeaponId } from '@shared/progression';
+import { DEFAULT_LOADOUT, grenadeStats, gunIn, knifeOf, loadoutKnife, sanitizeLoadout, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import { MODE_RULES, type GameModeId } from '@shared/modes';
 import { FINAL_STEP, GUN_GAME, killsForStep, ladderLoadout, type LadderPos } from '@shared/gunGame';
 import { renderLadder, stepName } from './ui/ladder';
@@ -202,7 +202,7 @@ async function boot() {
   player.health = body.maxHealth;
   viewmodel.setBody(look, choice.sex);
   const avatar = new Avatar(ctx.scene, look, choice.sex);
-  const melee = new Melee(meleeStats(startLoadout.ativas.faca));
+  const melee = new Melee(loadoutKnife(startLoadout));
   // The grenade as its upgrades make it (how many, what G does, the blast); applyLoadout keeps it current.
   let grenadeData = grenadeStats(startLoadout.ativas.granada);
   const thrower = new GrenadeThrower(grenadeData);
@@ -853,7 +853,7 @@ async function boot() {
     slot = next;
     weapon = guns[next];
     viewmodel.setGun(weapon.data);
-    hud.setWeaponName(bladeOnly ? weaponLabel('faca', loadout.ativas.faca) : slotName(next), slotRarity(next), !bladeOnly && slotDamaged(next));
+    hud.setWeaponName(bladeOnly ? weaponLabel(knifeOf(loadout)) : slotName(next), slotRarity(next), !bladeOnly && slotDamaged(next));
     if (!draw) return;
     drawT = weapon.data.troca;
     viewmodel.draw(drawT);
@@ -865,7 +865,7 @@ async function boot() {
   };
 
   // --- Weapon progression: each kill's points level up only the weapon that made it ------------------
-  let knifeForm: KnifeForm = 'faca';
+  let knifeForm: KnifeId = 'faca';
   /**
    * Puts `lo` in our hands: each slot's gun, the knife and the grenade with their upgrades (or only the
    * knife). `tell`: the choice changed here (the Arsenal, where it can change mid-match), so the server hears.
@@ -883,10 +883,10 @@ async function boot() {
       const g = slotStats(lo, s);
       // Zumbi: hordes need more bullets than a duel (the reserve is refilled at every break); a damaged gun from
       // the coffin holds fewer rounds (its damage penalty is the server's, on every hit).
-      if (g) guns[s].setData(zombieMode ? zombieGunData(g, lo.danificadas?.[g.arma]) : g);
+      if (g) guns[s].setData(zombieMode ? zombieGunData(g, lo.danificadas?.[progOf(g.arma)]) : g);
       guns[s].reloadMul = body.reloadMul;
     }
-    const knife = meleeStats(lo.ativas.faca);
+    const knife = loadoutKnife(lo);
     melee.setData(knife);
     viewmodel.setKnife(knife.forma);
     knifeForm = knife.forma;
@@ -902,7 +902,7 @@ async function boot() {
   // Points only come from the server (online kills, humiliations, time alive): it pushes the new progress.
   // With a locked loadout (every online mode) what we hold doesn't change: new upgrades wait for the next match.
   conn?.on('progresso', (m) => {
-    const lockedBefore = PROG_WEAPONS.filter((w) => !progress.unlocked(w));
+    const lockedBefore = [...GUN_IDS, ...KNIVES].filter((w) => !progress.unlocked(w));
     progress.applyServer(m);
     if (!lockedLoadout && rules?.weapons !== 'mode') applyLoadout(progress.loadout);
     if (!m.subiu) return;
@@ -998,7 +998,7 @@ async function boot() {
     if (res.damage <= 0) return;
     hud.hit(res.killed ? 'kill' : 'hit');
     if (res.killed) {
-      onKill(dummy, res, weaponLabel('faca', loadout.ativas.faca), 'knife');
+      onKill(dummy, res, weaponLabel(knifeOf(loadout)), 'knife');
       award(t('knife'), SCORE.knife);
       if (behind) award(t('backstab'), SCORE.backstab);
     }
@@ -1231,12 +1231,13 @@ async function boot() {
 
   // --- Bots ----------------------------------------------------------------------------------------
   /**
-   * Name of the weapon behind a kill (`weapon`, when the server or the bots tell it), as the killer's upgrades
-   * make it: the lightsaber, the land mine (bots carry no upgrades).
+   * Name of the weapon behind a kill (`weapon`, when the server or the bots tell it): the gun that shot (an old
+   * rifle too), the killer's knife (a stab only says 'faca'), the land mine (bots carry no upgrades).
    */
-  const weaponNameFor = (kind: KillKind, weapon: ProgWeapon | null | undefined, lo: Loadout = DEFAULT_LOADOUT) => {
-    const w: ProgWeapon = weapon ?? (kind === 'knife' ? 'faca' : kind === 'grenade' || kind === 'explosion' ? 'granada' : 'rifle');
-    return weaponLabel(w, lo.ativas[w]);
+  const weaponNameFor = (kind: KillKind, weapon: WeaponId | null | undefined, lo: Loadout = DEFAULT_LOADOUT) => {
+    const w: WeaponId = weapon ?? (kind === 'knife' ? 'faca' : kind === 'grenade' || kind === 'explosion' ? 'granada' : 'rifle');
+    if (isKnife(w)) return weaponLabel(knifeOf(lo));
+    return weaponLabel(w, lo.ativas[progOf(w)]);
   };
   if (zombieMode && !online) screens.setSubtitle(t('zSoloSubtitle'));
   if (botMode && nav && !zombieMode) {
@@ -1266,7 +1267,8 @@ async function boot() {
         },
         kill: (victim, killer, kind, awards, corpse, weapon) => {
           const victimName = victim === playerTarget ? t('you') : victim.name;
-          const killerLoadout = killer === playerTarget ? loadout : DEFAULT_LOADOUT;
+          // A bot's knife is drawn each life (its loadout is otherwise the default one, without upgrades).
+          const killerLoadout = killer === playerTarget ? loadout : killer instanceof Bot ? { ...DEFAULT_LOADOUT, faca: killer.knife.forma } : DEFAULT_LOADOUT;
           if (killer) hud.killfeed(killer === playerTarget ? t('you') : killer.name, weaponNameFor(kind, weapon, killerLoadout), victimName, KIND_ICON[kind]);
           else if (kind === 'dog') hud.killfeed('Amora', t('dogBite'), victimName, 'dog');
           else hud.notice(`💀 ${victimName}`);
@@ -1345,7 +1347,7 @@ async function boot() {
     });
     conn.on('swing', (m) => {
       const rp = net.players.get(m.id);
-      // The rubber chicken's scream and the lightsaber's vwoom carry much farther than a knife's swish.
+      // The rubber chicken's scream, the lightsaber's vwoom and the other knives' sounds carry much farther than a knife's swish.
       const form = rp?.knife.forma ?? 'faca';
       if (rp) sfx.at({ x: rp.position.x, y: rp.position.y + 1.3, z: rp.position.z }, form === 'faca' ? 'step' : 'normal', (s) => s.meleeSwing(form));
     });

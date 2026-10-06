@@ -106,7 +106,7 @@ client/
 │   ├── springs.ts          Molas amortecidas da 1ª pessoa
 │   ├── viewmodel.ts        Braços + arma em 1ª pessoa (cena própria)
 │   ├── viewmodelArms.ts    Braços da 1ª pessoa
-│   └── weaponModels.ts     Modelos das armas de fogo com as melhorias (gunParts), formas da faca e mina
+│   └── weaponModels.ts     Modelos das armas de fogo com as melhorias e a pintura de cada rifle (gunParts), as sete facas e a mina
 ├── tests/                  Testes bun:test de lógica pura do cliente (aimAssist, arsenalText, keybinds, spatial)
 ├── ui/
 │   ├── home.ts             Home: conta, lobby online, bots, treino (HomeChoice)
@@ -186,8 +186,8 @@ shared/
 ├── maps.ts                 Ids de mapa e posições de coletáveis/bruxa/ratos/peixes
 ├── weapons.ts              Esquema e fórmulas de armas
 ├── movement.ts             Passo de movimento sobre o Rapier
-├── progression.ts          Níveis e melhorias das armas, ArsenalChoice, PRIMARIES/SECONDARIES
-├── arsenal.ts              Loadout e atributos com as melhorias (gunStats, meleeStats, grenadeStats)
+├── progression.ts          Ids das armas, progressões (progOf), travas, níveis e melhorias, ArsenalChoice, PRIMARIES/SECONDARIES/KNIVES
+├── arsenal.ts              Loadout e atributos com as melhorias (gunStats, meleeStats, grenadeStats, loadoutKnife)
 ├── accountLevel.ts         Nível da conta
 ├── account.ts              Regras e tipos da API de contas, ApiErrorCode
 ├── appearance.ts           Aparência e bodyStats
@@ -196,7 +196,7 @@ shared/
 └── data/
     ├── progression.json    Melhorias de cada arma por nível
     ├── nivel_conta.json    Curva do nível da conta
-    └── weapons/            rifle_padrao.json, pistola.json, smg.json, faca.json, granada_frag.json
+    └── weapons/            rifle_padrao.json e rifle_{fita,tia,natal,chama,vovo,ouro}.json, pistola.json, smg.json, faca.json e {colher,frango,baguete,peixe,macarrao,sabre}.json, granada_frag.json
 ```
 
 ## Demais pastas

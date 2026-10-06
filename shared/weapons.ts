@@ -1,10 +1,31 @@
 // Weapon data schema (section 7 of the design doc), loaded by the client and the server. These are the base
 // stats of each weapon; what a player actually holds (base + unlocked upgrades) comes from shared/arsenal.ts.
+// The old rifles and knives (back from the first versions of the game) have JSONs of their own, with the lock
+// that keeps them out of reach until enough points are earned (`libera`).
 import riflePadrao from './data/weapons/rifle_padrao.json';
+import rifleFita from './data/weapons/rifle_fita.json';
+import rifleTia from './data/weapons/rifle_tia.json';
+import rifleNatal from './data/weapons/rifle_natal.json';
+import rifleChama from './data/weapons/rifle_chama.json';
+import rifleVovo from './data/weapons/rifle_vovo.json';
+import rifleOuro from './data/weapons/rifle_ouro.json';
 import pistola from './data/weapons/pistola.json';
 import smg from './data/weapons/smg.json';
 import faca from './data/weapons/faca.json';
+import colher from './data/weapons/colher.json';
+import frango from './data/weapons/frango.json';
+import baguete from './data/weapons/baguete.json';
+import peixe from './data/weapons/peixe.json';
+import macarrao from './data/weapons/macarrao.json';
+import sabre from './data/weapons/sabre.json';
 import granadaFrag from './data/weapons/granada_frag.json';
+import type { GunLook, ProgWeapon } from './progression';
+
+/** Locked until `pontos` points are earned with `arma` (the weapon whose progression this one uses). */
+export interface WeaponLock {
+  arma: ProgWeapon;
+  pontos: number;
+}
 
 /**
  * Hit zones (style guide, "Hitboxes"): 15 shapes on the bones, the same for every body, grouped in 9 zones
@@ -22,8 +43,13 @@ export const LETHAL_DAMAGE = 9999;
 export interface WeaponData {
   id: string;
   nome: string;
+  /** Shown in the Arsenal, the HUD and the kill feed (the guns that have one: every rifle). */
+  icone?: string;
   categoria: string;
   slot: 'primaria' | 'secundaria' | 'corpo';
+  /** Paint job of a rifle (each old rifle has its own; the upgrades don't change it). Absent: 'padrao'. */
+  visual?: GunLook;
+  libera?: WeaponLock;
   dano: { max: number; min: number; distMax: number; distMin: number };
   multiplicadores: Record<BodyRegion, number>;
   /** Rounds per minute. */
@@ -76,6 +102,8 @@ export function minPenetrationKeep(w: WeaponData): number {
 export interface MeleeData {
   id: string;
   nome: string;
+  icone?: string;
+  libera?: WeaponLock;
   letal: boolean;
   /** Hit range in meters, from the eye to the target's body surface. */
   alcance: number;
@@ -139,12 +167,25 @@ export interface GrenadeData {
 
 export const WEAPONS: Record<string, WeaponData> = {
   rifle_padrao: riflePadrao as unknown as WeaponData,
+  rifle_fita: rifleFita as unknown as WeaponData,
+  rifle_tia: rifleTia as unknown as WeaponData,
+  rifle_natal: rifleNatal as unknown as WeaponData,
+  rifle_chama: rifleChama as unknown as WeaponData,
+  rifle_vovo: rifleVovo as unknown as WeaponData,
+  rifle_ouro: rifleOuro as unknown as WeaponData,
   pistola: pistola as unknown as WeaponData,
   smg: smg as unknown as WeaponData,
 };
 
+/** Every knife, keyed by its id (KnifeId in shared/progression.ts). */
 export const MELEE: Record<string, MeleeData> = {
   faca: faca as MeleeData,
+  colher: colher as unknown as MeleeData,
+  frango: frango as unknown as MeleeData,
+  baguete: baguete as unknown as MeleeData,
+  peixe: peixe as unknown as MeleeData,
+  macarrao: macarrao as unknown as MeleeData,
+  sabre: sabre as unknown as MeleeData,
 };
 
 export const GRENADES: Record<string, GrenadeData> = {

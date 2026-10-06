@@ -117,7 +117,7 @@ describe('progresso', () => {
     await setWeaponXp(a, { smg: 1 });
     // In the lobby, a locked upgrade is ignored: the server keeps the rifle without it.
     const A = await joinMain(a, [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: { rifle: ['silenciador'] } } }]);
-    expect((await A.p.next('progresso', (m) => m.escolha.secundaria === 'smg')).escolha).toEqual({ secundaria: 'smg', ligadas: {}, desligadas: {} });
+    expect((await A.p.next('progresso', (m) => m.escolha.secundaria === 'smg')).escolha).toEqual({ primaria: 'rifle', secundaria: 'smg', faca: 'faca', ligadas: {}, desligadas: {} });
     const V = await joinMain(v);
     const vId = V.joined.you;
     A.p.send({ t: 'respawn', p: [0, 0, 0], yaw: 0 });

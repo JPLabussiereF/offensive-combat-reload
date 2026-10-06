@@ -71,7 +71,7 @@ A aparência (`player_profile.appearance`, jsonb) tem campo de versão `v`. `san
 
 Não há migration SQL para isso: o dado antigo continua no banco até a próxima gravação. Coberto por `server/tests/appearance.test.ts`. Ver [[Character Customization]].
 
-A escolha do Arsenal (`player_profile.loadout`) também é convertida na leitura: `NULL` (conta de antes das melhorias) vira a escolha mais parecida com o antigo `equipped_level` de cada arma (`legacyChoice` em `shared/progression.ts`: rifle 5–7 → luneta ligada; faca 3 → frango, 7 → sabre; granada 2 → mina, 3 → Dose Dupla), e todo valor lido ou gravado passa por `sanitizeChoice` contra os níveis. Coberto por `server/tests/arsenal.test.ts` (que também confere os limiares da migração 003).
+A escolha do Arsenal (`player_profile.loadout`) também é convertida na leitura: `NULL` (conta de antes das melhorias) vira a escolha mais parecida com o antigo `equipped_level` de cada arma (`legacyChoice` em `shared/progression.ts`: rifle 5–7 → luneta ligada; granada 2 → mina, 3 → Dose Dupla; desde a PF-8 a faca antiga não é mais convertida: todos começam no Rifle Padrão e na faca de cozinha), e todo valor lido ou gravado passa por `sanitizeChoice` contra os níveis. Uma escolha com o frango ou o sabre ligados como forma (de antes da PF-8) vira essa faca se os pontos de faca a liberam. Coberto por `server/tests/arsenal.test.ts` (que também confere os limiares da migração 003, fixados nos valores da época dela).
 
 ## Migração de dados locais (navegador)
 

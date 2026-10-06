@@ -64,7 +64,7 @@ flowchart LR
 | Nota | Resumo |
 |---|---|
 | [[Inventory]] | **não existe** — loadout: rifle + secundária (troca 1/2/roda) + faca + granada |
-| [[Items]] | as 5 armas (rifle, pistola, submetralhadora, faca, granada) e suas melhorias (formas frango/sabre, granada/mina/Dose Dupla) |
+| [[Items]] | as armas (sete rifles, pistola, submetralhadora, sete facas, granada) e suas melhorias (miras, granada/mina/Dose Dupla) |
 | [[Pickups]] | Cereja do Dragão (+50 vida máx. por 30 s) e Biscoito Scooby (cura total) |
 
 ## Outras mecânicas (`Other Mechanics/`)

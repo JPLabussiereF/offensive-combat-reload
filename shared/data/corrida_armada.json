@@ -1,5 +1,5 @@
 {
-  "_doc": "Corrida armada (gun game). Todos sobem a mesma escada de armas, com atributos fixos por degrau (arma + melhorias deste arquivo, não as do jogador). abatesPorArma abates com a arma do degrau sobem um degrau; no último degrau (o Sabre de Luz, sempre na mão) abatesFinais abate(s) vence(m) a rodada. Morrer por facada (faca ou sabre) desce um degrau e zera os abates do degrau. Depois de uma vitória, a rodada recomeça do primeiro degrau em reinicioSegundos. xpVitoria: XP da conta para quem vence (os abates não dão pontos às armas). Nomes dos degraus em client/ui/strings.ts (ladder_<id>).",
+  "_doc": "Corrida armada (gun game). Todos sobem a mesma escada de armas, com atributos fixos por degrau (arma + melhorias deste arquivo, não as do jogador). abatesPorArma abates com a arma do degrau sobem um degrau; no último degrau (a faca Sabre de Luz, sempre na mão) abatesFinais abate(s) vence(m) a rodada. Morrer por facada (faca ou sabre) desce um degrau e zera os abates do degrau. Depois de uma vitória, a rodada recomeça do primeiro degrau em reinicioSegundos. xpVitoria: XP da conta para quem vence (os abates não dão pontos às armas). Nomes dos degraus em client/ui/strings.ts (ladder_<id>).",
   "abatesPorArma": 3,
   "abatesFinais": 1,
   "reinicioSegundos": 6,
@@ -11,6 +11,6 @@
     { "id": "rifleSilenciado", "arma": "rifle", "melhorias": ["silenciador"] },
     { "id": "pistolaRapida", "arma": "pistola", "melhorias": ["gatilho", "pontoVermelho", "coldre"] },
     { "id": "pistolaBatata", "arma": "pistola", "melhorias": ["batata"] },
-    { "id": "sabre", "arma": "faca", "melhorias": ["sabre"] }
+    { "id": "sabre", "arma": "faca", "faca": "sabre", "melhorias": [] }
   ]
 }

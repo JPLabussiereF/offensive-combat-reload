@@ -1,6 +1,7 @@
 // The Arsenal tree (client/ui/arsenalTree.ts), the data the Arsenal screen draws: the rows and the order of their
 // weapons, which weapon is in hand, how many points a locked weapon or upgrade still needs, and the state of
-// every upgrade (on, off, locked, replaced by an optional one of its group).
+// every upgrade (on, off, locked, replaced by an optional one of its group). The old rifles share the rifle's
+// points and upgrades, and every knife the knife's.
 import { describe, expect, it } from 'bun:test';
 import { DEFAULT_CHOICE, NO_XP, PROG_WEAPONS, PROGRESSION, sanitizeChoice, xpForLevel, type ProgWeapon, type WeaponXp } from '@shared/progression';
 import { arsenalTree, TREE_ROWS, upgradeNodes, weaponNode } from '../ui/arsenalTree';
@@ -11,21 +12,49 @@ describe('árvore do Arsenal', () => {
   it('quatro linhas: principal, secundária, faca e granada, com as armas na ordem em que liberam', () => {
     const tree = arsenalTree(NO_XP, DEFAULT_CHOICE);
     expect(tree.map((r) => [r.id, r.armas.map((n) => n.arma)])).toEqual([
-      ['primaria', ['rifle']],
+      ['primaria', ['rifle', 'rifleFita', 'rifleTia', 'rifleNatal', 'rifleChama', 'rifleVovo', 'rifleOuro']],
       ['secundaria', ['pistola', 'smg']],
-      ['faca', ['faca']],
+      ['faca', ['faca', 'colher', 'frango', 'baguete', 'peixe', 'macarrao', 'sabre']],
       ['granada', ['granada']],
     ]);
-    // Every weapon of the game is in exactly one row.
-    expect(TREE_ROWS.flatMap((r) => r.armas).sort()).toEqual([...PROG_WEAPONS].sort());
+    // Every weapon is in exactly one row; every progression has a row.
+    const all = TREE_ROWS.flatMap((r) => r.armas);
+    expect(new Set(all).size).toBe(all.length);
+    expect([...new Set(tree.flatMap((r) => r.armas.map((n) => n.prog)))].sort()).toEqual([...PROG_WEAPONS].sort());
   });
 
-  it('conta nova: tudo no nível 1, a submetralhadora trancada com os pontos que faltam com a pistola', () => {
-    const [primary, secondary] = arsenalTree(NO_XP, DEFAULT_CHOICE);
-    expect(primary.armas[0]).toMatchObject({ arma: 'rifle', nivel: 1, liberada: true, equipada: true, faltamNivel: 1000, progresso: 0 });
+  it('conta nova: tudo no nível 1, as armas antigas e a submetralhadora trancadas com os pontos que faltam', () => {
+    const [primary, secondary, knives] = arsenalTree(NO_XP, DEFAULT_CHOICE);
+    expect(primary.armas[0]).toMatchObject({ arma: 'rifle', prog: 'rifle', nivel: 1, liberada: true, equipada: true, faltamNivel: 1000, progresso: 0 });
+    expect(primary.armas.slice(1).map((n) => [n.arma, n.liberada, n.liberaCom, n.faltamLiberar])).toEqual([
+      ['rifleFita', false, 'rifle', 1000],
+      ['rifleTia', false, 'rifle', 2500],
+      ['rifleNatal', false, 'rifle', 4500],
+      ['rifleChama', false, 'rifle', 7000],
+      ['rifleVovo', false, 'rifle', 10000],
+      ['rifleOuro', false, 'rifle', 16000],
+    ]);
     const [pistol, smg] = secondary.armas;
     expect(pistol).toMatchObject({ liberada: true, equipada: true, liberaCom: null, faltamLiberar: 0 });
-    expect(smg).toMatchObject({ liberada: false, equipada: false, liberaCom: 'pistola', liberaNivel: 3, faltamLiberar: 1800 });
+    expect(smg).toMatchObject({ liberada: false, equipada: false, liberaCom: 'pistola', liberaPontos: 1800, faltamLiberar: 1800 });
+    expect(knives.armas.map((n) => [n.arma, n.liberada, n.equipada, n.faltamLiberar])).toEqual([
+      ['faca', true, true, 0],
+      ['colher', false, false, 600],
+      ['frango', false, false, 1500],
+      ['baguete', false, false, 2800],
+      ['peixe', false, false, 4500],
+      ['macarrao', false, false, 6500],
+      ['sabre', false, false, 9000],
+    ]);
+  });
+
+  it('com 13.200 pontos de rifle: seis rifles liberados, o Dourado a 2.800 pontos; o equipado é o escolhido', () => {
+    const xp = { ...NO_XP, rifle: 13200 };
+    const [primary] = arsenalTree(xp, sanitizeChoice({ primaria: 'rifleTia' }, xp));
+    expect(primary.armas.filter((n) => !n.liberada).map((n) => [n.arma, n.faltamLiberar])).toEqual([['rifleOuro', 2800]]);
+    expect(primary.armas.filter((n) => n.equipada).map((n) => n.arma)).toEqual(['rifleTia']);
+    // Every rifle shows the rifle's level and points.
+    for (const n of primary.armas) expect({ arma: n.arma, nivel: n.nivel, xp: n.xp }).toEqual({ arma: n.arma, nivel: 7, xp: 13200 });
   });
 
   it('a submetralhadora liberada e equipada; os pontos que faltam diminuem com os da pistola', () => {
@@ -40,8 +69,10 @@ describe('árvore do Arsenal', () => {
   });
 
   it('o nível máximo não tem próximo nível', () => {
-    const n = weaponNode('faca', xpAt({ faca: 5 }), DEFAULT_CHOICE);
-    expect(n).toMatchObject({ nivel: 5, max: 5, faltamNivel: null, progresso: 1 });
+    const n = weaponNode('faca', xpAt({ faca: 3 }), DEFAULT_CHOICE);
+    expect(n).toMatchObject({ nivel: 3, max: 3, faltamNivel: null, progresso: 1 });
+    // A knife shows the knife's level.
+    expect(weaponNode('sabre', { ...NO_XP, faca: 9000 }, DEFAULT_CHOICE)).toMatchObject({ prog: 'faca', nivel: 3, liberada: true });
   });
 
   it('cada melhoria: ligada, desligada, trancada (com os pontos que faltam) ou substituída por uma opcional do grupo', () => {
@@ -54,7 +85,12 @@ describe('árvore do Arsenal', () => {
       ['luneta', 'trancada', 1500],
       ['pente', 'trancada', 4000],
       ['silenciador', 'trancada', 7000],
+      ['holoLupa', 'trancada', 10000],
+      ['luneta2x', 'trancada', 13000],
+      ['luneta4x', 'trancada', 17000],
     ]);
+    // An old rifle shows the very same chain (the rifle's upgrades).
+    expect(upgradeNodes('rifleTia', xp, DEFAULT_CHOICE)).toEqual(plain);
     const off = upgradeNodes('rifle', xp, sanitizeChoice({ desligadas: { rifle: ['empunhadura'] } }, xp));
     expect(off.find((u) => u.id === 'empunhadura')?.estado).toBe('desligada');
     // With the scope on, the red dot shows as off, replaced by the scope.
@@ -64,7 +100,11 @@ describe('árvore do Arsenal', () => {
     expect(nodes.find((u) => u.id === 'luneta')).toMatchObject({ estado: 'ligada', opcional: true, substituidaPor: null });
   });
 
-  it('toda arma tem um nó por melhoria, na ordem dos níveis', () => {
-    for (const w of PROG_WEAPONS) expect(upgradeNodes(w, NO_XP, DEFAULT_CHOICE).map((u) => u.id)).toEqual(PROGRESSION[w].melhorias.map((u) => u.id));
+  it('toda arma tem um nó por melhoria da sua progressão, na ordem dos níveis', () => {
+    for (const r of TREE_ROWS)
+      for (const w of r.armas) {
+        const n = weaponNode(w, NO_XP, DEFAULT_CHOICE);
+        expect(upgradeNodes(w, NO_XP, DEFAULT_CHOICE).map((u) => u.id)).toEqual(PROGRESSION[n.prog].melhorias.map((u) => u.id));
+      }
   });
 });

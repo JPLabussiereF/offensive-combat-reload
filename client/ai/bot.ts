@@ -16,8 +16,8 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { GROUP, groups, HEALTH, HUMILIATION, MOVE } from '@shared/constants';
 import { configureController, CONTROLLER_OFFSET, createMoveState, eyeHeight, HALF_STAND, stepMovement, type MoveBody, type MoveInput, type MoveState } from '@shared/movement';
 import type { HitRegion } from '@shared/weapons';
-import { DEFAULT_LOADOUT, gunStats, meleeStats, type Loadout, type MeleeStats } from '@shared/arsenal';
-import type { GunId } from '@shared/progression';
+import { DEFAULT_LOADOUT, gunStats, knifeOf, meleeStats, type Loadout, type MeleeStats } from '@shared/arsenal';
+import { KNIVES, PRIMARIES, progOf, type GunId, type KnifeId } from '@shared/progression';
 import type { Sex } from '@shared/protocol';
 import { bodyStats, randomAppearance, type Appearance, type BodyStats } from '@shared/appearance';
 import { Avatar } from '../entities/avatar';
@@ -87,10 +87,15 @@ type Mode = 'roam' | 'engage' | 'chase' | 'flee' | 'toTaunt' | 'taunt';
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
-/** The gun a bot takes for a life: mostly the rifle, sometimes a secondary (no upgrades, like a new account). */
+const pick = <T>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)];
+
+/**
+ * The gun a bot takes for a life (no upgrades): mostly a rifle, any of them alike, sometimes a secondary. Bots
+ * have no account, so no weapon is locked for them.
+ */
 function pickGun(): GunId {
   const r = Math.random();
-  return r < 0.6 ? 'rifle' : r < 0.85 ? 'smg' : 'pistola';
+  return r < 0.6 ? pick(PRIMARIES) : r < 0.85 ? 'smg' : 'pistola';
 }
 const angleDiff = (a: number, b: number) => {
   let d = b - a;
@@ -281,17 +286,21 @@ export class Bot implements Combatant {
   }
 
   /**
-   * The weapons of this life: the mode's, or a random gun without upgrades (a secondary is held as one, with
-   * the rifle on the back). Full magazine either way.
+   * The weapons of this life: the mode's, or a random gun and a random knife without upgrades (a secondary is
+   * held as one, with the Standard Rifle on the back). Full magazine either way.
    */
   private equip() {
     const lo = this.fixed;
     this.gun = lo ? lo.primaria : pickGun();
     this.bladeOnly = !!lo?.soFaca;
-    this.knife = meleeStats(lo?.ativas.faca ?? []);
-    this.weapon.setData(gunStats(this.gun, lo?.ativas[this.gun] ?? []));
+    const knife: KnifeId = lo ? knifeOf(lo) : pick(KNIVES);
+    this.knife = meleeStats(knife, lo?.ativas.faca ?? []);
+    this.weapon.setData(gunStats(this.gun, lo?.ativas[progOf(this.gun)] ?? []));
     this.weapon.refill();
-    this.avatar.setLoadout(lo ?? { ...DEFAULT_LOADOUT, secundaria: this.gun === 'rifle' ? DEFAULT_LOADOUT.secundaria : this.gun });
+    const primary = PRIMARIES.includes(this.gun);
+    this.avatar.setLoadout(
+      lo ?? { ...DEFAULT_LOADOUT, primaria: primary ? this.gun : DEFAULT_LOADOUT.primaria, secundaria: primary ? DEFAULT_LOADOUT.secundaria : this.gun, faca: knife },
+    );
   }
 
   die(time: number) {
@@ -657,8 +666,8 @@ export class Bot implements Combatant {
         knife: this.knifeAnim > 0,
         blade: this.bladeOnly,
         cook: false,
-        // A random secondary is held as one (the rifle on the back); the mode's gun is a primary.
-        secondary: !this.fixed && this.gun !== 'rifle',
+        // A random secondary is held as one (a rifle on the back); the mode's gun is a primary.
+        secondary: !this.fixed && !PRIMARIES.includes(this.gun),
         hold: holdOf(this.gun),
       },
     };

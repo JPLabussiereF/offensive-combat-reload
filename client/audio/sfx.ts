@@ -6,7 +6,7 @@
 // low-pass for air and walls in between (occlusion, a ray cast against the map), and echo sends: a short room
 // reverb in enclosed spots, a long open-air tail for gunshots and explosions outside.
 import type { SurfaceMaterial } from '../world/physics';
-import type { GunId, KnifeForm } from '@shared/progression';
+import type { GunId, KnifeId } from '@shared/progression';
 import { distanceGain, Enclosure, SPATIAL_KINDS, voiceParams, type CastFn, type SpatialKindName, type Vec } from './spatial';
 
 type Bus = 'sfx' | 'ui';
@@ -760,13 +760,25 @@ export class Sfx {
     }
   }
 
-  /** Swing sound of each knife form (the plain knife uses knifeSwing). */
-  meleeSwing(form: KnifeForm) {
+  /** Swing sound of each knife (the kitchen knife uses knifeSwing). */
+  meleeSwing(knife: KnifeId) {
     if (!this.ready) return;
     const t = this.ctx!.currentTime;
-    switch (form) {
+    switch (knife) {
       case 'faca':
         return this.knifeSwing();
+      case 'colher': // wooden spoon: hollow knock
+        this.tone(t + 0.08, 'triangle', 520, 300, 0.07, 0.35);
+        return this.noiseBurst(t, 0.1, 'bandpass', 700, 1.5, 0.15);
+      case 'baguete': // stale baguette: crunch
+        this.noiseBurst(t + 0.08, 0.05, 'highpass', 2500, 1, 0.45);
+        this.noiseBurst(t + 0.13, 0.04, 'highpass', 3200, 1, 0.3);
+        return this.noiseBurst(t, 0.12, 'bandpass', 900, 1, 0.12);
+      case 'peixe': // frozen fish: wet slap
+        this.noiseBurst(t + 0.09, 0.07, 'lowpass', 1400, 1, 0.6);
+        return this.tone(t + 0.09, 'sine', 220, 90, 0.1, 0.3);
+      case 'macarrao': // pool noodle
+        return this.boing();
       case 'frango': // rubber chicken: the classic squeal
         this.tone(t, 'square', 700, 1500, 0.09, 0.12, 'sfx', 0.004);
         this.tone(t + 0.09, 'square', 1500, 900, 0.22, 0.1, 'sfx', 0.004);

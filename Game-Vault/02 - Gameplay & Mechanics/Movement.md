@@ -51,7 +51,7 @@ Teclas configuráveis: ver [[Input & Controls]]. Toque: ver [[Touch Controls]].
 | Mirando (ADS) | 3,5 |
 | Slide (pico) | até 10,5 |
 
-A velocidade final = base × `speedMul`, onde `speedMul = movimento da arma em mãos (rifle 1,0, pistola 1,06, submetralhadora 1,08; ×0,95 com a Luneta, ×0,96 com o Pente Tambor — ver [[Weapons]]) × speedMul do corpo (0,75 sem uma perna, modo PCD) × poção (1,3 "veloz", 0,7 "lerdo")`. Ver [[Buffs & Debuffs]] e [[Character Customization]].
+A velocidade final = base × `speedMul`, onde `speedMul = movimento da arma em mãos (Rifle Padrão 1,0, Tunado com Adesivo de Chama 1,03, Dourado 0,92, pistola 1,06, submetralhadora 1,08; ×0,95 com a Luneta do Vovô, ×0,97 com a luneta 2x, ×0,93 com a 4x, ×0,96 com o Pente Tambor — ver [[Weapons]]) × speedMul do corpo (0,75 sem uma perna, modo PCD) × poção (1,3 "veloz", 0,7 "lerdo")`. Ver [[Buffs & Debuffs]] e [[Character Customization]].
 
 Prioridade da velocidade base: agachado > mirando > correndo > andando.
 

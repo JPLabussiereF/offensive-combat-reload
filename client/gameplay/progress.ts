@@ -1,7 +1,8 @@
 // The player's weapon progression, owned by the account on the server: points only come from online kills
 // the server validated (it sends 'progresso'), and every mode uses the account's levels and Arsenal choice
-// (secondary gun, optional upgrades turned on, common ones turned off). Without an account everything stays at
-// level 1 (the locked weapons stay locked), and the choice made in the Arsenal only lasts for this match.
+// (the gun in each slot, the knife, optional upgrades turned on, common ones turned off). Without an account
+// everything stays at level 1 (the locked weapons stay locked), and the choice made in the Arsenal only lasts
+// for this match.
 // With one, every change is saved to the account, one save at a time; a save that fails puts back the last
 // choice the server accepted and tells the onSaveError listeners.
 import type { ProfileResponse } from '@shared/account';
@@ -17,8 +18,10 @@ import {
   weaponUnlocked,
   type ArsenalChoice,
   type GunId,
+  type KnifeId,
   type Levels,
   type ProgWeapon,
+  type WeaponId,
   type WeaponXp,
 } from '@shared/progression';
 import { resolveLoadout, type Loadout } from '@shared/arsenal';
@@ -75,13 +78,13 @@ export class Progress {
     return levelsOfXp(this.xpOf);
   }
 
-  /** Whether the player may carry `w` (the SMG waits for the pistol's level). */
-  unlocked(w: ProgWeapon): boolean {
+  /** Whether the player may carry `w` (the old rifles and knives, and the SMG, wait for points). */
+  unlocked(w: WeaponId): boolean {
     return weaponUnlocked(w, this.xpOf);
   }
 
-  /** Points still needed with the weapon before `w` to unlock it (0 when unlocked). */
-  toUnlock(w: ProgWeapon): number {
+  /** Points still needed with `w`'s progression to unlock it (0 when unlocked). */
+  toUnlock(w: WeaponId): number {
     return pointsToUnlock(w, this.xpOf);
   }
 
@@ -116,10 +119,22 @@ export class Progress {
     return this.choose({ ...this.chosen, ligadas: { ...this.chosen.ligadas, [w]: ligadas }, desligadas: { ...this.chosen.desligadas, [w]: desligadas } });
   }
 
+  /** Puts another rifle in the primary slot (not a locked one). */
+  setPrimary(gun: GunId): boolean {
+    if (gun === this.chosen.primaria || !this.unlocked(gun)) return false;
+    return this.choose({ ...this.chosen, primaria: gun });
+  }
+
   /** Puts another gun in the secondary slot (not a locked one). */
   setSecondary(gun: GunId): boolean {
     if (gun === this.chosen.secundaria || !this.unlocked(gun)) return false;
     return this.choose({ ...this.chosen, secundaria: gun });
+  }
+
+  /** Takes another knife (not a locked one). */
+  setKnife(knife: KnifeId): boolean {
+    if (knife === this.chosen.faca || !this.unlocked(knife)) return false;
+    return this.choose({ ...this.chosen, faca: knife });
   }
 
   /** Keeps a new choice (cleaned against the points) and saves it to the account. */

@@ -61,7 +61,7 @@ Colunas e índices em [[Database]].
 |---|---|---|
 | XP e nível da conta | `player_stats.xp`, `level` | XP só online: 10/minuto vivo, 25/abate, 50/humilhação (`shared/data/nivel_conta.json`), +XP por carpa. Nível recalculado na gravação (`accountLevel`) |
 | XP por arma (rifle, pistola, smg, faca, granada) | `weapon_progress.xp` | Pontos do abate (com bônus) vão para a arma que matou (`weaponOfKill(kind, arma)`: um abate de pistola vai para a pistola). O nível sai do XP (`levelForXp`) e não é guardado |
-| Escolha do Arsenal (`ArsenalChoice`: secundária + melhorias opcionais ligadas + comuns desligadas, `desligadas`) | `player_profile.loadout` (jsonb) | `PATCH /api/perfil {arsenal}` (melhoria não liberada ou secundária trancada → `400 nivel_bloqueado`) ou mensagem `loadout` (o servidor descarta o que não está liberado, com o XP de cada arma, e grava no próximo flush). Escolhas antigas sem `desligadas` valem como "nenhuma comum desligada". `NULL` = deriva uma vez do antigo `equipped_level` (`legacyChoice`) |
+| Escolha do Arsenal (`ArsenalChoice`: rifle `primaria`, secundária, `faca`, melhorias opcionais ligadas + comuns desligadas, `desligadas`) | `player_profile.loadout` (jsonb) | `PATCH /api/perfil {arsenal}` (melhoria não liberada ou arma trancada → `400 nivel_bloqueado`) ou mensagem `loadout` (o servidor descarta o que não está liberado, com o XP de cada arma, e grava no próximo flush). Escolhas antigas sem `desligadas` valem como "nenhuma comum desligada"; sem `primaria`/`faca`, o Rifle Padrão e a faca de cozinha (o frango ou o sabre ligados como forma viram essa faca, se liberada). `NULL` = deriva uma vez do antigo `equipped_level` (`legacyChoice`) |
 | Nível equipado (legado) | `weapon_progress.equipped_level` | Não é mais escrito; só lido para derivar a escolha de contas antigas ([[Data Migrations]]) |
 | Totais | `player_stats` (kills, deaths, headshots, groin_kills, knife_kills, backstabs, grenade_kills, humiliations, seconds_played, matches_played) | Somados a partir do delta de cada gravação |
 | MMR | `player_stats.mmr` (padrão 1000) | **Não usado** ("unused until ranked play exists") |
@@ -73,7 +73,7 @@ Regras de progressão: [[Progression]].
 
 Criado no handshake do WebSocket (`liveAccount(loadGameProfile(...), chatMutedUntil)`):
 
-- `profile: GameProfile` — `accountId`, `profileId`, `tag`, `sex`, `appearance`, `xp`, `weapons{xp}` por arma, `arsenal` (`ArsenalChoice`, sanitizada contra o XP de cada arma: níveis e trava da submetralhadora).
+- `profile: GameProfile` — `accountId`, `profileId`, `tag`, `sex`, `appearance`, `xp`, `weapons{xp}` por arma, `arsenal` (`ArsenalChoice`, sanitizada contra o XP de cada progressão: níveis e travas das armas). Os rifles antigos guardam pontos em `rifle` e as facas em `faca` (`weapon_progress` continua com os 5 ids).
 - `delta: ProgressDelta` — o que foi ganho desde a última gravação (accountXp, weaponXp por arma, kills, deaths, headshots, groinKills, knifeKills, backstabs, grenadeKills, humiliations, secondsPlayed, score).
 - `participation` — promessa do id da linha de participação atual.
 - `aliveCarry` — segundos vivos acumulados para o próximo "minuto vivo".
