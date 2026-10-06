@@ -18,6 +18,8 @@ source_paths:
   - client/zombies/local.ts
   - client/zombies/link.ts
   - server/tests/progression-modes.test.ts
+  - client/tests/remoteImpact.test.ts
+  - client/weapons/remoteImpact.ts
 tags:
   - testes
   - unitarios
@@ -59,6 +61,17 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 - Renascer do outro lado do mapa não conta como passo.
 
 Usa um `CastFn` falso para simular paredes, sem física real.
+
+## `client/tests/remoteImpact.test.ts` → [[Decals]]
+
+Onde o tiro de outro jogador bateu no mapa (`remoteImpact`), 6 casos num mundo Rapier real com o mesmo filtro (`WORLD_ONLY`) e a mesma consulta do `main.ts`:
+
+- Tiro que terminou numa parede de concreto: ponto, normal e material.
+- Tiro inclinado numa parede de madeira: ponto na face e material `wood`.
+- Tiro para o céu: nada.
+- Tiro que terminou num jogador encostado na parede (peito a 60 cm, cotovelo a 6 cm da parede): nada (a hitbox é ignorada e a janela vai só 5 cm além do ponto).
+- Tiro que terminou a menos de 5 cm da parede ainda marca a parede.
+- Tiro sem comprimento: nada.
 
 ## `server/tests/appearance.test.ts` — bloco "regras da aparência" → [[Character Customization]]
 

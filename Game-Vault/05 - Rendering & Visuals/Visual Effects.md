@@ -8,6 +8,7 @@ source_paths:
   - client/render/viewmodel.ts
   - client/render/weaponModels.ts
   - client/main.ts
+  - client/weapons/remoteImpact.ts
   - client/world/halloween.ts
   - client/world/jardim/luzes.ts
   - client/world/decor.ts
@@ -46,7 +47,7 @@ Efeitos de combate ficam em `client/render/effects.ts` (classe `Effects`, criada
 
 ### Impacto
 
-Furo (decal) + detritos + faíscas no mapa; confete ou estrelas em personagens. Ver [[Decals]] e [[Particles]].
+Furo (decal) + detritos + faíscas no mapa; confete ou estrelas em personagens. Ver [[Decals]] e [[Particles]]. Online, os tiros dos outros jogadores também deixam furo, detritos e faíscas no mapa (raycast curto em volta do ponto final, `client/weapons/remoteImpact.ts`); acertos neles continuam sem efeito para terceiros.
 
 ### Explosão de granada (`Effects.explosion`)
 

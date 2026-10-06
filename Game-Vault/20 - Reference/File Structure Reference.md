@@ -126,6 +126,7 @@ client/
 ├── weapons/
 │   ├── weapon.ts           Lógica da arma de fogo (dados → comportamento); uma instância por espaço
 │   ├── hitscan.ts          Raio de tiro, penetração
+│   ├── remoteImpact.ts     Onde o tiro de outro jogador bateu no mapa (marca, faíscas, som)
 │   ├── melee.ts            Faca
 │   ├── grenades.ts         GrenadeThrower (mão) + GrenadeProjectiles (mundo)
 │   └── mines.ts            Minas terrestres

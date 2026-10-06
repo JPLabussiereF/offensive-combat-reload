@@ -13,6 +13,7 @@ source_paths:
   - client/world/hydrant.ts
   - shared/protocol.ts
   - client/net/remote.ts
+  - client/weapons/remoteImpact.ts
 tags:
   - game
   - audio
@@ -66,6 +67,7 @@ Mensagens do servidor (ver [[Remote Calls]] e [[Replication]]) que geram som no 
 | Mensagem | Som | Tipo espacial | Posição |
 | --- | --- | --- | --- |
 | `shot` | `gunshot(1, voz)` da arma na mão dele (`RemotePlayer.gun`); silenciado: voz `silenciado` e sem traçante | `gun` (silenciado: `step`) | boca da arma do avatar remoto |
+| `shot` (acertou o mapa) | `impact(material)` da superfície achada pelo raycast curto em volta do ponto final (`remoteImpact`) | `normal` | ponto de impacto |
 | `swing` | `meleeSwing(forma)` da faca dele | `step` (frango e sabre: `normal`) | avatar remoto (+1,3 m) |
 | `grenade` (granada) | `grenadeThrow()` | `step` | lançador (+1,4 m) |
 | `grenade` (mina) | `minePlant()` | `normal` | posição da mina |

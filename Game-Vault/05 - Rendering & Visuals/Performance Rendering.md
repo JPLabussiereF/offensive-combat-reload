@@ -88,7 +88,7 @@ Ver [[ADR - Personagem bakeado em um mesh com LOD]].
 
 ### 5. Instancing e pools
 
-Tudo que aparece em quantidade é `InstancedMesh` com capacidade fixa (1 draw call por pool): decals 160, partículas 480, puffs 260, detritos 160, gotas 360, chamas 160, lanternas do céu 650, nuvens 10, névoa rasteira, frutas, lâmpadas da roda-gigante. Traçantes (16), bolas de fogo (12), fumaça (48) e anéis (4) são pools de meshes. Ver [[Particles]].
+Tudo que aparece em quantidade é `InstancedMesh` com capacidade fixa (1 draw call por pool): decals 384, partículas 480, puffs 260, detritos 160, gotas 360, chamas 160, lanternas do céu 650, nuvens 10, névoa rasteira, frutas, lâmpadas da roda-gigante. Traçantes (16), bolas de fogo (12), fumaça (48) e anéis (4) são pools de meshes. Ver [[Particles]].
 
 > [!note] Trade-off
 > Esses `InstancedMesh` têm `frustumCulled = false` (as instâncias se espalham pelo mapa), então são sempre enviados à GPU, mesmo vazios (instâncias com escala zero).
