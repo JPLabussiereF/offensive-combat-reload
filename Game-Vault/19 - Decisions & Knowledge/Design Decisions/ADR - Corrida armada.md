@@ -49,7 +49,7 @@ Definir a escada, como as regras ficam iguais online e offline, o que acontece c
 
 1. **Escada** (`shared/data/corrida_armada.json`): 6 degraus de arma de fogo e o sabre — Rifle Completo, Liquidificador Turbo, Rifle com Luneta, Rifle Silenciado, Pistola Ligeira, Pistola da Batata, Sabre de Luz. Das armas mais fáceis às mais difíceis. 3 abates por degrau, 1 com o sabre. Ver [[Gun Game]].
 2. **Abate que conta**: só com a arma do degrau (no último, a facada do sabre). A faca comum (golpe rápido) nos outros degraus **não conta** para quem esfaqueia — só derruba a vítima.
-3. **Facada**: a vítima desce um degrau e perde os abates do degrau; no primeiro degrau, só perde os abates. Vale para faca e sabre.
+3. **Facada** (revisada em 2026-10-06, ver abaixo): a vítima **perde um abate**. Sem abates no degrau, volta à arma anterior com um abate a menos que o necessário para subir de novo; no primeiro degrau sem abates, nada muda. Vale para faca e sabre.
 4. **Sabre na mão**: novo campo `Loadout.soFaca` (só a escada o entrega). O cliente mostra a lâmina sempre na mão e o tiro golpeia; o servidor recusa tiros de armas de fogo desse loadout.
 5. **Sem granadas** neste modo (`MODE_RULES.grenades = false`): um abate de granada nunca contaria, e minas/explosões estragariam a corrida.
 6. **Rodadas**: vitória → `roundEnd` → 6 s sem dano → `roundStart`: degraus, abates, mortes e pontos zerados, todos renascem já. É o primeiro modo com fim de partida ([[Problem - Partidas sem fim]]).
@@ -57,6 +57,12 @@ Definir a escada, como as regras ficam iguais online e offline, o que acontece c
 8. **Entrada no meio**: começa no primeiro degrau.
 9. **Sessões**: cada mapa tem uma sala fixa de corrida armada (`corrida-armada-<mapa>`) e sempre uma com vaga ([[Matchmaking]]).
 10. **Bots**: o `BotManager` aplica a mesma escada; o bot recebe as armas do degrau (`Bot.arm`) e, com o sabre, corre para esfaquear em vez de atirar ([[ADR - Bots como jogadores completos]]).
+
+## Revisão 2026-10-06: a facada tira um abate
+
+A regra original (descer o degrau inteiro e zerar os abates) foi achada punitiva demais jogando: uma facada desfazia até 5 abates de progresso. A pedido de um jogador do grupo (JPLabussiereF), a facada passa a tirar **um abate**, cruzando para a arma anterior só quando não há abates no degrau. A figurinha **Esfaqueador** do álbum conta cada abate tirado na faca.
+
+Alternativas consideradas: manter a regra (descartada pelo pedido); tirar um abate sem nunca voltar de arma (descartada: a facada ficaria inútil contra quem acabou de subir).
 
 ## Motivo
 

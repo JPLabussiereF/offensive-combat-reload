@@ -96,7 +96,7 @@ Motor com relógio falso (`ZombieMatch` sobre a navmesh assada do cemitério), s
 
 ### `modes.test.ts` — modos online e progressão de armas
 
-- **Regras puras**: a escada da corrida armada (`ladderProblems`, sobe com 3 abates da arma do degrau, a facada desce, só o sabre vence) e `MODE_RULES` de todo modo.
+- **Regras puras**: a escada da corrida armada (`ladderProblems`, sobe com 3 abates da arma do degrau, a facada tira um abate e só volta de arma sem abates no degrau, só o sabre vence) e `MODE_RULES` de todo modo.
 - **Mata-mata**: o Arsenal escolhido no saguão vale e a troca no meio é recusada; subir de nível não muda a arma na mão (vale na próxima sessão). Com uma **conta veterana**: o dano do rifle é o dele com o silenciador ligado (mais fraco a 30 m que o simples), a cadência aceita é a da pistola com o gatilho (11 acertos por segundo em vez de 9), G planta mina (a melhoria ligada) e o abate de pistola dá os pontos à pistola e 25 XP à conta. Um **cliente ganancioso** (secundária inexistente, opcionais não liberadas, um `Loadout` inteiro com o sabre) fica com a escolha limpa; acertos de armas fora do loadout são ignorados e a mina sem a melhoria vira granada comum.
 - **Corrida armada**: sala fixa por mapa, primeiro degrau para todos, sem granadas, subir/descer, vitória com o sabre e nova rodada. Com uma **conta no máximo** (silenciador, sabre e mina ligados): entra no primeiro degrau; o dano é o da arma do degrau com as melhorias do degrau; ao subir, tiros da arma anterior valem por 1 s com os atributos dela e a arma nova vale com os dela; nenhuma arma ganha pontos (nem no banco depois de sair) e a conta ganha 25 XP por abate.
 
