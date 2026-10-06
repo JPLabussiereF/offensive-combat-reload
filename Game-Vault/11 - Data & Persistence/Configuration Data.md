@@ -1,0 +1,82 @@
+---
+title: Configuration Data
+type: configuration
+status: documented
+area: data
+source_paths:
+  - shared/data/progression.json
+  - shared/data/nivel_conta.json
+  - shared/data/weapons/rifle_padrao.json
+  - shared/data/weapons/faca.json
+  - shared/data/weapons/granada_frag.json
+  - shared/weapons.ts
+  - shared/progression.ts
+  - shared/accountLevel.ts
+  - shared/constants.ts
+  - shared/protocol.ts
+  - shared/maps.ts
+  - shared/catalog.ts
+  - shared/palette.ts
+  - server/config.ts
+tags:
+  - game
+  - data
+  - configuration
+updated: 2026-10-05
+---
+
+# Configuration Data
+
+Dados que definem o jogo e **não mudam em tempo de execução**. Ficam no repositório, são importados por **cliente e servidor** (pasta `shared/`) e entram no build. Mudar um valor exige novo build/deploy (não há configuração remota nem *feature flags*: ver [[Feature Flags]] e [[Configurable Content]]).
+
+## Arquivos de dados (JSON)
+
+| Arquivo | Conteúdo | Lido por |
+|---|---|---|
+| `shared/data/weapons/rifle_padrao.json` | Rifle: dano por distância, multiplicadores por região, cadência (700 rpm), alcance máximo (300 m), modelo `.glb`, etc. | `shared/weapons.ts` (`WEAPONS`) |
+| `shared/data/weapons/faca.json` | Faca (`MELEE`) | `shared/weapons.ts` |
+| `shared/data/weapons/granada_frag.json` | Granada: quantidade 2, recarga 10 s, pavio 3 s, impacto, tempo máx. de voo 8 s, níveis (`raioDano` 7 m, `danoMax` 85, `podeMatar`) | `shared/weapons.ts` (`GRENADES`) |
+| `shared/data/progression.json` | Níveis de cada arma (rifle, faca, granada): XP necessário, nome, ícone, descrição e modificadores (dano, pente, cadência, mira…) | `shared/progression.ts` |
+| `shared/data/nivel_conta.json` | Nível da conta: `porMinutoVivo` 10, `porAbate` 25, `porOpressao` 50; custo do nível n→n+1 = `round(1000 × n^1,5)` | `shared/accountLevel.ts` |
+
+Os JSON trazem um campo `_doc` com a explicação em português. Detalhes de gameplay em [[Weapons]] e [[Progression]].
+
+## Constantes em TypeScript
+
+| Módulo | O quê |
+|---|---|
+| `shared/constants.ts` | `MOVE`, `HEALTH` (100, regen 25/s após 4 s), `SCORE`, `HUMILIATION` (janela 6 s, raio 2 m, 3,2 s), `SIM`, `CHERRY`, `BISCUIT`, `KOI`, `RAT`, `POTION`… |
+| `shared/protocol.ts` | `NET` (tick 20 Hz, envio 20 Hz, interpolação 100 ms, 10 jogadores, limites de nome/chat, respawn 5 s, porta 8787, `/ws`), `FLAG`, `CLOSE`, `ONLINE_GRENADE_LEVEL` |
+| `shared/maps.ts` | `MAPS` (ids e nomes), `PICKUPS`, `FISH`, `RATS`, `WITCHES` por mapa |
+| `shared/account.ts` | Regras de nome, senha (8–128), e-mail (≤ 254), cooldown de nome (7 dias), carência de exclusão (30 dias) |
+| `shared/catalog.ts`, `shared/palette.ts`, `shared/appearance.ts` | Catálogo de personalização, paleta e regras de aparência (validação no servidor) |
+
+Lista consolidada em [[Constants Reference]].
+
+> [!warning]
+> Comentário desatualizado: `shared/protocol.ts` diz que o nível de granada online (`ONLINE_GRENADE_LEVEL = 1`) é "não letal", mas `granada_frag.json` define o nível 1 com `"podeMatar": true`. O código usa o JSON (`clampExplosionDamage` só limita quando `podeMatar` é falso).
+
+## Configuração de ambiente (servidor)
+
+`server/config.ts` lê variáveis de ambiente (nomes apenas; valores reais nunca no vault — ver [[Sensitive Data]]):
+
+| Variável | Finalidade |
+|---|---|
+| `DATABASE_URL` | Conexão PostgreSQL |
+| `REDIS_URL` | Conexão Redis |
+| `ORIGENS_PERMITIDAS` | Origens extras permitidas na API e no WebSocket (lista separada por vírgula) |
+| `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_RETORNOS` | Login com Discord |
+| `SMTP_USUARIO`, `SMTP_SENHA_APP`, `SMTP_REMETENTE` | E-mail de redefinição de senha |
+| `NODE_ENV` | `production` / `test` |
+| `PORT`, `HOST` | Porta e interface do servidor (`server/index.ts`) |
+
+Referência completa (incluindo variáveis do Docker como `PG_SENHA`, `PORTA`): [[Configuration Reference]] e [[Environments]].
+
+## Configuração do jogador
+
+Preferências locais (`oc.settings.v1`) estão em [[Save System]] e [[Settings]].
+
+## Código relacionado
+
+- `shared/data/**`, `shared/*.ts`, `server/config.ts`, `server/index.ts`.
+- Ver também [[Configuration]], [[Data Architecture]].
