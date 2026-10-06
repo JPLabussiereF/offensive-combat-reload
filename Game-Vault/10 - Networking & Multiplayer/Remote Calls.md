@@ -114,6 +114,7 @@ Convenções:
 | `chatRefused` | `reason: 'muted' \| 'slow'` | fala recusada | conexão |
 | `pong` | `c`, `s` | resposta ao `ping` | conexão |
 | `progresso` | `armas` (`{xp, nivel}` por arma), `escolha` (`ArsenalChoice`), `conta`, `subiu?` | `hello`, ao mudar a escolha, e sempre que o progresso muda | conexão |
+| `figurinha` | `id` (da figurinha), `nivel` (1 Comum .. 4 Dourada) | quando o acabamento de uma figurinha do álbum sobe (conferido 1×/s no `tick` da sessão, `stickerUps`) | conexão (só o dono) |
 | `zsnap` | `time`, `z: ZNet[]` (`[id, tipo, x, y, z, yaw, flags]`), `left`, `boss?: [id, vida, máx]` | **20 Hz** logo depois do `snap`, durante a onda ou com zumbis vivos | sala |
 | `zwave` | `phase` (`waiting`/`countdown`/`wave`/`break`/`over`), `wave`, `until`, `total`, `boss?` | a partida muda de fase | sala |
 | `zdie` | `id`, `by`, `how`, `award?`, `money?` | zumbi morreu | sala |
@@ -126,7 +127,7 @@ Convenções:
 | `zdown`, `zrevive`, `zup` | `id`, (`until`), (`by`, `money?`) | caiu / reanimando / levantou | sala |
 | `zend` | `won`, `wave`, `secs`, `players: ZSummaryRow[]`, `restartAt` | fim da partida zumbi (resumo) | sala |
 
-`PlayerInfo` ganhou `ladder?: {step, kills}` (corrida armada) e `zumbi?: {money, kills, downs, revives, state, items}` (zumbi; `items.danificadas` diz quais estão danificadas); `SessionInfo` ganhou `mode`; `KillKind` ganhou `'zombie'` (sangrou caído); `Loadout` ganhou `danificadas?` (por arma: `municao`/`dano`/`ambos`, mantido por `sanitizeLoadout`). Ver [[Gun Game]] e [[Zombie]].
+`PlayerInfo` ganhou `fig?: [id, nivel]` e `tit?` (a figurinha do álbum em destaque, com o acabamento de agora, e o título; [[Achievements]]), `ladder?: {step, kills}` (corrida armada) e `zumbi?: {money, kills, downs, revives, state, items}` (zumbi; `items.danificadas` diz quais estão danificadas); `SessionInfo` ganhou `mode`; `KillKind` ganhou `'zombie'` (sangrou caído); `Loadout` ganhou `danificadas?` (por arma: `municao`/`dano`/`ambos`, mantido por `sanitizeLoadout`). Ver [[Gun Game]] e [[Zombie]].
 
 `KillKind`: `gun`, `head`, `groin`, `knife`, `grenade`, `fall`, `void`, `explosion`, `dog`. `AwardLabel`: `kill`, `headshot`, `groin`, `knife`, `backstab`, `longShot`, `humiliation`.
 

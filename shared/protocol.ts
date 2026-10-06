@@ -94,6 +94,9 @@ export interface PlayerInfo {
   ladder?: LadderPos;
   /** Zumbi: the match's money, zombie kills, times downed and revives given, whether they're standing, what they carry. */
   zumbi?: ZombiePlayer;
+  /** The album sticker the player shows (its id and the targets it reached) and the title they wear (a page id). */
+  fig?: [id: string, nivel: number];
+  tit?: string;
 }
 
 /** A player in a zumbi match. */
@@ -331,7 +334,9 @@ export type ServerMsg =
   /** Zumbi: the match is over (won: the last wave survived); a new one starts at `restartAt`. */
   | { t: 'zend'; won: boolean; wave: number; secs: number; players: ZSummaryRow[]; restartAt: number }
   /** The account's progress changed (points only come from the server online); `escolha` is the Arsenal choice it kept. */
-  | { t: 'progresso'; armas: Record<ProgWeapon, { xp: number; nivel: number }>; escolha: ArsenalChoice; conta: { xp: number; nivel: number }; subiu?: { tipo: ProgWeapon | 'conta'; nivel: number } };
+  | { t: 'progresso'; armas: Record<ProgWeapon, { xp: number; nivel: number }>; escolha: ArsenalChoice; conta: { xp: number; nivel: number }; subiu?: { tipo: ProgWeapon | 'conta'; nivel: number } }
+  /** A sticker of the album went up to finish `nivel` (1 common .. 4 gold); only to its owner. */
+  | { t: 'figurinha'; id: string; nivel: number };
 
 /** WebSocket close codes sent by the server. */
 export const CLOSE = {

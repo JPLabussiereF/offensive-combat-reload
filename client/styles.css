@@ -3175,6 +3175,380 @@ input[type='range'] {
   font-weight: 800;
   font-size: 13px;
 }
+/* --- Album (sticker achievements): one drawing, four finishes, all in CSS ------------------------------ */
+.album-pages {
+  margin: 6px 0 12px;
+}
+.album-pages small {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 12px;
+}
+.fig {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 8px 10px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 3px 3px 0 var(--ink);
+  color: var(--ink);
+  font-family: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+.fig:hover {
+  transform: translateY(-2px) rotate(-1deg);
+}
+.fig[aria-pressed='true'] {
+  box-shadow: 4px 4px 0 var(--c);
+  transform: translateY(-2px);
+}
+.fig-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--c);
+  overflow: hidden;
+}
+.fig-icon {
+  font-size: 40px;
+  line-height: 1;
+  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.35));
+}
+.fig-rep {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  right: 4px;
+  padding: 0 6px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--warn);
+  font: 900 12px var(--body);
+}
+.fig-name {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.05;
+}
+.fig-pips {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+.fig-pips i {
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #fff;
+}
+.fig-pips i.on {
+  background: var(--c);
+}
+.fig-count {
+  font-weight: 800;
+  font-size: 12px;
+  opacity: 0.75;
+}
+/* Not stuck in yet: an empty, dashed slot with the drawing's shadow. */
+.fig-t0 {
+  border-style: dashed;
+  background: #f6f1e8;
+  box-shadow: none;
+}
+.fig-t0 .fig-art {
+  border-style: dashed;
+  background: #e4ddcf;
+}
+.fig-t0 .fig-icon {
+  filter: grayscale(1) brightness(0.3);
+  opacity: 0.35;
+}
+/* Shiny, holographic and gold: a light sweeping across the picture. */
+.fig-t2 .fig-art::after,
+.fig-t3 .fig-art::after,
+.fig-t4 .fig-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.75) 50%, transparent 65%) 0 0 / 250% 100%;
+  animation: fig-sheen 3s ease-in-out infinite;
+}
+/* Holographic: a rainbow foil turning over it. */
+@property --fig-a {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.fig-t3 .fig-art::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(from var(--fig-a), #ff4a3d, #ffd23f, #7dff5a, #2fe0ff, #2f9bff, #b04aff, #ff4a3d);
+  mix-blend-mode: color-dodge;
+  opacity: 0.55;
+  animation: fig-spin 6s linear infinite;
+}
+/* Gold: gold leaf on the picture and the card. */
+.fig-t4 {
+  background: linear-gradient(135deg, #fff3c4, #ffd23f 45%, #e0a21a);
+}
+.fig-t4 .fig-art {
+  background: linear-gradient(135deg, #ffe680, #d99a10 50%, #fff1a8 70%, #c78a0a);
+}
+@keyframes fig-sheen {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+@keyframes fig-spin {
+  to {
+    --fig-a: 360deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fig-art::before,
+  .fig-art::after {
+    animation: none;
+  }
+}
+/* A small sticker as the others see it: scoreboard, death card, profile, the album's showcase. */
+.fig-mini {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-radius: 7px;
+}
+.fig-mini .fig-art {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-width: 2px;
+  border-radius: 7px;
+}
+.fig-mini .fig-icon {
+  font-size: 17px;
+}
+.fig-mini.fig-t4 {
+  background: none;
+}
+.fig-mini.empty {
+  border: 2px dashed currentColor;
+  opacity: 0.35;
+}
+.sb-name {
+  white-space: nowrap;
+}
+.sb-title {
+  display: block;
+  margin-left: 36px;
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0.75;
+}
+#death-showcase {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+#death-showcase.hidden {
+  display: none;
+}
+#death-showcase .fig-mini {
+  width: 48px;
+  height: 48px;
+  margin: 0;
+}
+#death-showcase .fig-icon {
+  font-size: 28px;
+}
+.death-title {
+  font: 900 17px var(--body);
+  color: var(--warn);
+}
+.album-showcase {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+}
+.album-shown {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.album-shown .fig-mini {
+  width: 46px;
+  height: 46px;
+  margin: 0;
+}
+.album-shown .fig-icon {
+  font-size: 26px;
+}
+.album-shown b {
+  display: block;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 18px;
+}
+.album-title-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.album-titles {
+  margin: 0 0 10px;
+}
+.album-titles summary {
+  cursor: pointer;
+  font-weight: 900;
+}
+.album-titles ul {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.album-titles li {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 3px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  opacity: 0.7;
+}
+.album-titles li.done {
+  background: var(--good);
+  opacity: 1;
+}
+#al-feature {
+  margin-top: 10px;
+}
+.profile-showcase {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+.profile-showcase .fig-mini {
+  width: 40px;
+  height: 40px;
+}
+.profile-showcase .fig-icon {
+  font-size: 22px;
+}
+.profile-title {
+  font-family: var(--display);
+  font-size: 18px;
+}
+.fig-detail {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+}
+.fig-detail p {
+  margin: 0;
+  font-weight: 800;
+}
+.fig-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+/* The stickers' bars are spans: shown as blocks (or the fill has no size), green like the account's XP bar. */
+.fig-bar {
+  display: block;
+  margin-top: 0;
+}
+.fig-bar > .xp-fill {
+  display: block;
+  height: 100%;
+  background: var(--good);
+  transition: width 0.4s ease-out;
+}
+.fig-progress .fig-bar {
+  flex: 1;
+}
+.fig-progress b {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.fig-items {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.fig-items li {
+  display: grid;
+  grid-template-columns: minmax(90px, 140px) 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 12px;
+}
+.fig-tiers {
+  display: grid;
+  grid-template-columns: repeat(var(--n, 4), 1fr);
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.fig-tiers li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 12px;
+  opacity: 0.55;
+}
+.fig-tiers li.done {
+  background: var(--good);
+  opacity: 1;
+}
+@media (max-width: 560px) {
+  .fig-grid {
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  }
+  .fig-tiers {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 .part-table {
   width: 100%;
   margin-top: 8px;

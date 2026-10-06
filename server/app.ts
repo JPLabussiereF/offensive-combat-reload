@@ -13,7 +13,7 @@ import { CONFIG } from './config';
 import { createDb, migrate } from './db';
 import { originAllowed, setPeer } from './http';
 import { scheduleJobs } from './jobs';
-import { deltaIsEmpty, equip, liveAccount, mergeDelta, progressMsg, type LiveAccount } from './progress';
+import { countEntry, deltaIsEmpty, equip, liveAccount, mergeDelta, progressMsg, settle, type LiveAccount } from './progress';
 import { createRedis, MUTE_CHANNEL, REVOCATION_CHANNEL } from './redis';
 import { Session, type Conn } from './session';
 
@@ -139,6 +139,7 @@ export async function startServer(opts: Options): Promise<GameServer> {
     try {
       const pid = participation ? await participation : null;
       await flushProgress(db, a.profile.profileId, pid, d, close, a.profile.arsenal);
+      settle(a, d);
     } catch (err) {
       mergeDelta(a.delta, d);
       console.error('[progresso] gravação falhou, tento de novo no próximo ciclo:', (err as Error).message);
@@ -306,6 +307,7 @@ export async function startServer(opts: Options): Promise<GameServer> {
               if (s.full) return conn.send({ t: 'error', message: 'Sessão lotada.' });
             }
             s.join(conn);
+            countEntry(account);
             account.participation = openParticipation(db, profile.profileId, s.name).catch((err) => {
               console.error('[progresso] participação:', (err as Error).message);
               return null;

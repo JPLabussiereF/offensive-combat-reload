@@ -60,6 +60,7 @@ import { closeReason, gameModeName, showHome } from './ui/home';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
 import { Arsenal, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
+import { stickerBadge, stickerUpText, titleText } from './ui/album';
 import { GUN_IDS, isKnife, KNIVES, progOf, upgradeAt, type KnifeId, type WeaponId } from '@shared/progression';
 import { DEFAULT_LOADOUT, grenadeStats, gunIn, knifeOf, loadoutKnife, sanitizeLoadout, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import { MODE_RULES, type GameModeId } from '@shared/modes';
@@ -920,6 +921,23 @@ async function boot() {
     }
     sfx.levelUp();
   });
+  // An album sticker went up (online, from the server): one banner after the other when several come at once.
+  const stickerLines: string[] = [];
+  let stickerShowing = false;
+  const nextSticker = () => {
+    const line = stickerLines.shift();
+    stickerShowing = !!line;
+    if (!line) return;
+    hud.showBanner(line, 'level');
+    sfx.levelUp();
+    setTimeout(nextSticker, 2000);
+  };
+  conn?.on('figurinha', (m) => {
+    const line = stickerUpText(m.id, m.nivel);
+    if (!line) return;
+    stickerLines.push(line);
+    if (!stickerShowing) nextSticker();
+  });
   // The pause menu: corrida armada shows its ladder (the mode hands out the weapons); otherwise the Arsenal,
   // read-only during a match with a locked loadout (mata-mata), editable on the training range.
   const arsenalGrid = document.getElementById('arsenal-grid')!;
@@ -1410,6 +1428,9 @@ async function boot() {
         player.kill(simTime);
         sfx.sadTrombone();
         const killer = m.attacker !== null && m.attacker !== me ? nameOf(m.attacker) : null;
+        // The killer's calling card: the album sticker they show and the title they wear.
+        const killerInfo = killer ? net.info.get(m.attacker!) : undefined;
+        hud.setDeathShowcase(stickerBadge(killerInfo?.fig), titleText(killerInfo?.tit));
         const msg = killer
           ? t('killedByWith', { name: killer, weapon: weaponName })
           : pick(DEATH_MESSAGES[getLang()][m.kind === 'void' ? 'void' : m.kind === 'fall' ? 'fall' : m.kind === 'dog' ? 'dog' : m.kind === 'zombie' ? 'zombie' : 'explosion']);

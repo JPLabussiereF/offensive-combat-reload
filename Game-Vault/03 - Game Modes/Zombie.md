@@ -245,7 +245,8 @@ Ver "Caído, reanimar, morrer". Na troca de partida todos renascem na hora. O po
 - **Placar** (`Tab`, [[Scoreboard]]): abates de zumbi, dinheiro atual, vezes caído, reanimações e ping; quem está caído aparece com "✚". O número "Pontos" do HUD é o dinheiro ganho na partida.
 - **XP de conta** (só online, sempre do servidor, [[Progression]]): por abate 3–8 XP conforme o tipo, chefe (50 a quem mata, 100–150 ao time), onda vencida +10, reanimar +10, vitória +250, além do XP por minuto vivo que vale em todo modo. Barricadas não dão XP.
 - **Sem XP de arma** (`weaponXp: false`): as armas são do caixão, não do Arsenal do jogador (mesmo motivo da [[Gun Game]]), e o PvE não vira atalho para as melhorias do PvP.
-- **Sem estatística de abates/mortes da conta**: zumbis não são jogadores, e morrer para eles não mexe no K/D.
+- **Sem estatística de abates/mortes da conta** (`player_stats`): zumbis não são jogadores, e morrer para eles não mexe no K/D.
+- **Estatísticas próprias do modo** (só online, tabela `zombie_stats`, aba Perfil em "Modo zumbi"): partidas até o fim, vitórias, melhor onda alcançada, ondas sobrevividas, zumbis abatidos (e quantos na cabeça, no pássaro, na faca e com granada), golpe final em cada chefe, quedas, reanimações feitas, mortes (sangrar até o fim, cair no vazio, ou estar caído quando a partida é perdida, já que ninguém vai reanimar) e giros no caixão. O motor avisa cada evento pelo gancho opcional `ZombieHost.stat` (`ZStat`); no servidor, `addZombieStat` soma no delta da conta e o flush grava ([[Save System]]). O jogo solo não implementa o gancho.
 - Sozinho (offline) não há XP, como em todo modo offline.
 
 ## Limites de tempo

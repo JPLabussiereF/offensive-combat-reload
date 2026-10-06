@@ -1,4 +1,4 @@
-// Home screen (section 5, flow steps 2-4). Signed in: a header with tabs (Play, Arsenal, Profile, Settings) and
+// Home screen (section 5, flow steps 2-4). Signed in: a header with tabs (Play, Arsenal, Album, Profile, Settings) and
 // the account, beside the character card; Play picks online (quick join or a session from the list), bots or
 // the training range, and the match type (mata-mata or corrida armada) for online and bots. Signed out: a
 // landing page with the account form and a quick game against bots. Resolves with the chosen mode.
@@ -16,6 +16,7 @@ import { knifeOf } from '@shared/arsenal';
 import { errorText, showAuth, type AuthView } from './auth';
 import { renderPortrait, showCustomizer, Stage } from './customize';
 import { showProfile } from './profile';
+import { showAlbum } from './album';
 import { t, type StringKey } from './strings';
 
 export type BotSkillName = 'facil' | 'normal' | 'dificil';
@@ -27,7 +28,7 @@ export type HomeChoice = { name: string; sex: Sex; account: ProfileResponse | nu
 );
 
 type PlayMode = 'online' | 'bots' | 'treino';
-type Tab = 'play' | 'arsenal' | 'profile' | 'settings' | 'auth';
+type Tab = 'play' | 'arsenal' | 'album' | 'profile' | 'settings' | 'auth';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -206,9 +207,10 @@ export function showHome(): Promise<HomeChoice> {
 
   const showTab = (next: Tab) => {
     tab = next;
-    for (const id of ['play', 'arsenal', 'profile', 'settings', 'auth'] as const) $(`tab-${id}`).classList.toggle('hidden', id !== next);
+    for (const id of ['play', 'arsenal', 'album', 'profile', 'settings', 'auth'] as const) $(`tab-${id}`).classList.toggle('hidden', id !== next);
     for (const b of home.querySelectorAll<HTMLElement>('[role="tab"]')) b.setAttribute('aria-selected', String(b.dataset.tab === next));
     if (next === 'profile') openProfile();
+    if (next === 'album') void showAlbum($('tab-album'), { setStatus, onBack: () => showTab('play') });
   };
 
   const renderEquipped = () => {

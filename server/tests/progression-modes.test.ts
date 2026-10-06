@@ -50,6 +50,7 @@ import { FLAG, NET, type ClientMsg, type ServerMsg } from '@shared/protocol';
 import { computeDamage, explosionDamage, HIT_REGIONS, idealTtk } from '@shared/weapons';
 import { BOX_ITEMS, flawAmmo, itemOf, itemSlot, startItems, Z_FLAWS, ZOMBIE, zombieGunData, zombieLoadout, type ZFlaw, type ZItems, type ZSlot } from '@shared/zombies';
 import { equip, levelsOf, liveAccount, loadoutOf, xpOf, type LiveAccount } from '../progress';
+import { emptyTotals } from '../accounts';
 import { Session, type Conn } from '../session';
 
 // --- Accounts: every gun at every level, with its optional upgrades off, each one on, all on ---------------------
@@ -109,7 +110,7 @@ let accountSeq = 1;
 function liveAt(levels: Partial<Levels>, choice: unknown, xp: Partial<WeaponXp> = {}): LiveAccount {
   const n = accountSeq++;
   const weapons = Object.fromEntries(PROG_WEAPONS.map((w) => [w, { xp: xp[w] ?? xpForLevel(w, levels[w] ?? 1) }])) as Record<ProgWeapon, { xp: number }>;
-  const a = liveAccount({ accountId: `conta-${n}`, profileId: `perfil-${n}`, tag: `Matriz${n}#0001`, sex: 'm', appearance: defaultAppearance('m'), xp: 0, weapons, arsenal: DEFAULT_CHOICE });
+  const a = liveAccount({ accountId: `conta-${n}`, profileId: `perfil-${n}`, tag: `Matriz${n}#0001`, sex: 'm', appearance: defaultAppearance('m'), xp: 0, weapons, arsenal: DEFAULT_CHOICE, totals: emptyTotals(), album: {} });
   // What app.ts does with the lobby's 'loadout' message.
   equip(a, choice);
   return a;
