@@ -19,12 +19,14 @@ source_paths:
   - client/world/jardim/santuario.ts
   - client/world/hauntedTown.ts
   - client/world/halloween.ts
+  - shared/data/weapons/pistola.json
+  - shared/data/weapons/smg.json
 tags:
   - world
   - maps
   - combat
   - level-design
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Cover & Combat Spaces
@@ -33,7 +35,7 @@ Como os mapas oferecem cobertura, que superfícies param ou deixam passar a bala
 
 ## Cobertura que para a bala x cobertura que só esconde
 
-A bala é um raio (*hitscan*) contra os colisores do mapa. Se a superfície atingida tem um material listado em `penetracao` da arma e é fina o bastante **ao longo do caminho da bala**, o tiro atravessa e perde parte do dano. Dados do Rifle Padrão (`shared/data/weapons/rifle_padrao.json`), a única arma de fogo com `penetracao`:
+A bala é um raio (*hitscan*) contra os colisores do mapa. Se a superfície atingida tem um material listado em `penetracao` da arma e é fina o bastante **ao longo do caminho da bala**, o tiro atravessa e perde parte do dano. Dados do Rifle Padrão (`shared/data/weapons/rifle_padrao.json`, até 2 superfícies). A pistola e a submetralhadora (`pistola.json`, `smg.json`) atravessam só **1** superfície e perdem mais: madeira até 0,3 m (50% do dano continua), vidro até 0,1 m (85%), papel até 0,1 m (90%). Ver [[Weapons]].
 
 | Material físico | Atravessa se a espessura no caminho for até | Dano que continua | Exemplos nos mapas |
 | --- | --- | --- | --- |

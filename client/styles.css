@@ -268,6 +268,85 @@ body {
   color: var(--hud-dim);
 }
 
+/* Corrida armada: the ladder step under the score, and the round's winner card in the middle. */
+#ladder {
+  position: absolute;
+  top: calc(58px + var(--safe-t));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 5px;
+  border-radius: 999px;
+  background: var(--hud-glass);
+  border: 1px solid var(--hud-line);
+  color: #fff;
+  text-shadow: var(--hud-shadow);
+  white-space: nowrap;
+}
+#ladder-step {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 15px;
+  color: var(--warn);
+}
+#ladder-name {
+  font: 800 13px var(--body);
+}
+#ladder-pips {
+  display: flex;
+  gap: 4px;
+}
+#ladder-pips i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+}
+#ladder-pips i.on {
+  background: var(--good);
+}
+#ladder.final #ladder-step,
+#ladder.final #ladder-name {
+  color: #ff6fb5;
+}
+#round-end {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 16vh;
+}
+.round-card {
+  padding: 18px 26px;
+  text-align: center;
+  max-width: min(640px, calc(100vw - 32px));
+  animation: popin-card 0.3s ease-out;
+}
+#round-title {
+  font-family: var(--display);
+  font-size: clamp(26px, 4.4vw, 44px);
+  line-height: 1.05;
+  color: var(--ink);
+}
+#round-end.won #round-title {
+  color: var(--team-a);
+}
+#round-next {
+  margin-top: 8px;
+  font: 800 15px var(--body);
+  color: var(--ink);
+  opacity: 0.75;
+}
+/* The lightsaber in hand: no ammo to count. */
+#ammo.melee-only .ammo-count,
+#ammo.melee-only #ammo-status,
+#ammo.melee-only #weapon-slots {
+  display: none;
+}
+
 #killfeed {
   position: absolute;
   top: calc(14px + var(--safe-t));
@@ -1081,6 +1160,55 @@ html:not(.mobile) #chat-close {
   background: var(--team-a);
   color: #fff;
   box-shadow: 0 2px 0 var(--ink);
+}
+/* Read-only Arsenal (a match with a locked loadout): the switches show their state but don't move. */
+.upg-toggle:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* Corrida armada's ladder in the pause menu: one row per step, the player's own lit. */
+.ladder-list {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ladder-list li {
+  display: grid;
+  grid-template-columns: 34px 30px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  font: 800 14px var(--body);
+  color: var(--ink);
+}
+.ladder-list .rung {
+  font-family: var(--display);
+  font-size: 18px;
+  text-align: center;
+}
+.ladder-list .icon {
+  font-size: 20px;
+  text-align: center;
+}
+.ladder-list small {
+  font: 800 11px var(--body);
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.ladder-list li.final {
+  background: #ffe3f1;
+}
+.ladder-list li.me {
+  background: var(--warn);
+  box-shadow: 3px 3px 0 var(--ink);
 }
 .upg-fx {
   display: flex;
@@ -2364,7 +2492,7 @@ input[type='range'] {
 }
 #session-list li {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   align-items: center;
   gap: 12px;
   padding: 8px 10px 8px 14px;
@@ -2400,6 +2528,15 @@ input[type='range'] {
   font-variant-numeric: tabular-nums;
   opacity: 0.7;
 }
+/* The session's game mode, as a small tag (tinted per mode by home.ts). */
+#session-list .s-mode {
+  align-self: center;
+  white-space: nowrap;
+}
+#home-game-box .seg {
+  margin-top: 6px;
+}
+
 .small-btn {
   font-family: var(--display);
   font-size: 18px;
@@ -2418,7 +2555,7 @@ input[type='range'] {
 }
 .session-create {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   gap: 10px;
   margin-top: 14px;
 }
@@ -2509,7 +2646,27 @@ input[type='range'] {
   padding: 2px 6px;
   background: #fff;
 }
-
+/* Phones: the create row wraps (name on its own line, then map, mode and the button). */
+@media (max-width: 560px) {
+  .session-create {
+    grid-template-columns: 1fr 1fr auto;
+  }
+  .session-create input {
+    grid-column: 1 / -1;
+  }
+  .session-create select {
+    min-width: 0;
+    width: 100%;
+  }
+  #session-list li {
+    grid-template-columns: 1fr auto auto;
+  }
+  #session-list .s-mode {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+  }
+}
 /* ---------- Account (home card) ---------- */
 .small-btn.alt {
   background: var(--team-b);

@@ -148,9 +148,13 @@ export class Avatar {
     this.grenade.position.set(grenadeHand === 'hand_L' ? 0.01 : -0.01, -0.03, 0);
     this.character.sockets[grenadeHand].add(this.grenade);
     this.held.push(this.knife, this.grenade);
+    this.bladeOnly = !!lo.soFaca;
     this.showHeld(false, false);
     this.showGun(this.holdingSecondary);
   }
+
+  /** Only the knife (corrida armada's lightsaber): the guns aren't drawn at all, not even on the back. */
+  private bladeOnly = false;
 
   /** Which gun is in the hands (the other one, or none for a pistol, is put away). */
   private showGun(secondary: boolean) {
@@ -194,22 +198,22 @@ export class Avatar {
 
   /** A gun in the hands (armed) or the primary slung on the back (also while the secondary is in the hands). */
   private rifle(inHands: boolean) {
-    for (const o of this.character.objectsOf('weapon_R')) o.visible = inHands;
-    for (const o of this.character.objectsOf('weapon_back')) o.visible = !inHands || this.holdingSecondary;
+    for (const o of this.character.objectsOf('weapon_R')) o.visible = inHands && !this.bladeOnly;
+    for (const o of this.character.objectsOf('weapon_back')) o.visible = (!inHands || this.holdingSecondary) && !this.bladeOnly;
   }
 
   /** Alive, armed: locomotion, aim offset, the gun in both hands, action layers (reload, knife, grenade). */
   pose(dt: number, s: AvatarPose) {
     if (!!s.secondary !== this.holdingSecondary) this.showGun(!!s.secondary);
-    // Knife: the gun goes away and the knife comes out in the hand.
-    this.rifle(!s.knife);
+    // Knife: the gun goes away and the knife comes out in the hand (and stays there with a blade-only loadout).
+    this.rifle(!s.knife && !s.blade);
     const step = this.lod(dt);
     if (step !== null) {
       // Following the hitboxes: their state as is and no time of its own, so the very same pose.
       if (this.hitboxes) this.animator.syncFrom(this.hitboxes);
       this.animator.pose(this.hitboxes ? 0 : step, s);
     }
-    this.showHeld(s.knife, this.animator.grenadeInHand);
+    this.showHeld(s.knife || !!s.blade, this.animator.grenadeInHand);
   }
 
   /** A shot (recoil on the next poses). */

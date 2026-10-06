@@ -65,6 +65,9 @@ export class Hud {
   private popupTimer = 0;
   private lastHealth = -1;
   private lastAmmo = '';
+  private ladderEl = $('ladder');
+  private ladderKey = '';
+  private roundEl = $('round-end');
 
   constructor() {
     $('score-points-label').textContent = t('points');
@@ -184,6 +187,36 @@ export class Hud {
   setCrosshair(gapPx: number, visible: boolean) {
     this.crosshair.style.setProperty('--gap', `${gapPx.toFixed(1)}px`);
     this.crosshair.classList.toggle('hidden', !visible);
+  }
+
+  /**
+   * Corrida armada: the step on the ladder ("ARMA 3/7"), its weapon and the kills toward the next one, as pips
+   * (null hides it). `final`: the lightsaber step.
+   */
+  setLadder(l: { step: number; total: number; name: string; kills: number; need: number; final: boolean } | null) {
+    const key = JSON.stringify(l);
+    if (key === this.ladderKey) return;
+    this.ladderKey = key;
+    this.ladderEl.classList.toggle('hidden', !l);
+    if (!l) return;
+    this.ladderEl.classList.toggle('final', l.final);
+    $('ladder-step').textContent = t('ladderHud', { n: l.step + 1, total: l.total });
+    $('ladder-name').textContent = l.name;
+    $('ladder-pips').innerHTML = Array.from({ length: l.need }, (_, i) => `<i class="${i < l.kills ? 'on' : ''}"></i>`).join('');
+  }
+
+  /** The end of a round: who won (`won`: we did) and the countdown line; null hides it. */
+  showRoundEnd(title: string | null, next = '', won = false) {
+    this.roundEl.classList.toggle('hidden', title === null);
+    if (title === null) return;
+    this.roundEl.classList.toggle('won', won);
+    $('round-title').textContent = title;
+    $('round-next').textContent = next;
+  }
+
+  /** Only a melee weapon in hand (the lightsaber): no ammo count, no gun slots. */
+  setMeleeOnly(on: boolean) {
+    $('ammo').classList.toggle('melee-only', on);
   }
 
   setScore(points: number, kills: number, accuracy: number) {

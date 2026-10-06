@@ -7,6 +7,8 @@ import type { ArsenalChoice, GunId, ProgWeapon } from './progression';
 import type { Loadout } from './arsenal';
 import type { Appearance } from './appearance';
 import type { MapId } from './maps';
+import type { GameModeId } from './modes';
+import type { LadderPos } from './gunGame';
 
 export const NET = {
   /** Server simulation/broadcast rate. */
@@ -59,6 +61,8 @@ export interface SessionInfo {
   id: string;
   name: string;
   map: MapId;
+  /** The game mode it plays (shared/modes.ts). */
+  mode: GameModeId;
   players: number;
   max: number;
   permanent: boolean;
@@ -85,6 +89,8 @@ export interface PlayerInfo {
   humiliations: number;
   alive: boolean;
   ping: number;
+  /** Corrida armada: the player's step on the weapon ladder and the kills made on it. */
+  ladder?: LadderPos;
 }
 
 export type KillKind = 'gun' | 'head' | 'groin' | 'knife' | 'grenade' | 'fall' | 'void' | 'explosion' | 'dog';
@@ -112,8 +118,8 @@ export type ClientMsg =
   /** Identity comes from the ticket the connection was opened with; name and body come from the account. */
   | { t: 'hello' }
   | { t: 'list' }
-  /** An unknown map falls back to the default one. */
-  | { t: 'create'; name: string; map?: MapId }
+  /** An unknown map falls back to the default one, an unknown mode to mata-mata. */
+  | { t: 'create'; name: string; map?: MapId; mode?: GameModeId }
   | { t: 'join'; session: string }
   | { t: 'leave' }
   | { t: 'state'; s: NetState }
@@ -127,7 +133,10 @@ export type ClientMsg =
   | { t: 'stab'; target: number; behind: boolean }
   /** impact: explodes on its first contact instead of by fuse (fuse is then the flight time limit). */
   | { t: 'grenade'; id: number; p: Vec3; v: Vec3; fuse: number; impact?: boolean; mine?: boolean; duck?: boolean }
-  /** The Arsenal choice (secondary, optional upgrades on); the server drops upgrades the account hasn't unlocked. */
+  /**
+   * The Arsenal choice (secondary, optional upgrades on); the server drops upgrades the account hasn't unlocked.
+   * Sent from the lobby, before joining: modes with a locked loadout (all the online ones) ignore it mid-match.
+   */
   | { t: 'loadout'; lo: ArsenalChoice }
   | { t: 'boom'; id: number; p: Vec3; hits: { target: number; dist: number }[] }
   | { t: 'selfDamage'; amount: number; cause: 'fall' | 'void' | 'dog' }
@@ -181,8 +190,15 @@ export type ServerMsg =
   | { t: 'taunt'; id: number; corpse: number }
   | { t: 'tauntEnd'; id: number; corpse: number; done: boolean; awards: Award[]; players: PlayerInfo[] }
   | { t: 'scores'; players: PlayerInfo[] }
-  /** A player's loadout changed (Arsenal choice, an upgrade unlocked): everyone else sees the new models. */
+  /**
+   * A player's loadout changed mid-match (corrida armada: another step of the ladder). To everyone, the player
+   * too: their weapons in hand are the ones the server validates.
+   */
   | { t: 'playerLoadout'; id: number; lo: Loadout }
+  /** The round is over (corrida armada: `winner` got the last kill); the next one starts at `restartAt` (server time). */
+  | { t: 'roundEnd'; mode: GameModeId; winner: number | null; name: string; restartAt: number }
+  /** A new round: everyone is dead and respawns now, with the scores back to zero. */
+  | { t: 'roundStart'; players: PlayerInfo[] }
   | { t: 'prop'; id: string; by: number }
   /** `by` took a collectible: it's gone until `ready` (server time); a cherry's boost lasts until `until` (0 for the others). */
   | { t: 'pickup'; id: string; by: number; ready: number; until: number }

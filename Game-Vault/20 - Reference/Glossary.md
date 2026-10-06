@@ -4,6 +4,9 @@ type: reference
 status: documented
 area: reference
 source_paths:
+  - server/modes.ts
+  - shared/gunGame.ts
+  - shared/modes.ts
   - shared/constants.ts
   - shared/protocol.ts
   - shared/maps.ts
@@ -46,7 +49,11 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Humanidade | `humanity`, `RAT.extraHealth` | +50 de vida máxima até morrer, por derrubar o rato gigante | [[Buffs & Debuffs]] |
 | Investida | `lunge` | Avanço da faca até o alvo próximo | [[Melee]] |
 | Kill feed | `hud.killfeed` | Linhas "Matador [arma] ícone Vítima" | [[HUD]] |
-| Mata-mata livre | `Session`, `spawnsFFA` | Modo online cada um por si | [[Free For All]] |
+| Mata-mata (livre) | `'mata-mata'` (`GameModeId`), `DeathmatchMode` | Modo todos contra todos com o Arsenal da conta, escolhido antes e travado durante a partida | [[Free For All]] · [[Versus Bots]] |
+| Corrida armada (en: Gun game) | `'corrida-armada'`, `GunGameMode`, `shared/gunGame.ts` | Modo em que todos sobem a mesma escada de armas: 3 abates sobem, facada desce, abate com o Sabre de Luz vence a rodada | [[Gun Game]] |
+| Escada / degrau | `LADDER`, `LadderPos {step, kills}`, `PlayerInfo.ladder`, `ladder_<id>` | Sequência de 7 armas fixas da corrida armada e a posição de cada jogador nela ("ARMA N/7") | [[Gun Game]] |
+| Tipo de partida | `#home-game`, `GameModeId` | Seletor de modo de jogo na home (Mata-mata / Corrida armada) | [[Matchmaking UI]] |
+| Rodada | `roundEnd`, `roundStart` | Na corrida armada, do início até o abate com o sabre; 6 s de intervalo antes da próxima | [[Gun Game]] |
 | Melhoria (upgrade) | `Upgrade` em `progression.json` (`melhorias`), `upg_<arma>_<id>` | O que cada nível de arma ≥ 2 libera: muda atributos reais (e às vezes o visual). As **comuns** ficam ativas assim que liberadas | [[Weapons]] · [[Progression]] |
 | Melhoria opcional | `opcional: true`, `grupo`, `ArsenalChoice.ligadas` | Melhoria com troca (ganha algo, perde algo; ex.: silenciador, luneta, frango, sabre, mina). Vem desligada; o jogador liga no Arsenal. Num `grupo`, só uma fica ligada e ela substitui as comuns do grupo | [[Weapons]] · [[Inventory UI]] |
 | Mina Terrestre | melhoria opcional da granada (nível 2, grupo `modo`), `tipo: 'mina'` | Mina plantada com G; arma em 1 s, no máximo 3 por jogador | [[Land Mines]] |
@@ -58,7 +65,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Prompt | `hud.setPrompt` | Dica de ação ("Oprimir {nome}", "Beber Poção") | [[HUD]] |
 | Sala / Sessão | `Session` | Uma partida online; ≠ sessão de login (cookie `oc_sessao`) | [[Sessions]] |
 | Primária | `primaria`, `PRIMARIES`, tecla `weapon1` | Espaço da arma de fogo principal: o Rifle Padrão. Toda vida começa com ela na mão | [[Weapons]] |
-| Sala permanente | ids `principal` (rua), `jardim`, `halloween` | Uma sala fixa por mapa | [[Sessions]] · [[Matchmaking]] |
+| Sala permanente | ids `principal` (rua), `jardim`, `halloween` (mata-mata) e `corrida-armada-<mapa>` | Uma sala fixa por mapa e por modo | [[Sessions]] · [[Matchmaking]] |
 | Secundária | `secundaria`, `SECONDARIES`, `FLAG.secondary`, tecla `weapon2` | Segundo espaço de arma de fogo: Pistola do Porteiro (padrão) ou Submetralhadora Liquidificador, escolhida no Arsenal; troca com 1/2/roda | [[Weapons]] · [[Inventory]] |
 
 ## Mapas
@@ -127,7 +134,9 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `boot()` | Função de `client/main.ts` que monta e roda o cliente inteiro | [[Client Architecture]] |
 | `startServer()` | Função de `server/app.ts` que monta o servidor (Bun.serve, lobby, flush, Redis) | [[Server Architecture]] |
 | `Conn` / `Peer` / `SPlayer` | Conexão de socket / dados presos ao socket / jogador dentro de uma sala (servidor) | [[Server Architecture]] |
-| `HomeChoice` | O que a tela inicial devolve: `offline`, `bots` ou `online` | [[Client Architecture]] |
+| `HomeChoice` | O que a tela inicial devolve: `offline`, `bots` (com `game`, o modo de jogo) ou `online` (o modo vem da sessão) | [[Client Architecture]] |
+| `SessionMode` / `MODE_RULES` | Lado do servidor de um modo de jogo (ganchos chamados pela `Session`) / regras declaradas de cada modo | [[ADR - Modos de jogo com regras declaradas e ganchos no servidor]] |
+| `soFaca` | Campo do `Loadout`: só a faca, sempre na mão, o tiro golpeia (Sabre de Luz da corrida armada) | [[Melee]] · [[Gun Game]] |
 | `GameMap` / `MapFrame` | Contrato que todo mapa devolve / informações por quadro passadas ao mapa | [[World Structure]] |
 | `MapBuilder` / célula | Construtor de mapas que funde geometria por (material, célula de 40/45/60 m) e cria colisores | [[ADR - Lotes estáticos por material e célula]] |
 | `PropBus` | Registro que sincroniza piadas de mapa (gatilho local → mensagem `prop` → `remote`) | [[Map Gags]] · [[Events & Messaging]] |

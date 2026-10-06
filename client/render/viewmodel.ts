@@ -84,6 +84,8 @@ export const VM_FEEL = {
   },
   /** Drawing a gun: how far below it starts (m) and its tilt (rad). */
   draw: { drop: 0.22, tilt: 0.9 },
+  /** Only a blade in hand (corrida armada's lightsaber): where the knife's fist rests between swings. */
+  blade: { pos: [0.2, -0.24, -0.42] as V3, rot: [1.0, -0.4, -0.1] as V3 },
 };
 
 const v3 = (a: V3) => new THREE.Vector3(a[0], a[1], a[2]);
@@ -273,6 +275,16 @@ export class Viewmodel {
     this.swingKeys = form === 'faca' ? Viewmodel.KNIFE_KEYS : Viewmodel.SWING_KEYS;
   }
 
+  /**
+   * Only the knife in hand (corrida armada's lightsaber, a blade-only loadout): no gun, and the knife stays up
+   * between swings instead of coming out only for one.
+   */
+  setBladeOnly(on: boolean) {
+    this.bladeOnly = on;
+    this.gun.visible = !on;
+  }
+  private bladeOnly = false;
+
   /** What the left hand holds for G: a grenade, a land mine or two grenades. */
   setGrenadeKind(kind: GrenadeKind) {
     this.grenadeArm.remove(this.grenadeInHand);
@@ -461,7 +473,15 @@ export class Viewmodel {
       rz -= duck * 0.4;
     }
     if (meleeOn) this.poseKnife(s.melee!);
-    this.knife.visible = s.melee !== null;
+    else if (this.bladeOnly) {
+      // Held up in view, moving with the bob, sway and landing like a gun would.
+      const hip = F.pose.hip;
+      const [bx, by, bz] = F.blade.pos;
+      const [ax, ay, az] = F.blade.rot;
+      this.knife.position.set(bx + pos.x - hip[0], by + pos.y - hip[1], bz + pos.z - hip[2]);
+      this.knife.rotation.set(ax + rx, ay + ry, az + rz);
+    }
+    this.knife.visible = meleeOn || this.bladeOnly;
 
     // Grenade: the rifle ducks while the left hand holds the grenade up, then a quick overhand throw.
     const cooking = s.grenadeCook !== null;

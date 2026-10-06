@@ -4,6 +4,7 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - shared/gunGame.ts
   - client/ui/scoreboard.ts
   - client/main.ts
   - index.html
@@ -12,7 +13,7 @@ tags:
   - game
   - ui
   - scoreboard
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Scoreboard
@@ -28,12 +29,13 @@ Tabela de classificação da partida (`#scoreboard`, classe `Scoreboard` em `cli
 
 ## Conteúdo
 
-Cabeçalho com "Placar" e o nome da sessão (online) ou "Contra N bots · mata-mata livre". Colunas:
+Cabeçalho com "Placar" e o nome da sessão (online) ou "Contra N bots · {modo}". Colunas:
 
-| # | Jogador | Nível | Pontos | Abates | Mortes | Opress. | Ping |
-| --- | --- | --- | --- | --- | --- | --- | --- |
+| # | Jogador | Nível | (Arma) | Pontos | Abates | Mortes | Opress. | Ping |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
-- **Ordenação:** pontos (desc.), depois abates (desc.), depois mortes (asc.).
+- **Arma** só existe na corrida armada (`new Scoreboard(true)`): degrau e abates nele, ex. "3/7 · 1/3" (`PlayerInfo.ladder`). Ver [[Gun Game]].
+- **Ordenação:** na corrida armada, primeiro pela escada (degrau, depois abates no degrau); depois pontos (desc.), abates (desc.), mortes (asc.). Os números zeram a cada rodada.
 - **Destaques:** a linha do próprio jogador recebe a classe `me`; jogadores mortos, `dead`.
 - **Nível:** nível da conta; bots e jogadores sem conta mostram "—".
 - **Ping** em ms.

@@ -1,7 +1,8 @@
 // Bootstrap: loads the world, shows the home screen, then runs either offline training (dummies, local
-// rules) or an online free-for-all session (remote players; the server owns health, kills and score).
-// Combat code is shared: shots, knife, grenades and humiliations work on the `Target` / `Humiliable`
-// interfaces, and only the "apply the result" step differs between the two modes.
+// rules), a match against bots or an online session (remote players; the server owns health, kills and
+// score). Combat code is shared: shots, knife, grenades and humiliations work on the `Target` / `Humiliable`
+// interfaces, and only the "apply the result" step differs between them. The game mode (shared/modes.ts:
+// mata-mata, corrida armada) decides where the weapons come from, whether they're locked, and the rounds.
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { pickSafeSpawn } from './gameplay/spawnPicker';
@@ -54,12 +55,15 @@ import { BodySounds, OCCLUSION_WEIGHT, type Vec, type Walker } from './audio/spa
 import { Chat } from './ui/chat';
 import { Hud, type Buff, type FeedIcon } from './ui/hud';
 import { Screens } from './ui/menu';
-import { closeReason, showHome } from './ui/home';
+import { closeReason, gameModeName, showHome } from './ui/home';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
 import { Arsenal, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
 import { upgradeAt, type KnifeForm, type ProgWeapon } from '@shared/progression';
-import { DEFAULT_LOADOUT, grenadeStats, gunIn, meleeStats, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
+import { DEFAULT_LOADOUT, grenadeStats, gunIn, meleeStats, sanitizeLoadout, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
+import { MODE_RULES, type GameModeId } from '@shared/modes';
+import { FINAL_STEP, GUN_GAME, killsForStep, ladderLoadout, type LadderPos } from '@shared/gunGame';
+import { renderLadder, stepName } from './ui/ladder';
 import { Scoreboard } from './ui/scoreboard';
 import { DEATH_MESSAGES, getLang, pick, t, type StringKey } from './ui/strings';
 
@@ -159,6 +163,18 @@ async function boot() {
   const viewmodel = new Viewmodel(ctx.vmScene);
   // Weapon progression from the account (level 1 without one) and our land mines (a grenade upgrade).
   const progress = new Progress(choice.account);
+  // --- Game mode: the session's (online), the one picked for the bots, none on the training range -------
+  const gameMode: GameModeId | null = online ? online.joined.session.mode : choice.mode === 'bots' ? choice.game : null;
+  const rules = gameMode ? MODE_RULES[gameMode] : null;
+  /** The weapons are fixed for the match: the Arsenal is read-only and new upgrades wait for the next one. */
+  const lockedLoadout = !!rules?.lockedLoadout;
+  const gunGame = gameMode === 'corrida-armada';
+  /**
+   * What we enter the match with: online the server's (it validates our hits with it), corrida armada's first
+   * step against bots, otherwise the account's Arsenal (level 1 without an account).
+   */
+  const mine = online?.joined.players.find((p) => p.id === me)?.lo;
+  const startLoadout: Loadout = mine ? sanitizeLoadout(mine) : gunGame ? ladderLoadout(0) : progress.loadout;
   const mines = new Mines(physics, ctx.scene);
   const player = new LocalPlayer(physics, map.killY);
   player.netControlled = !!online;
@@ -173,14 +189,15 @@ async function boot() {
   player.health = body.maxHealth;
   viewmodel.setBody(look, choice.sex);
   const avatar = new Avatar(ctx.scene, look, choice.sex);
-  const melee = new Melee(meleeStats(progress.loadout.ativas.faca));
+  const melee = new Melee(meleeStats(startLoadout.ativas.faca));
   // The grenade as its upgrades make it (how many, what G does, the blast); applyLoadout keeps it current.
-  let grenadeData = grenadeStats(progress.loadout.ativas.granada);
+  let grenadeData = grenadeStats(startLoadout.ativas.granada);
   const thrower = new GrenadeThrower(grenadeData);
   const grenades = new GrenadeProjectiles(physics, ctx.scene, grenadeData, (s, at, duck) => sfx.at(at, 'normal', (x) => (duck ? x.quack() : x.grenadeBounce(s))));
   const taunt = new Taunt();
   const hud = new Hud();
-  const scoreboard = new Scoreboard();
+  // Corrida armada orders it by the ladder, with a column for each player's weapon.
+  const scoreboard = new Scoreboard(gunGame);
   const input = new Input(ctx.renderer.domElement);
   sfx.setVolume(settings.volume);
   sfx.setSpatialMode(spatialMode(settings));
@@ -694,7 +711,9 @@ async function boot() {
     reloadEnd: () => {},
   };
   /** What we carry: the guns in each slot and every weapon's upgrades (refreshed by applyLoadout). */
-  let loadout = progress.loadout;
+  let loadout = startLoadout;
+  /** Only the knife in hand (corrida armada's lightsaber): no guns, the fire button swings it. */
+  let bladeOnly = false;
   /** The two gun slots, each with its own magazine; `weapon` is the one in hand. */
   const guns: Record<GunSlot, Weapon> = {
     primaria: new Weapon(slotStats(loadout, 'primaria')!, gunHooks),
@@ -714,58 +733,79 @@ async function boot() {
     slot = next;
     weapon = guns[next];
     viewmodel.setGun(weapon.data);
-    hud.setWeaponName(weaponName(weapon.data.arma));
+    hud.setWeaponName(bladeOnly ? weaponLabel('faca', loadout.ativas.faca) : weaponName(weapon.data.arma));
     if (!draw) return;
     drawT = weapon.data.troca;
     viewmodel.draw(drawT);
     sfx.weaponSwitch();
   };
-  /** 1, 2, the wheel, the swap button: the other gun, if there's one in that slot. */
+  /** 1, 2, the wheel, the swap button: the other gun, if there's one in that slot (none with only a blade). */
   const switchTo = (next: GunSlot) => {
-    if (next !== slot && gunIn(loadout, next)) holdSlot(next, true);
+    if (!bladeOnly && next !== slot && gunIn(loadout, next)) holdSlot(next, true);
   };
 
   // --- Weapon progression: each kill's points level up only the weapon that made it ------------------
   let knifeForm: KnifeForm = 'faca';
   /**
-   * Puts what we carry in our hands: each slot's gun, the knife and the grenade with their upgrades. `tell`:
-   * the choice changed here (the Arsenal), so the server, which uses it too, hears about it.
+   * Puts `lo` in our hands: each slot's gun, the knife and the grenade with their upgrades (or only the
+   * knife). `tell`: the choice changed here (the Arsenal, where it can change mid-match), so the server hears.
    */
-  const applyLoadout = (tell: boolean) => {
-    loadout = progress.loadout;
+  const applyLoadout = (lo: Loadout, tell = false) => {
+    loadout = lo;
+    const blade = !!lo.soFaca;
+    if (blade !== bladeOnly) {
+      bladeOnly = blade;
+      weapon.holster();
+      viewmodel.setBladeOnly(blade);
+      hud.setMeleeOnly(blade);
+    }
     for (const s of ['primaria', 'secundaria'] as const) {
-      const g = slotStats(loadout, s);
+      const g = slotStats(lo, s);
       if (g) guns[s].setData(g);
       guns[s].reloadMul = body.reloadMul;
     }
-    holdSlot(gunIn(loadout, slot) ? slot : 'primaria', false);
-    const knife = meleeStats(loadout.ativas.faca);
+    const knife = meleeStats(lo.ativas.faca);
     melee.setData(knife);
     viewmodel.setKnife(knife.forma);
     knifeForm = knife.forma;
-    grenadeData = grenadeStats(loadout.ativas.granada);
-    thrower.setData(grenadeData);
+    holdSlot(gunIn(lo, slot) ? slot : 'primaria', false);
+    grenadeData = grenadeStats(lo.ativas.granada);
+    // A mode without grenades (corrida armada): none carried, none coming back.
+    thrower.setData(rules && !rules.grenades ? { ...grenadeData, quantidade: 0 } : grenadeData);
     thrower.kind = grenadeData.tipo;
     viewmodel.setGrenadeKind(grenadeData.tipo);
     if (tell) conn?.send({ t: 'loadout', lo: progress.choice });
   };
   // Points only come from the server (online kills, humiliations, time alive): it pushes the new progress.
+  // With a locked loadout (every online mode) what we hold doesn't change: new upgrades wait for the next match.
   conn?.on('progresso', (m) => {
     progress.applyServer(m);
-    applyLoadout(false);
+    if (!lockedLoadout && rules?.weapons !== 'mode') applyLoadout(progress.loadout);
     if (!m.subiu) return;
     if (m.subiu.tipo === 'conta') hud.showBanner(t('accountLevelUp', { level: m.subiu.nivel }), 'level');
     else {
-      // Each level unlocks an upgrade: the common ones are on at once, the optional ones wait in the Arsenal.
+      // Each level unlocks an upgrade: the common ones are on at once (next match, if locked), the optional
+      // ones wait in the Arsenal.
       const w = m.subiu.tipo;
       const u = upgradeAt(w, m.subiu.nivel);
       hud.showBanner(`${u?.icone ?? ''} ${t('upgradeUnlocked', { weapon: weaponName(w), level: m.subiu.nivel, upgrade: u ? upgradeName(w, u.id) : '' })}`, 'level');
-      if (u?.opcional) hud.notice(t('upgradeTurnOn'));
+      if (u?.opcional) hud.notice(t(lockedLoadout ? 'upgradeTurnOnNext' : 'upgradeTurnOn'));
+      else if (lockedLoadout) hud.notice(t('upgradeNextMatch'));
     }
     sfx.levelUp();
   });
-  new Arsenal(progress, () => applyLoadout(true), document.getElementById('arsenal-grid')!);
-  applyLoadout(true);
+  // The pause menu: corrida armada shows its ladder (the mode hands out the weapons); otherwise the Arsenal,
+  // read-only during a match with a locked loadout (mata-mata), editable on the training range.
+  const arsenalGrid = document.getElementById('arsenal-grid')!;
+  if (gunGame) {
+    document.getElementById('arsenal-title')!.textContent = t('ladderTitle');
+    document.getElementById('arsenal-hint')!.textContent = t('ladderHint', { n: GUN_GAME.killsPerStep });
+    renderLadder(arsenalGrid, { step: 0, kills: 0 });
+  } else {
+    if (lockedLoadout) document.getElementById('arsenal-hint')!.textContent = t('arsenalLockedHint');
+    new Arsenal(progress, () => applyLoadout(progress.loadout, true), arsenalGrid, lockedLoadout);
+  }
+  applyLoadout(startLoadout);
   const scopeEl = document.getElementById('scope')!;
 
   // --- Knife ----------------------------------------------------------------------------------------
@@ -1057,7 +1097,11 @@ async function boot() {
       player: playerTarget,
       count: botMode.count,
       skill: botMode.skill,
+      game: botMode.game,
       hooks: {
+        playerLoadout: (lo) => takeLadderWeapons(lo),
+        roundEnd: (winner, restartAt) => endRound(winner === playerTarget ? me : winner.id, winner.name, restartAt),
+        roundStart: () => startRound(),
         damagePlayer: (amount) => {
           const dealt = player.damage(amount, simTime, 'killed');
           if (dealt > 0) {
@@ -1095,7 +1139,7 @@ async function boot() {
         },
       },
     });
-    screens.setSubtitle(t('botsSubtitle', { n: botMode.count }));
+    screens.setSubtitle(t('botsSubtitle', { n: botMode.count, mode: gameModeName(botMode.game) }));
     const navDebug = nav.debugMesh();
     ctx.scene.add(navDebug);
     Object.assign(window, { __ocNavDebug: navDebug });
@@ -1105,7 +1149,7 @@ async function boot() {
   if (net && online && conn) {
     for (const p of online.joined.players) net.upsertInfo(p);
     for (const c of online.joined.corpses) net.addCorpse(c);
-    screens.setSubtitle(t('onlineSubtitle', { name: online.joined.session.name }));
+    screens.setSubtitle(t('onlineSubtitle', { name: online.joined.session.name, mode: gameModeName(online.joined.session.mode) }));
 
     conn.on('snap', (m) => {
       net.snapshot(m.time, m.players);
@@ -1147,7 +1191,14 @@ async function boot() {
       const form = rp?.knife.forma ?? 'faca';
       if (rp) sfx.at({ x: rp.position.x, y: rp.position.y + 1.3, z: rp.position.z }, form === 'faca' ? 'step' : 'normal', (s) => s.meleeSwing(form));
     });
-    conn.on('playerLoadout', (m) => net.setLoadout(m.id, m.lo));
+    // Ours too: the mode handed out other weapons (corrida armada's next step); the others draw theirs.
+    conn.on('playerLoadout', (m) => (m.id === me ? takeLadderWeapons(sanitizeLoadout(m.lo)) : net.setLoadout(m.id, m.lo)));
+    // Corrida armada: someone won the round; then everyone starts over.
+    conn.on('roundEnd', (m) => endRound(m.winner, m.name, m.restartAt / 1000));
+    conn.on('roundStart', (m) => {
+      m.players.forEach((p) => net.upsertInfo(p));
+      startRound();
+    });
     conn.on('grenade', (m) => {
       // The thrower's arm swings on their avatar.
       const by = net.players.get(m.owner);
@@ -1265,6 +1316,52 @@ async function boot() {
     conn.onClose = (code) => hud.setNetStatus(code === CLOSE.revoked || code === CLOSE.replaced ? closeReason(code) : t('lostConnection'));
   }
 
+  // --- Corrida armada: the ladder's weapons, the banners as we climb, the end of a round -------------
+  /** Weapons the mode handed us mid-match (a ladder step): in our hands at once, full magazines. */
+  function takeLadderWeapons(lo: Loadout) {
+    applyLoadout(lo);
+    for (const g of Object.values(guns)) g.refill();
+  }
+  /** Our step on the ladder (null in the other modes): the server's online, the bots manager's offline. */
+  const myLadder = (): LadderPos | null => (!gunGame ? null : (net?.info.get(me)?.ladder ?? bots?.ladderOf(me) ?? { step: 0, kills: 0 }));
+  /** The step last shown, to announce a change (moving up, or down after a stab). */
+  let shownLadder: LadderPos | null = null;
+  const watchLadder = () => {
+    const l = myLadder();
+    if (!l) return;
+    const before = shownLadder;
+    shownLadder = l;
+    if (before?.step === l.step && before.kills === l.kills) return;
+    renderLadder(arsenalGrid, l);
+    if (!before || before.step === l.step) return;
+    if (l.step > before.step) {
+      hud.showBanner(l.step === FINAL_STEP ? t('ladderFinal') : t('ladderNext', { weapon: stepName(l.step) }), 'level');
+      sfx.levelUp();
+    } else hud.showBanner(t('ladderDown', { weapon: stepName(l.step) }), 'bird');
+  };
+  /** The round is over (who won, and when the next starts on the game clock); null while playing. */
+  let roundOver: { title: string; won: boolean; restartAt: number } | null = null;
+  function endRound(winner: number | null, name: string, restartAt: number) {
+    const won = winner === me;
+    roundOver = { title: won ? t('roundYouWon') : t('roundWinner', { name }), won, restartAt };
+    if (won) {
+      sfx.airHorn();
+      sfx.applause();
+    } else sfx.sadTrombone();
+  }
+  /** A new round: everyone (us too, alive or dead) back at a spawn point on the first step. */
+  function startRound() {
+    roundOver = null;
+    hud.showRoundEnd(null);
+    shownLadder = { step: 0, kills: 0 };
+    renderLadder(arsenalGrid, shownLadder);
+    taunt.cancel(simTime);
+    thrower.cancel();
+    secondThrowIn = null;
+    comeBack();
+    hud.showBanner(t('roundStart'), 'level');
+  }
+
   // --- Menus and pointer lock ---------------------------------------------------------------------
   relayoutTouch = () => touch?.layout();
   screens.onPlay(() => {
@@ -1354,6 +1451,19 @@ async function boot() {
       });
     });
 
+  /** A new life: at a spawn point, full magazines, the primary in hand, the death screen gone. */
+  function comeBack() {
+    respawn();
+    for (const g of Object.values(guns)) g.refill();
+    holdSlot('primaria', false);
+    drawT = 0;
+    thrower.refill();
+    hud.showDeath(null);
+    killerId = null;
+    myCorpseId = null;
+    deathMessage = null;
+  }
+
   // --- Simulation tick ------------------------------------------------------------------------------
   let lunging = false;
   let stateTimer = 0;
@@ -1373,24 +1483,13 @@ async function boot() {
       // Dose Dupla: dying between the two throws loses the second one (it must not fly as we respawn).
       secondThrowIn = null;
       hud.setDeathTimer(player.respawnIn(simTime));
-      if (player.canRespawn(simTime)) {
-        respawn();
-        // Every life starts with full magazines and the primary in hand.
-        for (const g of Object.values(guns)) g.refill();
-        holdSlot('primaria', false);
-        drawT = 0;
-        thrower.refill();
-        hud.showDeath(null);
-        killerId = null;
-        myCorpseId = null;
-        deathMessage = null;
-      }
+      if (player.canRespawn(simTime)) comeBack();
     } else {
       // Shots have priority over the sprint (dropped the same tick, see `move.sprint`) and over a grenade
       // in hand (the pin goes back in). They never interrupt a reload (no shooting until it ends; the knife
       // and grenades do cancel it), a knife swing (too quick: cancelling it would be an exploit) or a dance
       // (only death ends it). A slide keeps going: you can shoot while sliding.
-      const canShoot = !weapon.reloading && !melee.swinging && !taunt.active && drawT <= 0;
+      const canShoot = !bladeOnly && !weapon.reloading && !melee.swinging && !taunt.active && drawT <= 0;
       const fireIntent = canShoot && (input.down('fire') || input.peek('fire'));
       if (fireIntent) {
         if (thrower.cookT !== null) thrower.cancel();
@@ -1406,7 +1505,9 @@ async function boot() {
           taunt.start(corpse, player.yaw, simTime, (d) => sfx.danceMusic(d));
         } else if (nearPotion()) drinkPotion();
       }
-      if (input.consume('melee') && !fireIntent && !taunt.active && !thrower.busy) startMelee();
+      // The melee key swings the knife; with only a blade in hand (the lightsaber) the fire button does too.
+      const swing = input.consume('melee') || (bladeOnly && (input.consume('fire') || input.down('fire')));
+      if (swing && !fireIntent && !taunt.active && !thrower.busy) startMelee();
 
       // Grenade: hold G to cook, release to throw.
       const gEv = thrower.update(dt, input.down('grenade'), input.consume('grenade'), !fireIntent && !taunt.active && !melee.swinging);
@@ -1477,9 +1578,9 @@ async function boot() {
         jump: !locked && (input.down('jump') || input.consume('jump')),
         crouch: !locked && input.down('crouch'),
         sprint: !locked && !melee.swinging && !fireIntent && input.down('sprint'),
-        ads: !locked && !melee.swinging && !thrower.busy && input.down('ads'),
+        ads: !locked && !bladeOnly && !melee.swinging && !thrower.busy && input.down('ads'),
         yaw: player.yaw,
-        speedMul: weapon.data.movimento * body.speedMul * potionSpeed(),
+        speedMul: (bladeOnly ? 1 : weapon.data.movimento) * body.speedMul * potionSpeed(),
         lunge,
       };
       const ev = player.fixedStep(dt, move, simTime);
@@ -1528,7 +1629,9 @@ async function boot() {
         }
         drawT = Math.max(0, drawT - dt);
         const busy = taunt.active || melee.swinging || thrower.busy || drawT > 0;
-        weapon.update(dt, {
+        // Only a blade in hand: no gun to aim, fire or reload.
+        if (bladeOnly) input.consume('reload');
+        else weapon.update(dt, {
           fireHeld: !busy && input.down('fire'),
           firePressed: input.consume('fire') && !busy,
           adsHeld: !busy && input.down('ads'),
@@ -1565,6 +1668,7 @@ async function boot() {
               ads: weapon.ads > 0.5,
               reload: weapon.reloading,
               knife: melee.swinging,
+              blade: bladeOnly,
               cook: thrower.cookT !== null,
               secondary: slot === 'secundaria',
               hold: holdOf(weapon.data.arma),
@@ -1885,7 +1989,7 @@ async function boot() {
     const showBoard = (!!net || !!bots) && input.locked && input.down('scoreboard');
     scoreboard.visible = showBoard;
     if (showBoard && net && online) scoreboard.update(net.info.values(), me, online.joined.session.name);
-    if (showBoard && bots && botMode) scoreboard.update(bots.standings(), me, t('botsSubtitle', { n: botMode.count }));
+    if (showBoard && bots && botMode) scoreboard.update(bots.standings(), me, t('botsSubtitle', { n: botMode.count, mode: gameModeName(botMode.game) }));
 
     hud.update(frameDt);
     // Every frame (the bar and the ring move): the reload, and what the touch buttons show.
@@ -1908,14 +2012,19 @@ async function boot() {
       hud.setAmmo(weapon.mag, weapon.reserve, weapon.data.pente, weapon.reloading);
       hud.setWeaponSlots(
         (['primaria', 'secundaria'] as const)
-          .filter((s) => gunIn(loadout, s))
+          .filter((s) => !bladeOnly && gunIn(loadout, s))
           // On a controller there's no key per slot (the D-pad switches): no key cap.
           .map((s) => ({ key: gamepad.device === 'pad' ? '' : screens.keyName(s === 'primaria' ? 'weapon1' : 'weapon2'), name: weaponName(guns[s].data.arma), mag: guns[s].mag, reserve: guns[s].reserve, active: s === slot })),
         drawT > 0,
       );
-      hud.setGrenades(thrower.count, grenadeData.quantidade, thrower.rechargeProgress);
-      const mine = net?.info.get(me) ?? bots?.standings().find((p) => p.id === me);
-      hud.setScore(mine ? mine.score : points, mine ? mine.kills : kills, shots ? hits / shots : 0);
+      hud.setGrenades(thrower.count, thrower.data.quantidade, thrower.rechargeProgress);
+      const standing = net?.info.get(me) ?? bots?.standings().find((p) => p.id === me);
+      hud.setScore(standing ? standing.score : points, standing ? standing.kills : kills, shots ? hits / shots : 0);
+      // Corrida armada: our step on the ladder, and the round's winner with the countdown to the next.
+      watchLadder();
+      const l = myLadder();
+      hud.setLadder(l && { step: l.step, total: FINAL_STEP + 1, name: stepName(l.step), kills: l.kills, need: killsForStep(l.step), final: l.step === FINAL_STEP });
+      if (roundOver) hud.showRoundEnd(roundOver.title, t('roundNext', { s: Math.max(0, Math.ceil(roundOver.restartAt - clock())) }), roundOver.won);
       if (showDebug) {
         const info = ctx.renderer.info;
         const pos = cam.position;

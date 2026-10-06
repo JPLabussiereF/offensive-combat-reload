@@ -4,6 +4,9 @@ type: mechanic
 status: documented
 area: gameplay
 source_paths:
+  - client/character/animator.ts
+  - client/render/viewmodel.ts
+  - shared/gunGame.ts
   - shared/data/weapons/faca.json
   - shared/weapons.ts
   - shared/progression.ts
@@ -33,7 +36,9 @@ Golpe rápido de faca que **mata com um acerto** ("In the original, a knife hit 
 
 ## Como o jogador interage
 
-**F** (controle: R1/RB ou R3; toque: botão de faca). O golpe sai sem trocar de arma.
+**F** (controle: R1/RB ou R3; toque: botão de faca). O golpe sai sem trocar de arma: a faca só aparece durante o golpe.
+
+**Exceção — lâmina na mão (só na corrida armada):** no último degrau da [[Gun Game|corrida armada]] o loadout é `soFaca` com o Sabre de Luz. Então a lâmina fica **sempre na mão** (primeira pessoa: `Viewmodel.setBladeOnly`, pose `VM_FEEL.blade`; terceira pessoa: `AvatarPose.blade`, pose de guarda, sem armas nas costas), o **botão de tiro também golpeia**, não há mira nem recarga e a velocidade de movimento é a base (×1). Nenhum outro modo permite andar com a faca na mão.
 
 ## Regras
 
@@ -80,6 +85,7 @@ Entrada: F, posição do olho, yaw, alvos. Saída: `MoveInput.lunge` para o [[Mo
 - Investida não acontece se o alvo já está perto (≤ 60% do alcance) e encerra o slide.
 - Servidor: aceita `stab` se ambos vivos, intervalo ≥ 75% do `intervalo` e distância horizontal ≤ `alcanceInvestida` + 1,5 m, com os valores de `meleeStats` das melhorias do jogador. **O `behind` é confiado ao cliente.**
 - Modo PCD sem a mão direita: a faca vai para a mão esquerda (visual, README).
+- Na corrida armada, **morrer por facada** (faca ou sabre) faz descer um degrau; a facada com a faca comum não conta para quem esfaqueia. Ver [[Gun Game]].
 - Se `letal` for `false`, o código usa 55 de dano fixo (hoje nunca acontece).
 
 ## Código relacionado

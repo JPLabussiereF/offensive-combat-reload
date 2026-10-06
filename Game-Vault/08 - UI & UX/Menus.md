@@ -4,6 +4,8 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - shared/modes.ts
+  - client/ui/ladder.ts
   - index.html
   - client/ui/menu.ts
   - client/ui/home.ts
@@ -42,6 +44,7 @@ Página rolável com duas caras, conforme a conta (`/api/me`). Enquanto a consul
 - **Cartão do personagem** (lateral, fixo ao rolar no computador; empilhado no celular): o **personagem real** da conta em 3D (o mesmo palco `Stage` do editor, `client/ui/customize.ts`: parado, girando devagar, arrastar gira; sem zoom pela roda para não travar a rolagem), os ícones do que vai para a partida — primária, secundária escolhida, faca e granada, com a forma ligada (ex.: "🔫 🛎️ 🐔 🧨 equipados"; `weaponIcon`), abates e partidas, botão **PERSONALIZAR** (abre o editor de [[Character Customization]] no lugar do painel, que ocupa a largura toda) e, no modo Online, **JOGAR ONLINE** com a dica "Entra direto na sessão mais cheia dos mapas filtrados".
 - **Aba Jogar:**
   - *Modo:* três cartões, **Online**, **Contra bots** e **Campo de tiro**.
+  - *Tipo de partida* (Online e Contra bots): **Mata-mata** ou **Corrida armada**, com uma linha sobre o modo ([[Free For All]], [[Gun Game]]). Na landing (sem conta) o mesmo seletor aparece para o jogo contra bots.
   - *Mapas:* no Online, os mapas são um **filtro** (vários marcados) e mostram quantas sessões cada um tem depois de conectar. Em Contra bots escolhe-se um mapa. No Campo de tiro, **clicar no mapa já começa** o treino ([[Training]]).
   - *Contra bots:* dificuldade (Fácil/Normal/Difícil), 3/5/7/9 bots e o botão **CONTRA N BOTS** ([[Versus Bots]]).
   - *Online:* lista de sessões **já carregada** ao abrir a aba (6 por vez, **VER MAIS** quando há mais), filtrada pelos mapas marcados, e a criação de sessão. A conexão de jogo só abre ao entrar. Ver [[Matchmaking UI]].
@@ -74,9 +77,9 @@ Mesmo cartão para os dois modos (`showMenu('start' | 'pause')`):
 
 | Seção | Conteúdo |
 | --- | --- |
-| Cabeçalho | Logo, subtítulo ("Sessão: {nome} · mata-mata livre", "Contra N bots · mata-mata livre" ou "Protótipo de tiro · Fase 1"), aviso de GPU por software (se detectado). |
+| Cabeçalho | Logo, subtítulo ("Sessão: {nome} · {modo}", "Contra N bots · {modo}" ou "Protótipo de tiro · Fase 1"), aviso de GPU por software (se detectado). |
 | Botão principal | **JOGAR** (início) ou **VOLTAR AO JOGO** (pausa) + dica "Clique para voltar ao jogo" / "Toque…" / "Aperte ✕ ou Options…". |
-| **Arsenal** | Painel de armas e melhorias (`client/ui/arsenal.ts`): um cartão por arma (rifle, pistola, submetralhadora, faca, granada) com espaço, nível, barra de XP até o próximo nível, barras de atributos das armas de fogo com as melhorias em efeito, a lista de melhorias (🔒 com os pontos se bloqueada; ativa; substituída; ou botão liga/desliga nas opcionais) e a descrição sob o mouse. Os cartões das secundárias têm o botão para levá-la no espaço secundário. Ver [[Inventory UI]] e [[Progression]]. |
+| **Arsenal** | Painel de armas e melhorias (`client/ui/arsenal.ts`): um cartão por arma (rifle, pistola, submetralhadora, faca, granada) com espaço, nível, barra de XP até o próximo nível, barras de atributos das armas de fogo com as melhorias em efeito, a lista de melhorias (🔒 com os pontos se bloqueada; ativa; substituída; ou botão liga/desliga nas opcionais) e a descrição sob o mouse. Os cartões das secundárias têm o botão para levá-la no espaço secundário. **Só leitura** no mata-mata (online e contra bots), com o aviso "Equipamento travado durante a partida…"; editável no campo de tiro. Na **corrida armada** a seção vira a **escada** (`client/ui/ladder.ts`): os 7 degraus com ícone, nome, pente/cadência e abates necessários, o degrau do jogador em amarelo. Ver [[Inventory UI]], [[Progression]] e [[Gun Game]]. |
 | **Controles** | Tabela de teclas remapeáveis (computador), tabela de botões do controle (PlayStation ou Xbox) ou ajuda de toque (celular). Ver [[Input & Controls]]. |
 | **Configurações** | Ver [[Settings]]. A coluna de controles e configurações (`#menu-settings`) é a mesma que a tela inicial empresta para a aba Configurações. |
 | Rodapé | Dica de depuração (F3/F4), botão **Sair para o início** (só na pausa; recarrega a página). |

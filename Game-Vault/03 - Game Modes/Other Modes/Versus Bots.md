@@ -4,6 +4,8 @@ type: mode
 status: documented
 area: game-modes
 source_paths:
+  - shared/gunGame.ts
+  - shared/modes.ts
   - client/ui/home.ts
   - client/ai/bots.ts
   - client/ai/bot.ts
@@ -23,7 +25,7 @@ updated: 2026-10-06
 
 # Versus Bots
 
-**Contra bots** ("Contra {n} bots · mata-mata livre"): mata-mata livre **offline**, com o jogador contra 3, 5, 7 ou 9 bots. No código, é `mode: 'bots'` com `count` e `skill`. O `BotManager` (`client/ai/bots.ts`) faz o papel do servidor: aplica o dano, os prêmios, os corpos e os respawns com as mesmas regras.
+**Contra bots** ("Contra {n} bots · {modo}"): partida **offline**, com o jogador contra 3, 5, 7 ou 9 bots, em **mata-mata** ou **corrida armada** (seletor "Tipo de partida", `HomeChoice.game`; só os modos com `MODE_RULES[...].bots`). Esta nota descreve o mata-mata; a corrida armada contra bots segue [[Gun Game]], com o `BotManager` aplicando a mesma escada (`shared/gunGame.ts`), rodadas e cartão de vencedor. No código, é `mode: 'bots'` com `count` e `skill`. O `BotManager` (`client/ai/bots.ts`) faz o papel do servidor: aplica o dano, os prêmios, os corpos e os respawns com as mesmas regras.
 
 ## Objetivo
 
@@ -39,10 +41,12 @@ Nenhum.
 
 ## Regras
 
-- **Sem servidor e sem conta.** Com conta, o jogador usa os níveis e a escolha do Arsenal da conta. Sem conta, rifle e pistola sem melhorias (a escolha feita no Arsenal vale só para aquela partida). **Não rende progresso** ([[Progression]]).
+- **Sem servidor e sem conta.** Com conta, o jogador usa os níveis e a escolha do Arsenal da conta, **travados** na partida (o Arsenal da pausa é só leitura, como online: [[ADR - Equipamento travado no mata-mata]]). Sem conta, rifle e pistola sem melhorias. **Não rende progresso** ([[Progression]]).
 - **Quantidade:** 3, 5, 7 ou 9 (padrão 7). **Dificuldade:** fácil, normal ou difícil (padrão normal). A escolha e o mapa ficam salvos em `localStorage` (`oc.bots`).
 - **Bots:** recebem um nome sorteado de uma lista de 12 ("Bot Clebinho", "Sgt. Parafuso", "Dona Bateria", "Capitão Lag", "Recruta 404", "Vovó Turbo"…) e um visual aleatório com os mesmos efeitos de corpo. Usam o mesmo movimento, as mesmas hitboxes e, a cada vida, sorteiam uma arma **sem melhorias**: rifle (60%), submetralhadora (25%) ou pistola (15%) (`pickGun` em `client/ai/bot.ts`). Com uma secundária na mão, o rifle aparece nas costas. Dão facadas letais de perto.
   - Os bots **não lançam granadas** e **não pegam a cereja** (README).
+  - Na corrida armada recebem as armas do degrau (`Bot.arm`) e, com o Sabre de Luz, correm direto para esfaquear em vez de atirar.
+  - Na corrida armada recebem as armas do degrau (`Bot.arm`) e, com o Sabre de Luz, correm direto para esfaquear em vez de atirar.
   - Andam por uma malha de navegação gerada dos colisores do mapa e contornam a área de mordida da Amora. O `F4` mostra a malha.
   - Comportamento em [[NPC Behavior]], [[AI Decisions]], [[States]] e [[Navigation]].
 - **Opressão:** os bots também dançam em corpos (chance por dificuldade) e ficam vulneráveis enquanto dançam.

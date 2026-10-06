@@ -4,6 +4,8 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - shared/modes.ts
+  - client/ui/ladder.ts
   - client/ui/arsenal.ts
   - client/ui/hud.ts
   - client/ui/home.ts
@@ -37,8 +39,10 @@ Painel do menu de início/pausa (`#arsenal-grid`) e da aba **Arsenal** da tela i
 | Descrição | A descrição engraçada da melhoria sob o mouse ou com foco; sem nenhuma, a da arma |
 
 - **Ligar uma opcional** desliga a outra do mesmo grupo (luneta × ponto vermelho do rifle; frango × sabre; mina × dose dupla).
-- Cada mudança chama `progress.toggle(arma, id, ligada)` ou `progress.setSecondary(arma)`, que grava na conta (`PATCH /api/perfil {arsenal}`) e, na partida, `applyLoadout(true)` põe as armas novas na mão e avisa o servidor (`loadout`), inclusive durante a pausa. O servidor responde com `progresso` (a escolha como ele guardou).
-- Sem conta, só a secundária pode ser trocada, e vale só para a partida.
+- Cada mudança chama `progress.toggle(arma, id, ligada)` ou `progress.setSecondary(arma)`, que grava na conta (`PATCH /api/perfil {arsenal}`). Ao entrar numa sessão, a home manda a escolha ao servidor (`loadout` no saguão).
+- **Na partida o Arsenal é só leitura** em todo modo de jogo (mata-mata online e contra bots): interruptores desabilitados, sem o botão de secundária, e o aviso "Equipamento travado durante a partida…" (`new Arsenal(..., readOnly = true)`). Só no **campo de tiro** ele segue editável, com `applyLoadout(progress.loadout, true)` pondo as armas novas na mão. Ver [[ADR - Equipamento travado no mata-mata]].
+- Na **corrida armada** o menu de pausa mostra a **escada** no lugar do Arsenal (`renderLadder`, `client/ui/ladder.ts`). Ver [[Gun Game]].
+- Sem conta, só a secundária pode ser trocada (no campo de tiro), e vale só para a partida.
 - Na tela inicial, a aba usa um `Progress` próprio montado do perfil; o cartão do personagem mostra os ícones do que vai para a partida (primária, secundária, faca e granada na forma escolhida — `weaponIcon`).
 - O foco é preservado entre redesenhos (controle e teclado podem navegar pelos botões; ver [[Menus]]).
 

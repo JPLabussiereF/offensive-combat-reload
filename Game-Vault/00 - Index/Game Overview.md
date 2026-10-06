@@ -25,7 +25,7 @@ updated: 2026-10-06
 
 ## Proposta
 
-- **Gênero:** FPS arena, mata-mata livre (free-for-all). Não há times nem objetivos ([[Free For All]], [[Team Deathmatch]], [[Objective Modes]]).
+- **Gênero:** FPS arena, todos contra todos, em dois modos: **mata-mata** e **corrida armada** (gun game). Não há times nem objetivos ([[Free For All]], [[Gun Game]], [[Team Deathmatch]], [[Objective Modes]]).
 - **Plataformas:** navegador no PC (teclado e mouse ou controle) e no celular (controles de toque). Ver [[Input & Controls]] e [[Touch Controls]].
 - **Tom:** humor. Há a dança de vitória sobre o corpo ([[Humiliation]]), piadas nos mapas ([[Map Gags]]), confete no lugar de sangue ([[Visual Effects]]) e sons sintetizados ([[SFX]]).
 
@@ -43,7 +43,7 @@ updated: 2026-10-06
 
 ## Modos
 
-- **Online** — mata-mata livre de até 10 jogadores, com servidor autoritativo. Exige conta. Ver [[Free For All]], [[Sessions]].
+- **Online** — sessões de até 10 jogadores em mata-mata ou corrida armada, com servidor autoritativo. Exige conta. Ver [[Free For All]], [[Gun Game]], [[Sessions]].
 - **Contra bots** — offline, 3/5/7/9 bots em 3 dificuldades. Ver [[Versus Bots]], [[AI Overview]].
 - **Treino** — campo de tiro offline com bonecos. Ver [[Training]].
 

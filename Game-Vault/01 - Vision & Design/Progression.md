@@ -4,6 +4,9 @@ type: system
 status: documented
 area: design
 source_paths:
+  - server/modes.ts
+  - shared/gunGame.ts
+  - shared/modes.ts
   - shared/progression.ts
   - shared/arsenal.ts
   - shared/data/progression.json
@@ -148,8 +151,9 @@ Fonte: `shared/data/nivel_conta.json` e `shared/accountLevel.ts`.
 
 | Situação | Usa as melhorias e a escolha da conta? | Ganha pontos/XP? |
 | --- | --- | --- |
-| Online (com conta) | Sim | Sim (validado pelo servidor) |
-| Contra bots (com conta) | Sim | **Não** |
+| Online, mata-mata | Sim, **as do momento em que entrou** na sessão: níveis subidos e mudanças no Arsenal valem na próxima ([[ADR - Equipamento travado no mata-mata]]) | Sim (validado pelo servidor) |
+| Online, corrida armada | **Não**: as armas são as da escada, iguais para todos | Só **XP de conta** (+150 ao vencer a rodada); **sem pontos de arma** ([[ADR - Corrida armada]]) |
+| Contra bots (com conta) | Mata-mata: sim, travadas na partida · corrida armada: a escada | **Não** |
 | Treino offline (com conta) | Sim | **Não** |
 | Sem conta (qualquer modo offline) | Não: sem melhorias (a secundária pode ser trocada no Arsenal da pausa, só para a partida) | Não |
 

@@ -17,11 +17,13 @@ source_paths:
   - server/session.ts
   - client/entities/localPlayer.ts
   - shared/data/weapons/rifle_padrao.json
+  - shared/data/weapons/pistola.json
+  - shared/data/weapons/smg.json
 tags:
   - world
   - maps
   - level-design
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Map Design Rules
@@ -80,7 +82,7 @@ Detalhe em [[ADR - Linhas de visão curtas no Jardim do Dragão]].
 - **Colisão mais simples que o visual**: caixas e convexos sempre que possível; malha de triângulos só onde precisa (`docs/MAPAS.md`, `MapBuilder`).
 - **Folhagem é só visual**: copas de árvore, tufos e galhos de árvore seca não colidem (balas passam); troncos colidem. Bambuzais colidem como um bloco.
 - **Chão não projeta sombra** (`castShadow: false`), só recebe.
-- Materiais físicos atravessáveis por bala quando finos: madeira (até 0,4 m), vidro (0,1 m), papel (0,1 m, perde só 5% do dano) — dados da arma em `shared/data/weapons/rifle_padrao.json`. Ver [[Cover & Combat Spaces]].
+- Materiais físicos atravessáveis por bala quando finos: madeira (até 0,4 m), vidro (0,1 m), papel (0,1 m, perde só 5% do dano) — dados do rifle em `shared/data/weapons/rifle_padrao.json` (a pistola e a submetralhadora atravessam só 1 superfície e madeira até 0,3 m; ver [[Cover & Combat Spaces]]). Ver [[Cover & Combat Spaces]].
 - **Cercas de ferro** (Vila) usam o grupo `BLOCKER`: param jogadores e granadas, balas passam entre as grades.
 
 ## 6. Determinismo

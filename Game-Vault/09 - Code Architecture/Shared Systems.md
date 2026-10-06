@@ -4,6 +4,9 @@ type: architecture
 status: documented
 area: code-architecture
 source_paths:
+  - shared/data/corrida_armada.json
+  - shared/gunGame.ts
+  - shared/modes.ts
   - shared/protocol.ts
   - shared/constants.ts
   - shared/maps.ts
@@ -53,13 +56,15 @@ updated: 2026-10-06
 | `weapons.ts` | Esquema `WeaponData`/`MeleeData`/`GrenadeData` (atributos **base**), carrega os JSON (`WEAPONS`: rifle, pistola, smg), `HIT_REGIONS`, `computeDamage`, `explosionDamage`, `clampExplosionDamage`, `idealTtk`, `minPenetrationKeep` | sim | sim |
 | `movement.ts` | `stepMovement` (passo de movimento em primeira pessoa sobre o Rapier), `createMoveState`, `configureController`, `eyeHeight` | sim (jogador e bots) | não (ainda) |
 | `progression.ts` | Ids das armas (`GunId`, `ProgWeapon`, `PRIMARIES`, `SECONDARIES`), árvores de melhorias de `data/progression.json` (`PROGRESSION`), níveis (`levelForXp`, `xpForLevel`, `levelCount`), melhorias em efeito (`activeUpgrades`), escolha do Arsenal (`ArsenalChoice`, `sanitizeChoice`, `legacyChoice`), `weaponOfKill` | sim | sim |
-| `arsenal.ts` | O que o jogador leva e os atributos **efetivos** (base + melhorias): `Loadout`, `resolveLoadout`, `gunStats`, `meleeStats`, `grenadeStats`, `slotStats`, `gunIn`, `sanitizeLoadout`, `DEFAULT_LOADOUT` | sim | sim |
+| `arsenal.ts` | O que o jogador leva e os atributos **efetivos** (base + melhorias): `Loadout` (com `soFaca?`: só a faca na mão), `resolveLoadout`, `gunStats`, `meleeStats`, `grenadeStats`, `slotStats`, `gunIn`, `sanitizeLoadout`, `DEFAULT_LOADOUT` | sim | sim |
+| `modes.ts` | Modos de jogo: `GameModeId` (`mata-mata`, `corrida-armada`), `MODE_RULES` (armas do Arsenal ou do modo, `lockedLoadout`, granadas, XP de arma, rodadas, bots), `isGameModeId` | sim (home, regras do cliente) | sim (`server/modes.ts`, lobby) |
+| `gunGame.ts` | Corrida armada: `LADDER` (de `data/corrida_armada.json`), `GUN_GAME`, `ladderLoadout`, `killCounts`, `afterKill`, `afterDeath`, `ladderProblems` — funções puras | sim (`BotManager`, HUD) | sim (`GunGameMode`) |
 | `accountLevel.ts` | XP e curva do nível da conta (`data/nivel_conta.json`) | sim | sim |
 | `account.ts` | Regras e formatos da API de contas (nome, senha, e-mail, `formatTag`, `ApiErrorCode`, tipos de resposta) | sim (formulários) | sim (validação) |
 | `appearance.ts` | `Appearance`, `sanitizeAppearance`, `randomAppearance`, `bodyStats` (o que a aparência muda no jogo) | sim | sim |
 | `catalog.ts` | Catálogo de itens do personagem e slots | sim | indireto (via `appearance.ts`, na validação) |
 | `palette.ts` | Famílias de cor e `snap()` para a paleta | sim | indireto (via `appearance.ts`) |
-| `data/*.json` | Dados de armas, progressão e nível da conta | via `weapons.ts`/`progression.ts`/`accountLevel.ts` | idem |
+| `data/*.json` | Dados de armas, progressão, nível da conta e da corrida armada (`corrida_armada.json`) | via `weapons.ts`/`progression.ts`/`accountLevel.ts` | idem |
 
 ## API de armas (`shared/arsenal.ts`)
 

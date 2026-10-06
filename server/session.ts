@@ -1,6 +1,7 @@
-// One free-for-all game session. The server owns health, damage, kills, score, respawns and corpses;
-// clients report their movement and what their shots hit, and every report is sanity-checked here with
-// the same shared rules the client uses (each weapon's stats with the player's upgrades, score table).
+// One game session. The server owns health, damage, kills, score, respawns and corpses; clients report their
+// movement and what their shots hit, and every report is sanity-checked here with the same shared rules the
+// client uses (each weapon's stats with the upgrades in hand, score table). What differs between game modes
+// (where the weapons come from, ladders, rounds) is the session's mode (server/modes.ts).
 //
 // Every player is a signed-in account: kills, humiliations and time alive feed the account's progress
 // (server/progress.ts), which app.ts writes to the database.
@@ -15,8 +16,10 @@ import { ACCOUNT_XP } from '@shared/accountLevel';
 import { bodyStats } from '@shared/appearance';
 import { FISH, PICKUPS, RATS, WITCHES, type MapId, type PickupKind } from '@shared/maps';
 import { isGun, weaponOfKill, type GunId, type ProgWeapon } from '@shared/progression';
-import { grenadeStats, gunIn, gunStats, meleeStats, type GunSlot, type Loadout } from '@shared/arsenal';
+import { DEFAULT_LOADOUT, grenadeStats, meleeStats, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
+import type { GameModeId } from '@shared/modes';
 import { accountLevelOf, addAccountXp, addTime, addWeaponXp, equip, loadoutOf, progressMsg, type LevelUp, type LiveAccount } from './progress';
+import { createMode, type SessionMode } from './modes';
 import { FLAG, NET, sanitizeChat, type Award, type ClientMsg, type CorpseInfo, type KillKind, type NetState, type PlayerInfo, type ServerMsg, type Sex, type SessionInfo, type Vec3 } from '@shared/protocol';
 
 /** Eye and chest height: the same for every body (height is only a look). */
@@ -38,13 +41,16 @@ export interface Conn {
   send(msg: ServerMsg): void;
 }
 
-interface SPlayer {
+export interface SPlayer {
   conn: Conn;
   id: number;
   name: string;
   sex: Sex;
-  /** Guns and upgrades in effect (resolved from the account): damage, fire rate and reach follow them. */
+  /** Guns and upgrades in effect (from the mode: the account's Arsenal or a ladder step): damage, fire rate and reach follow them. */
   loadout: Loadout;
+  /** The loadout before the mode last changed it, and when (shots already in flight still count). */
+  loadoutBefore: Loadout;
+  loadoutAt: number;
   /** The gun slot in hand (from the state flags), the one before it and when it changed. */
   held: GunSlot;
   heldBefore: GunSlot;
@@ -109,11 +115,14 @@ export class Session {
   private scoreTimer = 0;
   /** Bun pub/sub topic every player of this session is subscribed to. */
   private readonly topic: string;
+  /** What this session plays: mata-mata, corrida armada... */
+  readonly mode: SessionMode;
 
   constructor(
     readonly id: string,
     readonly name: string,
     readonly map: MapId,
+    modeId: GameModeId,
     readonly permanent: boolean,
     private now: () => number,
     private onChange: () => void,
@@ -121,6 +130,15 @@ export class Session {
     private publish: (topic: string, data: string) => void,
   ) {
     this.topic = `sessao:${id}`;
+    this.mode = createMode(modeId, {
+      players: this.players,
+      now: () => this.now(),
+      broadcast: (msg) => this.broadcast(msg),
+      setLoadout: (p, lo) => this.setLoadout(p, lo),
+      info: (p) => this.playerInfo(p),
+      giveAccountXp: (p, xp) => this.progress(p, [addAccountXp(p.conn.account, xp)]),
+      resetForRound: (p) => this.resetForRound(p),
+    });
     for (const k of PICKUPS[map] ?? []) this.pickups.set(k.id, { kind: k.kind, p: k.p, ready: 0 });
     for (const r of RATS[map] ?? []) this.rats.set(r.id, { p: r.p, ready: 0 });
     for (const f of FISH[map] ?? []) this.fish.set(f.id, { loop: f.loop, ready: 0, golden: false });
@@ -128,7 +146,7 @@ export class Session {
   }
 
   get info(): SessionInfo {
-    return { id: this.id, name: this.name, map: this.map, players: this.players.size, max: NET.maxPlayers, permanent: this.permanent };
+    return { id: this.id, name: this.name, map: this.map, mode: this.mode.id, players: this.players.size, max: NET.maxPlayers, permanent: this.permanent };
   }
 
   get full() {
@@ -154,6 +172,7 @@ export class Session {
       humiliations: p.humiliations,
       alive: p.alive,
       ping: p.ping,
+      ...this.mode.info(p),
     };
   }
 
@@ -178,7 +197,10 @@ export class Session {
       id: conn.id,
       name,
       sex: conn.sex,
-      loadout: loadoutOf(conn.account),
+      // The mode's, right below (it needs the player).
+      loadout: DEFAULT_LOADOUT,
+      loadoutBefore: DEFAULT_LOADOUT,
+      loadoutAt: 0,
       held: 'primaria',
       heldBefore: 'primaria',
       heldAt: 0,
@@ -207,7 +229,10 @@ export class Session {
       potion: null,
       potionReady: 0,
     };
+    // Fixed for the match in modes with a locked loadout (mata-mata: the account's Arsenal as it is now).
+    p.loadout = p.loadoutBefore = this.mode.joinLoadout(p);
     this.players.set(p.id, p);
+    this.mode.onJoin(p);
     conn.session = this;
     conn.ws.subscribe(this.topic);
     conn.send({
@@ -229,6 +254,7 @@ export class Session {
     const p = this.players.get(conn.id);
     if (!p) return;
     this.players.delete(conn.id);
+    this.mode.onLeave(p);
     conn.session = null;
     conn.ws.unsubscribe(this.topic);
     for (const c of this.corpses.values()) if (c.claimedBy === p.id) c.claimedBy = null;
@@ -303,7 +329,7 @@ export class Session {
       case 'stab':
         return this.onStab(p, msg.target, !!msg.behind, now);
       case 'grenade': {
-        if (!p.alive || !finite(msg.id) || !vec(msg.p) || !vec(msg.v) || !finite(msg.fuse)) return;
+        if (!this.mode.rules.grenades || !p.alive || !finite(msg.id) || !vec(msg.p) || !vec(msg.v) || !finite(msg.fuse)) return;
         // Land mines (a grenade upgrade) stay until they go off or their owner respawns.
         const grenade = grenadeStats(p.loadout.ativas.granada);
         const mine = !!msg.mine && grenade.tipo === 'mina';
@@ -320,9 +346,12 @@ export class Session {
       case 'boom':
         return this.onBoom(p, msg, now);
       case 'loadout':
-        equip(p.conn.account, msg.lo);
-        // Everyone else draws the new weapons in this player's hands; the player gets the choice as kept.
-        this.refreshLoadout(p, true);
+        // Locked for the match (the Arsenal is chosen before it, in the lobby): refused, and the player hears
+        // the choice the server kept. Otherwise the new weapons go into the player's hands at once.
+        if (!this.mode.rules.lockedLoadout && this.mode.rules.weapons === 'arsenal') {
+          equip(p.conn.account, msg.lo);
+          this.setLoadout(p, loadoutOf(p.conn.account));
+        }
         p.conn.send(progressMsg(p.conn.account));
         return;
       case 'selfDamage': {
@@ -419,20 +448,26 @@ export class Session {
     this.broadcast({ t: 'fish', id: id as string, by: p.id, prize, ready: f.ready, golden: f.golden, ...(until ? { until } : {}) });
   }
 
-  /** The gun a player has in a slot, with their upgrades (null: empty slot). */
-  private gunOf(p: SPlayer, slot: GunSlot) {
-    const g = gunIn(p.loadout, slot);
-    return g ? gunStats(g, p.loadout.ativas[g]) : null;
+  /** The gun a player has in a slot, with its upgrades (null: empty slot, or a melee-only loadout). */
+  private gunOf(p: SPlayer, slot: GunSlot, lo = p.loadout) {
+    return lo.soFaca ? null : slotStats(lo, slot);
   }
 
   /**
-   * The gun a hit says it came from, if the player could have fired it: the one in hand, or the one just put
-   * away (shots fired right before a switch arrive after it).
+   * The gun a hit says it came from, if the player could have fired it: the one in hand, the one just put away
+   * (shots fired right before a switch arrive after it), or the one the mode just took away (a ladder step).
    */
   private firedGun(p: SPlayer, w: unknown, now: number) {
     if (!isGun(w)) return null;
-    if (gunIn(p.loadout, p.held) === w) return this.gunOf(p, p.held);
-    if (now - p.heldAt < SWITCH_GRACE_MS && gunIn(p.loadout, p.heldBefore) === w) return this.gunOf(p, p.heldBefore);
+    const options: [GunSlot, Loadout, boolean][] = [
+      [p.held, p.loadout, true],
+      [p.heldBefore, p.loadout, now - p.heldAt < SWITCH_GRACE_MS],
+      [p.held, p.loadoutBefore, now - p.loadoutAt < SWITCH_GRACE_MS],
+    ];
+    for (const [slot, lo, ok] of options) {
+      const gun = ok ? this.gunOf(p, slot, lo) : null;
+      if (gun?.arma === w) return gun;
+    }
     return null;
   }
 
@@ -539,6 +574,8 @@ export class Session {
   /** `weapon`: what dealt it (it gets the kill's points); null for falls, the dog, your own grenade. */
   private damage(target: SPlayer, attacker: SPlayer | null, amount: number, kind: KillKind, from: Vec3 | null, bonus: Award[], weapon: ProgWeapon | null) {
     if (!target.alive || amount <= 0) return;
+    // Between rounds nobody hurts anybody (falls and the map still do).
+    if (attacker && attacker !== target && !this.mode.combatOpen()) return;
     const dealt = Math.min(target.health, amount);
     target.health -= dealt;
     target.lastDamageAt = this.now();
@@ -576,9 +613,12 @@ export class Session {
       if (kind === 'knife') d.knifeKills++;
       if (kind === 'grenade') d.grenadeKills++;
       if (awards.some((a) => a.label === 'backstab')) d.backstabs++;
-      const w = weaponOfKill(kind, isGun(weapon) ? weapon : null);
+      // Weapon points only where players fight with their own Arsenal (not with a mode's ladder).
+      const w = this.mode.rules.weaponXp ? weaponOfKill(kind, isGun(weapon) ? weapon : null) : null;
       this.progress(attacker, [w ? addWeaponXp(acct, w, points) : null, addAccountXp(acct, ACCOUNT_XP.perKill)]);
     }
+    // The mode's rules for the kill (ladder steps, the end of the round), before the players are announced.
+    const after = this.mode.onKill(victim, attacker && attacker !== victim ? attacker : null, kind, weapon);
     const corpse: Corpse = {
       id: this.nextCorpse++,
       victim: victim.id,
@@ -596,11 +636,13 @@ export class Session {
     const players = [this.playerInfo(victim), ...(attacker && attacker !== victim ? [this.playerInfo(attacker)] : [])];
     const { id, victim: v, name, sex, ap, p, yaw, until } = corpse;
     this.broadcast({ t: 'kill', victim: victim.id, attacker: attacker?.id ?? null, kind, ...(weapon && attacker && attacker !== victim ? { arma: weapon } : {}), awards, corpse: { id, victim: v, name, sex, ap, p, yaw, until }, players });
+    for (const m of after) this.broadcast(m);
   }
 
   private tick() {
     const now = this.now();
     const dt = 1 / NET.tickRate;
+    this.mode.tick(now);
     for (const p of this.players.values()) {
       // The cherry wore off: back to the body's max (the extra health goes with it).
       if (p.boostUntil && now >= p.boostUntil) {
@@ -631,19 +673,41 @@ export class Session {
     }
   }
 
-  /** Tells the player their new progress; an upgrade unlocked by a level up changes their loadout at once. */
+  /**
+   * Tells the player their new progress. An upgrade unlocked by a level up goes into their hands at once only
+   * in a mode without a locked loadout (none online today); otherwise it waits for the next match.
+   */
   private progress(p: SPlayer, ups: (LevelUp | null)[]) {
     const levelUps = ups.filter((u): u is LevelUp => !!u);
-    if (levelUps.length) this.refreshLoadout(p, false);
+    const rules = this.mode.rules;
+    if (levelUps.length && !rules.lockedLoadout && rules.weapons === 'arsenal') {
+      const lo = loadoutOf(p.conn.account);
+      if (JSON.stringify(lo) !== JSON.stringify(p.loadout)) this.setLoadout(p, lo);
+    }
     if (!levelUps.length) p.conn.send(progressMsg(p.conn.account));
     for (const up of levelUps) p.conn.send(progressMsg(p.conn.account, up));
   }
 
-  /** Resolves the player's loadout again (choice, levels) and shows it to the others when it changed (or `always`). */
-  private refreshLoadout(p: SPlayer, always: boolean) {
-    const before = JSON.stringify(p.loadout);
-    p.loadout = loadoutOf(p.conn.account);
-    if (!p.loadout.secundaria && p.held === 'secundaria') p.held = 'primaria';
-    if (always || JSON.stringify(p.loadout) !== before) this.broadcast({ t: 'playerLoadout', id: p.id, lo: p.loadout }, p.id);
+  /** Other weapons in a player's hands mid-match, told to everyone (the player too: these are the ones validated). */
+  private setLoadout(p: SPlayer, lo: Loadout) {
+    p.loadoutBefore = p.loadout;
+    p.loadoutAt = this.now();
+    p.loadout = lo;
+    if (!lo.secundaria && p.held === 'secundaria') p.held = 'primaria';
+    this.broadcast({ t: 'playerLoadout', id: p.id, lo });
+  }
+
+  /** Out of the round that ended: dead with the respawn allowed at once, nothing carried over from the last life. */
+  private resetForRound(p: SPlayer) {
+    const now = this.now();
+    if (p.dance) this.onTauntEnd(p, p.dance.corpse, false, now);
+    p.alive = false;
+    p.health = 0;
+    p.deadAt = now - NET.respawnDelay * 1000;
+    p.boostUntil = 0;
+    p.humanity = false;
+    p.potion = null;
+    p.potionReady = 0;
+    p.grenades.clear();
   }
 }

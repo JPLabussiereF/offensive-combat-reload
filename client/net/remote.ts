@@ -132,6 +132,7 @@ export class RemotePlayer implements Target {
         ads: !!(f & FLAG.ads),
         reload: !!(f & FLAG.reload),
         knife: !!(f & FLAG.knife),
+        blade: !!this.loadout.soFaca,
         cook: !!(f & FLAG.cook),
         secondary,
         hold: holdOf(gunIn(this.loadout, secondary ? 'secundaria' : 'primaria') ?? 'rifle'),

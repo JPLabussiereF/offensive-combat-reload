@@ -42,6 +42,13 @@
         <div><b id="score-kills">0</b><span id="score-kills-label"></span></div>
         <div><b id="score-acc">0%</b><span id="score-acc-label"></span></div>
       </div>
+      <!-- Corrida armada: the step on the weapon ladder (under the score) and the end-of-round card. -->
+      <div id="ladder" class="hidden">
+        <b id="ladder-step"></b><span id="ladder-name"></span><span id="ladder-pips"></span>
+      </div>
+      <div id="round-end" class="hidden">
+        <div class="round-card sticker"><div id="round-title"></div><div id="round-next"></div></div>
+      </div>
 
       <div id="killfeed"></div>
 
@@ -152,6 +159,10 @@
                 <h3 data-t="modeTitle"></h3>
                 <div id="home-modes" class="mode-grid"></div>
               </div>
+              <div id="home-game-box">
+                <div class="pane-head"><h3 data-t="gameModeTitle"></h3><span id="home-game-hint" class="hint"></span></div>
+                <div id="home-game" class="seg"></div>
+              </div>
               <div>
                 <div class="pane-head"><h3 id="home-map-title"></h3><span id="home-map-hint" class="hint"></span></div>
                 <div id="home-maps" class="map-row"></div>
@@ -168,6 +179,7 @@
                 <div id="session-create" class="session-create">
                   <input id="session-new-name" type="text" spellcheck="false" />
                   <select id="session-new-map"></select>
+                  <select id="session-new-mode"></select>
                   <button id="session-create-btn" type="button" class="small-btn" data-t="createSession"></button>
                 </div>
               </div>
@@ -240,6 +252,7 @@
             <h3 data-t="startTitle"></h3>
             <p id="land-guest" class="hint"></p>
             <div><h4 data-t="mapLabel"></h4><div id="land-map-pick" class="seg"></div></div>
+            <div><h4 data-t="gameModeTitle"></h4><div id="land-game" class="seg"></div></div>
             <div class="land-row">
               <div><h4 data-t="botSkill"></h4><div id="land-skills" class="seg"></div></div>
               <div><h4 data-t="botCount"></h4><div id="land-counts" class="seg"></div></div>

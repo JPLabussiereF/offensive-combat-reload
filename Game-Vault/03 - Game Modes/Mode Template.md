@@ -4,6 +4,8 @@ type: reference
 status: documented
 area: game-modes
 source_paths:
+  - server/modes.ts
+  - shared/modes.ts
   - client/ui/home.ts
   - client/main.ts
   - server/session.ts
@@ -11,7 +13,7 @@ tags:
   - game
   - modes
   - template
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Mode Template
@@ -23,15 +25,15 @@ Modelo para documentar um modo de jogo. Copie o bloco abaixo para uma nota nova 
 - Cada número deve citar a fonte (constante ou JSON). O que não está no código vira `unknown` ou um aviso de inferência.
 - Se o modo ainda não existe, crie a nota mesmo assim com `status: unknown` e a frase "Não existe no código atual (verificado em …)".
 
-## Onde um modo "vive" hoje no código
+## Onde um modo "vive" no código
 
-Na arquitetura atual, um modo é a combinação de:
-1. uma opção na home (`HomeChoice` em `client/ui/home.ts`);
-2. ramificações em `client/main.ts` (`online`, `botMode`, `choice.mode === 'offline'`): pontos de nascimento, atraso de respawn, alvos, placar e pausa;
-3. a autoridade das regras: `server/session.ts` (online) ou `client/ai/bots.ts` (`BotManager`, offline).
+Um **modo de jogo** (regra) é separado de **onde se joga** (online, bots, treino):
+1. id e regras declaradas em `MODE_RULES` (`shared/modes.ts`): de onde vêm as armas, loadout travado, granadas, XP de arma, rodadas, bots;
+2. o lado do servidor: uma classe `SessionMode` em `server/modes.ts` (ganchos `joinLoadout`, `info`, `combatOpen`, `onKill`, `tick`…), escolhida por `createMode`;
+3. regras puras compartilhadas (se houver) num `shared/<modo>.ts`, usadas pelo servidor e pelo `BotManager` (`client/ai/bots.ts`);
+4. o que o cliente mostra: a home (`client/ui/home.ts`) lista o modo sozinha; HUD e comportamento próprios em `client/main.ts`.
 
-> [!info] Inferência
-> Não existe uma abstração formal de "GameMode" (classe, interface ou arquivo de configuração de modo). Um modo novo exigiria novas ramificações nesses três pontos. Ver [[Code Architecture Overview]] e [[Technical Debt]].
+O roteiro completo está em [[ADR - Modos de jogo com regras declaradas e ganchos no servidor]].
 
 ---
 
@@ -80,4 +82,4 @@ updated: AAAA-MM-DD
 
 ## Exemplos preenchidos
 
-[[Free For All]] · [[Versus Bots]] · [[Training]]
+[[Free For All]] · [[Gun Game]] · [[Versus Bots]] · [[Training]]

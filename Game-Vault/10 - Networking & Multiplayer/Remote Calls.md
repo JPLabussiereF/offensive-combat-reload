@@ -4,6 +4,8 @@ type: reference
 status: documented
 area: networking
 source_paths:
+  - server/modes.ts
+  - shared/modes.ts
   - shared/protocol.ts
   - server/app.ts
   - server/session.ts
@@ -46,7 +48,8 @@ Convenções:
 |---|---|---|---|---|
 | `hello` | — | 1× após abrir | Nome e corpo vêm da conta, nunca da mensagem | `welcome {id, name, sessions}` + `progresso` |
 | `list` | — | sob demanda | — | `sessions {list}` |
-| `create` | `name`, `map?` | sob demanda | Exige `hello` antes; `sanitizeName(name, 24)` ou "Sala de <nome>"; mapa inválido → `DEFAULT_MAP` | sai da sala atual, cria e entra → `joined` |
+| `create` | `name`, `map?`, `mode?` | sob demanda | Exige `hello` antes; `sanitizeName(name, 24)` ou "Sala de <nome>"; mapa inválido → `DEFAULT_MAP`; modo inválido → `mata-mata` | sai da sala atual, cria e entra → `joined` |
+| `loadout` | `lo` (`ArsenalChoice`) | antes de `join`/`create` (a home sempre manda) | só fora de sessão; `equip` → `sanitizeChoice` com os níveis da conta | `progresso` (com a `escolha` guardada). A escolha vale para a próxima sessão em que entrar |
 | `join` | `session` | sob demanda | Exige `hello`; sessão existe e não está cheia | `joined`, ou `error` ("Diga olá primeiro.", "Essa sessão não existe mais.", "Sessão lotada.") |
 | `leave` | — | sob demanda | — | `sessions {list}`; grava o progresso |
 | `ping` | `c` (relógio do cliente), `rtt?` | 1 Hz | `Number(c)` | `pong {c, s}` |
@@ -61,9 +64,9 @@ Convenções:
 | `hit` | `target`, `region`, `dist`, `w` (`GunId` da arma que atirou), `keep?` | por acerto | ver [[Anti Cheat]]: `w` em mãos ou guardada há < 1 s e no loadout, ambos vivos, região em `HIT_REGIONS`, máx. `ceil(cadência/60)+2` acertos/s, distância vs servidor | `damage` (+ `kill`) para todos |
 | `swing` | — | por golpe | vivo | broadcast `swing {id}` (cosmético) |
 | `stab` | `target`, `behind` | por facada | ambos vivos; intervalo ≥ 75 % do `intervalo` da faca; distância horizontal ≤ `alcanceInvestida + 1,5 m` | `damage` (55 ou letal se a faca do nível for `letal`) |
-| `grenade` | `id`, `p`, `v`, `fuse`, `impact?`, `mine?`, `duck?` | por lançamento | vivo, campos finitos; id não repetido; máx. **4 granadas** e **3 minas** vivas; mina só se o nível da granada for do tipo `mina`; `fuse` limitado a `[0, pavio]` (ou `[0, tempoMaximoVoo]` se impacto) | broadcast `grenade {owner, ...}` (exceto o autor) |
+| `grenade` | `id`, `p`, `v`, `fuse`, `impact?`, `mine?`, `duck?` | por lançamento | o modo tem granadas (não na corrida armada), vivo, campos finitos; id não repetido; máx. **4 granadas** e **3 minas** vivas; mina só se o nível da granada for do tipo `mina`; `fuse` limitado a `[0, pavio]` (ou `[0, tempoMaximoVoo]` se impacto) | broadcast `grenade {owner, ...}` (exceto o autor) |
 | `boom` | `id`, `p`, `hits[] {target, dist}` | por explosão | granada registrada; mina: `p` a ≤ 1,5 m da origem; impacto: dentro do alcance físico possível; pavio: não antes de `fuse − 0,5 s`; cada alvo: `dist` informada vs servidor ≤ 3 m e dentro de `raioDano + 3` | broadcast `boom` + `damage`/`kill` |
-| `loadout` | `lo` (`ArsenalChoice {secundaria, ligadas}`) | ao mudar a escolha no Arsenal | `equip` → `sanitizeChoice` com os níveis da conta (melhorias não liberadas são descartadas) | broadcast `playerLoadout {id, lo: Loadout}` (exceto o autor) + `progresso` para o autor (com a `escolha` guardada) |
+| `loadout` | `lo` (`ArsenalChoice {secundaria, ligadas}`) | — (o cliente não manda mais em partida) | **recusado** em modos com `lockedLoadout` (todos os online): nada muda | só `progresso` para o autor, com a escolha que ficou ([[ADR - Equipamento travado no mata-mata]]) |
 | `selfDamage` | `amount`, `cause` (`fall`/`void`/`dog`) | por evento | vivo, `amount > 0`, limitado a `LETHAL_DAMAGE` | `damage` no próprio jogador |
 | `taunt` | `corpse` | ao começar a dançar | corpo existe, não humilhado, livre, dentro da janela, não é o próprio, distância ≤ raio + 1,5 m | broadcast `taunt {id, corpse}` |
 | `tauntEnd` | `corpse`, `done` | ao parar/terminar | dança ativa nesse corpo; `done` só vale se durou ≥ duração − 400 ms | broadcast `tauntEnd {..., awards, players}` |
@@ -93,13 +96,17 @@ Convenções:
 | `spawned` | `id`, `p`, `yaw` | respawn aceito | sala |
 | `grenade`, `boom` | `owner`, `id`, ... | lançamento / explosão | sala, exceto autor |
 | `taunt`, `tauntEnd` | `id`, `corpse`, (`done`, `awards`, `players`) | humilhação | sala |
-| `playerLoadout` | `id`, `lo` (`Loadout {primaria, secundaria, ativas}`) | escolha do Arsenal ou subida de nível que muda as melhorias em efeito | sala, exceto autor |
+| `playerLoadout` | `id`, `lo` (`Loadout {primaria, secundaria, ativas, soFaca?}`) | o modo trocou as armas de alguém no meio da partida (corrida armada: outro degrau, ou a rodada nova) | sala, **inclusive o próprio jogador** (são as armas que o servidor valida) |
+| `roundEnd` | `mode`, `winner`, `name`, `restartAt` (hora do servidor) | fim de rodada (corrida armada: abate com o sabre) | sala |
+| `roundStart` | `players: PlayerInfo[]` | rodada nova: todos mortos com respawn liberado, placar zerado | sala |
 | `prop` | `id`, `by` | gag do mapa | sala, exceto autor |
 | `pickup`, `fish`, `rat`, `potion` | ver tipos | itens/criaturas | sala |
 | `chat` | `id`, `name`, `text` | fala aceita | sala (inclusive autor) |
 | `chatRefused` | `reason: 'muted' \| 'slow'` | fala recusada | conexão |
 | `pong` | `c`, `s` | resposta ao `ping` | conexão |
 | `progresso` | `armas` (`{xp, nivel}` por arma), `escolha` (`ArsenalChoice`), `conta`, `subiu?` | `hello`, ao mudar a escolha, e sempre que o progresso muda | conexão |
+
+`PlayerInfo` ganhou `ladder?: {step, kills}` (corrida armada) e `SessionInfo` ganhou `mode`. Ver [[Gun Game]].
 
 `KillKind`: `gun`, `head`, `groin`, `knife`, `grenade`, `fall`, `void`, `explosion`, `dog`. `AwardLabel`: `kill`, `headshot`, `groin`, `knife`, `backstab`, `longShot`, `humiliation`.
 

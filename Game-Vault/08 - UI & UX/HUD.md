@@ -4,6 +4,7 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - client/ui/ladder.ts
   - client/ui/hud.ts
   - client/ui/corpseTimer.ts
   - client/main.ts
@@ -29,15 +30,17 @@ Interface sobreposta durante a partida (`#hud` em `index.html`, classe `Hud` em 
 | **Luneta** (`#scope`) | tela cheia | Overlay de mira telescópica quando o rifle tem a melhoria Luneta ligada e está totalmente mirado. | [[Weapons]] |
 | **Vinheta** (`#vignette`) | bordas | Avermelha com vida < 30 (`--low`) e pisca ao levar dano (`damageFlash`, intensidade pelo dano; também vibra o controle). | [[Health System]] |
 | **Vida** (`#health`) | inferior esquerdo | Número + barra; barra cheia na vida máxima do corpo; classe `low` abaixo de 25; fica rosa com a Cereja do Dragão (`boost`). | [[Health System]], [[Pickups]] |
-| **Munição** (`#ammo`) | inferior direito | Pente/reserva; linha de status: "RECARREGANDO…" com barra de progresso, "RECARREGUE" com a tecla (R, glifo do controle, ou nada no celular) quando o pente ≤ 30%, "SEM MUNIÇÃO". Nome da arma em mãos embaixo (`setWeaponName`, texto de `arma_*` em `strings.ts`). | [[Weapons]] |
+| **Munição** (`#ammo`) | inferior direito | Com só o sabre na mão (corrida armada) a contagem, o status e as armas somem e fica o nome da arma (`hud.setMeleeOnly`). Pente/reserva; linha de status: "RECARREGANDO…" com barra de progresso, "RECARREGUE" com a tecla (R, glifo do controle, ou nada no celular) quando o pente ≤ 30%, "SEM MUNIÇÃO". Nome da arma em mãos embaixo (`setWeaponName`, texto de `arma_*` em `strings.ts`). | [[Weapons]] |
 | **Armas carregadas** (`#weapon-slots`) | sob a munição | Uma linha por arma de fogo (primária e secundária): a tecla que a seleciona (`1`/`2` ou a remapeada), o nome e `pente/reserva`. A da mão fica acesa; pisca enquanto é sacada após a troca. No celular, só aparece a arma guardada, sem tecla. `hud.setWeaponSlots`. | [[Weapons]], [[Inventory]] |
 | **Granadas** (`#grenades`) | à esquerda da munição | Um ícone por granada (acesa = disponível); a próxima em recarga **enche de baixo para cima** como barra de progresso (`--p`). | [[Grenades]] |
 | **Pavio** (`#cook`) | sob o retículo | Barra do pavio ao "cozinhar" a granada; fica vermelha no último terço. | [[Grenades]] |
 | **Aviso de granada** (`#grenade-warn`) | em volta do retículo (raio 96 px) | 💣 + seta apontando para a granada viva mais próxima dentro do raio de dano; mais opaca quanto mais perto. | [[Grenades]] |
+| **Escada** (`#ladder`) | topo, sob o placar | Só na corrida armada: "ARMA N/7", o nome do degrau e uma bolinha por abate necessário (verdes as feitas); rosa no Sabre de Luz. `hud.setLadder`. | [[Gun Game]] |
+| **Fim de rodada** (`#round-end`) | centro-alto | Cartão do vencedor ("{nome} venceu a corrida armada!" / "VOCÊ VENCEU…", laranja) e "Nova rodada em N…". `hud.showRoundEnd`. | [[Gun Game]] |
 | **Placar pessoal** (`#score`) | topo | Pontos, Abates, Precisão (%). Online/bots: números do servidor/gerenciador; offline: contagem local. | [[Scoring]] |
 | **Bônus/penalidades** (`#buffs`) | superior esquerdo | Um cartão por efeito: ícone, nome, segundos restantes e barra que esvazia; pisca nos últimos 10 s; efeitos sem tempo dizem "até morrer". No celular viram chips compactos. | [[Buffs & Debuffs]] |
 | **Prompt de contexto** (`#prompt`) | centro-baixo | Tecla + texto + barra: "Oprimir {nome}" (barra = tempo restante da janela), "Oprimindo {nome}…" (progresso da dança), "Beber Poção". | [[Humiliation]], [[Interaction System]] |
-| **Banner** (`#banner`) | centro | Texto grande animado por 1,8 s: variantes `bird` ("NO PÁSSARO!"), `taunt` ("OPRIMIDO!"), `level` (subida de nível, bônus). | [[Notifications]] |
+| **Banner** (`#banner`) | centro | Texto grande animado por 1,8 s: variantes `bird` ("NO PÁSSARO!", "Esfaqueado! Voltou para…"), `taunt` ("OPRIMIDO!"), `level` (subida de nível, bônus, "Próxima arma: …", "SABRE DE LUZ!", "Nova rodada…"). | [[Notifications]] |
 | **Pop-ups de pontos** (`#popups`) | sob o retículo | "+N Motivo" empilhados (1,6 s) e um total acumulado que some 2 s após o último. | [[Scoring]] |
 | **Kill feed** (`#killfeed`) | superior direito | Ver [[Notifications]]. | — |
 | **Tela de morte** (`#death`) | centro | Mensagem + "Renascendo em N…". Ver [[Flow - Death and Respawn]]. | [[Respawn]] |
@@ -61,7 +64,7 @@ Interface sobreposta durante a partida (`#hud` em `index.html`, classe `Hud` em 
 
 ## O que não existe
 
-Não há minimapa, radar, bússola, cronômetro de partida nem indicador de objetivo no HUD (verificado em `index.html` e `client/ui/hud.ts`). Ver [[Objectives]].
+Não há minimapa, radar, bússola, cronômetro de partida nem indicador de objetivo no HUD (a contagem entre rodadas da corrida armada é a única contagem de partida) (verificado em `index.html` e `client/ui/hud.ts`). Ver [[Objectives]].
 
 ## Código relacionado
 

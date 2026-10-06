@@ -1,9 +1,11 @@
 // The game server as a function (index.ts starts it; tests start their own on a free port): one Bun.serve
-// with the account API, static files from dist/, and the WebSocket with the lobby and free-for-all sessions.
+// with the account API, static files from dist/, and the WebSocket with the lobby and the game sessions (each
+// with its map and game mode).
 import type { Server } from 'bun';
 import { join, normalize } from 'node:path';
 import { CLOSE, NET, sanitizeName, type ClientMsg, type ServerMsg } from '@shared/protocol';
 import { DEFAULT_MAP, isMapId, MAP_IDS, MAPS, type MapId } from '@shared/maps';
+import { DEFAULT_GAME_MODE, GAME_MODE_IDS, isGameModeId, type GameModeId } from '@shared/modes';
 import { activeBan, chatMutedUntil, emptyDelta, flushProgress, getAccount, loadGameProfile, openParticipation } from './accounts';
 import { handleApi, ticketKey } from './api';
 import type { Deps } from './auth/sessions';
@@ -11,7 +13,7 @@ import { CONFIG } from './config';
 import { createDb, migrate } from './db';
 import { originAllowed, setPeer } from './http';
 import { scheduleJobs } from './jobs';
-import { deltaIsEmpty, liveAccount, mergeDelta, progressMsg, type LiveAccount } from './progress';
+import { deltaIsEmpty, equip, liveAccount, mergeDelta, progressMsg, type LiveAccount } from './progress';
 import { createRedis, MUTE_CHANNEL, REVOCATION_CHANNEL } from './redis';
 import { Session, type Conn } from './session';
 
@@ -21,6 +23,13 @@ const MAX_MSGS_PER_SEC = 150;
 /** Progress is written at least this often while playing. */
 const FLUSH_EVERY_MS = 60_000;
 const now = () => performance.now();
+
+/**
+ * Id of the permanent session of a map and mode. Mata-mata keeps the ids from before the modes ("principal" from
+ * when there was only the street); the other modes are "<mode>-<map>".
+ */
+export const permanentSessionId = (mode: GameModeId, map: MapId) =>
+  mode === 'mata-mata' ? (map === 'rua' ? 'principal' : map) : `${mode}-${map}`;
 
 /** What Bun keeps on each game socket (ws.data), from the handshake on. */
 interface Peer {
@@ -65,6 +74,8 @@ export async function startServer(opts: Options): Promise<GameServer> {
 
   const sessionList = () =>
     [...sessions.values()].map((s) => s.info).sort((a, b) => Number(b.permanent) - Number(a.permanent) || b.players - a.players);
+  /** Another session of the same map and mode with room (the one that keeps that pair playable). */
+  const otherRoom = (s: Session) => [...sessions.values()].some((o) => o !== s && o.map === s.map && o.mode.id === s.mode.id && !o.full);
 
   let listDirty = false;
   function sessionsChanged() {
@@ -75,12 +86,12 @@ export async function startServer(opts: Options): Promise<GameServer> {
       listDirty = false;
       for (const s of [...sessions.values()]) {
         if (s.permanent || s.players.size > 0) continue;
-        // An empty session closes, unless it is the room its map has left (see keepRoomPerMap).
-        if (![...sessions.values()].some((o) => o !== s && o.map === s.map && !o.full)) continue;
+        // An empty session closes, unless it is the room its map and mode have left (see keepRoom).
+        if (!otherRoom(s)) continue;
         s.dispose();
         sessions.delete(s.id);
       }
-      keepRoomPerMap();
+      keepRoom();
       const list = sessionList();
       for (const c of conns) if (!c.session) c.send({ t: 'sessions', list });
     }, 100);
@@ -89,30 +100,33 @@ export async function startServer(opts: Options): Promise<GameServer> {
   // Sessions broadcast through Bun's pub/sub; the server exists by the time anyone has joined one.
   const publish = (topic: string, data: string) => void server.publish(topic, data);
 
-  function createSession(name: string, map: MapId, permanentId?: string): Session {
+  function createSession(name: string, map: MapId, mode: GameModeId, permanentId?: string): Session {
     let id: string;
     do id = Math.random().toString(36).slice(2, 8);
     while (sessions.has(id));
-    const s = new Session(permanentId ?? id, name, map, permanentId !== undefined, now, sessionsChanged, publish);
+    const s = new Session(permanentId ?? id, name, map, mode, permanentId !== undefined, now, sessionsChanged, publish);
     sessions.set(s.id, s);
     return s;
   }
 
-  /** Every map always has a session with room: when all of a map's are full, another opens ("Nome 2", "Nome 3"…). */
-  function keepRoomPerMap() {
-    for (const map of MAP_IDS) {
-      const ofMap = [...sessions.values()].filter((s) => s.map === map);
-      if (ofMap.some((s) => !s.full)) continue;
-      let n = 2;
-      while (ofMap.some((s) => s.name === `${MAPS[map].nome} ${n}`)) n++;
-      createSession(`${MAPS[map].nome} ${n}`, map);
+  /**
+   * Every map always has a session with room in every mode: when all of a map's sessions of a mode are full,
+   * another opens ("Nome 2", "Nome 3"…).
+   */
+  function keepRoom() {
+    for (const mode of GAME_MODE_IDS) {
+      for (const map of MAP_IDS) {
+        const same = [...sessions.values()].filter((s) => s.map === map && s.mode.id === mode);
+        if (same.some((s) => !s.full)) continue;
+        let n = 2;
+        while (same.some((s) => s.name === `${MAPS[map].nome} ${n}`)) n++;
+        createSession(`${MAPS[map].nome} ${n}`, map, mode);
+      }
     }
   }
 
-  // One permanent session per map; "principal" keeps its id from when there was only the street.
-  createSession(MAPS.rua.nome, 'rua', 'principal');
-  createSession(MAPS.jardim.nome, 'jardim', 'jardim');
-  createSession(MAPS.halloween.nome, 'halloween', 'halloween');
+  // One permanent session per map and mode, named after the map (the list shows the mode beside it).
+  for (const mode of GAME_MODE_IDS) for (const map of MAP_IDS) createSession(MAPS[map].nome, map, mode, permanentSessionId(mode, map));
 
   // --- Progress persistence ---------------------------------------------------------------------------
   async function flush(a: LiveAccount, close: boolean) {
@@ -268,6 +282,11 @@ export async function startServer(opts: Options): Promise<GameServer> {
           }
           case 'list':
             return conn.send({ t: 'sessions', list: sessionList() });
+          case 'loadout':
+            // The Arsenal is chosen in the lobby, before a match (sessions with a locked loadout refuse it).
+            if (conn.session) break;
+            equip(account, msg.lo);
+            return conn.send(progressMsg(account));
           case 'create':
           case 'join': {
             if (!conn.name) return conn.send({ t: 'error', message: 'Diga olá primeiro.' });
@@ -275,7 +294,7 @@ export async function startServer(opts: Options): Promise<GameServer> {
             let s: Session | undefined;
             if (msg.t === 'create') {
               const name = sanitizeName(msg.name, NET.sessionNameMax) || `Sala de ${profile.tag.split('#')[0]}`;
-              s = createSession(name, isMapId(msg.map) ? msg.map : DEFAULT_MAP);
+              s = createSession(name, isMapId(msg.map) ? msg.map : DEFAULT_MAP, isGameModeId(msg.mode) ? msg.mode : DEFAULT_GAME_MODE);
             } else {
               s = sessions.get(String(msg.session));
               if (!s) return conn.send({ t: 'error', message: 'Essa sessão não existe mais.' });

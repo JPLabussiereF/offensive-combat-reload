@@ -4,6 +4,7 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - shared/modes.ts
   - client/ui/home.ts
   - client/net/connection.ts
   - shared/protocol.ts
@@ -13,7 +14,7 @@ tags:
   - game
   - ui
   - matchmaking
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Matchmaking UI
@@ -26,20 +27,23 @@ Com o modo **Online** escolhido na aba Jogar da tela inicial ([[Menus]]):
 
 | Elemento | Comportamento |
 | --- | --- |
+| Tipo de partida (`#home-game`) | **Mata-mata** ou **Corrida armada** (botões, salvo em `oc.bots.game`), com uma linha explicando o modo. Filtra a lista, as contagens dos mapas e a entrada rápida, e é o modo da sessão criada. Ver [[Free For All]] e [[Gun Game]]. |
 | Filtro de mapas | Os três mapas como caixas de marcar, numa grade que ocupa a linha inteira como os cartões de modo (todos marcados por padrão, salvos em `oc.bots.filtro`). Cada um mostra quantas sessões tem: antes de conectar, por `GET /api/sessoes` (ao abrir, ao voltar ao modo Online e a cada 10 s); conectado, pela lista ao vivo. Sem servidor, mostra o clima do mapa. Todo mapa tem sempre ao menos uma sessão com vaga ([[Matchmaking]]). |
-| **JOGAR ONLINE** (cartão do personagem) | **Entrada rápida:** conecta se preciso e entra na sessão **mais cheia que não esteja lotada** entre os mapas marcados. Sem mapa marcado: "Marque pelo menos um mapa."; sem sessão livre: "Nenhuma sessão aberta nos mapas selecionados.". A escolha é feita no cliente a partir da lista; o servidor só recebe um `join` comum. |
+| **JOGAR ONLINE** (cartão do personagem) | **Entrada rápida:** conecta se preciso e entra na sessão **mais cheia que não esteja lotada** do tipo de partida escolhido, entre os mapas marcados. Sem mapa marcado: "Marque pelo menos um mapa."; sem sessão livre: "Nenhuma sessão aberta nos mapas selecionados.". A escolha é feita no cliente a partir da lista; o servidor só recebe um `join` comum. |
 | Título | "Sessões abertas (N)", contando só as dos mapas marcados. |
 | **VER MAIS (N)** | A lista mostra **6 sessões por vez**; o botão só aparece quando sobram sessões e mostra mais 6 a cada clique. Volta a 6 ao mudar o filtro ou o modo. |
-| Lista (`#session-list`) | **Já carregada ao abrir a aba** (`GET /api/sessoes`, atualizada a cada 10 s; ao vivo depois de conectar). Uma linha por sessão dos mapas marcados: **nome**, **mapa** em texto menor (omitido quando o nome da sessão já é o nome do mapa, caso das sessões fixas), **jogadores/máximo** e **ENTRAR** (conecta se preciso e entra), ou **LOTADA** (desabilitado) quando cheia. Vazia: "Nenhuma sessão aberta. Crie a primeira!" ou, se o filtro escondeu todas, "Nenhuma sessão aberta nos mapas selecionados.". |
-| Criar sessão | Campo de nome (máx. `NET.sessionNameMax` = 24 caracteres), seletor de mapa e **CRIAR** (Enter também cria); conecta se preciso. |
+| Lista (`#session-list`) | **Já carregada ao abrir a aba** (`GET /api/sessoes`, atualizada a cada 10 s; ao vivo depois de conectar). Uma linha por sessão do tipo escolhido nos mapas marcados: **nome**, **mapa** em texto menor (omitido quando o nome da sessão já é o nome do mapa, caso das sessões fixas), uma **etiqueta do modo** (cor por modo), **jogadores/máximo** e **ENTRAR** (conecta se preciso e entra), ou **LOTADA** (desabilitado) quando cheia. Vazia: "Nenhuma sessão aberta. Crie a primeira!" ou, se o filtro escondeu todas, "Nenhuma sessão aberta nos mapas selecionados.". |
+| Criar sessão | Campo de nome (máx. `NET.sessionNameMax` = 24 caracteres), seletor de mapa, seletor de **modo** (sincronizado com o tipo de partida) e **CRIAR** (Enter também cria); conecta se preciso. No celular o nome ocupa a linha de cima. |
 | Status (`#home-status`) | Aviso no rodapé: "Conectando ao servidor…", "Conectado como {nome}.", "Entrando…", erros. |
 
 A lista é **atualizada ao vivo**: depois do `welcome`, o servidor envia mensagens `sessions` e a aba é redesenhada.
 
+Antes do `join`/`create`, o cliente manda a escolha do Arsenal (`loadout`) para o servidor: é a última chance de mudá-la, porque o equipamento fica travado dentro da sessão ([[ADR - Equipamento travado no mata-mata]]).
+
 **A conexão de jogo só abre quando o jogador escolhe entrar** (ENTRAR, CRIAR ou JOGAR ONLINE); a lista vem antes, por HTTP. A conexão fecha ao trocar para Contra bots ou Campo de tiro, ao sair da conta ou ao começar um modo offline. Ver [[ADR - Conexão online aberta sob demanda na tela inicial]].
 
 > [!info]
-> Segundo o `README.md` do projeto, cada mapa tem uma sessão fixa sempre presente ("Rua dos Vizinhos", "Jardim do Dragão", "Vila Assombrada") e cada sessão é um mata-mata livre de até 10 jogadores (`NET.maxPlayers` = 10 em `shared/protocol.ts`). Ver [[Free For All]].
+> Segundo o `README.md` do projeto, cada mapa tem uma sessão fixa sempre presente ("Rua dos Vizinhos", "Jardim do Dragão", "Vila Assombrada") — hoje uma por modo — e cada sessão tem até 10 jogadores (`NET.maxPlayers` = 10 em `shared/protocol.ts`). Ver [[Free For All]].
 
 ## Pré-condições e erros
 
@@ -51,7 +55,7 @@ A lista é **atualizada ao vivo**: depois do `welcome`, o servidor envia mensage
 
 ## Offline e bots
 
-Para os modos sem servidor não há lista: o mapa é escolhido nos botões de mapa da aba Jogar (ou da landing, sem conta), junto com dificuldade e número de bots; no Campo de tiro, clicar no mapa já começa. Ver [[Menus]], [[Training]] e [[Versus Bots]].
+Para os modos sem servidor não há lista: o mapa é escolhido nos botões de mapa da aba Jogar (ou da landing, sem conta), junto com o tipo de partida (os modos com `bots: true`), dificuldade e número de bots; no Campo de tiro, clicar no mapa já começa. Ver [[Menus]], [[Training]] e [[Versus Bots]].
 
 ## Código relacionado
 

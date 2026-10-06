@@ -41,6 +41,11 @@ export interface Loadout {
   /** Null: nothing in the secondary slot. */
   secundaria: GunId | null;
   ativas: Record<ProgWeapon, string[]>;
+  /**
+   * Only the knife (in its form, e.g. the lightsaber), held all the time and swung with the fire button: the
+   * guns are put away and can't fire. Only corrida armada's last step hands this out.
+   */
+  soFaca?: boolean;
 }
 
 const noUpgrades = (): Record<ProgWeapon, string[]> => ({ rifle: [], pistola: [], smg: [], faca: [], granada: [] });
@@ -71,6 +76,7 @@ export function sanitizeLoadout(raw: unknown): Loadout {
     primaria: isGun(o.primaria) ? o.primaria : DEFAULT_LOADOUT.primaria,
     secundaria: o.secundaria === null ? null : isGun(o.secundaria) ? o.secundaria : DEFAULT_LOADOUT.secundaria,
     ativas,
+    ...(o.soFaca === true ? { soFaca: true } : {}),
   };
 }
 
@@ -179,6 +185,7 @@ export function grenadeStats(upgrades: readonly string[] = []): GrenadeStats {
 
 /** Effective stats of the gun a loadout has in `slot` (null when the slot is empty). */
 export function slotStats(lo: Loadout, slot: GunSlot): GunStats | null {
+  // A melee-only loadout still names a primary (the models need one), but it never fires.
   const g = gunIn(lo, slot);
   return g ? gunStats(g, lo.ativas[g]) : null;
 }

@@ -2,6 +2,8 @@
 // (client/ui/strings.ts): the Arsenal, the HUD and the kill feed show them by id.
 import { describe, expect, it } from 'bun:test';
 import { PROG_WEAPONS, PROGRESSION } from '@shared/progression';
+import { GAME_MODE_IDS } from '@shared/modes';
+import { LADDER } from '@shared/gunGame';
 import { setLang, t, type Lang, type StringKey } from '../ui/strings';
 
 describe('textos do Arsenal', () => {
@@ -25,6 +27,30 @@ describe('textos do Arsenal', () => {
           }
         }
       }
+      expect(missing).toEqual([]);
+    });
+  }
+});
+
+describe('textos dos modos de jogo', () => {
+  for (const lang of ['pt-BR', 'en'] as Lang[]) {
+    it(`todo modo e todo degrau da corrida armada tem nome em ${lang}`, () => {
+      setLang(lang);
+      const missing: string[] = [];
+      const check = (key: string) => {
+        let text = '';
+        try {
+          text = t(key as StringKey);
+        } catch {
+          /* not there */
+        }
+        if (!text) missing.push(key);
+      };
+      for (const m of GAME_MODE_IDS) {
+        check(`gameMode_${m}`);
+        check(`gameModeDesc_${m}`);
+      }
+      for (const s of LADDER) check(`ladder_${s.id}`);
       expect(missing).toEqual([]);
     });
   }

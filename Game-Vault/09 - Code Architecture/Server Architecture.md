@@ -4,6 +4,7 @@ type: architecture
 status: documented
 area: code-architecture
 source_paths:
+  - server/modes.ts
   - server/index.ts
   - server/app.ts
   - server/session.ts
@@ -70,7 +71,8 @@ O estado do lobby (`sessions`, `conns`, `byAccount`, `nextId`) vive como variáv
 | Módulo | Papel | Tipo (informal) |
 | --- | --- | --- |
 | `app.ts` | Composição, lobby, handshake WS, roteamento das mensagens de lobby, flush do progresso, assinatura Redis | composição / "servidor" |
-| `session.ts` | Classe `Session`: uma partida de mata-mata livre, tick a `NET.tickRate` (20 Hz) por `setInterval`, validação de cada mensagem do cliente, regras de dano/abate/coletáveis | regra de jogo autoritativa |
+| `session.ts` | Classe `Session`: uma sala com mapa e modo de jogo, tick a `NET.tickRate` (20 Hz) por `setInterval`, validação de cada mensagem do cliente, regras de dano/abate/coletáveis comuns a todos os modos | regra de jogo autoritativa |
+| `modes.ts` | O que muda entre modos (`SessionMode`, `createMode`): `DeathmatchMode` (Arsenal da conta, travado ao entrar) e `GunGameMode` (escada, rodadas). Ver [[ADR - Modos de jogo com regras declaradas e ganchos no servidor]] | regra de modo autoritativa |
 | `progress.ts` | `LiveAccount` em memória, XP de arma e de conta, a escolha do Arsenal (`equip`) e o loadout que sai dela (`loadoutOf`), `delta` desde a última gravação | domínio |
 | `api.ts` | Tabela de rotas `'MÉTODO /caminho' → handler`, checagem de Origin em métodos que mudam estado | API |
 | `auth/sessions.ts` | Sessões do navegador (cookie `oc_sessao`, SHA-256 no banco, renovação deslizante) | auth |

@@ -1,11 +1,12 @@
 // Home screen (section 5, flow steps 2-4). Signed in: a header with tabs (Play, Arsenal, Profile, Settings) and
 // the account, beside the character card; Play picks online (quick join or a session from the list), bots or
-// the training range. Signed out: a landing page with the account form and a quick game against bots.
-// Resolves with the chosen mode.
+// the training range, and the match type (mata-mata or corrida armada) for online and bots. Signed out: a
+// landing page with the account form and a quick game against bots. Resolves with the chosen mode.
 import type { MeResponse, ProfileResponse } from '@shared/account';
 import { defaultAppearance, type Appearance } from '@shared/appearance';
 import { CLOSE, NET, type ServerMsg, type SessionInfo, type Sex } from '@shared/protocol';
 import { DEFAULT_MAP, isMapId, MAP_IDS, MAPS, type MapId } from '@shared/maps';
+import { DEFAULT_GAME_MODE, GAME_MODE_IDS, isGameModeId, MODE_RULES, type GameModeId } from '@shared/modes';
 import { Progress } from '../gameplay/progress';
 import { api, fetchMe, fetchProfile } from '../net/api';
 import { Connection } from '../net/connection';
@@ -20,7 +21,7 @@ export type BotSkillName = 'facil' | 'normal' | 'dificil';
 
 export type HomeChoice = { name: string; sex: Sex; account: ProfileResponse | null; map: MapId } & (
   | { mode: 'offline'; variant: 'range' }
-  | { mode: 'bots'; count: number; skill: BotSkillName }
+  | { mode: 'bots'; count: number; skill: BotSkillName; game: GameModeId }
   | { mode: 'online'; conn: Connection; joined: Extract<ServerMsg, { t: 'joined' }> }
 );
 
@@ -49,6 +50,13 @@ const MODES: { id: PlayMode; title: StringKey; desc: StringKey; color: string }[
   { id: 'bots', title: 'modeBots', desc: 'modeBotsDesc', color: '#2f9bff' },
   { id: 'treino', title: 'modeRange', desc: 'modeRangeDesc', color: '#ffd23f' },
 ];
+
+/** A game mode's name ("Mata-mata", "Corrida armada") and one line about it. */
+export const gameModeName = (m: GameModeId) => t(`gameMode_${m}` as StringKey);
+const gameModeDesc = (m: GameModeId) => t(`gameModeDesc_${m}` as StringKey);
+/** Colors of each game mode's tag in the session list. */
+const GAME_TINT: Record<GameModeId, string> = { 'mata-mata': '#ffe2b8', 'corrida-armada': '#e3dbff' };
+const BOT_GAMES = GAME_MODE_IDS.filter((m) => MODE_RULES[m].bots);
 
 /** Why the server closed the game connection, for the player. */
 export function closeReason(code: number) {
@@ -123,9 +131,12 @@ export function showHome(): Promise<HomeChoice> {
   const list = $('session-list');
   const createInput = $<HTMLInputElement>('session-new-name');
   const newMapSel = $<HTMLSelectElement>('session-new-map');
+  const newModeSel = $<HTMLSelectElement>('session-new-mode');
   translate(home);
   newMapSel.innerHTML = MAP_IDS.map((id) => `<option value="${id}">${MAPS[id].nome}</option>`).join('');
   newMapSel.title = t('mapLabel');
+  newModeSel.innerHTML = GAME_MODE_IDS.map((id) => `<option value="${id}">${esc(gameModeName(id))}</option>`).join('');
+  newModeSel.title = t('gameModeTitle');
   createInput.placeholder = t('sessionNamePlaceholder');
   createInput.maxLength = NET.sessionNameMax;
 
@@ -134,12 +145,13 @@ export function showHome(): Promise<HomeChoice> {
   const settingsHome = { parent: settingsPanel.parentElement!, next: settingsPanel.nextSibling };
   $('tab-settings').appendChild(settingsPanel);
 
-  // --- Preferences (oc.bots): mode, map, online map filter, difficulty and bot count ----------------
-  let prefs: { skill: BotSkillName; count: number; map: MapId; mode: PlayMode; filtro: MapId[] } = {
+  // --- Preferences (oc.bots): mode, match type, map, online map filter, difficulty and bot count -------
+  let prefs: { skill: BotSkillName; count: number; map: MapId; mode: PlayMode; game: GameModeId; filtro: MapId[] } = {
     skill: 'normal',
     count: 7,
     map: DEFAULT_MAP,
     mode: 'online',
+    game: DEFAULT_GAME_MODE,
     filtro: [...MAP_IDS],
   };
   try {
@@ -149,12 +161,14 @@ export function showHome(): Promise<HomeChoice> {
       count: COUNTS.includes(saved.count) ? saved.count : prefs.count,
       map: isMapId(saved.map) ? saved.map : prefs.map,
       mode: MODES.some((m) => m.id === saved.mode) ? saved.mode : prefs.mode,
+      game: isGameModeId(saved.game) ? saved.game : prefs.game,
       filtro: Array.isArray(saved.filtro) ? saved.filtro.filter(isMapId) : prefs.filtro,
     };
   } catch {
     /* storage unavailable */
   }
   newMapSel.value = prefs.map;
+  newModeSel.value = prefs.game;
   const savePrefs = () => {
     try {
       localStorage.setItem(BOTS_KEY, JSON.stringify(prefs));
@@ -378,12 +392,19 @@ export function showHome(): Promise<HomeChoice> {
         (m) => `<button type="button" class="mode-card" data-mode="${m.id}" aria-pressed="${prefs.mode === m.id}" style="--c:${m.color}">
           <span class="mode-title"><i></i><b>${t(m.title)}</b></span><span class="mode-desc">${t(m.desc)}</span></button>`,
       ).join('');
+      // The match type: online and against bots (only the modes bots can play), not on the range.
+      const games = online ? GAME_MODE_IDS : BOT_GAMES;
+      if (!games.includes(prefs.game)) prefs.game = games[0];
+      $('home-game-box').classList.toggle('hidden', range);
+      $('home-game').innerHTML = segButtons(games.map((m) => ({ label: gameModeName(m), on: prefs.game === m, data: m })));
+      $('home-game-hint').textContent = gameModeDesc(prefs.game);
+      newModeSel.value = prefs.game;
       $('home-map-title').textContent = t(online ? 'mapFilterTitle' : 'mapLabel');
       $('home-map-hint').textContent = online ? t('mapFilterHint') : range ? t('mapHintRange') : t('mapHintBots');
       $('home-maps').innerHTML = MAP_IDS.map((id) => {
         const look = MAP_LOOK[id];
         const on = online ? prefs.filtro.includes(id) : !range && prefs.map === id;
-        const n = sessions.filter((s) => s.map === id).length;
+        const n = sessions.filter((s) => s.map === id && s.mode === prefs.game).length;
         const sub = online && listed ? (n === 1 ? t('sessionsOne') : t('sessionsMany', { n })) : t(look.when);
         return `<button type="button" class="map-btn${online ? ' filter' : ''}" data-map="${id}" aria-pressed="${on}">
           <span class="map-thumb" style="--tint:${look.tint}">${look.emoji}</span>
@@ -401,7 +422,8 @@ export function showHome(): Promise<HomeChoice> {
 
     /** The list is there as soon as the tab opens (GET /api/sessoes); long lists come a page at a time. */
     const renderLobby = () => {
-      const shown = sessions.filter((s) => prefs.filtro.includes(s.map));
+      // The chosen match type and the ticked maps.
+      const shown = sessions.filter((s) => prefs.filtro.includes(s.map) && s.mode === prefs.game);
       $('home-lobby-title').textContent = listed ? t('openSessions', { n: shown.length }) : t('sessions');
       list.classList.toggle('hidden', !listed);
       list.innerHTML = '';
@@ -416,8 +438,11 @@ export function showHome(): Promise<HomeChoice> {
       for (const s of shown.slice(0, pageSize)) {
         const li = document.createElement('li');
         const full = s.players >= s.max;
-        li.innerHTML = `<span class="s-name"><b></b><small></small></span><span class="s-count">${s.players}/${s.max}</span><button class="small-btn" ${full ? 'disabled' : ''}>${full ? t('full') : t('join')}</button>`;
+        li.innerHTML = `<span class="s-name"><b></b><small></small></span><span class="tag s-mode"></span><span class="s-count">${s.players}/${s.max}</span><button class="small-btn" ${full ? 'disabled' : ''}>${full ? t('full') : t('join')}</button>`;
         li.querySelector('.s-name b')!.textContent = s.name;
+        const tag = li.querySelector<HTMLElement>('.s-mode')!;
+        tag.textContent = gameModeName(s.mode);
+        tag.style.background = GAME_TINT[s.mode] ?? '#fff';
         // Fixed sessions are named after their map: no need to say it twice.
         li.querySelector('.s-name small')!.textContent = s.name === MAPS[s.map]?.nome ? '' : (MAPS[s.map]?.nome ?? '');
         li.querySelector('button')!.addEventListener('click', () => void join({ t: 'join', session: s.id }));
@@ -466,7 +491,7 @@ export function showHome(): Promise<HomeChoice> {
     };
 
     /** Joins (or creates) a session, opening the game connection first if needed. */
-    const join = async (msg: { t: 'join'; session: string } | { t: 'create'; name: string; map: MapId }) => {
+    const join = async (msg: { t: 'join'; session: string } | { t: 'create'; name: string; map: MapId; mode: GameModeId }) => {
       if (busy) return;
       busy = true;
       try {
@@ -474,6 +499,8 @@ export function showHome(): Promise<HomeChoice> {
         const c = conn!;
         setStatus(t('joining'));
         const joinedP = c.next('joined');
+        // The Arsenal is chosen here, before the match: the server takes it now (it's locked once inside).
+        if (progress) c.send({ t: 'loadout', lo: progress.choice });
         c.send(msg);
         const joined = await joinedP;
         // The game releases these once its handlers exist (after the map is built).
@@ -503,7 +530,8 @@ export function showHome(): Promise<HomeChoice> {
       closeConn();
       savePrefs();
       const acct = await account();
-      leave({ mode: 'bots', name: playerName(), sex, account: acct, map: prefs.map, count: prefs.count, skill: prefs.skill });
+      const game = BOT_GAMES.includes(prefs.game) ? prefs.game : DEFAULT_GAME_MODE;
+      leave({ mode: 'bots', name: playerName(), sex, account: acct, map: prefs.map, count: prefs.count, skill: prefs.skill, game });
     };
 
     $('home-modes').onclick = (e) => {
@@ -541,6 +569,18 @@ export function showHome(): Promise<HomeChoice> {
     };
     const setSkill = (v: string) => (prefs.skill = v as BotSkillName);
     const setCount = (v: string) => (prefs.count = Number(v));
+    const setGame = (v: string) => isGameModeId(v) && (prefs.game = v);
+    segClick('home-game', (v) => {
+      setGame(v);
+      pageSize = PAGE;
+    });
+    segClick('land-game', setGame);
+    newModeSel.onchange = () => {
+      setGame(newModeSel.value);
+      pageSize = PAGE;
+      savePrefs();
+      renderPlay();
+    };
     segClick('home-skills', setSkill);
     segClick('home-counts', setCount);
     segClick('land-skills', setSkill);
@@ -556,11 +596,12 @@ export function showHome(): Promise<HomeChoice> {
       if (busy) return;
       if (!prefs.filtro.length) return setStatus(t('pickAMap'), true);
       if (!(await connect())) return;
-      const best = sessions.filter((s) => prefs.filtro.includes(s.map) && s.players < s.max).sort((a, b) => b.players - a.players)[0];
+      const best = sessions.filter((s) => prefs.filtro.includes(s.map) && s.mode === prefs.game && s.players < s.max).sort((a, b) => b.players - a.players)[0];
       if (!best) return setStatus(t('noSessionsFiltered'), true);
       void join({ t: 'join', session: best.id });
     };
-    const create = () => join({ t: 'create', name: createInput.value, map: isMapId(newMapSel.value) ? newMapSel.value : DEFAULT_MAP });
+    const create = () =>
+      join({ t: 'create', name: createInput.value, map: isMapId(newMapSel.value) ? newMapSel.value : DEFAULT_MAP, mode: isGameModeId(newModeSel.value) ? newModeSel.value : prefs.game });
     $('session-create-btn').onclick = () => void create();
     createInput.onkeydown = (e) => {
       if (e.key === 'Enter') void create();
@@ -570,6 +611,7 @@ export function showHome(): Promise<HomeChoice> {
     const renderGuest = () => {
       $('land-guest').innerHTML = t('startGuest', { name: `<b>${esc(guestName)}</b>` });
       $('land-map-pick').innerHTML = segButtons(MAP_IDS.map((id) => ({ label: MAPS[id].nome, on: prefs.map === id, data: id })));
+      $('land-game').innerHTML = segButtons(BOT_GAMES.map((m) => ({ label: gameModeName(m), on: prefs.game === m, data: m })));
       $('land-skills').innerHTML = segButtons(SKILLS.map(([v, k]) => ({ label: t(k), on: prefs.skill === v, data: v })));
       $('land-counts').innerHTML = segButtons(COUNTS.map((n) => ({ label: String(n), on: prefs.count === n, data: String(n) })));
       $('land-bots').textContent = t('versusBots', { n: prefs.count });

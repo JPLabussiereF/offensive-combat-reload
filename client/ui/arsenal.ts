@@ -1,7 +1,8 @@
 // Arsenal panel (pause menu and the home's tab): a card per weapon (the primary, every secondary, the knife and
 // the grenade) with its level, the points toward the next one, the gun's stats as they are now, and every
 // upgrade: locked (with the points it needs), active, or — the optional ones, which have a trade-off — a switch
-// to turn it on or off. A secondary's card also puts it in the secondary slot.
+// to turn it on or off. A secondary's card also puts it in the secondary slot. During a match with a locked
+// loadout (mata-mata) it is read-only: the progress shows, nothing can be changed until the next match.
 import { getLang, t, type StringKey } from './strings';
 import { gunStats } from '@shared/arsenal';
 import { isGun, levelCount, PROG_WEAPONS, PROGRESSION, SECONDARIES, upgradeOf, xpForLevel, type Efeitos, type GunId, type ProgWeapon, type Upgrade } from '@shared/progression';
@@ -59,13 +60,19 @@ export class Arsenal {
   /** Upgrade whose description is shown per weapon (hovered or focused), null = the weapon's own. */
   private preview: Partial<Record<ProgWeapon, string | null>> = {};
 
-  /** `grid`: where the cards go (the pause menu's, or the home's Arsenal tab); `onChange`: the loadout changed. */
+  /**
+   * `grid`: where the cards go (the pause menu's, or the home's Arsenal tab); `onChange`: the loadout changed;
+   * `readOnly`: shown but not editable (a match with a locked loadout).
+   */
   constructor(
     private progress: Progress,
     private onChange: () => void,
     private grid: HTMLElement,
+    private readOnly = false,
   ) {
+    this.grid.classList.toggle('read-only', readOnly);
     this.grid.addEventListener('click', (e) => {
+      if (this.readOnly) return;
       const el = e.target as HTMLElement;
       const toggle = el.closest<HTMLButtonElement>('[data-toggle]');
       if (toggle && !toggle.disabled) {
@@ -115,7 +122,7 @@ export class Arsenal {
     const xpText = nextXp === null ? t('maxLevel', { xp }) : t('xpToNext', { xp, next: nextXp, level: level + 1 });
     const secondary = SECONDARIES.includes(w as GunId);
     const carried = !secondary || this.progress.choice.secundaria === w;
-    const take = !secondary
+    const take = !secondary || (this.readOnly && !carried)
       ? ''
       : carried
         ? `<div class="in-secondary">✓ ${t('inSecondary')}</div>`
@@ -159,7 +166,7 @@ export class Arsenal {
       state = `<span class="upg-state" title="${esc(t('unlockAt', { xp: u.xp }))}">🔒 ${t('unlockShort', { xp: u.xp })}</span>`;
     } else if (u.opcional) {
       cls = on ? 'on' : 'off';
-      state = `<button type="button" class="upg-toggle" data-toggle data-w="${w}" data-id="${u.id}" data-key="${w}-${u.id}" aria-pressed="${on}">${t(on ? 'upgradeOn' : 'upgradeOff')}</button>`;
+      state = `<button type="button" class="upg-toggle" data-toggle data-w="${w}" data-id="${u.id}" data-key="${w}-${u.id}" aria-pressed="${on}"${this.readOnly ? ' disabled' : ''}>${t(on ? 'upgradeOn' : 'upgradeOff')}</button>`;
     } else {
       cls = on ? 'active' : 'replaced';
       state = `<span class="upg-state">${on ? '✓ ' + t('upgradeActive') : t('upgradeReplaced')}</span>`;

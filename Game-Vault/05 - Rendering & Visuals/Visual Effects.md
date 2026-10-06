@@ -14,11 +14,13 @@ source_paths:
   - client/world/oriental.ts
   - client/weapons/mines.ts
   - shared/data/weapons/rifle_padrao.json
+  - shared/data/weapons/pistola.json
+  - shared/data/weapons/smg.json
 tags:
   - game
   - rendering
   - vfx
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Visual Effects
@@ -35,7 +37,7 @@ Efeitos de combate ficam em `client/render/effects.ts` (classe `Effects`, criada
 | --- | --- |
 | Clarão na boca (1ª pessoa) | 2 quadrados cruzados de 0,16 m + 1 de 0,10 m com textura de estrela de 7 pontas, aditivos, no cano (`MUZZLE_LOCAL`). Visível 0,045 s, com rotação e escala (0,8–1,3, alongado 1,4× em Z) aleatórias |
 | Luz do disparo | `PointLight` `0xffc36b`, alcance 9 m, intensidade 30 caindo a 0 em 0,05 s |
-| Traçante | 16 no pool; caixa aditiva `0xffe28a`, 0,025 m de espessura, 6 m de comprimento, a 450 m/s, do cano até o impacto. Sai **1 a cada 3 tiros** (`tracanteACada: 3` no JSON do rifle); tiros de outros jogadores sempre mostram traçante |
+| Traçante | 16 no pool; caixa aditiva `0xffe28a`, 0,025 m de espessura, 6 m de comprimento, a 450 m/s, do cano até o impacto. Sai **1 a cada N tiros** (`tracanteACada` no JSON da arma: 3 no rifle, 2 na pistola e na submetralhadora); tiros de outros jogadores sempre mostram traçante, **exceto** os de arma com silenciador (sem traçante) |
 | Recuo visual | mola no viewmodel (ver [[Animation]]) |
 
 ### Impacto

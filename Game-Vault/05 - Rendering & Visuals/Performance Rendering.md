@@ -26,7 +26,7 @@ tags:
   - rendering
   - performance
   - gpu
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Performance Rendering
@@ -73,8 +73,8 @@ As 20 superfícies da biblioteca têm um material cada para o mapa inteiro; a co
 
 | Objeto | Técnica | Resultado |
 | --- | --- | --- |
-| Rifle + braços em 1ª pessoa | `bakeStaticParts` | "~18 caixas custam 1 draw call em vez de 18" |
-| Armas em 3ª pessoa | `mergeColored`, cache por nível, material único | 1 draw call por arma, geometria compartilhada entre personagens |
+| Arma de fogo + braços em 1ª pessoa | `bakeStaticParts`, um *kit* por visual guardado em cache (trocar de arma não recria nada) | "~18 caixas custam 1 draw call em vez de 18" |
+| Armas em 3ª pessoa | `mergeColored`, cache por visual (`gunModelKey`), material único | 1 draw call por arma, geometria compartilhada entre personagens |
 | Personagem | `Character.bake()`: corpo, roupas, cabelo e acessórios num `SkinnedMesh` com cores nos vértices, sem triângulos escondidos | 1 draw call por personagem + armas |
 | Props de várias primitivas | `mergeColoredParts`; móveis e veículos vão para os lotes estáticos | sem draw call extra |
 | Janelas, velas, rostos acesos | `Glow` | 1 mesh para o mapa |

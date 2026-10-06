@@ -44,6 +44,8 @@ export interface AvatarPose {
   ads: boolean;
   reload: boolean;
   knife: boolean;
+  /** Only the knife in hand, between swings too (corrida armada's lightsaber): no gun in the hands. */
+  blade?: boolean;
   cook: boolean;
   /** Holding the secondary gun (the primary goes on the back). */
   secondary?: boolean;
@@ -460,9 +462,10 @@ export class CharacterAnimator {
    * Knife swing (the rifle is slung on the back meanwhile): the right hand winds up beside the head and
    * slashes across and forward, the left arm guards in front of the chest. Positions in the chest's space.
    */
-  private knifeArms(dt: number) {
-    this.knifeSwing = (this.knifeSwing ?? 0) + dt;
-    const u = Math.min(1, this.knifeSwing / ANIM.knife.swing);
+  private knifeArms(dt: number, hold = false) {
+    // Holding it between swings (a blade-only loadout): the guard pose, where every swing starts.
+    this.knifeSwing = hold ? null : (this.knifeSwing ?? 0) + dt;
+    const u = hold ? 0 : Math.min(1, this.knifeSwing! / ANIM.knife.swing);
     const guard = new THREE.Vector3(0.16, 0.06, -0.3);
     const up = new THREE.Vector3(0.26, 0.3, -0.08);
     const hit = new THREE.Vector3(-0.14, -0.02, -0.5);
@@ -585,8 +588,8 @@ export class CharacterAnimator {
     this.c.setGrip(s.reload ? 0.4 : 0.8, 0.9);
     const lean = this.lowerBody(dt, s);
     const p = this.torso(dt, s.pitch, lean, Math.sin(this.time * 2) * 0.008 * (1 - this.gait));
-    if (s.knife) {
-      this.knifeArms(dt);
+    if (s.knife || s.blade) {
+      this.knifeArms(dt, !s.knife);
       this.grenadeInHand = false;
     } else {
       this.knifeSwing = null;

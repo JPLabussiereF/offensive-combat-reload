@@ -4,6 +4,8 @@ type: mechanic
 status: documented
 area: gameplay
 source_paths:
+  - shared/modes.ts
+  - shared/gunGame.ts
   - shared/weapons.ts
   - shared/arsenal.ts
   - shared/progression.ts
@@ -130,22 +132,22 @@ Callback `shoot(spread, shotIndex)` → `traceShot` (raio Rapier) → acerto em 
 
 ## Validação online
 
-O servidor aceita o `hit` só se `w` for a arma na mão (pelo `FLAG.secondary`) ou a que acabou de ser guardada (menos de 1 s, `SWITCH_GRACE_MS`: tiros já disparados), e se ela estiver no loadout do jogador. Cadência, alcance, penetração mínima e dano são os **dessa arma com as melhorias do jogador** (`gunStats`). O abate informa a arma (`kill.arma`) e **os pontos vão para ela**: abates de pistola evoluem a pistola. Ver [[ADR - Acertos informados pelo cliente com tolerância de lag]] e [[Anti Cheat]].
+O servidor aceita o `hit` só se `w` for a arma na mão (pelo `FLAG.secondary`), a que acabou de ser guardada ou a que o modo acabou de trocar (menos de 1 s, `SWITCH_GRACE_MS`: tiros já disparados), e se ela estiver no loadout do jogador. Um loadout `soFaca` (o Sabre de Luz da corrida armada) não aceita tiro nenhum. Cadência, alcance, penetração mínima e dano são os **dessa arma com as melhorias do jogador** (`gunStats`). O abate informa a arma (`kill.arma`) e **os pontos vão para ela**: abates de pistola evoluem a pistola. Ver [[ADR - Acertos informados pelo cliente com tolerância de lag]] e [[Anti Cheat]].
 
 ## Bots
 
-Cada bot sorteia a arma a cada vida (60% rifle, 25% SMG, 15% pistola), sem melhorias, e a usa como um jogador (a pistola com o gatilho pulsado tick a tick). O kill feed mostra a arma certa. Ver [[Versus Bots]].
+No mata-mata, cada bot sorteia a arma a cada vida (60% rifle, 25% SMG, 15% pistola), sem melhorias (na corrida armada usa a do degrau), e a usa como um jogador (a pistola com o gatilho pulsado tick a tick). O kill feed mostra a arma certa. Ver [[Versus Bots]].
 
 ## API para modos de jogo
 
-Os modos (corrida armada, zumbi com caixa misteriosa, loadout travado) montam armas só com dados, pelas funções de `shared/arsenal.ts` (detalhes em [[Shared Systems]]):
+Os modos montam armas só com dados, pelas funções de `shared/arsenal.ts` (detalhes em [[Shared Systems]]). A [[Gun Game|corrida armada]] já usa isso: cada degrau da escada é `ladderLoadout(degrau)` (`shared/gunGame.ts`), uma arma com melhorias fixas, e o último é `{ soFaca: true, ativas.faca: ['sabre'] }`. No mata-mata o loadout é o da conta, travado na partida ([[ADR - Equipamento travado no mata-mata]]).
 
 | Função | Devolve |
 |---|---|
 | `gunStats(arma, melhorias)` | `GunStats`: `WeaponData` com as melhorias aplicadas + `arma`, `mira`, `visual`, `silenciador`. `gunStats('smg')` = SMG sem melhorias. |
 | `meleeStats(melhorias)` | `MeleeStats` da faca; `meleeStats(['sabre'])` = **Sabre de Luz Paraguaio**. |
 | `grenadeStats(melhorias)` | `GrenadeStats` com `tipo` (`granada`/`mina`/`dupla`), `quantidade` e a explosão (`explosao`). |
-| `resolveLoadout(escolha, níveis)` | `Loadout` (`primaria`, `secundaria` ou `null`, `ativas` por arma) a partir da escolha do Arsenal. |
+| `resolveLoadout(escolha, níveis)` | `Loadout` (`primaria`, `secundaria` ou `null`, `ativas` por arma, `soFaca?`) a partir da escolha do Arsenal. `soFaca`: só a faca, sempre na mão, o tiro golpeia (só a corrida armada entrega). |
 | `slotStats(loadout, espaço)` | atributos da arma de um espaço (`null` se vazio). |
 
 ## Exceções
