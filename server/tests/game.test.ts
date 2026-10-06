@@ -213,7 +213,8 @@ describe('cereja do jardim', () => {
     B.p.send({ t: 'pickup', id: 'cereja' });
     const taken = await A.p.next('pickup');
     expect(taken).toMatchObject({ id: 'cereja', by: bId });
-    expect(taken.ready - taken.until).toBe((CHERRY.respawn - CHERRY.duration) * 1000);
+    // Server times are performance.now() (fractions of a ms): their difference can be off by a hair.
+    expect(taken.ready - taken.until).toBeCloseTo((CHERRY.respawn - CHERRY.duration) * 1000);
     await B.p.next('snap', (m) => m.players.find((x) => x.id === bId)?.h === HEALTH.max + CHERRY.extraHealth);
 
     // Gone until it grows back: walking up to it doesn't give it again.
