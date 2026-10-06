@@ -98,7 +98,12 @@ export type ZStat =
   | { e: 'revive' }
   | { e: 'wave' }
   | { e: 'coffin' }
-  | { e: 'end'; won: boolean; wave: number };
+  /** Zombies a bloater's burst took with it, credited to whoever killed the bloater. */
+  | { e: 'chain'; kills: number }
+  /** A barricade built or a board nailed back. */
+  | { e: 'board' }
+  /** The match ended; `dead`: the player was dead (not down) when it did. */
+  | { e: 'end'; won: boolean; wave: number; dead: boolean };
 
 /** A player as the host sees them each tick. */
 export interface ZombieInput {
@@ -462,6 +467,7 @@ export class ZombieMatch {
         buildBarricade(b);
         this.updateGates();
         this.emitBar(w.gap, 'build', { by: id, money: p.money });
+        this.host.stat?.(id, { e: 'board' });
         this.stopWork(id);
         continue;
       }
@@ -474,6 +480,7 @@ export class ZombieMatch {
         p.repairPaid += award;
       }
       this.emitBar(w.gap, 'nail', { by: id, ...(award > 0 ? { award, money: p.money } : {}) });
+      this.host.stat?.(id, { e: 'board' });
       if (!needsWork(b)) this.stopWork(id);
       else {
         w.until = now + B.repararSegundos * 1000;
@@ -605,10 +612,13 @@ export class ZombieMatch {
       const d = Math.hypot(p.feet[0] - z.pos[0], p.feet[1] - z.pos[1], p.feet[2] - z.pos[2]);
       if (d <= e.raio) this.host.hurt(p.id, Math.round(e.dano * (1 - (0.6 * d) / e.raio)), z.pos);
     }
+    let chain = 0;
     for (const o of [...this.zombies.values()]) {
       if (o.dead || dist2(o.pos, z.pos) > e.raio || Math.abs(o.pos[1] - z.pos[1]) > 2.5) continue;
       this.damage(o.id, credit, e.danoZumbi, 'blast');
+      if (o.dead) chain++;
     }
+    if (credit !== null && chain) this.host.stat?.(credit, { e: 'chain', kills: chain });
     // The blast blows boards off the barricades it reaches.
     this.map.barricadas.forEach((g, i) => {
       if (dist2(g.centro, z.pos) <= e.raio + g.largura / 2 && Math.abs(g.centro[1] - z.pos[1]) < 2.5) this.hurtBarricade(i, ZOMBIE.barricadas.dano.explosao);
@@ -691,7 +701,7 @@ export class ZombieMatch {
     for (const p of this.parts.values()) {
       // Lost with nobody left to revive them: whoever is still down never gets up, so it's a death.
       if (!won && p.state === 'down') this.host.stat?.(p.id, { e: 'death' });
-      this.host.stat?.(p.id, { e: 'end', won, wave: this.wave });
+      this.host.stat?.(p.id, { e: 'end', won, wave: this.wave, dead: p.state === 'dead' });
     }
     this.phase = 'over';
     this.until = now + ZOMBIE.fimSegundos * 1000;

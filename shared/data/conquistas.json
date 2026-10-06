@@ -4,6 +4,7 @@
     { "id": "matar", "icone": "🎯", "cor": "#ff4a3d", "nome": { "pt": "Jeitos de matar", "en": "Ways to kill" }, "titulo": { "pt": "Ameaça do Bairro", "en": "Neighborhood Menace" } },
     { "id": "opressao", "icone": "💃", "cor": "#b04aff", "nome": { "pt": "Opressão", "en": "Humiliation" }, "titulo": { "pt": "Opressor-Mor", "en": "Grand Oppressor" } },
     { "id": "sequencias", "icone": "🔥", "cor": "#ff7a1a", "nome": { "pt": "Sequências", "en": "Streaks" }, "titulo": { "pt": "Imparável", "en": "Unstoppable" } },
+    { "id": "proezas", "icone": "🃏", "cor": "#5b6cff", "nome": { "pt": "Proezas", "en": "Feats" }, "titulo": { "pt": "Lenda Urbana", "en": "Urban Legend" } },
     { "id": "cardapio", "icone": "🍪", "cor": "#e0567a", "nome": { "pt": "Cardápio", "en": "Menu" }, "titulo": { "pt": "Chef da Vizinhança", "en": "Neighborhood Chef" } },
     { "id": "corrida", "icone": "🏁", "cor": "#1fb5a8", "nome": { "pt": "Corrida Armada", "en": "Gun Game" }, "titulo": { "pt": "Piloto de Fuga", "en": "Getaway Driver" } },
     { "id": "zumbi", "icone": "🧟", "cor": "#3fae4a", "nome": { "pt": "Zumbi", "en": "Zombies" }, "titulo": { "pt": "Caça-Zumbis", "en": "Zombie Hunter" } },
@@ -131,6 +132,33 @@
       "como": { "pt": "Mate {meta} {jogador|jogadores} com 5 abates ou mais sem morrer", "en": "Kill {meta} {player|players} on a 5+ kill streak" }
     },
     {
+      "id": "abraco-de-urso", "pagina": "proezas", "icone": "🐻", "tipo": "contador", "fonte": "propria", "metas": [1, 3, 5], "oculta": true,
+      "nome": { "pt": "Abraço de Urso", "en": "Bear Hug" },
+      "como": { "pt": "Mate alguém com uma granada que explodiu na sua mão ({meta} {vez|vezes})", "en": "Kill someone with a grenade that went off in your hand ({meta} {time|times})" },
+      "dica": { "pt": "Às vezes a granada nem precisa sair da mão.", "en": "Sometimes the grenade never needs to leave your hand." }
+    },
+    {
+      "id": "kamikaze", "pagina": "proezas", "icone": "🎆", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 10], "oculta": true,
+      "nome": { "pt": "Kamikaze", "en": "Kamikaze" },
+      "como": { "pt": "Morra com a própria granada levando alguém junto ({meta} {vez|vezes})", "en": "Die to your own grenade taking someone with you ({meta} {time|times})" },
+      "dica": { "pt": "Ir embora sozinho é para os fracos.", "en": "Leaving alone is for the weak." }
+    },
+    {
+      "id": "strike", "pagina": "proezas", "icone": "🎳", "tipo": "recorde", "fonte": "propria", "metas": [2, 3, 4],
+      "nome": { "pt": "Strike!", "en": "Strike!" },
+      "como": { "pt": "Mate {meta} jogadores com uma granada só", "en": "Kill {meta} players with a single grenade" }
+    },
+    {
+      "id": "empurraozinho", "pagina": "proezas", "icone": "👋", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 10, 20],
+      "nome": { "pt": "Empurrãozinho", "en": "A Little Push" },
+      "como": { "pt": "Acerte alguém que morre de queda, no vazio ou para a Amora em até 5 s ({meta} {vez|vezes})", "en": "Hit someone who dies from a fall, the void or Amora within 5 s ({meta} {time|times})" }
+    },
+    {
+      "id": "com-um-pe-na-cova", "pagina": "proezas", "icone": "🩹", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 15, 30],
+      "nome": { "pt": "Com um Pé na Cova", "en": "One Foot in the Grave" },
+      "como": { "pt": "Mate com 10 de vida ou menos ({meta} {vez|vezes})", "en": "Kill with 10 health or less ({meta} {time|times})" }
+    },
+    {
       "id": "scooby-dooby-doo", "pagina": "cardapio", "icone": "🦴", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 10, 20],
       "nome": { "pt": "Scooby-Dooby-Doo!", "en": "Scooby-Dooby-Doo!" },
       "como": { "pt": "Coma o Biscoito Scooby com 30 de vida ou menos e mate em até 10 s ({meta} {vez|vezes})", "en": "Eat the Scooby Snack at 30 health or less and kill within 10 s ({meta} {time|times})" }
@@ -218,6 +246,34 @@
       "como": { "pt": "Gire o caixão {meta} vezes", "en": "Spin the coffin {meta} times" }
     },
     {
+      "id": "voto-nulo", "pagina": "zumbi", "icone": "🗳️", "tipo": "recorde", "fonte": "propria", "metas": [1], "oculta": true,
+      "nome": { "pt": "Voto Nulo", "en": "Spoiled Ballot" },
+      "como": { "pt": "Dê o golpe final no Prefeito com um tiro no pássaro", "en": "Land the final blow on the Mayor below the belt" },
+      "dica": { "pt": "O Prefeito quer seu voto. Mire onde dói.", "en": "The Mayor wants your vote. Aim where it hurts." }
+    },
+    {
+      "id": "divorcio", "pagina": "zumbi", "icone": "💔", "tipo": "recorde", "fonte": "propria", "metas": [1], "oculta": true,
+      "nome": { "pt": "Divórcio", "en": "Divorce" },
+      "como": { "pt": "Dê o golpe final na Noiva com a faca", "en": "Land the final blow on the Bride with the knife" },
+      "dica": { "pt": "A Noiva já foi deixada no altar. Termine o serviço de perto.", "en": "The Bride was already left at the altar. Finish it up close." }
+    },
+    {
+      "id": "churrasco-coletivo", "pagina": "zumbi", "icone": "🍖", "tipo": "recorde", "fonte": "propria", "metas": [3, 5, 8],
+      "nome": { "pt": "Churrasco Coletivo", "en": "Barbecue for Everyone" },
+      "como": { "pt": "Faça um Tio do Churrasco levar {meta} zumbis junto na explosão", "en": "Make a Barbecue Uncle take {meta} zombies with him when he bursts" }
+    },
+    {
+      "id": "vitoria-do-alem", "pagina": "zumbi", "icone": "👻", "tipo": "recorde", "fonte": "propria", "metas": [1], "oculta": true,
+      "nome": { "pt": "Vitória do Além", "en": "Victory from Beyond" },
+      "como": { "pt": "Vença uma partida de zumbi estando morto", "en": "Win a zombie match while dead" },
+      "dica": { "pt": "Nem todo sobrevivente está vivo no fim.", "en": "Not every survivor is alive at the end." }
+    },
+    {
+      "id": "marceneiro", "pagina": "zumbi", "icone": "🔨", "tipo": "contador", "fonte": "propria", "metas": [10, 50, 200, 500],
+      "nome": { "pt": "Marceneiro", "en": "Carpenter" },
+      "como": { "pt": "Erga ou pregue {meta} tábuas nas barricadas", "en": "Build or nail {meta} boards on the barricades" }
+    },
+    {
       "id": "saco-de-pancada", "pagina": "vexames", "icone": "🥊", "tipo": "contador", "fonte": "mortes", "metas": [50, 250, 1000, 5000],
       "nome": { "pt": "Saco de Pancada", "en": "Punching Bag" },
       "como": { "pt": "Morra {meta} vezes no versus", "en": "Die {meta} times in versus" }
@@ -246,6 +302,12 @@
       "id": "tiro-no-pe", "pagina": "vexames", "icone": "🦶", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 20, 50],
       "nome": { "pt": "Tiro no Pé", "en": "Own Goal" },
       "como": { "pt": "Morra com a própria granada {meta} {vez|vezes}", "en": "Die to your own grenade {meta} {time|times}" }
+    },
+    {
+      "id": "rip-lag", "pagina": "vexames", "icone": "📶", "tipo": "recorde", "fonte": "propria", "metas": [1], "oculta": true,
+      "nome": { "pt": "R.I.P. LAG", "en": "R.I.P. LAG" },
+      "como": { "pt": "Morra com o ping acima de 250 ms", "en": "Die with your ping above 250 ms" },
+      "dica": { "pt": "Está escrito numa lápide da Vila Assombrada.", "en": "It is written on a tombstone in the Haunted Town." }
     }
   ]
 }

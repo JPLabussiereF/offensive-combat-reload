@@ -25,7 +25,7 @@ As conquistas são um **álbum de figurinhas**. Cada figurinha tem **um desenho*
 - Um **contador** (abates, opressões, reanimações...) continua contando depois da Dourada, e cada nova volta inteira na última meta aparece como **repetidas** (×2, ×3...).
 - Um **recorde** (nível da conta, melhor onda, armas no máximo) termina na Dourada.
 
-Proposta completa e fases na issue #25 do repositório. Este documento descreve o que existe hoje: a **fase 1** (figurinhas derivadas das estatísticas), a **fase 2** (contadores próprios e o aviso no jogo) e a **fase 3** (figurinha em destaque e títulos que os outros veem). São 43 figurinhas em 8 páginas.
+Proposta completa e fases na issue #25 do repositório. Este documento descreve o que existe hoje: a **fase 1** (figurinhas derivadas das estatísticas), a **fase 2** (contadores próprios e o aviso no jogo) e a **fase 3** (figurinha em destaque e títulos que os outros veem). Com a fase 2b, são 56 figurinhas em 9 páginas.
 
 ## Fase 1: figurinhas derivadas
 
@@ -91,6 +91,24 @@ Figurinhas com `fonte: "propria"`: o servidor conta no momento do evento (`stick
 
 Os eventos ficam em `server/session.ts` (`albumKill`, `albumHumiliation`, `onPickup`, `onPotion`, `onFish`, mortes sem assassino em `kill`) e em `server/modes.ts` (corrida armada). Sequência e combo são de jogador contra jogador; zerados na morte e na rodada nova. Algumas condições usam dados que o cliente informa (queda, vazio e Amora são `selfDamage`), como o resto do jogo ([[ADR - Movimento confiado ao cliente]]).
 
+## Fase 2b: proezas, zumbi, secretas
+
+| Página | Figurinha | Como conta (servidor) | Tipo | Metas |
+| --- | --- | --- | --- | --- |
+| Proezas | Abraço de Urso 🔒 | matar alguém com uma granada que explodiu na mão (registrada com pavio 0 e velocidade 0: `inHand`) | contador | 1 · 3 · 5 |
+| Proezas | Kamikaze 🔒 | a própria granada mata alguém e você junto | contador | 1 · 5 · 10 |
+| Proezas | Strike! | jogadores mortos por uma granada só (recorde) | recorde | 2 · 3 · 4 |
+| Proezas | Empurrãozinho | alguém que você acertou morre de queda, no vazio ou para a Amora em até 5 s (`lastHitBy`, `lastHitAt`) | contador | 1 · 5 · 10 · 20 |
+| Proezas | Com um Pé na Cova | matar com 10 de vida ou menos | contador | 1 · 5 · 15 · 30 |
+| Zumbi | Voto Nulo 🔒 | golpe final no Prefeito com tiro no pássaro | recorde | 1 |
+| Zumbi | Divórcio 🔒 | golpe final na Noiva com a faca | recorde | 1 |
+| Zumbi | Churrasco Coletivo | zumbis levados por uma explosão de Tio do Churrasco que você matou (`ZStat` `chain`, recorde) | recorde | 3 · 5 · 8 |
+| Zumbi | Vitória do Além 🔒 | vencer a partida estando morto (`end.dead`) | recorde | 1 |
+| Zumbi | Marceneiro | barricadas erguidas e tábuas pregadas (`ZStat` `board`) | contador | 10 · 50 · 200 · 500 |
+| Vexames | R.I.P. LAG 🔒 | morrer com ping acima de 250 ms | recorde | 1 |
+
+🔒 = **secreta** (`oculta`): até ser colada, o cartão mostra "❓ ???" e o detalhe só a `dica`. Ao ser descoberta, o aviso diz "🔓 Figurinha secreta descoberta". A página Proezas dá o título **Lenda Urbana**.
+
 ## Aviso no jogo
 
 O `LiveAccount` guarda os totais e os contadores próprios da última gravação (`profile.totals`, `profile.album`); com o delta ainda não gravado, são os números ao vivo (`liveSources`, `liveOwn`). Uma vez por segundo, no `tick` da sessão, `stickerUps` compara o acabamento de cada figurinha com o que o jogador já sabe (`stickerTiers`, calculado no login) e manda `figurinha {id, nivel}` só ao dono. Vale para todas, derivadas e próprias, inclusive as do zumbi. O cliente mostra a faixa "🎯 Figurinha Brilhante: Na Testa!" (uma por vez, em fila) com o som de subir de nível. Repetidas não geram aviso.
@@ -107,6 +125,7 @@ O "calling card" do jogo: cada jogador escolhe **uma figurinha em destaque** (qu
   | Jeitos de matar | Ameaça do Bairro |
   | Opressão | Opressor-Mor |
   | Sequências | Imparável |
+  | Proezas | Lenda Urbana |
   | Cardápio | Chef da Vizinhança |
   | Corrida Armada | Piloto de Fuga |
   | Zumbi | Caça-Zumbis |
@@ -154,11 +173,34 @@ O "calling card" do jogo: cada jogador escolhe **uma figurinha em destaque** (qu
 - Servidor: `server/progress.ts` (`stickerAdd`, `stickerMax`, `liveSources`, `liveOwn`, `settle`, `countEntry`, `stickerUps`), `server/accounts.ts` (`achievement_progress` no perfil, no login e no flush), migration `005_figurinhas.sql`.
 - Testes: `server/tests/album.test.ts` (dados, acabamentos, repetidas, recordes, coleções, contagem e o mapeamento do perfil) e `server/tests/albumSession.test.ts` (eventos numa sessão de relógio falso; aviso, gravação e perfil no servidor real).
 
-## Ainda não existe (fases seguintes da proposta)
+## Ideias futuras
 
-- **Molduras** para a figurinha em destaque e uma **dancinha nova** para o álbum completo (as recompensas por página hoje são só os títulos).
-- Figurinhas ocultas.
-- Datas em que cada acabamento foi pego (só o número é guardado).
+Nada disto existe ainda; fica anotado para as próximas versões do álbum (proposta original na issue #25).
+
+**Recompensas e exibição**
+- **Molduras** para a figurinha em destaque (uma por página completa) e uma **dancinha nova** para o álbum completo. Hoje a recompensa da página é só o título.
+- **Ver o álbum de outro jogador**: clicar no nome no placar ou no perfil público mostra o álbum dele, só para ver.
+- **Aviso na aba**: um selo "3 novas" na aba Álbum quando chegam figurinhas desde a última visita.
+- **Ranking de álbum**: quem tem mais acabamentos dourados (ou títulos), por semana e no geral.
+
+**Mais registro**
+- **Data de cada acabamento** ("Dourada em 06/10"): hoje só o número é guardado. Precisa de uma coluna de datas em `achievement_progress` e, para as derivadas, de gravar a data na primeira vez que o servidor vê a meta cruzada.
+- **Arte das figurinhas** renderizada com os modelos do próprio jogo (o rato, a Noiva, o Frango de Borracha), por uma ferramenta como a `bake-navmesh` (`tools/bake-figurinhas.ts`), no lugar dos emojis.
+
+**Mais figurinhas**
+- **Mapas e easter eggs**: sino da capela ("EU JÁ OUVI."), buzina ("CHEGA."), fantasma que desiste, dragão do Jardim, carrilhão (tocar Dó-Ré-Mi-Fá-Sol), alvos do parque. Antes disso, o servidor precisa guardar e conferir o estado desses objetos: hoje eles só são repassados entre os clientes ([[Map Gags]]).
+- **Feitiço da Meia-Noite** e a figurinha secreta **Aprendiz de Bruxa** (issue #23, deixada de lado por enquanto).
+- **Proezas que dependem do cliente**, aceitas só se o jogo passar a conferir esses dados:
+  - Carpa e Cabra (um tiro mata a carpa e um jogador);
+  - Troca Ligeira (trocar para a secundária e matar em menos de 1 s);
+  - Última Bala;
+  - Voo do Hidrante;
+  - Bote do Gato (matar com a faca no ar).
+- **Figurinhas de temporada**: valem só num período (Halloween, festa junina) e ficam marcadas como "edição limitada" no álbum.
+- **Desafios semanais**: três metas pequenas por semana, que dão uma figurinha de coleção da semana.
+
+**Social**
+- **Troca de repetidas**: as "repetidas" depois da Dourada viram moeda para trocar por molduras.
 
 ## Notas relacionadas
 

@@ -1,6 +1,6 @@
 // Album tab on the home card: the account's stickers by page, each with its finish (common, shiny,
 // holographic, gold) and the way to the next target. Read from the profile (shared/achievements.ts).
-import { album, albumCount, fillHow, finishOf, itemProgress, pageById, PAGES, sourcesFromProfile, stickerById, titleProgress, titlesOf, type Finish, type Own, type Sticker, type StickerState } from '@shared/achievements';
+import { album, albumCount, fillHow, finishOf, isHidden, itemProgress, pageById, PAGES, sourcesFromProfile, stickerById, titleProgress, titlesOf, type Finish, type Own, type Sticker, type StickerState } from '@shared/achievements';
 import { api, fetchProfile } from '../net/api';
 import { errorText } from './auth';
 import { getLang, t, type StringKey } from './strings';
@@ -26,6 +26,8 @@ export function stickerUpText(id: string, tier: number): string | null {
   const s = stickerById(id);
   const finish = s && finishOf(s, tier);
   if (!s || !finish) return null;
+  // A hidden one is news of its own the first time.
+  if (s.oculta && tier === 1) return t('stickerSecret', { icon: s.icone, name: text(s.nome) });
   return t('stickerUp', { icon: s.icone, finish: t(FINISH_KEY[finish]), name: text(s.nome) });
 }
 
@@ -89,6 +91,14 @@ export async function showAlbum(root: HTMLElement, o: Options) {
 
   const card = (st: StickerState) => {
     const s = st.sticker;
+    // A hidden one: no drawing, no name, no numbers until it's stuck in.
+    if (isHidden(st))
+      return `
+      <button type="button" class="fig fig-t0 fig-hidden" style="--c:#888" data-id="${s.id}" aria-pressed="${selected === s.id}" aria-label="${t('albumHidden')}">
+        <span class="fig-art"><span class="fig-icon">❓</span></span>
+        <b class="fig-name">???</b>
+        <small class="fig-count">${t('albumHidden')}</small>
+      </button>`;
     const color = PAGES.find((p) => p.id === s.pagina)?.cor ?? '#888';
     const f = finishOf(s, st.tier);
     const b = bar(st);
@@ -105,6 +115,12 @@ export async function showAlbum(root: HTMLElement, o: Options) {
 
   const detail = (st: StickerState) => {
     const s = st.sticker;
+    if (isHidden(st))
+      return `
+      <div class="fig-detail">
+        <div class="pane-head"><h3>❓ ???</h3><span class="hint">${t('albumHidden')}</span></div>
+        <p>💡 ${text(s.dica!)}</p>
+      </div>`;
     const b = bar(st);
     const rows = s.metas.map((m, i) => `<li class="${i < st.tier ? 'done' : ''}"><span>${finishName(s, i + 1)}</span><b>${amount(s, m)}</b></li>`).join('');
     // A collection: how far each item went, toward the next target.

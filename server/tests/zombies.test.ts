@@ -253,7 +253,7 @@ describe('partida zumbi (motor, relógio falso)', () => {
     expect(mine().filter((s) => s.e === 'wave')).toHaveLength(1);
     // Wave 2 with nobody shooting: down, and alone nobody revives them: a death, and the end.
     f.until(() => f.of('zend').length > 0);
-    expect(mine().slice(-3)).toEqual([{ e: 'down' }, { e: 'death' }, { e: 'end', won: false, wave: 2 }]);
+    expect(mine().slice(-3)).toEqual([{ e: 'down' }, { e: 'death' }, { e: 'end', won: false, wave: 2, dead: false }]);
   });
 
   it('a conta soma os eventos: chefe pelo nome, abate pelo golpe e a melhor onda como máximo', () => {
@@ -265,8 +265,8 @@ describe('partida zumbi (motor, relógio falso)', () => {
       { e: 'revive' },
       { e: 'coffin' },
       { e: 'death' },
-      { e: 'end', won: false, wave: 5 },
-      { e: 'end', won: true, wave: 12 },
+      { e: 'end', won: false, wave: 5, dead: false },
+      { e: 'end', won: true, wave: 12, dead: false },
     ];
     for (const s of events) addZombieStat(a, s);
     expect(a.delta.zumbi).toMatchObject({ kills: 3, groinKills: 1, knifeKills: 1, headshots: 0, bosses: 1, noivaKills: 1, coveiroKills: 0, revives: 1, coffinRolls: 1, deaths: 1, matches: 2, wins: 1, bestWave: 12 });
@@ -275,10 +275,28 @@ describe('partida zumbi (motor, relógio falso)', () => {
     // A write that failed comes back: the totals add up, the best wave stays the highest.
     const retry = emptyDelta();
     expect(deltaIsEmpty(retry)).toBe(true);
-    addZombieStat({ delta: retry } as LiveAccount, { e: 'end', won: false, wave: 3 });
+    addZombieStat({ delta: retry } as LiveAccount, { e: 'end', won: false, wave: 3, dead: false });
     expect(deltaIsEmpty(retry)).toBe(false);
     mergeDelta(a.delta, retry);
     expect(a.delta.zumbi).toMatchObject({ matches: 3, wins: 1, bestWave: 12 });
+  });
+
+  it('as figurinhas do zumbi: Voto Nulo, Divórcio, Churrasco Coletivo, Marceneiro e Vitória do Além', () => {
+    const a = { delta: emptyDelta() } as LiveAccount;
+    const events: ZStat[] = [
+      { e: 'kill', kind: 'prefeito', how: 'groin' },
+      { e: 'kill', kind: 'prefeito', how: 'head' },
+      { e: 'kill', kind: 'noiva', how: 'knife' },
+      { e: 'chain', kills: 6 },
+      { e: 'chain', kills: 2 },
+      { e: 'board' },
+      { e: 'board' },
+      { e: 'end', won: true, wave: 12, dead: true },
+      { e: 'end', won: false, wave: 4, dead: true },
+    ];
+    for (const s of events) addZombieStat(a, s);
+    expect(a.delta.album.add).toEqual({ 'voto-nulo': 1, divorcio: 1, marceneiro: 2, 'vitoria-do-alem': 1 });
+    expect(a.delta.album.max).toEqual({ 'churrasco-coletivo': 6 });
   });
 
   it('em dupla, quem cai é reanimado pelo outro (que ganha dinheiro), ou sangra até morrer e volta no intervalo', () => {
@@ -379,7 +397,10 @@ describe('partida zumbi (motor, relógio falso)', () => {
     if (!bloater) return; // the horde spread out this time: nothing to check
     f.match.damage(bloater.id, 1, 1e9, 'gun');
     expect(f.of('zfx').some((e) => e.fx === 'boom')).toBe(true);
-    expect(f.of('zdie').filter((d) => d.how === 'blast' && d.by === 1).length).toBeGreaterThan(0);
+    const chained = f.of('zdie').filter((d) => d.how === 'blast' && d.by === 1).length;
+    expect(chained).toBeGreaterThan(0);
+    // The album hears how many the burst took, for whoever killed the uncle.
+    expect(f.stats.get(1)).toContainEqual({ e: 'chain', kills: chained });
   });
 
   it('quem sai libera o que segurava; sem ninguém, a partida volta a esperar', () => {
