@@ -58,7 +58,7 @@ Os testes usam o executor nativo **`bun test`** (`bun:test`: `describe`, `it`, `
 | `client/tests/budget.test.ts` | Unitário (monta os mapas sem tela) | 5 | orçamento de desenho (400 chamadas, 750 mil triângulos) e os números dos oficiais |
 | `client/tests/seeded.test.ts` | Unitário | 4 | `seeded()` e o estado exposto (`Peca.semente`) |
 
-(Contagem dos casos em 2026-10-06. Na branch da PF-6, `bun test` roda 404 testes em 30 arquivos em ~200 s; antes era 178 casos em 13 arquivos em ~95 s, dos quais ~25 s são esperas reais dos testes do modo zumbi e da corrida armada. Os testes de motor com relógio falso, como os de barricada, simulam minutos de jogo em poucos décimos de segundo.)
+(Contagem dos casos em 2026-10-06. Na branch da PF-6, `bun test` roda 218 testes em 17 arquivos em ~105 s; antes era 178 casos em 13 arquivos em ~95 s, dos quais ~25 s são esperas reais dos testes do modo zumbi e da corrida armada. Os testes de motor com relógio falso, como os de barricada, simulam minutos de jogo em poucos décimos de segundo.)
 
 ## Configuração (`bunfig.toml`)
 
