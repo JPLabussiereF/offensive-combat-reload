@@ -272,6 +272,7 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     b.wall('z', -16, -32.85, -26.15, 0.3, 4.6, 'pedra', [[-30.4, -28.6, 0, 2.6]], 0, cw);
     b.span(-25.85, 0, -32.85, -16.15, 0.02, -26.15, 'piso', { tint: 0x5a3a2e, collide: false, castShadow: false });
     b.span(-25.85, 4.4, -32.85, -16.15, 4.6, -26.15, 'concreto', { tint: 0x5a5458 });
+    b.room({ x: -25.85, y: 0, z: -32.85 }, { x: -16.15, y: 4.4, z: -26.15 }, 1);
     b.gableRoof(-26, -33, -16, -26, 4.6, 3.2, 'telhado', { tint: C.roof, ridgeAxis: 'x', gableSurface: 'pedra', gableTint: 0x7d7872 });
     // Stained glass (painted on the walls, inside and out) and the rose window over the altar.
     const stained = [0xc23a5a, 0x3a6ac2, 0xe6b23a, 0x5ac23a];
@@ -303,6 +304,7 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     // The tower's west face above the chapel roof (the gable only covers a triangle under it).
     b.wall('z', -16, -31.15, -27.85, 0.3, 3.4, 'pedra', [], 4.6, tw);
     b.span(-16.15, 7.8, -31.15, -12.85, 8.0, -27.85, 'pedra', { tint: 0x5a5650 });
+    b.room({ x: -15.85, y: 0, z: -30.85 }, { x: -13.15, y: 7.8, z: -28.15 }, 1);
     for (const [x, z] of [[-16, -31], [-13, -31], [-13, -28], [-16, -28]]) b.box(x, 9.3, z, 0.35, 2.6, 0.35, 'pedra', { tint: 0x77726c });
     const spire = new THREE.ConeGeometry(2.5, 3.6, 4).rotateY(Math.PI / 4).translate(-14.5, 10.6 + 1.8, -29.5);
     b.addGeometry(spire, surfaceMaterial('telhado'), C.roof);
@@ -338,6 +340,7 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     b.wall('z', 19, -29.55, -27.2, 0.3, h, 'pedra', [], 0, inner);
     b.span(14.2, 0, -34.8, 23.8, 0.02, -27.2, 'pedra', { tint: 0x4a4644, collide: false, castShadow: false });
     b.span(13.8, h, -35.2, 24.2, h + 0.25, -26.8, 'pedra', { tint: 0x5a5650 });
+    b.room({ x: 14.2, y: 0, z: -34.8 }, { x: 23.8, y: h, z: -27.2 }, 1);
     const top = h + 0.25;
     const par = { tint: 0x6a665e };
     b.span(13.8, top, -35.2, 24.2, top + 0.9, -34.95, 'pedra', par);
@@ -349,6 +352,7 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     // Porch with columns on the west side, facing the graves.
     for (const z of [-32.7, -29.3]) b.cylinder(13.1, 0, z, 0.25, h, 'pedra', { tint: 0x8a867e, segments: 10 });
     b.span(12.6, h, -33.3, 14, h + 0.3, -28.7, 'pedra', { tint: 0x5a5650 });
+    b.room({ x: 12.6, y: 0, z: -33.3 }, { x: 13.8, y: h, z: -28.7 }, 0.4); // roofed, open on three sides
     // Coffins in the burial rooms (not the north-west one: its outer door lines up with the corridor's).
     for (const [x, z] of [[16.5, -33.6], [21.5, -33.6], [21.5, -28.4]]) coffin(b, x, 0, z, Math.PI / 2, 0x3a2420);
     const plate = canvasTexture(256, 64, (g) => {
@@ -467,6 +471,7 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     slabWithHoles(b, ix0, iz0, ix1, iz1, 0, 0.02, [H_MANSION], 'piso', { tint: 0x8a5e44, collide: false, castShadow: false });
     slabWithHoles(b, ix0, iz0, ix1, iz1, FH - 0.25, FH, [hall], 'piso', { tint: 0x8a5e44 });
     b.span(ix0, FH * 2, iz0, ix1, MWH, iz1, 'concreto', { tint: 0x4e4246 });
+    b.room({ x: ix0, y: 0, z: iz0 }, { x: ix1, y: FH * 2, z: iz1 }, 1);
     // Grand staircase along the hall's south side, landing on the west gallery; railings around the void.
     b.stairs('x', -1, -38.5, 3.6, 5.75, 0, FH, 'madeira', { tint: 0x4a1e24 });
     const rail = { h: 1.0, tint: 0x2a1a14 };
@@ -489,6 +494,7 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     b.span(-30, 0, -1.2, -27, 0.3, 5.2, 'pedra', { tint: 0x6a6460 });
     for (const z of [-0.8, 4.8]) b.cylinder(-27.4, 0.3, z, 0.18, 3.0, 'pintura', { tint: C.trim, segments: 10 });
     b.span(-30, 3.3, -1.4, -26.9, 3.5, 5.4, 'telhado', { tint: 0x2e2834, collide: false });
+    b.room({ x: -29.85, y: 0.3, z: -1.4 }, { x: -26.9, y: 3.3, z: 5.4 }, 0.4); // roofed, open on three sides
     // Hall: the clock, suits of armor, a chandelier with candles (the only warm light inside).
     for (const z of [-1.2, 5.2]) suitOfArmor(b, -30.85, 0, z, -Math.PI / 2);
     const chandelier = new THREE.Group();
@@ -716,6 +722,7 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     b.span(x0, 0, 14.3, x0 + 0.3, 3.0, 17.6, 'madeira', booth);
     b.span(x1 - 0.3, 0, 14.3, x1, 3.0, 17.6, 'madeira', booth);
     b.span(x0 + 0.3, 0, 17.2, x1 - 0.3, 1.1, 17.6, 'madeira', { tint: 0x8a3a2a });
+    b.room({ x: x0 + 0.3, y: 0, z: 14.3 }, { x: x1 - 0.3, y: 3.0, z: 17.2 }, 0.6); // roofed, open on one side
     for (let k = 0; k < 8; k++) b.span(x0 - 0.2 + k * 1.05, 3.0, 13.8, x0 - 0.2 + (k + 1) * 1.05, 3.15, 18.0, 'pintura', { tint: k % 2 ? 0xe8e0d0 : 0xb02a2a, collide: false });
     const bulbs: THREE.Vector3[] = [];
     for (let x = x0 + 0.2; x <= x1 - 0.2; x += 0.5) bulbs.push(V(x, 2.92, 17.7));
@@ -760,6 +767,7 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     for (const [x, z, , , yaw] of cars) b.cuboidCollider(V(x, 0.5, z), V(0.85, 0.5, 0.62), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0)), 'metal');
     // The ceiling grid the poles run on, and a few colored bulbs around its edge.
     b.span(26.3, 2.9, 20.8, 39.7, 3.02, 28.7, 'metal', { tint: 0x3a2a4a, collide: false });
+    b.room({ x: 26.7, y: 0, z: 21.2 }, { x: 39.3, y: 2.9, z: 28.3 }, 0.3); // roofed, open all around
     for (const [x, z] of [[26.5, 21], [39.5, 21], [26.5, 28.5], [39.5, 28.5]]) b.box(x, 1.45, z, 0.15, 2.9, 0.15, 'metal', { tint: C.iron, collide: false });
     for (let k = 0; k < 14; k++) glow.add(new THREE.SphereGeometry(0.08, 6, 4).translate(26.6 + k, 2.86, k % 2 ? 20.85 : 28.65), [0xff4a4a, 0xffd23f, 0x6aa0ff, 0xb46aff][k % 4]);
     light(33, 2.6, 24.7, { color: 0xd8b0ff, intensity: 12, range: 10 });
@@ -814,6 +822,7 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
       railing(b, 'z', x, gz + 0.9, gz + 3, top, low);
     }
     for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) b.cylinder(gx + sx * 2.8, top, gz + sz * 2.8, 0.1, 2.6, 'pintura', { tint: 0xd8cfb8, segments: 8 });
+    b.room({ x: gx - 3, y: top, z: gz - 3 }, { x: gx + 3, y: top + 2.6, z: gz + 3 }, 0.3); // roofed, open all around
     const roof = new THREE.ConeGeometry(4.6, 2.2, 8).translate(gx, top + 2.6 + 1.1, gz);
     b.addGeometry(roof, surfaceMaterial('telhado'), 0x4a2a4a);
     roof.dispose();
@@ -844,6 +853,7 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     b.span(H_PLAZA.x1 - 0.02, y0, H_PLAZA.z0 - 0.3, H_PLAZA.x1 + 0.3, 2.6, H_PLAZA.z1, 'concreto', k);
     b.span(H_PLAZA.x0, y0, H_PLAZA.z0 - 0.3, H_PLAZA.x1, 2.6, H_PLAZA.z0 + 0.02, 'concreto', k);
     b.span(H_PLAZA.x0 - 0.5, 2.6, H_PLAZA.z0 - 0.5, H_PLAZA.x1 + 0.5, 2.8, H_PLAZA.z1 + 0.3, 'metal', { tint: 0x3a3a40 });
+    b.room({ x: H_PLAZA.x0, y: y0, z: H_PLAZA.z0 }, { x: H_PLAZA.x1, y: 2.6, z: H_PLAZA.z1 }, 0.6); // roofed, open on one side
     hangingLamp((H_PLAZA.x0 + H_PLAZA.x1) / 2, 2.6, H_PLAZA.z1 - 1.2, { intensity: 7, range: 8 });
     signBoard(b, scene, ['ESGOTO', 'Proibido nadar'], H_PLAZA.x1 + 1.6, H_PLAZA.z1 + 0.4, 0, { bg: '#3a4a3a', fg: '#e6e0d0', height: 1.4, w: 1.2, h: 0.65 });
   }
@@ -876,6 +886,7 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
       b.span(f.x0, UG - 0.3, f.z0, f.x1, UG, f.z1, 'concreto', { tint: 0x5e5c56, castShadow: false });
       // Ceiling: blocks the moonlight (the ground slab doesn't cast shadows).
       slabWithHoles(b, f.x0, f.z0, f.x1, f.z1, CEIL - 0.12, CEIL, [H_MANSION, H_PLAZA, H_PARK], 'concreto', { tint: 0x4a4844, collide: false });
+      b.room({ x: f.x0, y: UG, z: f.z0 }, { x: f.x1, y: CEIL - 0.12, z: f.z1 }, 1);
     }
     ugWall('z', -56.2, 5.8, 12.4);
     ugWall('z', -42.8, 5.8, 12.4);
@@ -1091,6 +1102,7 @@ export async function buildHauntedTownMap(physics: Physics, scene: THREE.Scene, 
     killY: -20,
     stats: b.stats,
     openings: b.openings,
+    rooms: b.rooms,
     props,
     update(dt, frame) {
       for (const f of animated) f(dt, frame);
@@ -1194,6 +1206,7 @@ function house(b: MapBuilder, s: HouseSpec) {
     railing(b, 'x', hz1 + 0.05, hx0, hx1 - 1.2, h, { h: 1.0, tint: 0x2a1a14 });
   }
   b.span(ix0, h * stories, iz0, ix1, wallH, iz1, 'concreto', { tint: 0x4a4446 });
+  b.room({ x: ix0, y: 0, z: iz0 }, { x: ix1, y: h * stories, z: iz1 }, 1);
   b.gableRoof(s.x0, s.z0, s.x1, s.z1, wallH, s.rise ?? 2.2, 'telhado', { tint: s.roof, ridgeAxis: s.ridge ?? 'x', gableSurface: s.wall, gableTint: s.tint });
 }
 
@@ -1211,6 +1224,9 @@ function stall(b: MapBuilder, x: number, z: number, yaw: number, color: number) 
     const [px, pz] = P(lx, 0.7);
     b.box(px, 1.2, pz, 0.1, 2.4, 0.1, 'madeira', { tint: C.woodDark, rot, collide: false });
   }
+  const [r0x, r0z] = P(-1.3, -0.85);
+  const [r1x, r1z] = P(1.3, 0.25);
+  b.room({ x: r0x, y: 0, z: r0z }, { x: r1x, y: 2.35, z: r1z }, 0.4); // under the awning: open on three sides
   for (let k = 0; k < 6; k++) {
     const [ax, az] = P(-1.35 + (k + 0.5) * 0.45, -0.1);
     b.box(ax, 2.5, az, 0.45, 0.06, 1.9, 'pintura', { tint: k % 2 ? 0xe8e0d0 : color, rot: new THREE.Euler(0.15, yaw, 0, 'YXZ'), collide: false });

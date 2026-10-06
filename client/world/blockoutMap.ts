@@ -292,6 +292,7 @@ export async function buildBlockoutMap(physics: Physics, scene: THREE.Scene, ren
   // so nobody falls out of the map from the stairs or platform.
   b.span(stairStart, wallH, D, tw.x1, towerY + 1.0, D + 0.12, 'madeira', wood);
   b.gableRoof(tw.x0, tw.z0, tw.x1, tw.z1, towerY + 2.2, 1.0, 'telhado', { tint: 0x8e4b3a, ridgeAxis: 'x', overhang: 0.3, collide: false });
+  b.room({ x: tw.x0, y: towerY, z: tw.z0 }, { x: tw.x1, y: towerY + 2.2, z: tw.z1 }, 0.3); // roofed lookout, open all around
   for (const [x, z] of [[tw.x0, tw.z0], [tw.x1 - 0.15, tw.z0], [tw.x0, tw.z1 - 0.15], [tw.x1 - 0.15, tw.z1 - 0.15]]) {
     b.span(x, towerY, z, x + 0.15, towerY + 2.2, z + 0.15, 'madeira', wood);
   }
@@ -413,6 +414,7 @@ export async function buildBlockoutMap(physics: Physics, scene: THREE.Scene, ren
   b.wall('z', 34, -8, -2, 0.3, 3.2, 'tijolo', [], 0, { tint: P.teamB });
   b.span(34, 3.2, -8.3, W, 3.5, -2, 'metal', { tint: 0x5d6673 });
   b.span(34, 0, -8.3, W, 3.2, -8, 'tijolo', { tint: P.teamB });
+  b.room({ x: 34.15, y: 0, z: -8 }, { x: W, y: 3.2, z: -2 }, 0.6); // the garage: roofed, open toward the street
   b.span(38, 0.01, -2, 39.8, 0.05, 2, 'pintura', { tint: P.teamB, collide: false, castShadow: false });
 
   // --- glTF prop: doghouse in the east yard, guarded by Amora -----------------------------------------
