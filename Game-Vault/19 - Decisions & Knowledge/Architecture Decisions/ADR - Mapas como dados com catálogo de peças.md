@@ -16,6 +16,8 @@ source_paths:
   - client/world/catalog/services.ts
   - client/world/budget.ts
   - client/world/conversao/recorder.ts
+  - client/world/conversao/jardimSetores.ts
+  - client/world/catalog/gardenPieces.ts
   - tools/snapshot-mapas.ts
   - tools/converter-mapas.ts
   - tools/headless.ts
@@ -60,7 +62,7 @@ Como descrever um mapa em dados sem perder nada dos mapas atuais (colisão, piad
 
 ## Decisões do dev sobre o editor (registradas na fase 1)
 
-- **P31: setores do Jardim em peças individuais.** Na primeira conversão cada setor do [[Map - Jardim do Dragão]] (casa, anel, bonsai, lago, lanternas, guerreiros, bambu, santuário) virou uma peça só (o plano listava "setores do jardim" entre os adaptadores). O dev decidiu que eles devem ser convertidos chamada por chamada, como a Vila Assombrada, para o Jardim oficial ser editável no mesmo nível dos outros mapas.
+- **P31: setores do Jardim em peças individuais.** Na primeira conversão cada setor do [[Map - Jardim do Dragão]] (casa, anel, bonsai, lago, lanternas, guerreiros, bambu, santuário) virou uma peça só (o plano listava "setores do jardim" entre os adaptadores). O dev decidiu que eles devem ser convertidos chamada por chamada, como a Vila Assombrada, para o Jardim oficial ser editável no mesmo nível dos outros mapas. **Feito na fase 1:** `client/world/conversao/jardimSetores.ts` grava cada chamada dos antigos `buildCasa`, `buildRing`, `buildBonsai`, `buildLago`, `buildLanternas`, `buildGuerreiros`, `buildBambu` e `buildSantuario`; o catálogo ganhou as peças próprias dos setores (`client/world/catalog/gardenPieces.ts`: cerejeira do dragão com a cereja, fonte do dragão, sinos bianzhong, barracas do mercado, sinos, tambores, túmulos, estela, panda, portais, folhas de porta) e um `colisor` invisível; o `jardim.json` passou de 28 para 741 peças, igual ao golden, com o mesmo orçamento (310 chamadas, 704.428 triângulos). O tipo `setor` saiu do catálogo.
 - **P32: o gizmo move e gira todas as peças, com giro livre** (qualquer ângulo), inclusive as de transformação `linear` e `fixa`. É trabalho da fase 3 (o editor): hoje só as peças `livre` respondem a `p`, `yaw` e `escala`; colisores, salas e vãos alinhados aos eixos vão precisar de tratamento para giros que não são múltiplos de 90°.
 
 ## Motivo

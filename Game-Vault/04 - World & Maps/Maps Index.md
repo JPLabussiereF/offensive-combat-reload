@@ -46,7 +46,7 @@ Dados e custo de desenho de cada mapa oficial (peças no JSON; pior caso medido 
 | Mapa | Arquivo | Peças | Chamadas de desenho | Triângulos |
 | --- | --- | --- | --- | --- |
 | Rua dos Vizinhos | `rua.json` | 120 | 164 | 115.670 |
-| Jardim do Dragão | `jardim.json` | 28 (cada setor é uma peça) | 310 | 704.428 |
+| Jardim do Dragão | `jardim.json` | 741 | 310 | 704.428 |
 | Vila Assombrada | `halloween.json` | 1.010 | 265 | 642.603 |
 | Cemitério da Capela | `cemiterio.json` | 339 | 80 | 122.322 |
 

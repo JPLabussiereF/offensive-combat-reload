@@ -16,7 +16,7 @@ source_paths:
   - client/world/jardim/lago.ts
   - client/world/jardim/lanternas.ts
   - client/world/jardim/guerreiros.ts
-  - client/world/jardim/bambu.ts
+  - client/world/conversao/jardimSetores.ts
   - client/world/jardim/santuario.ts
   - shared/data/mapas/halloween.json
   - client/world/halloween.ts

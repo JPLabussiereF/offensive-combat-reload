@@ -6,14 +6,15 @@ area: world
 source_paths:
   - shared/data/mapas/jardim.json
   - client/world/catalog/garden.ts
+  - client/world/catalog/gardenPieces.ts
   - client/world/conversao/jardim.ts
+  - client/world/conversao/jardimSetores.ts
   - client/world/jardim/kit.ts
   - client/world/jardim/casa.ts
   - client/world/jardim/bonsai.ts
   - client/world/jardim/lago.ts
   - client/world/jardim/lanternas.ts
   - client/world/jardim/guerreiros.ts
-  - client/world/jardim/bambu.ts
   - client/world/jardim/santuario.ts
   - client/world/jardim/cereja.ts
   - client/world/jardim/cerejeira.ts
@@ -39,7 +40,7 @@ updated: 2026-10-06
 | --- | --- |
 | Id interno | `jardim` |
 | Sessão fixa | id `jardim` |
-| Dados | `shared/data/mapas/jardim.json` (28 peças; montado por `client/world/mapLoader.ts`). Cada setor (casa, anel, bonsai, lago, lanternas, guerreiros, bambu, santuário) é **uma peça só** (`setor`, `client/world/catalog/garden.ts`), montada pelo arquivo do setor em `client/world/jardim/`; os muros entre setores, as carpas e o resto são peças à parte. Até a PF-6 era construído em código por `buildDragonGardenMap`; os comentários de design estão em `client/world/conversao/jardim.ts` |
+| Dados | `shared/data/mapas/jardim.json` (741 peças; montado por `client/world/mapLoader.ts`). Os setores (casa, anel, bonsai, lago, lanternas, guerreiros, bambu, santuário) foram convertidos **chamada por chamada** em peças individuais (decisão P31 em [[ADR - Mapas como dados com catálogo de peças]]): cada pavilhão, telhado, árvore, lanterna, barraca, sino e tambor é uma peça, com a sua semente e o seu id do `PropBus`. Até a PF-6 era construído em código por `buildDragonGardenMap`; os comentários de design estão em `client/world/conversao/jardim.ts` e `jardimSetores.ts` |
 | Tamanho | 90 × 90 m (x −45..45, z −45..45) |
 | Atmosfera | **noite** (`NIGHT` em `jardim/luzes.ts`): céu escuro com centenas de lanternas de papel subindo; as 6 lanternas mais próximas da câmera viram luzes reais (ver [[Lighting]]) |
 | Célula de lote | 45 m (os quatro quadrantes; 40 m cortaria em 16 pedaços e dobraria os draw calls) |
@@ -166,10 +167,10 @@ Lanternas que balançam, gongo, sinos, tambores, carrilhão de 5 notas, fonte do
 
 ## Código relacionado
 
-- `shared/data/mapas/jardim.json` — o mapa: setores, muros entre setores, spawns, bonecos, carpas e a cereja (`objetos`), céu oriental (`cupula: oriental`).
-- `client/world/catalog/garden.ts` — peça `setor` (um setor inteiro), `muroJardim`, `tampaMuro` e as peças orientais soltas para o editor; `client/world/mapLoader.ts` — céu, lanternas do céu e luzes das lanternas; os críticos (carpas/frutas) são juntados em `critters`.
-- `client/world/conversao/jardim.ts` — o construtor antigo (`buildDragonGardenMap`) gravado como peças, com os comentários de design.
+- `shared/data/mapas/jardim.json` — o mapa: as peças dos setores, muros entre setores, spawns, bonecos, carpas e a cereja (`objetos`), céu oriental (`cupula: oriental`).
+- `client/world/catalog/garden.ts` — `muroJardim`, `tampaMuro` e as peças orientais (pavilhões, telhados curvos, pontes, tanques, bambuzais, lanternas...); `client/world/catalog/gardenPieces.ts` — as peças próprias dos setores (cerejeira do dragão com a cereja, fonte do dragão, sinos bianzhong, barracas do mercado com as frutas, sinos e tambores, túmulos, estela, panda, portais e folhas de porta); `client/world/mapLoader.ts` — céu, lanternas do céu e luzes das lanternas; os críticos (carpas/frutas) são juntados em `critters`.
+- `client/world/conversao/jardim.ts` e `jardimSetores.ts` — o construtor antigo (`buildDragonGardenMap`) e os construtores dos setores (`buildCasa`, `buildRing`, `buildBonsai`, `buildLago`, `buildLanternas`, `buildGuerreiros`, `buildBambu`, `buildSantuario`) gravados como peças, com os comentários de design.
 - `client/world/jardim/kit.ts` — `W`, `MID_X`, `MID_Z`, `HOUSE`, `WALL_H`, `SECTOR`, `gardenWall`, `basin`, `bambooGrove`, `struck`.
-- `client/world/jardim/*.ts` — um arquivo por setor (`casa`, `bonsai`, `lago`, `lanternas`, `guerreiros`, `bambu`, `santuario`) e por elemento (`cereja`, `cerejeira`, `frutas`, `peixes`, `panda`, `luzes`).
+- `client/world/jardim/*.ts` — as peças de cada setor que o catálogo usa (`casa`: estantes e a paisagem a nanquim; `bonsai`; `lago`: postes de lanterna e a fonte do dragão; `lanternas`: sinos bianzhong, barracas, cestos, carrinho; `guerreiros`: suportes de armas, bonecos de treino, armaduras; `santuario`: túmulos, sinos, tambor grande, estela, retratos) e um arquivo por elemento (`cereja`, `cerejeira`, `frutas`, `peixes`, `panda`, `luzes`).
 - `client/world/oriental.ts` — `pavilion`, `curvedRoof`, `paperWall`, `moonGateWall`, `Lanterns`, `Gong`, `Bell`, `FireBreath`, `seeded`.
 - `shared/maps.ts` — `PICKUPS.jardim`, `FISH.jardim`.

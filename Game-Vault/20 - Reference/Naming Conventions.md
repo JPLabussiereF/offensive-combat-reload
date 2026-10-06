@@ -88,7 +88,7 @@ Convenções **observadas** no código (não há guia de estilo escrito nem lint
 ## Arquivos e pastas
 
 - Pastas do cliente em inglês minúsculo (`core`, `render`, `world`, `entities`, `weapons`, `gameplay`, `ai`, `net`, `ui`).
-- Arquivos TypeScript em **camelCase inglês** (`mapLoader.ts`, `gameMap.ts`, `spawnPicker.ts`), **exceto** o domínio do Jardim do Dragão, em português (`client/world/jardim/bambu.ts`, `cerejeira.ts`, `peixes.ts`, `santuario.ts`), e `server/moderacao.ts`.
+- Arquivos TypeScript em **camelCase inglês** (`mapLoader.ts`, `gameMap.ts`, `spawnPicker.ts`), **exceto** o domínio do Jardim do Dragão, em português (`client/world/jardim/lanternas.ts`, `cerejeira.ts`, `peixes.ts`, `santuario.ts`), e `server/moderacao.ts`.
 - Ferramentas em pt kebab-case: `tools/gerar-props-exemplo.mjs`, `tools/lab-personagens.html`; `tools/admin.ts`, `tools/offensive.ts` em inglês.
 - Documentação humana em MAIÚSCULAS pt: `docs/MAPAS.md`, `docs/PERSONAGENS.md`, `docs/DEPLOY.md`.
 - Nomes no Blender/glTF por prefixo: `COL_`, `SPAWN_`, `MAT_`, `DUMMY_`, `GAG_`, `KILLVOLUME` (`client/world/gltfMap.ts`, `docs/MAPAS.md`). Ver [[Asset Pipeline]].

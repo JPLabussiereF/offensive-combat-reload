@@ -133,7 +133,7 @@ Para a oclusão (sons atrás de obstáculos), cada colisor pesa pelo material, p
 
 ### Peças orientais
 
-[client/world/oriental.ts](../client/world/oriental.ts) tem as peças do "Jardim do Dragão" ([client/world/dragonGarden.ts](../client/world/dragonGarden.ts), com um arquivo por setor em [client/world/jardim/](../client/world/jardim/)), prontas para outros mapas:
+[client/world/oriental.ts](../client/world/oriental.ts) tem as peças do "Jardim do Dragão" ([shared/data/mapas/jardim.json](../shared/data/mapas/jardim.json), com as peças próprias de cada setor em [client/world/jardim/](../client/world/jardim/) e [client/world/catalog/gardenPieces.ts](../client/world/catalog/gardenPieces.ts)), prontas para outros mapas:
 
 - `pavilion(b, spec)`: pavilhão de vários andares. Cada andar escolhe as paredes (`estuque`, `papel` ou `madeira`, inclusive por lado), portas e janelas, varanda com guarda-corpo (com colunas quando avança sobre o chão), beiral de telhas por baixo da laje (`skirt`, o visual de pagode) e escada interna com o vão na laje de cima. O último andar ganha o telhado curvo. Devolve as alturas dos pisos e os pontos para pendurar lanternas.
 - `curvedRoof(b, opts)`: telhado chinês côncavo com as pontas levantadas, de um retângulo de beiral até uma cumeeira (telhado de quatro águas), um ponto (pirâmide, com o pináculo dourado) ou outro retângulo (beiral sem topo).
