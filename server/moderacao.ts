@@ -1,6 +1,9 @@
-// Staff actions (run from tools/admin.ts): bans and chat mutes as sanction history, staff roles, and the
-// audit trail. A ban also revokes the account's sessions and closes its game connection on every server; a
-// mute reaches the account's running match through Redis (MUTE_CHANNEL).
+// Staff actions on accounts: bans and chat mutes as sanction history, staff roles, and the audit trail. Run from
+// the Management API (server/gestao.ts, with the rules of shared/roles.ts checked there) and from the console
+// (tools/admin.ts, which finds the account by its tag). A ban also revokes the account's sessions and closes its
+// game connection on every server; a mute reaches the account's running match through Redis (MUTE_CHANNEL).
+//
+// `by`: the staff member's account id (null: the console).
 import { accountByTag, audit, type SanctionType } from './accounts';
 import type { Deps } from './auth/sessions';
 import { revokeAll } from './auth/sessions';
@@ -8,7 +11,8 @@ import { MUTE_CHANNEL } from './redis';
 
 export class ModerationError extends Error {}
 
-async function resolve(deps: Deps, tag: string): Promise<string> {
+/** The account of a tag (Name#1234), for the console. */
+export async function resolveTag(deps: Deps, tag: string): Promise<string> {
   const id = await accountByTag(deps.db, tag);
   if (!id) throw new ModerationError(`Conta não encontrada: ${tag}`);
   return id;
@@ -45,51 +49,45 @@ async function lift(deps: Deps, accountId: string, type: SanctionType) {
   return rowCount ?? 0;
 }
 
-export async function ban(deps: Deps, tag: string, reason: string, duration: string, by: string | null = null) {
-  const accountId = await resolve(deps, tag);
+export async function ban(deps: Deps, accountId: string, reason: string, duration: string, by: string | null = null) {
   const until = await sanction(deps, accountId, 'ban', reason, duration, by);
   await revokeAll(deps, accountId);
-  await audit(deps.db, accountId, 'ban', {}, `${reason} (${duration})`);
+  await audit(deps.db, accountId, 'ban', {}, `${reason} (${duration})`, by);
   return until;
 }
 
-export async function unban(deps: Deps, tag: string) {
-  const accountId = await resolve(deps, tag);
+export async function unban(deps: Deps, accountId: string, by: string | null = null) {
   const n = await lift(deps, accountId, 'ban');
-  await audit(deps.db, accountId, 'unban');
+  await audit(deps.db, accountId, 'unban', {}, null, by);
   return n;
 }
 
 /** Chat mute: the account keeps playing, its chat lines are dropped (in a running match too). */
-export async function mute(deps: Deps, tag: string, reason: string, duration: string, by: string | null = null) {
-  const accountId = await resolve(deps, tag);
+export async function mute(deps: Deps, accountId: string, reason: string, duration: string, by: string | null = null) {
   const until = await sanction(deps, accountId, 'chat_mute', reason, duration, by);
   await deps.redis.publish(MUTE_CHANNEL, accountId);
-  await audit(deps.db, accountId, 'chat_mute', {}, `${reason} (${duration})`);
+  await audit(deps.db, accountId, 'chat_mute', {}, `${reason} (${duration})`, by);
   return until;
 }
 
-export async function unmute(deps: Deps, tag: string) {
-  const accountId = await resolve(deps, tag);
+export async function unmute(deps: Deps, accountId: string, by: string | null = null) {
   const n = await lift(deps, accountId, 'chat_mute');
   await deps.redis.publish(MUTE_CHANNEL, accountId);
-  await audit(deps.db, accountId, 'chat_unmute');
+  await audit(deps.db, accountId, 'chat_unmute', {}, null, by);
   return n;
 }
 
-export async function setRole(deps: Deps, tag: string, role: string, remove: boolean, by: string | null = null) {
-  const accountId = await resolve(deps, tag);
+export async function setRole(deps: Deps, accountId: string, role: string, remove: boolean, by: string | null = null) {
   const known = await deps.db.query('SELECT 1 FROM role WHERE name = $1', [role]);
   if (!known.rowCount) throw new ModerationError(`Papel desconhecido: ${role} (admin ou moderador)`);
   if (remove) await deps.db.query('DELETE FROM account_role WHERE account_id = $1 AND role = $2', [accountId, role]);
   else await deps.db.query('INSERT INTO account_role (account_id, role, granted_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [accountId, role, by]);
-  await audit(deps.db, accountId, remove ? 'role_revoke' : 'role_grant', {}, role);
+  await audit(deps.db, accountId, remove ? 'role_revoke' : 'role_grant', {}, role, by);
 }
 
-export async function sanctions(deps: Deps, tag: string) {
-  const accountId = await resolve(deps, tag);
-  const { rows } = await deps.db.query<{ type: string; reason: string; starts_at: Date; expires_at: Date | null; revoked_at: Date | null }>(
-    'SELECT type, reason, starts_at, expires_at, revoked_at FROM sanction WHERE account_id = $1 ORDER BY starts_at DESC',
+export async function sanctions(deps: Deps, accountId: string) {
+  const { rows } = await deps.db.query<{ type: string; reason: string; starts_at: Date; expires_at: Date | null; revoked_at: Date | null; issued_by: string | null }>(
+    'SELECT type, reason, starts_at, expires_at, revoked_at, issued_by FROM sanction WHERE account_id = $1 ORDER BY starts_at DESC',
     [accountId],
   );
   const roles = await deps.db.query<{ role: string }>('SELECT role FROM account_role WHERE account_id = $1 ORDER BY role', [accountId]);

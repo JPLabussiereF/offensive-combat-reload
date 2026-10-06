@@ -8,7 +8,7 @@ import { GAME_MODE_IDS } from '@shared/modes';
 import { MAP_IDS, PVP_MAPS } from '@shared/maps';
 import type { GameServer } from '../app';
 import { ticketKey } from '../api';
-import { ban, mute, unmute } from '../moderacao';
+import { ban, mute, resolveTag, unmute } from '../moderacao';
 import { Browser, Player, sleep, startTestServer } from './helpers';
 
 let game: GameServer;
@@ -103,7 +103,7 @@ describe('conexões da conta', () => {
   it('banimento encerra a partida e bloqueia o login', async () => {
     const b = await signedIn('Trapaceiro');
     const { p, welcome } = await joinMain(b);
-    await ban(game.deps, welcome.name, 'teste', '7d');
+    await ban(game.deps, await resolveTag(game.deps, welcome.name), 'teste', '7d');
     expect(await p.waitClose()).toBe(CLOSE.revoked);
     expect((await b.req('GET', '/api/me')).status).toBe(401);
   });
@@ -425,11 +425,12 @@ describe('chat da sala', () => {
   it('silenciar vale na partida em andamento, e dessilenciar devolve o chat', async () => {
     const a = await joinMain(await signedIn('Boquirroto'));
     const b = await joinMain(await signedIn('Paciente'));
-    await mute(game.deps, a.welcome.name, 'teste', '1h');
+    const id = await resolveTag(game.deps, a.welcome.name);
+    await mute(game.deps, id, 'teste', '1h');
     await sleep(200);
     a.p.send({ t: 'chat', text: 'xingamento' });
     expect((await a.p.next('chatRefused')).reason).toBe('muted');
-    await unmute(game.deps, a.welcome.name);
+    await unmute(game.deps, id);
     await sleep(200);
     a.p.send({ t: 'chat', text: 'desculpa' });
     expect((await b.p.next('chat', (m) => m.id === a.joined.you)).text).toBe('desculpa');
