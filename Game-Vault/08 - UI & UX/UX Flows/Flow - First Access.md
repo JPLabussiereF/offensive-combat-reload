@@ -12,11 +12,12 @@ source_paths:
   - client/ui/customize.ts
   - client/audio/sfx.ts
   - client/core/input.ts
+  - client/ui/arsenal.ts
 tags:
   - game
   - ux
   - flow
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Flow - First Access
@@ -29,17 +30,18 @@ O que acontece da primeira abertura da página até o primeiro tiro. Não há tu
 flowchart TD
     A[Abre a página] --> B[Carregamento: física, renderizador, texturas<br/>dicas engraçadas]
     B --> C{Tela inicial}
-    C -->|sem conta| D[Nome engraçado aleatório<br/>ex.: Cabo Chinelo]
-    C -->|Entrar / Criar conta| E[Formulário de conta]
+    C -->|sem conta| D[Landing: nome engraçado aleatório<br/>ex.: Cabo Chinelo]
+    C -->|com conta| T[Abas Jogar / Arsenal / Perfil / Configurações]
+    D -->|Entrar / Criar conta| E[Formulário de conta na landing]
     E -->|e-mail + senha + nome| F[Conta criada e logada]
     E -->|Entrar com Discord| G[Redireciona ao Discord]
     G -->|primeiro login: #escolher-nome| H[Escolher nome]
-    F --> C
-    H --> C
-    C -->|Perfil| P[Corpo M/F, Personalizar personagem]
-    P --> C
-    D --> M{Escolhe o modo}
-    C --> M
+    F --> T
+    H --> T
+    T -->|Perfil| P[Corpo M/F, Personalizar personagem]
+    P --> T
+    D -->|Começar a jogar| M{Escolhe o modo}
+    T --> M
     M -->|Campo de tiro / Contra bots| L[Carrega o mapa escolhido]
     M -->|Jogar online| O[[Flow - Join Online Match]]
     L --> S[Menu inicial com o mapa ao fundo]
@@ -49,16 +51,16 @@ flowchart TD
 ## Passo a passo
 
 1. **Carregamento** (`Screens`, `client/ui/menu.ts`): logo, barra e dicas rotativas. O boot inicializa o Rapier, o renderizador, a qualidade gráfica (avisa se a GPU é por software) e as configurações salvas. Ver [[Loading Performance]].
-2. **Tela inicial** (`showHome`, `client/ui/home.ts`): consulta a conta (`/api/me`) e se o login por Discord está disponível (`/api/auth/provedores`). Apaga chaves antigas do `localStorage` (`oc.name`, `oc.sex`, `oc.profile`). Sem servidor, mostra o aviso "Servidor fora do ar…" mas treino e bots continuam disponíveis.
+2. **Tela inicial** (`showHome`, `client/ui/home.ts`): consulta a conta (`/api/me`) e se o login por Discord está disponível (`/api/auth/provedores`). Sem conta mostra a **landing** (apresentação do jogo, mapas, modos, formulário de conta e jogo rápido contra bots); com conta, as **abas** Jogar, Arsenal, Perfil e Configurações. Ver [[Menus]]. Apaga chaves antigas do `localStorage` (`oc.name`, `oc.sex`, `oc.profile`). Sem servidor, mostra o aviso "Servidor fora do ar…" mas treino e bots continuam disponíveis.
 3. **Conta (opcional para offline):**
    - *Criar conta:* e-mail, senha (com dica de regras), nome no jogo; o corpo enviado é o atual (padrão masculino). O nome vira `Nome#1234`.
    - *Entrar:* e-mail e senha; "Esqueci a senha" envia e-mail; o link volta com `#redefinir=<token>` e abre o formulário de nova senha.
    - *Discord:* botão só aparece se o servidor tiver o provedor; no primeiro login volta com `#escolher-nome`; erros voltam com `#erro=<código>`, traduzido em mensagem.
    - Detalhes de backend em [[Authentication]].
 4. **Personagem (opcional):** Perfil → escolha de corpo e **PERSONALIZAR PERSONAGEM** (editor 3D). Sem conta, joga-se com a aparência padrão. Ver [[Character Customization]].
-5. **Modo:** *Campo de tiro (bonecos parados)* ([[Training]]), *Contra bots* ([[Versus Bots]]) ou *Jogar online* (exige conta — [[Flow - Join Online Match]]).
+5. **Modo:** *Campo de tiro* ([[Training]]), *Contra bots* ([[Versus Bots]]) ou *Online* (exige conta — [[Flow - Join Online Match]]). O Arsenal (secundária e melhorias opcionais) e as configurações já podem ser ajustados nas abas antes de escolher.
 6. **Mapa:** a tela de carregamento volta enquanto o mapa é construído ([[Maps Index]]).
-7. **Menu inicial:** um quadro do mapa é renderizado atrás do cartão; o jogador pode ajustar [[Settings]], teclas ([[Input & Controls]]) e o [[Inventory UI]] (Arsenal) antes de jogar.
+7. **Menu inicial:** um quadro do mapa é renderizado atrás do cartão; o jogador pode ajustar [[Settings]], teclas ([[Input & Controls]]) e o [[Inventory UI]] (Arsenal: secundária e melhorias) antes de jogar.
 8. **JOGAR:** o clique **libera o áudio** (`sfx.unlock()`, exigência do navegador — ver [[Audio Overview]]), toca o bip de UI, pede o **pointer lock** e, se configurado, **tela cheia** (celular: paisagem; computador com Keyboard Lock: o jogo fica com o Esc). Nascimento: ver [[Respawn]].
 
 ## Pontos de atrito conhecidos

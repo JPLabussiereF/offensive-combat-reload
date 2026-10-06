@@ -42,6 +42,31 @@
         <div><b id="score-kills">0</b><span id="score-kills-label"></span></div>
         <div><b id="score-acc">0%</b><span id="score-acc-label"></span></div>
       </div>
+      <!-- Corrida armada: the step on the weapon ladder (under the score) and the end-of-round card. -->
+      <div id="ladder" class="hidden">
+        <b id="ladder-step"></b><span id="ladder-name"></span><span id="ladder-pips"></span>
+      </div>
+      <div id="round-end" class="hidden">
+        <div class="round-card sticker"><div id="round-title"></div><div id="round-next"></div></div>
+      </div>
+      <!-- Zumbi: the wave and the zombies left (or the countdown), the boss's health, the match's money and the
+           end-of-match summary. -->
+      <div id="zwave" class="hidden">
+        <div class="zwave-row"><b id="zwave-title"></b><span id="zwave-sub"></span></div>
+        <div id="zboss" class="hidden"><span id="zboss-name"></span><div class="zboss-bar"><div id="zboss-fill"></div></div></div>
+      </div>
+      <div id="zmoney" class="hidden"><span class="zmoney-sign">$</span><b id="zmoney-num">0</b></div>
+      <div id="zsummary" class="hidden">
+        <div class="zsum-card sticker">
+          <div id="zsum-title"></div>
+          <div id="zsum-sub"></div>
+          <table>
+            <thead><tr id="zsum-head"></tr></thead>
+            <tbody id="zsum-body"></tbody>
+          </table>
+          <div id="zsum-next"></div>
+        </div>
+      </div>
 
       <div id="killfeed"></div>
 
@@ -82,6 +107,7 @@
           <div class="ammo-count"><b id="ammo-mag">30</b><span class="ammo-sep">/</span><span id="ammo-reserve">120</span></div>
         </div>
         <div id="weapon-name"></div>
+        <div id="weapon-slots"></div>
       </div>
 
       <div id="death" class="hidden">
@@ -109,50 +135,153 @@
       <p id="loading-tip" class="tip"></p>
     </div>
 
-    <div id="home" class="screen hidden">
-      <h1 class="logo">OFFENSIVE<br /><span>COMBAT</span></h1>
-      <div class="home-card sticker">
-        <div id="home-start">
-          <div class="home-account">
-            <div id="home-account-in" class="hidden">
-              <b id="acct-tag"></b><span id="acct-level" class="level-badge"></span>
-              <button id="acct-profile" type="button" class="small-btn"></button>
+    <!-- Home: signed in, a header with tabs (play, arsenal, profile, settings) beside the character card; signed
+         out, a landing page with the account form and a quick game against bots. Texts come from data-t (strings.ts). -->
+    <div id="home" class="screen hidden" data-pad-scroll>
+      <div id="home-in" class="hidden">
+        <header class="home-bar sticker">
+          <div class="home-logo">OFFENSIVE <span>COMBAT</span></div>
+          <nav class="home-tabs" role="tablist">
+            <button type="button" role="tab" data-tab="play" data-t="tabPlay"></button>
+            <button type="button" role="tab" data-tab="arsenal" data-t="tabArsenal"></button>
+            <button type="button" role="tab" data-tab="profile" data-t="tabProfile"></button>
+            <button type="button" role="tab" data-tab="settings" data-t="tabSettings"></button>
+          </nav>
+          <button id="acct-chip" type="button" class="acct-chip">
+            <span class="acct-avatar"><img id="acct-avatar" alt="" /></span>
+            <span class="acct-info">
+              <span class="acct-line"><b id="acct-tag"></b><span id="acct-level" class="level-badge"></span></span>
+              <span class="xp-bar"><span id="acct-xp"></span></span>
+              <small id="acct-xp-text"></small>
+            </span>
+          </button>
+        </header>
+        <div class="home-main">
+          <aside class="home-char sticker">
+            <div class="char-stage">
+              <canvas id="char-canvas"></canvas>
+              <span id="char-equipped" class="char-equipped"></span>
             </div>
-            <div id="home-account-out" class="hidden">
-              <p id="acct-guest"></p>
-              <div class="acct-buttons">
-                <button id="acct-login" type="button" class="small-btn"></button>
-                <button id="acct-register" type="button" class="small-btn alt"></button>
+            <div class="char-row">
+              <div class="char-name"><b id="char-tag"></b><span id="char-stats"></span></div>
+              <button id="char-customize" type="button" class="small-btn alt" data-t="customizeShort"></button>
+            </div>
+            <div id="home-quick-box">
+              <button id="home-quick" type="button" class="big-btn" data-t="playOnline"></button>
+              <p class="home-hint" data-t="quickJoinHint"></p>
+            </div>
+          </aside>
+          <section class="home-panel home-card sticker">
+            <div id="tab-play" class="home-pane">
+              <div>
+                <h3 data-t="modeTitle"></h3>
+                <div id="home-modes" class="mode-grid"></div>
+              </div>
+              <div id="home-game-box">
+                <div class="pane-head"><h3 data-t="gameModeTitle"></h3><span id="home-game-hint" class="hint"></span></div>
+                <div id="home-game" class="seg"></div>
+              </div>
+              <div>
+                <div class="pane-head"><h3 id="home-map-title"></h3><span id="home-map-hint" class="hint"></span></div>
+                <div id="home-maps" class="map-row"></div>
+              </div>
+              <div id="home-bot-opts" class="bot-opts">
+                <div><h4 data-t="botSkill"></h4><div id="home-skills" class="seg"></div></div>
+                <div><h4 data-t="botCount"></h4><div id="home-counts" class="seg"></div></div>
+                <button id="home-bots" type="button" class="big-btn alt"></button>
+              </div>
+              <div id="home-lobby">
+                <h4 id="home-lobby-title"></h4>
+                <ul id="session-list"></ul>
+                <button id="home-more" type="button" class="small-btn alt hidden"></button>
+                <div id="session-create" class="session-create">
+                  <input id="session-new-name" type="text" spellcheck="false" />
+                  <select id="session-new-map"></select>
+                  <select id="session-new-mode"></select>
+                  <button id="session-create-btn" type="button" class="small-btn" data-t="createSession"></button>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="home-buttons">
-            <button id="home-online" class="big-btn"></button>
-            <button id="home-bots" class="big-btn alt"></button>
-            <div class="bot-options">
-              <label><span id="home-map-label"></span><select id="home-map"></select></label>
+            <div id="tab-arsenal" class="home-pane hidden">
+              <h3 data-t="arsenal"></h3>
+              <p class="hint" data-t="arsenalHint"></p>
+              <div id="home-arsenal" class="arsenal-grid"></div>
             </div>
-            <div class="bot-options">
-              <label><span id="bot-skill-label"></span><select id="bot-skill"></select></label>
-              <label><span id="bot-count-label"></span><select id="bot-count"></select></label>
-            </div>
-            <button id="home-offline" class="link-btn"></button>
-          </div>
+            <div id="tab-profile" class="home-pane hidden"></div>
+            <!-- The menu's controls and settings (#menu-settings) are lent to this tab while the home is open. -->
+            <div id="tab-settings" class="home-pane hidden"></div>
+            <div id="tab-auth" class="home-pane hidden"></div>
+          </section>
         </div>
-        <div id="home-auth" class="hidden"></div>
-        <div id="home-profile" class="hidden"></div>
-        <div id="home-lobby" class="hidden">
-          <h3 id="home-lobby-title"></h3>
-          <ul id="session-list"></ul>
-          <div class="session-create">
-            <input id="session-new-name" type="text" spellcheck="false" />
-            <select id="session-new-map"></select>
-            <button id="session-create" class="small-btn"></button>
-          </div>
-          <button id="home-back" class="link-btn"></button>
-        </div>
-        <p id="home-status"></p>
       </div>
+
+      <div id="home-out" class="hidden">
+        <header class="land-top">
+          <div class="home-bar sticker">
+            <div class="home-logo">OFFENSIVE <span>COMBAT</span></div>
+            <nav class="land-nav">
+              <a href="#land-game" data-t="navGame"></a><a href="#land-maps" data-t="navMaps"></a><a href="#land-modes" data-t="navModes"></a><a href="#land-account" data-t="navAccount"></a>
+            </nav>
+            <button id="land-signin" type="button" class="small-btn" data-t="signIn"></button>
+          </div>
+        </header>
+        <section class="land-hero land-wrap">
+          <div class="land-hero-text">
+            <h1 class="logo">OFFENSIVE<br /><span>COMBAT</span></h1>
+            <p class="land-lead" data-t="heroText"></p>
+            <div class="land-ctas">
+              <a href="#land-start" class="big-btn" data-t="startPlaying"></a>
+              <a href="#land-account" class="big-btn alt" data-t="signUp"></a>
+            </div>
+            <p class="land-note" data-t="heroNote"></p>
+          </div>
+          <div class="land-shot">
+            <div class="ph" style="--tint: #cfe8ff">🎯</div>
+            <span class="land-badge" data-t="groinBanner"></span>
+          </div>
+        </section>
+        <section id="land-game" class="land-band">
+          <div class="land-wrap">
+            <h2 data-t="aboutTitle"></h2>
+            <p class="land-sub" data-t="aboutSub"></p>
+            <div id="land-pillars" class="land-grid"></div>
+          </div>
+        </section>
+        <section id="land-maps" class="land-wrap">
+          <h2 class="on-blue" data-t="mapsTitle"></h2>
+          <p class="land-sub on-blue" data-t="mapsSub"></p>
+          <div class="land-maps">
+            <div id="land-map-show" class="land-map-show"></div>
+            <div id="land-map-list" class="land-map-list"></div>
+          </div>
+        </section>
+        <section id="land-modes" class="land-band">
+          <div class="land-wrap">
+            <h2 data-t="modesTitle"></h2>
+            <div id="land-modes-grid" class="land-grid"></div>
+          </div>
+        </section>
+        <section class="land-wrap land-cards">
+          <div id="land-account" class="sticker land-card">
+            <div id="home-auth"></div>
+            <p class="hint" data-t="accountWhy"></p>
+          </div>
+          <div id="land-start" class="sticker land-card">
+            <h3 data-t="startTitle"></h3>
+            <p id="land-guest" class="hint"></p>
+            <div><h4 data-t="mapLabel"></h4><div id="land-map-pick" class="seg"></div></div>
+            <div><h4 data-t="gameModeTitle"></h4><div id="land-games" class="seg"></div></div>
+            <div class="land-row">
+              <div><h4 data-t="botSkill"></h4><div id="land-skills" class="seg"></div></div>
+              <div><h4 data-t="botCount"></h4><div id="land-counts" class="seg"></div></div>
+            </div>
+            <button id="land-bots" type="button" class="big-btn alt"></button>
+            <button id="land-range" type="button" class="link-btn" data-t="playOffline"></button>
+          </div>
+        </section>
+        <footer class="land-foot">Offensive Combat · <span data-t="subtitle"></span></footer>
+      </div>
+      <p id="home-status" class="home-toast" role="status"></p>
     </div>
 
     <!-- Scope overlay (rifle levels with a magnified optic, fully aimed). -->
@@ -170,7 +299,7 @@
           <p id="arsenal-hint" class="hint"></p>
           <div id="arsenal-grid" class="arsenal-grid"></div>
         </section>
-        <div class="menu-columns">
+        <div id="menu-settings" class="menu-columns">
           <div>
             <h3 id="controls-title"></h3>
             <table id="controls-table"></table>

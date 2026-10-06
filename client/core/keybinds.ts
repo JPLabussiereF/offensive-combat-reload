@@ -7,7 +7,8 @@ import type { Lang } from '../ui/strings';
 export type Action =
   | 'forward' | 'back' | 'left' | 'right'
   | 'jump' | 'crouch' | 'sprint' | 'reload'
-  | 'fire' | 'ads' | 'melee' | 'grenade' | 'taunt' | 'scoreboard' | 'chat' | 'debug' | 'hitboxes' | 'tuning';
+  | 'fire' | 'ads' | 'melee' | 'grenade' | 'weapon1' | 'weapon2' | 'swapWeapon'
+  | 'taunt' | 'scoreboard' | 'chat' | 'debug' | 'hitboxes' | 'tuning';
 
 /** Dev keys that stay where they are: not in the controls table, and no other action may take them. */
 export type FixedAction = 'debug' | 'hitboxes' | 'tuning';
@@ -24,6 +25,7 @@ export const REBINDABLE: RebindableAction[] = [
   'forward', 'back', 'left', 'right',
   'jump', 'crouch', 'sprint',
   'fire', 'ads', 'reload', 'melee', 'grenade',
+  'weapon1', 'weapon2', 'swapWeapon',
   'taunt', 'scoreboard', 'chat',
 ];
 
@@ -41,6 +43,10 @@ export const DEFAULT_KEYBINDS: Keybinds = {
   reload: ['KeyR', null],
   melee: ['KeyF', null],
   grenade: ['KeyG', null],
+  // 1 and 2 pick a slot; either way on the wheel switches to the other gun.
+  weapon1: ['Digit1', null],
+  weapon2: ['Digit2', null],
+  swapWeapon: ['WheelDown', 'WheelUp'],
   taunt: ['KeyE', null],
   scoreboard: ['Tab', null],
   chat: ['Enter', 'KeyT'],
@@ -63,7 +69,7 @@ export function forbiddenReason(code: string): ForbiddenReason | null {
  * Actions done with one press, the only ones the mouse wheel can trigger: a wheel step is a press that is never
  * held (sprinting or aiming for a frame does nothing), and the chat opens on a key event, not on Input's table.
  */
-export const WHEEL_ACTIONS: ReadonlySet<RebindableAction> = new Set<RebindableAction>(['jump', 'fire', 'reload', 'melee', 'grenade', 'taunt']);
+export const WHEEL_ACTIONS: ReadonlySet<RebindableAction> = new Set<RebindableAction>(['jump', 'fire', 'reload', 'melee', 'grenade', 'weapon1', 'weapon2', 'swapWeapon', 'taunt']);
 
 const isWheel = (code: string) => code === 'WheelUp' || code === 'WheelDown';
 

@@ -34,7 +34,7 @@ Visual: estilo "sticker" (painéis com contorno grosso e sombra dura deslocada),
 | --- | --- | --- |
 | `#game` | canvas do renderizador | [[Rendering Overview]] |
 | `#loading` | `Screens` (`client/ui/menu.ts`) | [[Menus]] — carregamento com dicas |
-| `#home` (`#home-start`, `#home-auth`, `#home-profile`, `#home-lobby`) | `showHome` (`client/ui/home.ts`), `auth.ts`, `profile.ts`, `customize.ts` | [[Menus]], [[Matchmaking UI]], [[Flow - First Access]] |
+| `#home` (`#home-in`: abas `#tab-play`, `#tab-arsenal`, `#tab-profile`, `#tab-settings`; `#home-out`: landing com `#home-auth`) | `showHome` (`client/ui/home.ts`), `auth.ts`, `profile.ts`, `customize.ts` | [[Menus]], [[Matchmaking UI]], [[Flow - First Access]] |
 | `#menu` | `Screens` | [[Menus]] (início/pausa), [[Settings]], [[Input & Controls]] |
 | `#hud` | `Hud` (`client/ui/hud.ts`) | [[HUD]] |
 | `#scoreboard` (dentro do HUD) | `Scoreboard` | [[Scoreboard]] |
@@ -50,8 +50,8 @@ Visual: estilo "sticker" (painéis com contorno grosso e sombra dura deslocada),
 
 ```mermaid
 flowchart LR
-    Load[Carregamento] --> Home[Início: conta + modo]
-    Home -->|Online| Lobby[Lista de sessões]
+    Load[Carregamento] --> Home[Início: landing ou abas]
+    Home -->|Online| Lobby[Entrada rápida ou lista de sessões]
     Home -->|Bots / Treino| Load2[Carregando mapa]
     Lobby -->|Entrar/Criar| Load2
     Home --> Auth[Entrar / Cadastrar]

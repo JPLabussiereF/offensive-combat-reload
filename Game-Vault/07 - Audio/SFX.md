@@ -15,11 +15,15 @@ source_paths:
   - client/world/jardim/lago.ts
   - client/world/dog.ts
   - client/world/hydrant.ts
+  - client/net/remote.ts
+  - client/zombies/view.ts
+  - client/zombies/coffin.ts
+  - client/zombies/client.ts
 tags:
   - game
   - audio
   - sfx
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # SFX
@@ -41,7 +45,8 @@ O comentário do arquivo diz que cada função "mapeia para uma futura entrada d
 
 | Método | Som | Disparado por |
 | --- | --- | --- |
-| `gunshot(volume)` | 3 camadas: estalo (ruído passa-alta), corpo (ruído passa-baixa + seno 150→45 Hz) e cauda (passa-banda). ±5% de altura aleatória. | Tiro do jogador (na cabeça); tiros de outros e de bots via `at(muzzle, 'gun')`. |
+| `gunshot(volume, voz)` | 3 camadas: estalo (ruído passa-alta), corpo (ruído passa-baixa + seno 150→45 Hz) e cauda (passa-banda). ±5% de altura aleatória. Cada arma tem uma voz (`GunVoice`): `rifle` (estampido cheio), `pistola` (mais aguda e curta), `smg` (estalo leve e rápido) e `silenciado` (um "pff" abafado, para o silenciador). | Tiro do jogador (na cabeça); tiros de outros e de bots via `at(muzzle, 'gun')`. Um tiro silenciado de outro jogador toca como `step` (ouvido até ~34 m) e não desenha traçante. |
+| `weaponSwitch()` | Pano e um clique metálico. | Troca entre primária e secundária. Ver [[Weapons]]. |
 | `dryFire()` | Clique seco. | Gatilho sem munição. |
 | `reload(duração, vazio)` | Linha do tempo: pente sai (20%), pente entra (55%) e, se vazio, ferrolho (80% e 86%). | Início da recarga; recargas de outros via [[Spatial Audio]] (`BodySounds`). |
 | `hitmarker(cabeça)` | Bip agudo (mais agudo e com segundo tom no tiro na cabeça/virilha). Barramento `ui`. | Acerto confirmado. |
@@ -50,7 +55,7 @@ O comentário do arquivo diz que cada função "mapeia para uma futura entrada d
 | `hurt()` | Dente de serra descendente + ruído. | Dano recebido. |
 | `sadTrombone()` | Trombone triste (4 notas descendentes). | Morte do próprio jogador. Ver [[Flow - Death and Respawn]]. |
 | `bird()` | Dois piados e apito descendente ("NO PÁSSARO!"). | Tiro na virilha. Ver [[Humiliation]]. |
-| `knifeSwing()` / `meleeSwing(tipo)` / `knifeHit()` | Assobio de lâmina; cada nível de faca tem seu som (`faca`, `madeira`, `frango`, `crocante`, `tapa`, `boing`, `sabre`); impacto. | [[Melee]]. |
+| `knifeSwing()` / `meleeSwing(forma)` / `knifeHit()` | Assobio de lâmina; cada forma da faca tem seu som (`faca` = `knifeSwing`, `frango` = guincho de borracha, `sabre` = "vuuum"); impacto. | [[Melee]]. O golpe de outro jogador toca o som da forma dele: a faca como `step`, o frango e o sabre como `normal` (ouvidos mais longe). |
 | `levelUp()` | Fanfarra curta. | Novo nível de arma/conta. Ver [[Progression]]. |
 | `airHorn()` + `applause()` | Buzina de estádio e aplausos (ruído granulado). | Fim de uma humilhação ("OPRIMIDO!"). |
 
@@ -88,6 +93,31 @@ O comentário do arquivo diz que cada função "mapeia para uma futura entrada d
 | [[Map - Jardim do Dragão]] | `gong()`, `bell(tamanho, nota)` (sinos e carrilhão de cinco notas), `drum(tamanho)` (tambores), `roar()` (fonte do dragão), `lanternTap()` (lanterna de papel baleada). |
 | [[Map - Vila Assombrada]] | `churchBell(altura)`, `carHorn(segundos)` (cresce se alguém insiste), `clockChime(n)` (relógio de pêndulo), `evilLaugh()` (bruxa e abóbora gigante), `grumble()` (resmungos), `ghostMoan()`, `cauldronBubble()`, `cabinetCreak()`, `pumpkinSmash()`, `bulbPop()`, `strawThud()` (espantalho), `targetDing()` e `carnivalJingle()` (barraca de tiro ao alvo). |
 
+### Modo zumbi
+
+Todos via `at(...)` no lugar do zumbi, do chefe ou do caixão, exceto os do próprio jogador. Ver [[Zombie]].
+
+| Método | Som | Quando |
+| --- | --- | --- |
+| `zombieGroan(altura)` | vogal grave e trêmula num filtro de garganta ("uuuurgh") | a cada 3–9 s, só os **6 zumbis mais próximos** do ouvinte (senão vira uma parede de barulho); altura por tipo (chefes e o segurança mais graves, o maratonista e a tia mais agudos) |
+| `zombieRise()` | terra rachando e um suspiro | um zumbi sai do chão |
+| `zombieDeath(altura)` | gorgolejo e baque molhado | zumbi morreu |
+| `zombieSpit()` / `zombieSplat()` | escarro e assobio / "splat" | a Tia da Fofoca cospe / o cuspe cai |
+| `bloaterPop()` | a explosão + um peido longo | o Tio do Churrasco estoura |
+| `bossRoar(altura)` | três rosnados desafinados sobre um sub | um chefe surge; a investida do Prefeito |
+| `bossWindup()` | grunhido subindo e rangido | o Coveiro ergue a pá; o Prefeito ergue os punhos |
+| `bossScream()` | lamento agudo que oscila e cai | o grito da Noiva |
+| `bossSummon()` | cântico oco sobre pá cavando | o Coveiro chama os mortos |
+| `bossBlink()` | "whoosh" invertido com brilho | a Noiva some e reaparece |
+| `coffinOpen()` / `coffinTick()` / `coffinReveal(nível)` | tampa rangendo + caixinha de música / um clique por arma que passa / acorde (maior numa épica, com aplausos numa lendária) | o Caixão Misterioso gira e para |
+| `quack()` (já existia) | pato | o pato do caixão |
+| `coffinFly()` / `coffinLand()` | "whoosh" subindo, bater de asas e a risada malvada / baque | o caixão voa para outro lugar / chega |
+| `waveStart(chefe)` | o `churchBell` três vezes (mais grave numa onda de chefe) | começa uma onda |
+| `waveEnd()` | acorde de órgão | onda vencida |
+| `cashRegister()` | "ka-ching" (barramento `ui`) | dinheiro ganho |
+| `heartbeat()` | batimento lento | caído, a cada 1,1 s |
+| `reviveDone()` | arpejo subindo | reanimado |
+
 ### Interface
 
 - `ui()` — bip curto no barramento `ui`; toca ao clicar JOGAR e ao fechar o menu de pausa com Esc. Ver [[Menus]].
@@ -104,6 +134,7 @@ O comentário do arquivo diz que cada função "mapeia para uma futura entrada d
 - `client/main.ts` — chamadas do jogador local e de eventos de rede.
 - `client/ai/bots.ts` — tiros, impactos e facadas dos bots (via `at`).
 - `client/world/*.ts`, `client/world/jardim/*.ts` — sons de props e ambiente.
+- `client/zombies/view.ts`, `client/zombies/coffin.ts`, `client/zombies/client.ts` — sons do modo zumbi.
 
 ## Ver também
 

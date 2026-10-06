@@ -28,7 +28,7 @@ tags:
   - world
   - map
   - jardim
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Map - Jardim do Dragão
@@ -158,7 +158,7 @@ Lanternas que balançam, gongo, sinos, tambores, carrilhão de 5 notas, fonte do
 ## Problemas conhecidos
 
 - A medição de linhas de visão (0,6% contra 11,6% no jardim anterior) vem de `docs/MAPAS.md`; a ferramenta não está no repositório.
-- Os comentários do Pátio das Lanternas citam escopetas ("shotguns and ambushes"), mas o jogo só tem o Rifle Padrão, a faca e a granada (ver [[Weapons]]).
+- Os comentários do Pátio das Lanternas citam escopetas ("shotguns and ambushes"), mas o jogo não tem escopetas: só o Rifle Padrão, a pistola, a submetralhadora, a faca e a granada (ver [[Weapons]]).
 - Tempo de construção alto (~380–480 ms) e ~290–410 mil triângulos visíveis, muito acima da meta de "~50 mil por mapa pequeno" (números de `docs/MAPAS.md`; ver [[Performance Rendering]]).
 - Os bots não pegam a cereja (README do projeto).
 

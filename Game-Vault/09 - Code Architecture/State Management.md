@@ -18,10 +18,11 @@ source_paths:
   - server/redis.ts
   - server/auth/sessions.ts
   - server/migrations/001_contas.sql
+  - shared/arsenal.ts
 tags:
   - architecture
   - state
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # State Management
@@ -38,8 +39,9 @@ Não há biblioteca de estado (Redux, signals, store). O estado vive **em variá
 | Visão online dos outros | `RemoteWorld` (`players`, `info`, `corpses`, buffer de snapshots) | `client/net/remote.ts` | enquanto conectado |
 | Estado autoritativo da sessão | `Session` (`players: SPlayer`, `corpses`, `pickups`, `fish`, `rats`) | `server/session.ts` | vida da sessão (memória) |
 | Lobby | `sessions`, `conns`, `byAccount`, `nextId` na closure de `startServer` | `server/app.ts` | vida do processo |
-| Progresso ao vivo | `LiveAccount` (`profile`, `delta`, `aliveCarry`, `chatMutedUntil`) | `server/progress.ts` | vida da conexão, gravado a cada 60 s e ao sair |
-| Progresso no cliente | `Progress` (`xpOf`, `equippedOf`) alimentado por `progresso` | `client/gameplay/progress.ts` | sessão da página |
+| Progresso ao vivo | `LiveAccount` (`profile` com `weapons{xp}` e `arsenal`, `delta`, `aliveCarry`, `chatMutedUntil`) | `server/progress.ts` | vida da conexão, gravado a cada 60 s e ao sair |
+| Loadout do jogador na sessão | `SPlayer.loadout` (recalculado por `loadoutOf` na escolha e ao subir de nível), `held`/`heldBefore`/`heldAt` (arma em mãos, pela `FLAG.secondary`) | `server/session.ts` | vida do jogador na sessão |
+| Progresso no cliente | `Progress` (`xpOf`, `chosen`: a `ArsenalChoice`) alimentado por `progresso` (`armas`, `escolha`) | `client/gameplay/progress.ts` | sessão da página |
 | Preferências do jogador | `localStorage['oc.settings.v1']` (`Settings`) | `client/core/settings.ts` | persistente no navegador |
 | Preferências do modo bots | `localStorage['oc.bots']` (`skill`, `count`, `map`) | `client/ui/home.ts` | persistente no navegador |
 | Sessão de login | cookie `oc_sessao` HttpOnly (o JS não lê) + tabela `session` (só o SHA-256) | `server/auth/sessions.ts` | 30 dias, renovado no uso |
@@ -48,7 +50,7 @@ Não há biblioteca de estado (Redux, signals, store). O estado vive **em variá
 
 ## Cliente: a closure do `boot()`
 
-Exemplos reais de estado da partida guardado como `let` dentro do `boot()` (`client/main.ts`): `simTime`, `shots`, `hits`, `kills`, `points`, `lastTtk`, `killerId`, `myCorpseId`, `deathMessage`, `boostEnds` (cereja), `humanity` (rato), `potionKind`/`potionEnds`/`potionReady`, `duckAmmo`, `aimEnds`, `grenadeSeq`, `secondThrowIn` (Dose Dupla), `shake`, `pausedAt`, `stateTimer`. Funções internas (`refreshMaxHealth`, `startBoost`, `applyPotion`...) leem e escrevem essas variáveis diretamente. Ver [[ADR - Bootstrap do cliente numa única closure]].
+Exemplos reais de estado da partida guardado como `let` dentro do `boot()` (`client/main.ts`): `simTime`, `shots`, `hits`, `kills`, `points`, `lastTtk`, `killerId`, `myCorpseId`, `deathMessage`, `boostEnds` (cereja), `humanity` (rato), `potionKind`/`potionEnds`/`potionReady`, `duckAmmo`, `aimEnds`, `grenadeSeq`, `secondThrowIn` (Dose Dupla), `loadout`, `guns` (um `Weapon` por espaço, cada um com o seu pente), `slot`/`weapon` (arma em mãos), `drawT` (tempo de saque), `grenadeData`, `knifeForm`, `shake`, `pausedAt`, `stateTimer`. Funções internas (`refreshMaxHealth`, `startBoost`, `applyPotion`...) leem e escrevem essas variáveis diretamente. Ver [[ADR - Bootstrap do cliente numa única closure]].
 
 **Reset**: não existe "reiniciar partida" em memória; "Sair para o início" fecha a conexão e chama `location.reload()`.
 

@@ -268,6 +268,275 @@ body {
   color: var(--hud-dim);
 }
 
+/* Corrida armada: the ladder step under the score, and the round's winner card in the middle. */
+#ladder {
+  position: absolute;
+  top: calc(58px + var(--safe-t));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 5px;
+  border-radius: 999px;
+  background: var(--hud-glass);
+  border: 1px solid var(--hud-line);
+  color: #fff;
+  text-shadow: var(--hud-shadow);
+  white-space: nowrap;
+}
+#ladder-step {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 15px;
+  color: var(--warn);
+}
+#ladder-name {
+  font: 800 13px var(--body);
+}
+#ladder-pips {
+  display: flex;
+  gap: 4px;
+}
+#ladder-pips i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+}
+#ladder-pips i.on {
+  background: var(--good);
+}
+#ladder.final #ladder-step,
+#ladder.final #ladder-name {
+  color: #ff6fb5;
+}
+#round-end {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 16vh;
+}
+.round-card {
+  padding: 18px 26px;
+  text-align: center;
+  max-width: min(640px, calc(100vw - 32px));
+  animation: popin-card 0.3s ease-out;
+}
+#round-title {
+  font-family: var(--display);
+  font-size: clamp(26px, 4.4vw, 44px);
+  line-height: 1.05;
+  color: var(--ink);
+}
+#round-end.won #round-title {
+  color: var(--team-a);
+}
+#round-next {
+  margin-top: 8px;
+  font: 800 15px var(--body);
+  color: var(--ink);
+  opacity: 0.75;
+}
+/* Zumbi: the wave under the score (with the boss's bar), the money over the health, the summary card. */
+#zwave {
+  position: absolute;
+  top: calc(58px + var(--safe-t));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  text-shadow: var(--hud-shadow);
+  white-space: nowrap;
+}
+.zwave-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 14px 5px;
+  border-radius: 999px;
+  background: var(--hud-glass);
+  border: 1px solid var(--hud-line);
+}
+#zwave-title {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 17px;
+  color: #a6ff6a;
+}
+#zwave-sub {
+  font: 800 13px var(--body);
+}
+#zwave.boss #zwave-title {
+  color: #ff5a4f;
+}
+#zboss {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+#zboss-name {
+  font-family: var(--display);
+  font-size: 15px;
+  color: #ff8a80;
+}
+.zboss-bar {
+  width: min(360px, 60vw);
+  height: 10px;
+  border-radius: 6px;
+  border: 2px solid rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+#zboss-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #ff3b2f, #ff8a1e);
+  transition: width 0.15s linear;
+}
+#zboss.enraged #zboss-fill {
+  background: linear-gradient(90deg, #b3002a, #ff3b2f);
+  animation: zboss-pulse 0.6s ease-in-out infinite alternate;
+}
+@keyframes zboss-pulse {
+  from {
+    filter: brightness(1);
+  }
+  to {
+    filter: brightness(1.5);
+  }
+}
+#zmoney {
+  position: absolute;
+  left: calc(24px + var(--safe-l));
+  bottom: calc(70px + var(--safe-b));
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  color: #ffe066;
+  text-shadow: var(--hud-shadow);
+}
+.zmoney-sign {
+  font-family: var(--display);
+  font-size: 18px;
+}
+#zmoney-num {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 28px;
+}
+#zmoney.bump #zmoney-num {
+  animation: zmoney-bump 0.35s ease-out;
+}
+@keyframes zmoney-bump {
+  from {
+    transform: scale(1.35);
+    color: #fff;
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.popup.cash b {
+  color: #ffe066;
+}
+#zsummary {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 6, 20, 0.45);
+}
+.zsum-card {
+  padding: 18px 22px;
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  text-align: center;
+  animation: popin-card 0.3s ease-out;
+}
+#zsum-title {
+  font-family: var(--display);
+  font-size: clamp(28px, 4.6vw, 46px);
+  line-height: 1.05;
+  color: #b3312a;
+}
+#zsummary.won #zsum-title {
+  color: #2e8b4a;
+}
+#zsum-sub {
+  margin-top: 4px;
+  font: 800 15px var(--body);
+  opacity: 0.8;
+}
+.zsum-card table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font: 800 14px var(--body);
+  font-variant-numeric: tabular-nums;
+}
+.zsum-card th {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.65;
+  padding: 3px 6px;
+}
+.zsum-card td {
+  padding: 5px 6px;
+  border-top: 2px solid rgba(27, 21, 48, 0.12);
+}
+.zsum-card th:nth-child(2),
+.zsum-card td:nth-child(2) {
+  text-align: left;
+}
+.zsum-card tr.me td {
+  background: rgba(255, 122, 26, 0.18);
+}
+#zsum-next {
+  margin-top: 12px;
+  font: 800 14px var(--body);
+  opacity: 0.75;
+}
+.weapon-slot .slot-name.rar-comum,
+#weapon-name.rar-comum {
+  color: #7dea7d;
+}
+.weapon-slot .slot-name.rar-raro,
+#weapon-name.rar-raro {
+  color: #6fb9ff;
+}
+.weapon-slot .slot-name.rar-epico,
+#weapon-name.rar-epico {
+  color: #c995ff;
+}
+.weapon-slot .slot-name.rar-lendario,
+#weapon-name.rar-lendario {
+  color: #ffc04d;
+}
+@media (max-width: 640px) {
+  #zmoney {
+    bottom: calc(58px + var(--safe-b));
+  }
+  #zmoney-num {
+    font-size: 22px;
+  }
+}
+/* The lightsaber in hand: no ammo to count. */
+#ammo.melee-only .ammo-count,
+#ammo.melee-only #ammo-status,
+#ammo.melee-only #weapon-slots {
+  display: none;
+}
+
 #killfeed {
   position: absolute;
   top: calc(14px + var(--safe-t));
@@ -562,6 +831,47 @@ body {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--hud-dim);
+}
+/* The guns carried: key, name and ammo per slot, the one in hand bright (it blinks while it comes up). */
+#weapon-slots {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.weapon-slot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 800 10px var(--body);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--hud-dim);
+  opacity: 0.7;
+}
+.weapon-slot.active {
+  color: #fff;
+  opacity: 1;
+}
+.weapon-slot.drawing {
+  animation: blink 0.15s infinite alternate;
+}
+.weapon-slot kbd:empty {
+  display: none;
+}
+.weapon-slot kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  font: 900 9px var(--body);
+}
+.slot-ammo {
+  font-family: var(--display);
+  font-size: 12px;
+  letter-spacing: 0;
 }
 @keyframes blink {
   to {
@@ -906,49 +1216,229 @@ html:not(.mobile) #chat-close {
   font-size: 12px;
   font-weight: 800;
 }
-.level-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+/* A secondary not taken is dimmed; its button puts it in the slot. */
+.arsenal-card.spare {
+  background: #f6f1e8;
 }
-.level-chip {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  padding: 3px 7px;
+.arsenal-card.spare .arsenal-head,
+.arsenal-card.spare .gun-stats {
+  opacity: 0.7;
+}
+.take-secondary {
+  align-self: flex-start;
+  padding: 4px 10px;
   border: 2px solid var(--ink);
   border-radius: 9px;
-  background: #fff8ec;
+  background: var(--warn);
   font: 900 12px var(--body);
   color: var(--ink);
   cursor: pointer;
+  box-shadow: 0 2px 0 var(--ink);
 }
-.level-chip .chip-icon {
+.take-secondary:hover {
+  background: #ffe27a;
+}
+.in-secondary {
+  align-self: flex-start;
+  padding: 2px 9px;
+  border-radius: 9px;
+  background: var(--team-a);
+  color: #fff;
+  font: 900 11px var(--body);
+  text-transform: uppercase;
+}
+/* The gun's stats as they are now (upgrades included): a label and a bar each. */
+.gun-stats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 8px;
+  font: 800 11px var(--body);
+}
+.gun-stats small {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  opacity: 0.7;
+}
+.stat-bar {
+  height: 7px;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  background: #eee7da;
+  overflow: hidden;
+}
+.stat-bar > div {
+  height: 100%;
+  background: var(--team-b);
+}
+/* Upgrades: one row each (icon, level, name, state or switch), what it changes as chips under it. */
+.upgrades {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.upg {
+  padding: 4px 6px;
+  border: 2px solid var(--ink);
+  border-radius: 9px;
+  background: #fff8ec;
+}
+.upg.locked {
+  background: #e9e4dc;
+  border-style: dashed;
+  opacity: 0.65;
+}
+.upg.locked .upg-icon {
+  filter: grayscale(1);
+}
+.upg.active,
+.upg.on {
+  background: #fff1df;
+  box-shadow: inset 4px 0 0 var(--team-a);
+}
+.upg.replaced {
+  opacity: 0.6;
+}
+.upg-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: 900 12px var(--body);
+}
+.upg-icon {
   font-size: 15px;
 }
-.level-chip.locked {
-  background: #e9e4dc;
-  opacity: 0.55;
-  cursor: default;
+.upg-lvl {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: 10px;
 }
-.level-chip.equipped {
+.upg-name {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.15;
+}
+.upg-state {
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.upg.active .upg-state {
+  color: var(--team-a);
+}
+.upg-toggle {
+  min-width: 74px;
+  padding: 2px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  font: 900 10px var(--body);
+  text-transform: uppercase;
+  color: var(--ink);
+  cursor: pointer;
+}
+.upg-toggle[aria-pressed='true'] {
   background: var(--team-a);
   color: #fff;
   box-shadow: 0 2px 0 var(--ink);
 }
-.level-chip.unlocked:not(.equipped):hover {
-  background: #ffe2b8;
+/* Read-only Arsenal (a match with a locked loadout): the switches show their state but don't move. */
+.upg-toggle:disabled {
+  cursor: default;
+  opacity: 0.7;
 }
-.level-detail {
+
+/* Corrida armada's ladder in the pause menu: one row per step, the player's own lit. */
+.ladder-list {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ladder-list li {
+  display: grid;
+  grid-template-columns: 34px 30px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  font: 800 14px var(--body);
+  color: var(--ink);
+}
+.ladder-list .rung {
+  font-family: var(--display);
+  font-size: 18px;
+  text-align: center;
+}
+.ladder-list .icon {
+  font-size: 20px;
+  text-align: center;
+}
+.ladder-list small {
+  font: 800 11px var(--body);
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.ladder-list li.final {
+  background: #ffe3f1;
+}
+.zars-title {
+  grid-column: 1 / -1;
+  margin: 8px 0 2px;
+  font: 800 12px var(--body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.ladder-list li.me {
+  background: var(--warn);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.upg-fx {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
+}
+.upg-fx:empty {
+  display: none;
+}
+.fx {
+  padding: 0 6px;
+  border-radius: 6px;
+  font: 800 10.5px var(--body);
+  line-height: 1.6;
+}
+.fx.good {
+  background: #dff5d3;
+  color: #24601a;
+}
+.fx.bad {
+  background: #fbdcd8;
+  color: #9b1d12;
+}
+.fx.opt {
+  background: #fff0b8;
+  color: #6b5200;
+}
+.upg-detail {
   font-size: 12.5px;
   line-height: 1.35;
   min-height: 52px;
-}
-.detail-status {
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-  color: var(--team-a);
 }
 
 /* --- Scope overlay --------------------------------------------------------------------------------- */
@@ -1306,25 +1796,838 @@ input[type='range'] {
 }
 
 /* ---------- Home ---------- */
-#home {
-  background: radial-gradient(circle at 50% 30%, #8fd4ff, #2f7fd6);
-  gap: 8px;
-  /* Short windows: scroll instead of pushing the buttons off screen ('safe' keeps the top reachable). */
-  overflow-y: auto;
-  justify-content: safe center;
-}
-@media (max-height: 680px) {
-  #home .logo {
-    font-size: clamp(34px, 9vh, 64px);
-    margin-bottom: 10px;
-  }
-  #home .home-card {
-    padding: 16px 22px;
-  }
-}
 .home-card {
-  width: min(520px, 100%);
   padding: 22px 26px;
+}
+/* The home is a scrolling page: signed in (header with tabs, character card, tab panel) or the landing. */
+#home {
+  display: block;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: radial-gradient(circle at 50% 18%, #8fd4ff, #2f7fd6 70%) fixed;
+  user-select: text;
+}
+#home h3 {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 24px;
+  margin: 0 0 10px;
+}
+#home h4 {
+  margin: 0 0 6px;
+  font-weight: 900;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+.home-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 22px;
+  padding: 10px 14px 10px 20px;
+}
+.home-logo {
+  font-family: var(--display);
+  font-size: 30px;
+  line-height: 0.9;
+  color: #fff;
+  -webkit-text-stroke: 2px var(--ink);
+  text-shadow: 3px 3px 0 var(--ink);
+  transform: rotate(-3deg);
+  white-space: nowrap;
+}
+.home-logo span {
+  color: var(--team-a);
+}
+.home-hint {
+  margin: 8px 0 0;
+  min-height: 1.3em;
+  text-align: center;
+  font-weight: 800;
+  font-size: 13px;
+  opacity: 0.75;
+}
+/* Placeholder art (no screenshots yet): a tinted panel with a big emoji. */
+.ph {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: clamp(40px, 7vw, 72px);
+  background: radial-gradient(circle at 50% 40%, #ffffff, var(--tint, #dcecfb) 75%);
+}
+.tag {
+  align-self: flex-start;
+  font-weight: 900;
+  font-size: 12px;
+  padding: 1px 9px;
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+}
+/* Toggle rows (difficulty, bots, map). */
+.seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.seg-btn {
+  font: 800 15px var(--body);
+  min-width: 44px;
+  padding: 6px 12px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+.seg-btn[aria-pressed='true'] {
+  background: var(--team-b);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--ink);
+}
+.home-toast {
+  position: sticky;
+  bottom: 16px;
+  z-index: 6;
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  margin: 0 auto;
+  padding: 8px 16px;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  box-shadow: 3px 3px 0 var(--ink);
+  font-weight: 800;
+  font-size: 14px;
+  text-align: center;
+}
+.home-toast:empty {
+  display: none;
+}
+.home-toast.error {
+  color: #c0271b;
+}
+
+/* --- Signed in -------------------------------------------------------------------------------------- */
+#home-in {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 18px 20px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.home-tabs {
+  display: flex;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: safe center;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 2px 6px;
+}
+.home-tabs [role='tab'] {
+  flex: none;
+  font-family: var(--display);
+  font-size: 17px;
+  padding: 5px 14px;
+  color: var(--ink);
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.home-tabs [role='tab']:hover {
+  transform: translateY(-2px);
+}
+.home-tabs [role='tab'][aria-selected='true'] {
+  color: #fff;
+  background: var(--team-a);
+  box-shadow: 0 4px 0 var(--ink);
+  -webkit-text-stroke: 1px var(--ink);
+  transform: rotate(-2deg);
+}
+.acct-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px 6px 6px;
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--ink);
+}
+.acct-chip:hover {
+  background: #ffe2b8;
+}
+.acct-avatar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #ffffff, #dcecfb);
+}
+#acct-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#acct-avatar:not([src]) {
+  visibility: hidden;
+}
+.acct-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 150px;
+}
+.acct-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#acct-tag {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 19px;
+  white-space: nowrap;
+}
+.acct-chip .level-badge {
+  font-size: 12px;
+  padding: 0 7px;
+}
+.acct-chip .xp-bar {
+  display: block;
+  height: 12px;
+  margin: 0;
+}
+#acct-xp {
+  display: block;
+  height: 100%;
+  background: var(--good);
+}
+.acct-info small {
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0.7;
+}
+.home-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: flex-start;
+}
+.home-char {
+  flex: 1 1 300px;
+  max-width: 380px;
+  position: sticky;
+  top: 18px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+/* Narrow screens: the card and the panel stack (a sticky card would cover the panel). */
+@media (max-width: 760px) {
+  .home-char {
+    position: static;
+    max-width: none;
+  }
+}
+/* The character editor needs the whole width. */
+#home-in:has(.home-panel.wide) .home-char {
+  display: none;
+}
+.char-stage {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 38%, #ffffff, #cfe8ff 70%, #b5d6f5);
+}
+/* The character itself (the editor's stage: idles and turns, drag to spin). */
+#char-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: pan-y;
+}
+#char-canvas:active {
+  cursor: grabbing;
+}
+.char-equipped {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-weight: 900;
+  font-size: 12px;
+  padding: 2px 9px;
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+}
+.char-equipped:empty {
+  display: none;
+}
+.char-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.char-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.char-name b {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.char-name span {
+  font-size: 13px;
+  font-weight: 800;
+  opacity: 0.7;
+}
+#char-customize {
+  margin-left: auto;
+}
+#home-quick {
+  width: 100%;
+  padding: 10px 20px;
+}
+.home-panel {
+  flex: 999 1 380px;
+  min-width: 0;
+  padding: 20px 22px;
+  text-align: left;
+}
+#tab-play {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+#tab-play.hidden {
+  display: none;
+}
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 12px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: var(--paper);
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ink);
+}
+.mode-card[aria-pressed='true'] {
+  background: #fff;
+  box-shadow: 4px 4px 0 var(--c);
+  transform: translateY(-2px);
+}
+.mode-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mode-title i {
+  width: 14px;
+  height: 14px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: #fff;
+}
+.mode-card[aria-pressed='true'] .mode-title i {
+  background: var(--c);
+}
+.mode-title b {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 21px;
+}
+.mode-desc {
+  font-size: 13px;
+  font-weight: 800;
+  opacity: 0.75;
+  line-height: 1.3;
+}
+.pane-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 0 0 8px;
+}
+#home .pane-head h3 {
+  font-size: 22px;
+  margin: 0;
+}
+.map-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.map-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px 4px 4px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: var(--paper);
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ink);
+  text-align: left;
+}
+.map-btn:hover {
+  transform: translateY(-2px);
+}
+.map-btn[aria-pressed='true'] {
+  border-color: var(--team-a);
+  background: #fff;
+  box-shadow: 0 0 0 3px var(--team-a);
+}
+.map-thumb {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 40px;
+  flex: none;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--tint);
+  font-size: 24px;
+}
+.map-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.1;
+}
+.map-text b {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 16px;
+}
+.map-text small {
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0.65;
+}
+.map-mark {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-left: auto;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: #fff;
+}
+.map-btn.filter .map-mark {
+  border-radius: 5px;
+}
+.map-btn[aria-pressed='true'] .map-mark {
+  background: var(--team-a);
+}
+.bot-opts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px 20px;
+}
+#home-bots {
+  margin-left: auto;
+  font-size: 26px;
+  padding: 6px 28px;
+  white-space: nowrap;
+}
+#home-lobby #session-list {
+  max-height: none;
+}
+#home-more {
+  margin-top: 8px;
+}
+#tab-arsenal .hint {
+  margin: -6px 0 12px;
+}
+#home .arsenal-grid {
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+/* The settings borrowed from the menu: no layout editor here (the touch controls only exist in a match). */
+#tab-settings .menu-columns {
+  margin-top: 0;
+}
+#tab-settings #touch-edit-btn {
+  display: none;
+}
+#home .profile h3 {
+  margin: 16px 0 0;
+  font-size: 20px;
+}
+/* The tabs already lead back. */
+#tab-profile #pf-back {
+  display: none;
+}
+
+/* --- Landing (signed out) --------------------------------------------------------------------------- */
+.land-wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 56px 20px;
+}
+.land-top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 12px 20px;
+}
+.land-top .home-bar {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 8px 12px 8px 20px;
+}
+.land-top .home-logo {
+  font-size: 26px;
+}
+.land-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  flex: 1;
+  font-weight: 900;
+  font-size: 15px;
+}
+.land-nav a {
+  color: var(--ink);
+  text-decoration: none;
+}
+.land-nav a:hover {
+  color: var(--team-a);
+}
+.land-ctas a {
+  text-decoration: none;
+}
+.land-hero {
+  padding-top: 36px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 36px;
+  align-items: center;
+}
+.land-hero-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 22px;
+}
+.land-hero .logo {
+  font-size: clamp(56px, 8vw, 104px);
+  margin: 0;
+  text-align: left;
+}
+.land-lead {
+  margin: 0;
+  max-width: 480px;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: #fff;
+  text-shadow: 2px 2px 0 var(--ink);
+}
+.land-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+#home .land-ctas .big-btn {
+  display: inline-block;
+  font-size: 30px;
+  padding: 10px 30px;
+  color: #fff;
+}
+.land-note {
+  margin: 0;
+  font-weight: 800;
+  font-size: 14px;
+  color: #fff;
+  text-shadow: 1px 1px 0 var(--ink);
+}
+.land-shot {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border: 4px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 8px 8px 0 var(--ink);
+  overflow: hidden;
+  background: var(--paper);
+  transform: rotate(1.5deg);
+}
+.land-shot .ph {
+  font-size: clamp(80px, 14vw, 160px);
+}
+.land-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-family: var(--display);
+  font-size: 22px;
+  padding: 2px 12px;
+  color: #fff;
+  background: var(--warn);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  -webkit-text-stroke: 1px var(--ink);
+  transform: rotate(4deg);
+}
+.land-band {
+  background: var(--paper);
+  border-top: 4px solid var(--ink);
+  border-bottom: 4px solid var(--ink);
+}
+#home .land-wrap h2 {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 44px;
+  margin: 0 0 6px;
+}
+#home .land-wrap h2.on-blue {
+  color: #fff;
+  -webkit-text-stroke: 2px var(--ink);
+  text-shadow: 4px 4px 0 var(--ink);
+}
+.land-sub {
+  margin: 0 0 24px;
+  font-weight: 800;
+  font-size: 17px;
+  opacity: 0.7;
+  max-width: 640px;
+}
+.land-sub.on-blue {
+  color: #fff;
+  opacity: 1;
+  text-shadow: 1px 1px 0 var(--ink);
+}
+#land-modes h2 {
+  margin-bottom: 22px;
+}
+.land-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+.land-tile,
+.land-mode {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 4px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 5px 5px 0 var(--ink);
+  overflow: hidden;
+}
+.land-tile .ph {
+  aspect-ratio: 16 / 9;
+  border-bottom: 3px solid var(--ink);
+}
+.land-tile-body {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.land-tile-body b,
+.land-mode-head b {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 24px;
+  line-height: 1.05;
+}
+.land-tile-body > span:last-child,
+.land-mode > span {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.land-mode {
+  gap: 10px;
+  padding: 18px;
+}
+.land-mode .ph {
+  aspect-ratio: 16 / 9;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+}
+.land-mode-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.land-mode-head .tag {
+  margin-left: auto;
+  align-self: center;
+}
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.facts span {
+  font-weight: 800;
+  font-size: 12px;
+  padding: 3px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 9px;
+  background: var(--paper);
+}
+.land-maps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 18px;
+}
+.land-map-show {
+  position: relative;
+  min-height: 360px;
+  border: 4px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 6px 6px 0 var(--ink);
+  overflow: hidden;
+  background: var(--paper);
+}
+.land-map-show .ph {
+  position: absolute;
+  inset: 0;
+  font-size: 140px;
+}
+.land-map-caption {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.land-map-name {
+  font-family: var(--display);
+  font-size: 32px;
+  padding: 2px 14px;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.land-map-gag {
+  font-weight: 800;
+  font-size: 14px;
+  padding: 4px 10px;
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  max-width: 520px;
+}
+.land-map-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.land-map-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  padding: 12px 16px;
+  border: 4px solid var(--ink);
+  border-radius: 14px;
+  background: var(--paper);
+  box-shadow: 2px 2px 0 var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ink);
+}
+.land-map-btn[aria-pressed='true'] {
+  background: #fff;
+  box-shadow: 5px 5px 0 var(--ink);
+  transform: translateX(-4px);
+}
+.land-map-btn b {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 22px;
+}
+.land-map-btn span {
+  font-size: 13px;
+  font-weight: 800;
+  opacity: 0.75;
+}
+.land-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 22px;
+  align-items: start;
+}
+.land-card {
+  padding: 22px 26px;
+  display: grid;
+  gap: 14px;
+}
+#home .land-card h3 {
+  font-size: 30px;
+  margin: 0;
+}
+.land-card > .hint {
+  margin: -6px 0 0;
+}
+/* The landing's account card is always there: no "back" out of it. */
+#home-auth [data-go='cancel'] {
+  display: none;
+}
+.land-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+#land-bots {
+  width: 100%;
+  font-size: 28px;
+  padding: 10px 20px;
+}
+#land-range {
+  margin-top: 0;
+}
+.land-foot {
+  padding: 22px 20px 40px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 13px;
+  color: #fff;
+  text-shadow: 1px 1px 0 var(--ink);
 }
 .home-name {
   display: flex;
@@ -1373,24 +2676,8 @@ input[type='range'] {
   outline: none;
   box-shadow: 0 0 0 4px rgba(255, 122, 26, 0.35);
 }
-.home-buttons {
-  display: grid;
-  gap: 12px;
-  margin-top: 18px;
-}
-.home-buttons .big-btn {
-  width: 100%;
-  padding: 10px 20px;
-  font-size: 28px;
-}
 .big-btn.alt {
   background: var(--team-b);
-}
-#home-lobby h3 {
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: 24px;
-  margin: 0 0 10px;
 }
 #session-list {
   list-style: none;
@@ -1403,7 +2690,7 @@ input[type='range'] {
 }
 #session-list li {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   align-items: center;
   gap: 12px;
   padding: 8px 10px 8px 14px;
@@ -1439,6 +2726,15 @@ input[type='range'] {
   font-variant-numeric: tabular-nums;
   opacity: 0.7;
 }
+/* The session's game mode, as a small tag (tinted per mode by home.ts). */
+#session-list .s-mode {
+  align-self: center;
+  white-space: nowrap;
+}
+#home-game-box .seg {
+  margin-top: 6px;
+}
+
 .small-btn {
   font-family: var(--display);
   font-size: 18px;
@@ -1457,7 +2753,7 @@ input[type='range'] {
 }
 .session-create {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   gap: 10px;
   margin-top: 14px;
 }
@@ -1475,18 +2771,6 @@ input[type='range'] {
   cursor: pointer;
   text-decoration: underline;
 }
-#home-status {
-  min-height: 1.3em;
-  margin: 12px 0 0;
-  font-weight: 800;
-  font-size: 14px;
-  opacity: 0.75;
-}
-#home-status.error {
-  color: #c0271b;
-  opacity: 1;
-}
-
 /* ---------- Scoreboard ---------- */
 #scoreboard {
   position: absolute;
@@ -1553,20 +2837,6 @@ input[type='range'] {
   font-weight: 900;
 }
 
-.bot-options {
-  display: flex;
-  justify-content: center;
-  gap: 14px;
-  margin-top: -4px;
-  font-weight: 800;
-  font-size: 13px;
-}
-.bot-options label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.bot-options select,
 .session-create select {
   font: 800 13px var(--body);
   border: 2px solid var(--ink);
@@ -1574,39 +2844,28 @@ input[type='range'] {
   padding: 2px 6px;
   background: #fff;
 }
-
+/* Phones: the create row wraps (name on its own line, then map, mode and the button). */
+@media (max-width: 560px) {
+  .session-create {
+    grid-template-columns: 1fr 1fr auto;
+  }
+  .session-create input {
+    grid-column: 1 / -1;
+  }
+  .session-create select {
+    min-width: 0;
+    width: 100%;
+  }
+  #session-list li {
+    grid-template-columns: 1fr auto auto;
+  }
+  #session-list .s-mode {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+  }
+}
 /* ---------- Account (home card) ---------- */
-.home-account {
-  margin-bottom: 4px;
-}
-#home-account-in {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-#acct-tag {
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: 24px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-#acct-profile {
-  margin-left: auto;
-}
-#acct-guest {
-  margin: 0 0 10px;
-  font-weight: 800;
-  font-size: 14px;
-  opacity: 0.8;
-}
-.acct-buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
 .small-btn.alt {
   background: var(--team-b);
 }
@@ -1695,6 +2954,10 @@ input[type='range'] {
 .xp-bar > div {
   height: 100%;
   background: var(--good);
+}
+/* Weapon points (Arsenal): orange, the account's XP stays green. */
+.xp-bar > .xp-fill {
+  background: linear-gradient(90deg, #ffb13d, #ff7a1a);
 }
 .profile .hint {
   margin-top: 4px;
@@ -2298,8 +3561,14 @@ input[type='range'] {
 .mobile #ammo-reserve {
   font-size: 14px;
 }
-.mobile #weapon-name {
+/* Phones: only the other gun's ammo, next to the count (the swap button switches). */
+.mobile #weapon-name,
+.mobile .weapon-slot.active,
+.mobile .weapon-slot kbd {
   display: none;
+}
+.mobile #weapon-slots {
+  align-items: flex-start;
 }
 /* Closed: three one-line messages between the top buttons and the left fire button. */
 .mobile #chat {

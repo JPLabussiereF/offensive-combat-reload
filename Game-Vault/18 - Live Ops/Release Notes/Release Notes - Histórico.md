@@ -6,16 +6,26 @@ area: liveops
 source_paths:
   - package.json
   - README.md
+  - shared/arsenal.ts
+  - server/migrations/003_melhorias.sql
 tags:
   - liveops
   - release-notes
   - historico
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Release Notes - Histórico
 
 Reconstruído a partir de `git log --first-parent main` e do conteúdo de cada merge (`git diff --stat`). O projeto **não tem tags nem changelog**; cada PR mesclado na `main` é tratado aqui como uma "versão". Datas são as do commit de merge. Resumos são inferidos dos títulos, das mensagens e dos arquivos alterados.
+
+## Em andamento (ainda não mesclado)
+
+| Data | PR | Branch (origem) | Resumo | Escopo (arquivos) |
+| --- | --- | --- | --- | --- |
+| 2026-10-06 | — (commit `f44efe5`, branch ainda não mesclada) | `feat/home-e-modos` | **Armas secundárias e progressão por melhorias**: pistola (`pistola.json`) e submetralhadora (`smg.json`) como secundária escolhida no Arsenal, troca de arma (1/2/roda, D-pad, botão de toque) com tempo de saque e pente por arma; os níveis nomeados de rifle/faca/granada viram **melhorias** (comuns e opcionais) em `progression.json`, aplicadas por `shared/arsenal.ts` no cliente e no servidor; acertos com a arma (`hit.w`), XP para a arma que matou (`kill.arma`); escolha do Arsenal salva em `player_profile.loadout` (migration `003_melhorias.sql`, que sobe o XP antigo); `ONLINE_GRENADE_LEVEL` removido. Ver [[Weapons]], [[Progression]], [[ADR - Progressão por melhorias de arma]]. | ~47 arquivos (40 alterados + 7 novos) |
+
+## Mesclado na `main`
 
 | Data | PR | Branch (origem) | Resumo | Escopo (arquivos) |
 | --- | --- | --- | --- | --- |

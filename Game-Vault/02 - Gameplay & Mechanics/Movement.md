@@ -10,11 +10,12 @@ source_paths:
   - client/main.ts
   - shared/appearance.ts
   - client/world/hydrant.ts
+  - shared/arsenal.ts
 tags:
   - game
   - gameplay
   - movement
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Movement
@@ -50,7 +51,7 @@ Teclas configuráveis: ver [[Input & Controls]]. Toque: ver [[Touch Controls]].
 | Mirando (ADS) | 3,5 |
 | Slide (pico) | até 10,5 |
 
-A velocidade final = base × `speedMul`, onde `speedMul = movimento da arma (1,0 no rifle) × speedMul do corpo (0,75 sem uma perna, modo PCD) × poção (1,3 "veloz", 0,7 "lerdo")`. Ver [[Buffs & Debuffs]] e [[Character Customization]].
+A velocidade final = base × `speedMul`, onde `speedMul = movimento da arma em mãos (rifle 1,0, pistola 1,06, submetralhadora 1,08; ×0,95 com a Luneta, ×0,96 com o Pente Tambor — ver [[Weapons]]) × speedMul do corpo (0,75 sem uma perna, modo PCD) × poção (1,3 "veloz", 0,7 "lerdo")`. Ver [[Buffs & Debuffs]] e [[Character Customization]].
 
 Prioridade da velocidade base: agachado > mirando > correndo > andando.
 

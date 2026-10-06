@@ -1,6 +1,6 @@
 // Account API shapes and rules shared by the client (forms) and the server (validation).
 import type { Appearance } from './appearance';
-import type { ProgWeapon } from './progression';
+import type { ArsenalChoice, ProgWeapon } from './progression';
 import type { Sex } from './protocol';
 
 export const NAME_RULE = /^[\p{L}\p{N}][\p{L}\p{N} _.-]{1,14}[\p{L}\p{N}]$/u;
@@ -33,7 +33,6 @@ export interface MeResponse {
 export interface WeaponProgress {
   xp: number;
   nivel: number;
-  equipado: number;
 }
 
 export interface Participation {
@@ -72,6 +71,8 @@ export interface ProfileResponse {
   xpNoNivel: number;
   xpProximo: number;
   armas: Record<ProgWeapon, WeaponProgress>;
+  /** The Arsenal choice (secondary gun, optional upgrades turned on), already checked against the levels. */
+  arsenal: ArsenalChoice;
   totais: Totals;
   participacoes: Participation[];
   /** When the name can be changed again (ISO date), null = now. */

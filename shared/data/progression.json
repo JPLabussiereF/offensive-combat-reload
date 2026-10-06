@@ -1,61 +1,49 @@
 {
-  "_doc": "Evolução das armas. xp = pontos acumulados COM ESSA ARMA para liberar o nível (cada abate rende os pontos do abate, bônus incluídos, só para a arma que matou).",
-  "rifle": [
-    {
-      "nivel": 1, "xp": 0, "nome": "Rifle Padrão", "icone": "🔫",
-      "descricao": "O de sempre. Mira de ferro e fé.",
-      "mira": "ferro", "visual": "padrao",
-      "dano": [30, 20], "pente": 30, "cadencia": 700, "recuo": 1, "dispersao": 1, "zoom": 0.85, "recarga": 1
-    },
-    {
-      "nivel": 2, "xp": 400, "nome": "Rifle Remendado com Fita", "icone": "🩹",
-      "descricao": "Metade silver tape, metade coragem. Libera a mira de ponto vermelho.",
-      "mira": "pontoVermelho", "visual": "fita",
-      "dano": [31, 21], "pente": 30, "cadencia": 700, "recuo": 0.95, "dispersao": 0.92, "zoom": 0.8, "recarga": 1
-    },
-    {
-      "nivel": 3, "xp": 1000, "nome": "Rifle da Tia do Zap", "icone": "🌸",
-      "descricao": "Cor-de-rosa, com mira holográfica de carinha feliz. Bom dia! Pente de 32.",
-      "mira": "holo", "visual": "tia",
-      "dano": [32, 22], "pente": 32, "cadencia": 710, "recuo": 0.9, "dispersao": 0.86, "zoom": 0.78, "recarga": 0.94
-    },
-    {
-      "nivel": 4, "xp": 1800, "nome": "Rifle Pisca-Pisca de Natal", "icone": "🎄",
-      "descricao": "Enrolado em luzinhas. Holográfica com lupa de 1,5x e recuo bem mais manso.",
-      "mira": "holoLupa", "visual": "natal",
-      "dano": [33, 23], "pente": 32, "cadencia": 720, "recuo": 0.82, "dispersao": 0.8, "zoom": 0.66, "recarga": 0.92
-    },
-    {
-      "nivel": 5, "xp": 2800, "nome": "Rifle Tunado com Adesivo de Chama", "icone": "🔥",
-      "descricao": "Adesivo de chama dá +10 de velocidade, todo mundo sabe. Luneta 2x, pente de 35.",
-      "mira": "luneta2x", "visual": "chamas",
-      "dano": [34, 24], "pente": 35, "cadencia": 750, "recuo": 0.76, "dispersao": 0.74, "zoom": 0.5, "recarga": 0.9
-    },
-    {
-      "nivel": 6, "xp": 4000, "nome": "Rifle com Luneta do Vovô", "icone": "👴",
-      "descricao": "Madeira envernizada e a luneta de latão que o vovô usava para espiar o vizinho. 3x.",
-      "mira": "luneta3x", "visual": "vovo",
-      "dano": [35, 25], "pente": 35, "cadencia": 760, "recuo": 0.7, "dispersao": 0.68, "zoom": 0.38, "recarga": 0.88
-    },
-    {
-      "nivel": 7, "xp": 5500, "nome": "Rifle Dourado Ostentação", "icone": "👑",
-      "descricao": "Todo de ouro, luneta 4x e pente de 40. Não combina com nada, e é isso que importa.",
-      "mira": "luneta4x", "visual": "ouro",
-      "dano": [37, 26], "pente": 40, "cadencia": 780, "recuo": 0.62, "dispersao": 0.6, "zoom": 0.3, "recarga": 0.85
-    }
-  ],
-  "faca": [
-    { "nivel": 1, "xp": 0, "nome": "Faca de Cozinha", "icone": "🔪", "descricao": "Pegou emprestada da cozinha e não devolveu.", "modelo": "faca", "som": "faca", "alcance": 1.8, "alcanceInvestida": 3.2 },
-    { "nivel": 2, "xp": 300, "nome": "Colher de Pau da Vó", "icone": "🥄", "descricao": "Quem já levou uma sabe: é letal. Um pouco mais de alcance.", "modelo": "colher", "som": "madeira", "alcance": 1.95, "alcanceInvestida": 3.5 },
-    { "nivel": 3, "xp": 750, "nome": "Frango de Borracha", "icone": "🐔", "descricao": "Aperta e grita. Cada golpe é uma humilhação sonora.", "modelo": "frango", "som": "frango", "alcance": 2.1, "alcanceInvestida": 3.8 },
-    { "nivel": 4, "xp": 1350, "nome": "Baguete Amanhecida", "icone": "🥖", "descricao": "Dura de ontem. Crocante por fora, fatal por dentro.", "modelo": "baguete", "som": "crocante", "alcance": 2.25, "alcanceInvestida": 4.1 },
-    { "nivel": 5, "xp": 2100, "nome": "Peixe Congelado", "icone": "🐟", "descricao": "Tirado direto do freezer. O tapa é gelado e o cheiro também.", "modelo": "peixe", "som": "tapa", "alcance": 2.4, "alcanceInvestida": 4.4 },
-    { "nivel": 6, "xp": 3000, "nome": "Macarrão de Piscina", "icone": "🟢", "descricao": "Espuma de 1,5 metro. Parece inofensivo. Não é.", "modelo": "macarrao", "som": "boing", "alcance": 2.55, "alcanceInvestida": 4.7 },
-    { "nivel": 7, "xp": 4100, "nome": "Sabre de Luz Paraguaio", "icone": "🗡️", "descricao": "Comprado na 25 de Março. Faz vuuum de verdade (com a boca). Maior alcance de todos.", "modelo": "sabre", "som": "sabre", "alcance": 2.7, "alcanceInvestida": 5.0 }
-  ],
-  "granada": [
-    { "nivel": 1, "xp": 0, "nome": "Granada de Fragmentação", "icone": "💣", "descricao": "Explode no primeiro contato. Cozinhe demais e ela explode na sua mão.", "tipo": "granada" },
-    { "nivel": 2, "xp": 500, "nome": "Mina Terrestre", "icone": "🧨", "descricao": "G planta uma mina no chão. Arma em 1 s e explode quando um inimigo pisa perto. Fica no mapa enquanto você estiver vivo e some quando você renasce.", "tipo": "mina" },
-    { "nivel": 3, "xp": 1300, "nome": "Dose Dupla", "icone": "✌️", "descricao": "Um G, duas granadas: lança uma e logo em seguida a outra, gastando uma carga só.", "tipo": "dupla" }
-  ]
+  "_doc": "Evolução das armas por melhorias. Cada arma começa no nível 1 (só os atributos base do seu JSON) e cada nível seguinte libera UMA melhoria. xp = pontos acumulados COM ESSA ARMA para liberar o nível (cada abate rende os pontos do abate, bônus incluídos, só para a arma que matou). Melhorias comuns ficam ativas assim que liberadas; as 'opcionais' (com troca: perdem algo para ganhar algo) o jogador liga e desliga no Arsenal. Num mesmo 'grupo' só uma opcional fica ligada, e ela substitui as comuns do grupo. Efeitos: números são multiplicadores, exceto pente/golpe/investida/granadas (somam) e zoom/mira/visual/forma/tipo (substituem). Nomes e descrições ficam em client/ui/strings.ts (upg_<arma>_<id>).",
+  "rifle": {
+    "icone": "🔫",
+    "melhorias": [
+      { "nivel": 2, "xp": 1000, "id": "pontoVermelho", "icone": "🔴", "grupo": "mira", "efeitos": { "mira": "pontoVermelho", "zoom": 0.78, "mirando": 0.7 } },
+      { "nivel": 3, "xp": 2500, "id": "empunhadura", "icone": "🧹", "efeitos": { "recuo": 0.8, "dispersao": 0.85 } },
+      { "nivel": 4, "xp": 4500, "id": "luneta", "icone": "🔭", "opcional": true, "grupo": "mira", "efeitos": { "mira": "luneta", "visual": "vovo", "zoom": 0.38, "mirando": 0.4, "alcance": 1.3, "adsTempo": 1.35, "movimento": 0.95 } },
+      { "nivel": 5, "xp": 7000, "id": "pente", "icone": "🩹", "efeitos": { "pente": 10, "recarga": 0.9, "visual": "fita" } },
+      { "nivel": 6, "xp": 10000, "id": "silenciador", "icone": "🍾", "opcional": true, "efeitos": { "silenciador": true, "dano": 0.9, "alcance": 0.85 } }
+    ]
+  },
+  "pistola": {
+    "icone": "🛎️",
+    "melhorias": [
+      { "nivel": 2, "xp": 700, "id": "gatilho", "icone": "🕹️", "efeitos": { "cadencia": 1.3 } },
+      { "nivel": 3, "xp": 1800, "id": "pontoVermelho", "icone": "🔴", "efeitos": { "mira": "pontoVermelho", "zoom": 0.82, "mirando": 0.6 } },
+      { "nivel": 4, "xp": 3200, "id": "coldre", "icone": "🤠", "efeitos": { "troca": 0.5, "recarga": 0.8 } },
+      { "nivel": 5, "xp": 5200, "id": "batata", "icone": "🥔", "opcional": true, "efeitos": { "silenciador": true, "dano": 0.92, "recuo": 0.85 } }
+    ]
+  },
+  "smg": {
+    "icone": "🌀",
+    "melhorias": [
+      { "nivel": 2, "xp": 800, "id": "motor", "icone": "⚡", "efeitos": { "cadencia": 1.12 } },
+      { "nivel": 3, "xp": 2000, "id": "holo", "icone": "😊", "efeitos": { "mira": "holo", "zoom": 0.82, "mirando": 0.6, "dispersao": 0.9 } },
+      { "nivel": 4, "xp": 3800, "id": "tambor", "icone": "🍿", "opcional": true, "efeitos": { "pente": 18, "recarga": 1.25, "troca": 1.2, "movimento": 0.96 } },
+      { "nivel": 5, "xp": 6000, "id": "coronha", "icone": "🪵", "efeitos": { "recuo": 0.75, "dispersao": 0.85 } }
+    ]
+  },
+  "faca": {
+    "icone": "🔪",
+    "melhorias": [
+      { "nivel": 2, "xp": 600, "id": "afiador", "icone": "🪨", "efeitos": { "intervalo": 0.8 } },
+      { "nivel": 3, "xp": 1500, "id": "frango", "icone": "🐔", "opcional": true, "grupo": "forma", "efeitos": { "forma": "frango", "investida": 0.8, "impulso": 1.1 } },
+      { "nivel": 4, "xp": 2800, "id": "tenis", "icone": "👟", "efeitos": { "investida": 0.6, "impulso": 1.2 } },
+      { "nivel": 5, "xp": 4500, "id": "sabre", "icone": "🗡️", "opcional": true, "grupo": "forma", "efeitos": { "forma": "sabre", "golpe": 0.7, "investida": 0.3, "intervalo": 1.3 } }
+    ]
+  },
+  "granada": {
+    "icone": "💣",
+    "melhorias": [
+      { "nivel": 2, "xp": 700, "id": "mina", "icone": "🧨", "opcional": true, "grupo": "modo", "efeitos": { "tipo": "mina" } },
+      { "nivel": 3, "xp": 1800, "id": "dupla", "icone": "✌️", "opcional": true, "grupo": "modo", "efeitos": { "tipo": "dupla" } },
+      { "nivel": 4, "xp": 3200, "id": "cinto", "icone": "🎽", "efeitos": { "granadas": 1 } },
+      { "nivel": 5, "xp": 5000, "id": "polvora", "icone": "🎆", "efeitos": { "raio": 1.2 } }
+    ]
+  }
 }

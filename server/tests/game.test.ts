@@ -1,8 +1,10 @@
 // The game connection: single-use tickets, origin check, one connection per account, revocation, and
 // progress earned only from kills the server validated.
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { CLOSE, NET } from '@shared/protocol';
+import { CLOSE, FLAG, NET, type SessionInfo } from '@shared/protocol';
 import { BISCUIT, CHERRY, HEALTH, KOI, POTION, RAT } from '@shared/constants';
+import { DEFAULT_LOADOUT, gunStats } from '@shared/arsenal';
+import { GAME_MODE_IDS } from '@shared/modes';
 import type { GameServer } from '../app';
 import { ticketKey } from '../api';
 import { ban, mute, unmute } from '../moderacao';
@@ -22,10 +24,12 @@ async function signedIn(name = 'Jogador') {
   return b;
 }
 
-async function joinMain(b: Browser) {
+/** `lobby`: messages sent before joining (the Arsenal choice is made there: it's locked in the match). */
+async function joinMain(b: Browser, lobby: object[] = []) {
   const p = await Player.connect(game, await b.ticket());
   p.send({ t: 'hello' });
   const welcome = await p.next('welcome');
+  for (const m of lobby) p.send(m);
   p.send({ t: 'join', session: 'principal' });
   const joined = await p.next('joined');
   return { p, welcome, joined };
@@ -108,7 +112,9 @@ describe('progresso', () => {
   it('o abate validado pelo servidor dá pontos à arma, XP à conta e estatísticas, gravados ao sair', async () => {
     const a = await signedIn('Atirador');
     const v = await signedIn('Alvo');
-    const A = await joinMain(a);
+    // In the lobby, a locked upgrade is ignored: the server keeps the rifle without it.
+    const A = await joinMain(a, [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: { rifle: ['silenciador'] } } }]);
+    expect((await A.p.next('progresso', (m) => m.escolha.secundaria === 'smg')).escolha).toEqual({ secundaria: 'smg', ligadas: {} });
     const V = await joinMain(v);
     const vId = V.joined.you;
     A.p.send({ t: 'respawn', p: [0, 0, 0], yaw: 0 });
@@ -116,21 +122,19 @@ describe('progresso', () => {
     await A.p.next('spawned', (m) => m.id === A.joined.you);
     await A.p.next('spawned', (m) => m.id === vId);
 
-    // A locked level is ignored: the server keeps level 1.
-    A.p.send({ t: 'loadout', lo: { rifle: 7, faca: 1, granada: 1 } });
-
     // Headshots from 10 m, spaced by the rifle's fire rate, until the kill.
     const kill = A.p.next('kill', (m) => m.victim === vId, 8000);
     for (let i = 0; i < 8 && !A.p.msgs.some((m) => m.t === 'kill'); i++) {
-      A.p.send({ t: 'hit', target: vId, region: 'cabeca', dist: 10 });
+      A.p.send({ t: 'hit', target: vId, region: 'cabeca', dist: 10, w: 'rifle' });
       await sleep(100);
     }
     const k = await kill;
     expect(k.kind).toBe('head');
+    expect(k.arma).toBe('rifle');
     const points = k.awards.reduce((s, x) => s + x.value, 0);
     const prog = await A.p.next('progresso', (m) => m.armas.rifle.xp > 0);
     expect(prog.armas.rifle.xp).toBe(points);
-    expect(prog.armas.rifle.equipado).toBe(1);
+    expect(prog.armas.rifle.nivel).toBe(1);
     expect(prog.conta.xp).toBe(25);
 
     A.p.send({ t: 'leave' });
@@ -165,11 +169,15 @@ describe('mapas', () => {
     const p = await Player.connect(game, await b.ticket());
     p.send({ t: 'hello' });
     const welcome = await p.next('welcome');
-    const fixed = welcome.sessions.filter((s) => s.permanent);
+    // One per map and game mode; mata-mata keeps the ids from before the modes.
+    const fixed = welcome.sessions.filter((s) => s.permanent && s.mode === 'mata-mata');
     expect(fixed.map((s) => [s.id, s.map]).sort()).toEqual([['halloween', 'halloween'], ['jardim', 'jardim'], ['principal', 'rua']]);
+    expect(welcome.sessions.filter((s) => s.permanent && s.mode === 'corrida-armada')).toHaveLength(3);
 
     p.send({ t: 'create', name: 'Chá das cinco', map: 'jardim' });
-    expect((await p.next('joined')).session).toMatchObject({ name: 'Chá das cinco', map: 'jardim', permanent: false });
+    expect((await p.next('joined')).session).toMatchObject({ name: 'Chá das cinco', map: 'jardim', mode: 'mata-mata', permanent: false });
+    p.send({ t: 'create', name: 'Corrida do chá', map: 'jardim', mode: 'corrida-armada' });
+    expect((await p.next('joined')).session).toMatchObject({ name: 'Corrida do chá', map: 'jardim', mode: 'corrida-armada' });
 
     // A map the server doesn't know falls back to the default one.
     p.send({ t: 'create', name: 'Lugar nenhum', map: 'atlantida' as never });
@@ -331,18 +339,53 @@ describe('vila assombrada', () => {
 });
 
 describe('armas vistas pelos outros', () => {
-  it('trocar o equipamento avisa os outros jogadores, que recebem o loadout validado', async () => {
-    const a = await joinMain(await signedIn('Atirador'));
+  it('o equipamento escolhido antes da partida chega validado aos outros, e não muda durante ela', async () => {
+    const a = await joinMain(await signedIn('Atirador'), [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: {} } }]);
     const b = await joinMain(await signedIn('Observador'));
-    a.p.send({ t: 'loadout', lo: { rifle: 1, faca: 1, granada: 1 } });
-    const m = await b.p.next('playerLoadout', (x) => x.id === a.joined.you);
-    expect(m.lo).toEqual({ rifle: 1, faca: 1, granada: 1 });
-    // Levels the account hasn't unlocked never reach the others.
-    a.p.send({ t: 'loadout', lo: { rifle: 9, faca: 7, granada: 3 } });
-    const n = await b.p.next('playerLoadout', (x) => x.id === a.joined.you);
-    expect(n.lo).toEqual({ rifle: 1, faca: 1, granada: 1 });
+    expect(b.joined.players.find((x) => x.id === a.joined.you)?.lo).toEqual({ ...DEFAULT_LOADOUT, secundaria: 'smg' });
+    // Upgrades the account hasn't unlocked never reach the others; a primary isn't a secondary.
+    const c = await joinMain(await signedIn('Sonhador'), [{ t: 'loadout', lo: { secundaria: 'rifle', ligadas: { faca: ['sabre'], granada: ['mina'] } } }]);
+    expect(b.p.msgs.find((x) => x.t === 'playerJoined' && x.player.id === c.joined.you) ?? (await b.p.next('playerJoined', (x) => x.player.id === c.joined.you))).toMatchObject({ player: { lo: DEFAULT_LOADOUT } });
+    // Mid-match (mata-mata): locked, nobody hears of another loadout.
+    a.p.send({ t: 'loadout', lo: { secundaria: 'pistola', ligadas: {} } });
+    await expect(b.p.next('playerLoadout', (x) => x.id === a.joined.you, 300)).rejects.toThrow();
     a.p.close();
     b.p.close();
+    c.p.close();
+  });
+
+  it('o dano e os pontos são da arma que atirou, e só valem as armas do loadout', async () => {
+    const a = await signedIn('Pistoleiro');
+    const v = await signedIn('Vitima');
+    const A = await joinMain(a);
+    const V = await joinMain(v);
+    const vId = V.joined.you;
+    A.p.send({ t: 'respawn', p: [0, 0, 0], yaw: 0 });
+    V.p.send({ t: 'respawn', p: [0, 0, 10], yaw: 0 });
+    await A.p.next('spawned', (m) => m.id === vId);
+    // The SMG isn't in the loadout (the pistol is the secondary): its hits are ignored.
+    A.p.send({ t: 'hit', target: vId, region: 'peito', dist: 10, w: 'smg' });
+    await expect(A.p.next('damage', (m) => m.target === vId, 300)).rejects.toThrow();
+    // The pistol, out of the holster (the state flag says the secondary is in hand): the pistol's damage.
+    A.p.send({ t: 'state', s: { p: [0, 0, 0], yaw: 0, pitch: 0, f: FLAG.secondary } });
+    A.p.send({ t: 'hit', target: vId, region: 'peito', dist: 10, w: 'pistola' });
+    expect((await A.p.next('damage', (m) => m.target === vId)).amount).toBe(gunStats('pistola').dano.max);
+    // A rifle hit right after the switch still counts (it was in flight); much later it wouldn't.
+    A.p.send({ t: 'hit', target: vId, region: 'peito', dist: 10, w: 'rifle' });
+    expect((await A.p.next('damage', (m) => m.target === vId)).amount).toBe(gunStats('rifle').dano.max);
+    const kill = A.p.next('kill', (m) => m.victim === vId, 8000);
+    for (let i = 0; i < 8 && !A.p.msgs.some((m) => m.t === 'kill'); i++) {
+      await sleep(160);
+      A.p.send({ t: 'hit', target: vId, region: 'peito', dist: 10, w: 'pistola' });
+    }
+    const k = await kill;
+    expect(k.arma).toBe('pistola');
+    const points = k.awards.reduce((s, x) => s + x.value, 0);
+    const prog = await A.p.next('progresso', (m) => m.armas.pistola.xp > 0);
+    expect(prog.armas.pistola.xp).toBe(points);
+    expect(prog.armas.rifle.xp).toBe(0);
+    A.p.close();
+    V.p.close();
   });
 
   it('quem entra recebe o loadout de quem já está na partida', async () => {
@@ -392,5 +435,35 @@ describe('chat da sala', () => {
     expect(b.p.msgs.some((m) => m.t === 'chat' && m.text === 'xingamento')).toBe(false);
     a.p.close();
     b.p.close();
+  });
+});
+
+describe('vaga por mapa', () => {
+  const list = async () => (await (await fetch(`http://127.0.0.1:${game.port}/api/sessoes`)).json()) as SessionInfo[];
+
+  it('lista as sessões sem conexão de jogo, com o modo de cada uma', async () => {
+    const all = await list();
+    expect([...new Set(all.map((s) => s.map))].sort()).toEqual(['halloween', 'jardim', 'rua']);
+    expect([...new Set(all.map((s) => s.mode))].sort()).toEqual([...GAME_MODE_IDS].sort());
+  });
+
+  it('abre outra sessão quando as do mapa lotam, e fecha quando sobra vaga', async () => {
+    const players: Player[] = [];
+    for (let i = 0; i < NET.maxPlayers; i++) {
+      const p = await Player.connect(game, await (await signedIn(`Lotador ${i}`)).ticket());
+      p.send({ t: 'hello' });
+      await p.next('welcome');
+      p.send({ t: 'join', session: 'halloween' });
+      await p.next('joined');
+      players.push(p);
+    }
+    await sleep(250);
+    // Only for that map and mode: the corrida armada room of the same map still has room.
+    const extra = (await list()).find((s) => s.map === 'halloween' && !s.permanent);
+    expect(extra).toMatchObject({ name: 'Vila Assombrada 2', mode: 'mata-mata', players: 0 });
+    players.pop()!.close();
+    await sleep(250);
+    expect((await list()).filter((s) => s.map === 'halloween' && s.mode === 'mata-mata')).toHaveLength(1);
+    for (const p of players) p.close();
   });
 });

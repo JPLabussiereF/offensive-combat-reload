@@ -7,10 +7,10 @@ import { sanitizeFace, type Appearance, type ItemChoice } from '@shared/appearan
 import { catalogItem, type Slot } from '@shared/catalog';
 import type { Sex } from '@shared/protocol';
 import { bodyStats } from '@shared/appearance';
-import { DEFAULT_LOADOUT, type Loadout } from '@shared/progression';
-import { CharacterAnimator, type AvatarPose } from '../character/animator';
+import { DEFAULT_LOADOUT, meleeStats, slotStats, type Loadout } from '@shared/arsenal';
+import { CharacterAnimator, type AvatarPose, type ZombiePose } from '../character/animator';
 import { Character, type CharacterConfig } from '../character/character';
-import { heldGrenade, heldKnife, heldRifle } from './heldWeapons';
+import { heldGrenade, heldGun, heldKnife } from './heldWeapons';
 
 export type { AvatarPose };
 
@@ -55,10 +55,14 @@ export class Avatar {
   private hitboxes: CharacterAnimator | null = null;
   private lodFrame = 0;
   private lodDt = 0;
-  /** The equipped levels' models in the hands (rifle in the hands and on the back, knife, grenade). */
+  /** The loadout's models (the guns in the hands, the primary on the back, knife, grenade). */
   private held: THREE.Object3D[] = [];
+  /** The guns in the hands' holder(s): one is shown, the other is put away. */
+  private primary: THREE.Object3D[] = [];
+  private secondary: THREE.Object3D[] = [];
   private knife: THREE.Object3D | null = null;
   private grenade: THREE.Object3D | null = null;
+  private holdingSecondary = false;
 
   /**
    * The game's camera, once per frame: avatars past 30 m update their pose every 2 frames, past 60 m every
@@ -103,13 +107,17 @@ export class Avatar {
   }
 
   /**
-   * The weapons of a loadout (equipped levels): the rifle model replaces the generic one in the hands and on
-   * the back; the knife and the grenade wait in the hands, shown only while used. Other players see exactly
-   * what this player equipped.
+   * The weapons of a loadout: the guns replace the generic rifle in the hands (the one held shows) and the
+   * primary is slung on the back; the knife and the grenade wait in the hands, shown only while used. Other
+   * players see exactly what this player carries, upgrades included.
    */
   setLoadout(lo: Loadout) {
     for (const o of this.held) o.removeFromParent();
     this.held = [];
+    this.primary = [];
+    this.secondary = [];
+    const primary = slotStats(lo, 'primaria')!;
+    const secondary = slotStats(lo, 'secundaria');
     for (const slot of ['weapon_R', 'weapon_back'] as const) {
       for (const o of this.character.objectsOf(slot)) {
         // The generic rifle stays as the holder (grip, PCD hand swap, visibility); it just isn't drawn.
@@ -117,22 +125,64 @@ export class Avatar {
           const mesh = m as THREE.Mesh;
           if (mesh.isMesh) (mesh.material as THREE.Material).visible = false;
         });
-        const rifle = heldRifle(lo);
-        o.add(rifle);
-        this.held.push(rifle);
+        const gun = heldGun(primary);
+        o.add(gun);
+        this.held.push(gun);
+        if (slot !== 'weapon_R') continue;
+        this.primary.push(gun);
+        if (secondary) {
+          const other = heldGun(secondary);
+          o.add(other);
+          this.secondary.push(other);
+          this.held.push(other);
+        }
       }
     }
     const missing = bodyStats(this.look).missing;
     const knifeHand = missing.handR || missing.armR ? 'hand_L' : 'hand_R';
     const grenadeHand = missing.handL || missing.armL ? 'hand_R' : 'hand_L';
-    this.knife = heldKnife(lo);
+    this.knife = heldKnife(meleeStats(lo.ativas.faca).forma);
     this.knife.position.set(knifeHand === 'hand_R' ? 0.01 : -0.01, 0, 0);
     this.character.sockets[knifeHand].add(this.knife);
     this.grenade = heldGrenade();
     this.grenade.position.set(grenadeHand === 'hand_L' ? 0.01 : -0.01, -0.03, 0);
     this.character.sockets[grenadeHand].add(this.grenade);
     this.held.push(this.knife, this.grenade);
+    this.bladeOnly = !!lo.soFaca;
     this.showHeld(false, false);
+    this.showGun(this.holdingSecondary);
+  }
+
+  /** Only the knife (corrida armada's lightsaber): the guns aren't drawn at all, not even on the back. */
+  private bladeOnly = false;
+
+  /** False once disarmed: no gun is ever drawn (in the hands or on the back). */
+  private armed = true;
+
+  /** No weapons at all, ever (the zumbi mode's zombies): the loadout's models go away. */
+  disarm() {
+    this.armed = false;
+    for (const o of this.held) o.removeFromParent();
+    this.held = [];
+    this.primary = [];
+    this.secondary = [];
+    this.knife = this.grenade = null;
+    for (const slot of ['weapon_R', 'weapon_back'] as const) for (const o of this.character.objectsOf(slot)) o.visible = false;
+  }
+
+  /** A zombie's body (see CharacterAnimator.zombie): no weapons, the pose of its hitbox skeleton. */
+  zombie(dt: number, s: ZombiePose) {
+    const step = this.lod(dt);
+    if (step === null) return;
+    if (this.hitboxes) this.animator.syncFrom(this.hitboxes);
+    this.animator.zombie(this.hitboxes ? 0 : step, s);
+  }
+
+  /** Which gun is in the hands (the other one, or none for a pistol, is put away). */
+  private showGun(secondary: boolean) {
+    this.holdingSecondary = secondary && this.secondary.length > 0;
+    for (const o of this.primary) o.visible = !this.holdingSecondary;
+    for (const o of this.secondary) o.visible = this.holdingSecondary;
   }
 
   private showHeld(knife: boolean, grenade: boolean) {
@@ -168,23 +218,24 @@ export class Avatar {
     return this.root.visible;
   }
 
-  /** Rifle in the hands (armed) or slung on the back. */
+  /** A gun in the hands (armed) or the primary slung on the back (also while the secondary is in the hands). */
   private rifle(inHands: boolean) {
-    for (const o of this.character.objectsOf('weapon_R')) o.visible = inHands;
-    for (const o of this.character.objectsOf('weapon_back')) o.visible = !inHands;
+    for (const o of this.character.objectsOf('weapon_R')) o.visible = inHands && !this.bladeOnly && this.armed;
+    for (const o of this.character.objectsOf('weapon_back')) o.visible = (!inHands || this.holdingSecondary) && !this.bladeOnly && this.armed;
   }
 
-  /** Alive, armed: locomotion, aim offset, rifle in both hands, action layers (reload, knife, grenade). */
+  /** Alive, armed: locomotion, aim offset, the gun in both hands, action layers (reload, knife, grenade). */
   pose(dt: number, s: AvatarPose) {
-    // Knife: the rifle goes on the back and the knife comes out in the hand.
-    this.rifle(!s.knife);
+    if (!!s.secondary !== this.holdingSecondary) this.showGun(!!s.secondary);
+    // Knife: the gun goes away and the knife comes out in the hand (and stays there with a blade-only loadout).
+    this.rifle(!s.knife && !s.blade);
     const step = this.lod(dt);
     if (step !== null) {
       // Following the hitboxes: their state as is and no time of its own, so the very same pose.
       if (this.hitboxes) this.animator.syncFrom(this.hitboxes);
       this.animator.pose(this.hitboxes ? 0 : step, s);
     }
-    this.showHeld(s.knife, this.animator.grenadeInHand);
+    this.showHeld(s.knife || !!s.blade, this.animator.grenadeInHand);
   }
 
   /** A shot (recoil on the next poses). */

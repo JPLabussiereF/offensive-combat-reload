@@ -9,11 +9,12 @@ source_paths:
   - client/ui/home.ts
   - client/ui/strings.ts
   - client/main.ts
+  - client/ui/arsenal.ts
 tags:
   - game
   - ui
   - notifications
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Notifications
@@ -36,13 +37,13 @@ Mensagens que avisam o jogador de algo que aconteceu. Não há sistema central d
 ## Kill feed
 
 - Ícones por tipo de morte (`KIND_ICON` em `main.ts`, `FEED_ICONS` em `hud.ts`): tiro na cabeça ✚, faca 🔪, virilha 🐦, humilhação 💃, granada/explosão 💣, cachorra 🐕; tiro comum, queda e vazio sem ícone.
-- O nome da "arma" é o nome do nível equipado de quem matou (ex.: o nome do rifle no nível dele), "Dancinha da Vitória" para humilhações, "Mordida" para a cachorra Amora.
+- O nome da "arma" é o da arma que matou (`kill.arma` online; o bot informa a sua): "Rifle Padrão", "Pistola do Porteiro", "Submetralhadora Liquidificador", "Faca de Cozinha", "Granada de Fragmentação" — ou o nome da forma ligada, quando há uma ("Frango de Borracha", "Sabre de Luz Paraguaio", "Mina Terrestre", "Dose Dupla"; `weaponLabel` em `client/ui/arsenal.ts`). "Dancinha da Vitória" para humilhações, "Mordida" para a cachorra Amora.
 - O próprio jogador aparece como "Você".
 - Mortes sem atacante (queda, vazio, explosão própria) aparecem como aviso "💀 {vítima}".
 
 ## Avisos (`hud.notice`)
 
-Exemplos confirmados em `main.ts`/`strings.ts`: "{nome} entrou", "{nome} saiu", "🍒 Cereja do Dragão: +N de vida máxima por N s", fim da cereja/poção/mira afiada, "Máximo de {n} minas no mapa", "🐟 Peixe abatido: +N XP", "A mira volta com a próxima tecla ou clique", modos de depuração do F4.
+Exemplos confirmados em `main.ts`/`strings.ts`: "{nome} entrou", "{nome} saiu", "🍒 Cereja do Dragão: +N de vida máxima por N s", fim da cereja/poção/mira afiada, "Máximo de {n} minas no mapa", "🐟 Peixe abatido: +N XP", "A mira volta com a próxima tecla ou clique", "Ligue no Arsenal" (melhoria opcional recém-liberada), modos de depuração do F4.
 
 ## Banners (`hud.showBanner`)
 
@@ -50,7 +51,7 @@ Exemplos confirmados em `main.ts`/`strings.ts`: "{nome} entrou", "{nome} saiu", 
 | --- | --- |
 | `bird` | "NO PÁSSARO!" (tiro na virilha) — ver [[Humiliation]] |
 | `taunt` | "OPRIMIDO!" (fim de uma humilhação) |
-| `level` | "{arma} nível {n}: {nome}!", "🏅 Conta nível {n}!", biscoito Scooby, humanidade, efeito da poção, mira afiada (carpa dourada / tiro ao alvo) — ver [[Progression]] e [[Buffs & Debuffs]] |
+| `level` | "{ícone} {arma} nível {n}: {melhoria}!" (ex.: "🔭 Rifle Padrão nível 4: Luneta do Vovô (3x)!"; chave `upgradeUnlocked`), seguido do aviso "Ligue no Arsenal" quando a melhoria é opcional (`upgradeTurnOn`); "🏅 Conta nível {n}!", biscoito Scooby, humanidade, efeito da poção, mira afiada (carpa dourada / tiro ao alvo) — ver [[Progression]] e [[Buffs & Debuffs]] |
 
 ## Pop-ups de pontos
 
@@ -67,5 +68,6 @@ Não há notificações fora da partida (push, e-mail no jogo, convites de amigo
 ## Código relacionado
 
 - `client/ui/hud.ts` — `killfeed`, `notice`, `showBanner`, `popup`, `setNetStatus`, `showDeath`.
-- `client/main.ts` — `KIND_ICON`, `AWARD_TEXT`, chamadas de notificação.
+- `client/main.ts` — `KIND_ICON`, `AWARD_TEXT`, `weaponNameFor`, handler de `progresso` (faixa de melhoria), chamadas de notificação.
+- `client/ui/arsenal.ts` — `weaponName`, `upgradeName`, `weaponLabel`.
 - `client/ui/strings.ts` — textos.

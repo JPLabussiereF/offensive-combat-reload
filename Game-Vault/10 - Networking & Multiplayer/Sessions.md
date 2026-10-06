@@ -4,6 +4,10 @@ type: system
 status: documented
 area: networking
 source_paths:
+  - server/modes.ts
+  - server/navmesh.ts
+  - shared/zombieMatch.ts
+  - shared/modes.ts
   - server/app.ts
   - server/session.ts
   - server/progress.ts
@@ -12,11 +16,12 @@ source_paths:
   - server/index.ts
   - client/net/connection.ts
   - client/ui/home.ts
+  - shared/arsenal.ts
 tags:
   - game
   - networking
   - session
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Sessions
@@ -71,17 +76,19 @@ Ao fechar: sai da sala (grava o progresso com `close = true`), remove do conjunt
 stateDiagram-v2
     [*] --> Ativa: createSession (início do servidor ou create)
     Ativa --> Ativa: join / leave / tick 20 Hz
-    Ativa --> Removida: vazia e não permanente (sessionsChanged)
+    Ativa --> Removida: vazia, não permanente e o mapa tem vaga em outra sala do mesmo modo (sessionsChanged)
     Ativa --> Removida: servidor desligando (dispose)
     Removida --> [*]
 ```
 
 - Cada sala tem seu próprio `setInterval` de 50 ms (`tick`) e um tópico pub/sub `sessao:<id>`.
-- Salas permanentes (uma por mapa) nunca são removidas. Ver [[Matchmaking]].
+- Cada sala tem um **modo de jogo** (`mata-mata`, `corrida-armada` ou `zumbi`, `SessionInfo.mode`), fixo desde a criação: a `Session` recebe o id e cria o seu `SessionMode` (`server/modes.ts`), que decide o loadout de quem entra, campos extras do jogador, se há dano agora (`combatOpen`), o que um abate faz (`onKill`) e o que roda no tick. Ver [[ADR - Modos de jogo com regras declaradas e ganchos no servidor]].
+- Salas permanentes (uma por mapa **e por modo**, só nos mapas em que o modo é jogado: `modeMaps`) nunca são removidas, e todo par mapa/modo sempre tem uma sala com vaga (o servidor abre `<Mapa> 2` quando as do par lotam). Ver [[Matchmaking]]. O **zumbi** só existe na Vila Assombrada (sala fixa `zumbi-halloween`); `create` com `mode: 'zumbi'` num outro mapa cria a sala na Vila Assombrada.
+- Uma sala **zumbi** carrega a navmesh do mapa ao ser criada (`server/navmesh.ts`; a primeira do processo espera o WebAssembly do Recast) e roda a partida da horda no tick da sala (`ZombieMode`); quem entra recebe o estado da partida no `joined` (`zumbi`). Esvaziou, a partida volta a esperar e os zumbis somem. Ver [[Zombie]].
 
 ### Estado mantido por sala
 
-- `players: Map<id, SPlayer>` — por jogador: estado de rede, vivo, vida, `lastDamageAt`, `deadAt`, kills/deaths/score/humiliations, ping, histórico de acertos (`hitTimes`), últimos tempos de facada/tiro/prop, tokens de chat, granadas vivas, dança, bônus (cereja, humanidade do rato, poção), loadout e `body` (`bodyStats` da aparência: altura, vida máxima).
+- `players: Map<id, SPlayer>` — por jogador: estado de rede, vivo, vida, `lastDamageAt`, `deadAt`, kills/deaths/score/humiliations, ping, histórico de acertos (`hitTimes`), últimos tempos de facada/tiro/prop, tokens de chat, granadas vivas, dança, bônus (cereja, humanidade do rato, poção), loadout (armas e melhorias: do modo — o Arsenal da conta ao entrar, ou o degrau da corrida armada), o loadout anterior e quando mudou (`loadoutBefore`/`loadoutAt`: tiros em voo da arma tirada pelo modo contam por 1 s), arma em mãos (`held`/`heldBefore`/`heldAt`, da `FLAG.secondary`) e `body` (`bodyStats` da aparência: altura, vida máxima).
 - `corpses` — corpos com janela de humilhação (`NET.corpseWindow` = 6 s), dono da dança (`claimedBy`); removidos 2 s após a janela se ninguém estiver dançando.
 - `pickups`, `fish`, `rats` — estado dos itens/criaturas do mapa (de `PICKUPS`, `FISH`, `RATS` em `shared/maps.ts`), com `ready` em tempo do servidor.
 
@@ -91,11 +98,13 @@ stateDiagram-v2
   > [!warning]
   > Inferência: o sufixo parece herança da época de nomes livres (antes das contas); precisa ser confirmado.
 - Entra **morto**, com `deadAt` no passado para poder nascer na hora.
+- O loadout é o do modo (`mode.joinLoadout`). No mata-mata é o Arsenal da conta **naquele momento** e fica travado até sair: `loadout` dentro da sala é recusado e subir de nível não muda as armas ([[ADR - Equipamento travado no mata-mata]]). A escolha é enviada no saguão, antes do `join`.
 - Ao sair: libera corpos que estava humilhando, avisa `playerLeft`.
 - Em `join` o servidor abre uma linha em `session_participation` (assíncrono) e incrementa `matches_played`. Ver [[Save System]].
 
 ### Tick (20 Hz)
 
+0. `mode.tick` (corrida armada: começa a rodada nova quando o intervalo acaba, ver [[Gun Game]]).
 1. Fim da cereja → vida volta ao máximo do corpo.
 2. Regeneração: `HEALTH.regenPerSecond` (25/s) após `HEALTH.regenDelay` (4 s) sem dano.
 3. Tempo de jogo e XP por minuto vivo (`addTime`).

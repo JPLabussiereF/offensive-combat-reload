@@ -4,6 +4,7 @@ type: problem
 status: documented
 area: game-modes
 source_paths:
+  - server/modes.ts
   - server/session.ts
   - server/app.ts
   - client/ai/bots.ts
@@ -12,14 +13,17 @@ tags:
   - game
   - problem
   - modes
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Problem - Partidas sem fim
 
+> [!info] Resolvido em parte (2026-10-06)
+> A [[Gun Game|corrida armada]] tem fim de rodada: o abate com o Sabre de Luz vence, todos veem o vencedor e uma rodada nova começa ([[ADR - Corrida armada]]). O **mata-mata** continua sem fim; nele, "partida" passou a significar a estadia na sessão, que é quando o equipamento fica travado ([[ADR - Equipamento travado no mata-mata]]).
+
 ## Contexto
 
-Os dois modos competitivos, [[Free For All]] (online) e [[Versus Bots]] (offline), são mata-mata livre.
+Os modos competitivos de mata-mata, [[Free For All]] (online) e [[Versus Bots]] (offline), não terminam.
 
 ## Problema
 

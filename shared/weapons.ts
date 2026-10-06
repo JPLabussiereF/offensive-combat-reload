@@ -1,5 +1,8 @@
-// Weapon data schema (section 7 of the design doc). Loaded by client and, later, the server.
+// Weapon data schema (section 7 of the design doc), loaded by the client and the server. These are the base
+// stats of each weapon; what a player actually holds (base + unlocked upgrades) comes from shared/arsenal.ts.
 import riflePadrao from './data/weapons/rifle_padrao.json';
+import pistola from './data/weapons/pistola.json';
+import smg from './data/weapons/smg.json';
 import faca from './data/weapons/faca.json';
 import granadaFrag from './data/weapons/granada_frag.json';
 
@@ -36,6 +39,8 @@ export interface WeaponData {
   recuo: { vertical: number; horizontal: [number, number]; retorno: number };
   ads: { tempo: number; zoom: number };
   movimento: number;
+  /** Seconds to draw it when switching weapons (nothing fires or aims meanwhile). */
+  troca: number;
   alcanceMaximo: number;
   /** Which surfaces the bullet goes through. Absent = stops at the first surface. */
   penetracao?: PenetrationData;
@@ -87,7 +92,7 @@ export interface MeleeData {
   velocidadeInvestida: number;
 }
 
-/** One upgrade level of a grenade. Progression (which level a player has) is decided later. */
+/** A grenade's blast (the JSON keeps it in `niveis`; level 1 is the base, upgrades scale it in shared/arsenal.ts). */
 export interface GrenadeLevel {
   nivel: number;
   /** Nothing beyond this distance (m) takes damage. */
@@ -134,6 +139,8 @@ export interface GrenadeData {
 
 export const WEAPONS: Record<string, WeaponData> = {
   rifle_padrao: riflePadrao as unknown as WeaponData,
+  pistola: pistola as unknown as WeaponData,
+  smg: smg as unknown as WeaponData,
 };
 
 export const MELEE: Record<string, MeleeData> = {

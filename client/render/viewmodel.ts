@@ -1,7 +1,8 @@
-// First-person arms + rifle (the viewmodel), in their own scene and camera so they never clip into walls.
-// The rifle comes from the progression level (weaponModels.ts); the arms are the character's own forearms
-// and hands, faceted, in its skin and sleeve (viewmodelArms.ts), with PCD (a missing hand or arm is not
-// drawn; the knife or the grenade goes to the other hand).
+// First-person arms + gun (the viewmodel), in their own scene and camera so they never clip into walls.
+// The gun in hand comes with its upgrades (sight, magazine, silencer: weaponModels.ts), built once per look
+// and kept, so switching guns costs nothing; switching plays a short draw. The arms are the character's own
+// forearms and hands, faceted, in its skin and sleeve (viewmodelArms.ts), with PCD (a missing hand or arm is
+// not drawn; the knife or the grenade goes to the other hand).
 //
 // Procedural layers on top of the hip / ADS / sprint pose, each a damped spring (springs.ts) with every
 // number in VM_FEEL (tunable live with F6):
@@ -15,14 +16,15 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { armGlove, armSleeve, bodyStats, type Appearance } from '@shared/appearance';
-import { PROGRESSION, type GrenadeKind, type KnifeModel, type RifleLevel } from '@shared/progression';
+import type { GrenadeKind, KnifeForm } from '@shared/progression';
+import { gunStats } from '@shared/arsenal';
 import type { Sex } from '@shared/protocol';
 import { toonGradient } from './materials';
 import { ANIM } from '../character/animator';
 import { Spring } from './springs';
 import { armMesh, placeArm } from './viewmodelArms';
 import { grenadeModel } from '../weapons/grenades';
-import { knifeModel, mineModel, rifleParts } from './weaponModels';
+import { gunModelKey, gunParts, knifeModel, mineModel, type GunHold, type GunLookKey } from './weaponModels';
 
 export interface ViewmodelState {
   ads: number; // 0..1
@@ -71,15 +73,35 @@ export const VM_FEEL = {
   landing: { base: 0.015, perMeter: 0.008, max: 0.07, settle: 0.35, bounce: 0.2 },
   /** Strafe tilt: roll (rad) at full strafe speed. */
   tilt: { max: 0.06, atSpeed: 5, settle: 0.25, adsKeep: 0.3 },
-  /** Arms (gun space): wrist, elbow, roll around the forearm, how closed the hand is. */
+  /**
+   * Arms (gun space): wrist, elbow, roll around the forearm, how closed the hand is. The left hand holds a
+   * long gun's handguard (or the SMG's foregrip) and cups a pistol's grip.
+   */
   arms: {
     right: { wrist: [0.035, -0.085, 0.12] as V3, elbow: [0.12, -0.24, 0.38] as V3, roll: -1.45, grip: 0.92 },
     left: { wrist: [-0.045, -0.088, -0.13] as V3, elbow: [-0.21, -0.28, 0.13] as V3, roll: 2.55, grip: 0.42 },
+    pistolLeft: { wrist: [-0.03, -0.1, 0.07] as V3, elbow: [-0.2, -0.3, 0.3] as V3, roll: 2.3, grip: 0.75 },
   },
+  /** Drawing a gun: how far below it starts (m) and its tilt (rad). */
+  draw: { drop: 0.22, tilt: 0.9 },
+  /** Only a blade in hand (corrida armada's lightsaber): where the knife's fist rests between swings. */
+  blade: { pos: [0.2, -0.24, -0.42] as V3, rot: [1.0, -0.4, -0.1] as V3 },
 };
 
-const MUZZLE_LOCAL = new THREE.Vector3(0, 0.012, -0.47);
 const v3 = (a: V3) => new THREE.Vector3(a[0], a[1], a[2]);
+
+/** A gun's model as the viewmodel keeps it (built once per look). */
+interface GunKit {
+  group: THREE.Group;
+  mag: THREE.Mesh;
+  magY: number;
+  sightY: number;
+  /** ADS distance of this gun (null: VM_FEEL.pose.adsZ). */
+  adsZ: number | null;
+  scoped: boolean;
+  muzzle: THREE.Vector3;
+  hold: GunHold;
+}
 
 /** Peak displacement → impulse for a critically damped spring (peak = v / (ω·e)). */
 const impulseFor = (s: Spring, peak: number) => peak * Math.sqrt(s.stiffness) * Math.E;
@@ -87,7 +109,11 @@ const impulseFor = (s: Spring, peak: number) => peak * Math.sqrt(s.stiffness) * 
 export class Viewmodel {
   readonly root = new THREE.Group();
   private gun = new THREE.Group();
-  private mag!: THREE.Mesh;
+  /** The gun in hand, and every gun look built so far. */
+  private kit!: GunKit;
+  private kits = new Map<string, GunKit>();
+  /** How the arms are posed (rebuilt when it changes). */
+  private hold: GunHold = 'longa';
   private knife = new THREE.Group();
   /** Mirrors the knife to the left hand when the right one is missing. */
   private knifeSide = new THREE.Group();
@@ -106,8 +132,11 @@ export class Viewmodel {
   private grenadeArm = new THREE.Group();
   private grenadeInHand: THREE.Object3D = new THREE.Group();
   private ads = new THREE.Vector3(0, -0.057, VM_FEEL.pose.adsZ);
-  /** The equipped rifle has a magnified scope (the game swaps to the scope overlay when fully aimed). */
+  /** The gun in hand has a magnified scope (the game swaps to the scope overlay when fully aimed). */
   scoped = false;
+  /** Seconds left of the draw after a switch, and its length. */
+  private drawT = 0;
+  private drawLen = 1;
   private flashGroup = new THREE.Group();
   private flashT = 0;
   private sprintT = 0;
@@ -133,11 +162,10 @@ export class Viewmodel {
     b.rotation.y = Math.PI / 2;
     const c = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.1), flashMat);
     this.flashGroup.add(a, b, c);
-    this.flashGroup.position.copy(MUZZLE_LOCAL);
     this.flashGroup.visible = false;
     this.gun.add(this.flashGroup);
 
-    // Knife (or whatever the knife level is) in the right fist, shown only during a melee swing.
+    // Knife (or its rubber chicken / lightsaber form) in the right fist, shown only during a melee swing.
     this.knife.add(this.knifeArm);
     this.setKnife('faca');
     this.knife.visible = false;
@@ -147,7 +175,7 @@ export class Viewmodel {
     this.setGrenadeKind('granada');
     this.grenadeArm.visible = false;
 
-    this.setRifle(PROGRESSION.rifle[0]);
+    this.setGun(gunStats('rifle'));
     this.knifeSide.add(this.knife);
     this.grenadeSide.add(this.grenadeArm);
     this.root.add(this.gun, this.knifeSide, this.grenadeSide);
@@ -170,7 +198,7 @@ export class Viewmodel {
     this.buildArms();
   }
 
-  /** Rebuilds the arms on the rifle (PCD: a missing hand leaves the forearm, a missing arm leaves nothing). */
+  /** Rebuilds the arms on the gun (PCD: a missing hand leaves the forearm, a missing arm leaves nothing). */
   private buildArms() {
     for (const g of [this.arms, this.knifeArm, this.grenadeHandArm]) {
       for (const child of [...g.children]) {
@@ -186,8 +214,9 @@ export class Viewmodel {
       this.arms.add(r);
     }
     if (!this.missing.armL) {
-      const l = armMesh(this.sex, -1, opts(A.left.grip, !this.missing.handL));
-      placeArm(l, v3(A.left.elbow), v3(A.left.wrist), A.left.roll);
+      const L = this.hold === 'pistola' ? A.pistolLeft : A.left;
+      const l = armMesh(this.sex, -1, opts(L.grip, !this.missing.handL));
+      placeArm(l, v3(L.elbow), v3(L.wrist), L.roll);
       this.arms.add(l);
     }
     // The knife's fist and the grenade's open hand (their groups are mirrored when that hand is missing).
@@ -199,37 +228,62 @@ export class Viewmodel {
     this.grenadeHandArm.add(g);
   }
 
-  /** Rebuilds the rifle for a progression level: its sight, paint job and the matching ADS pose. */
-  setRifle(level: RifleLevel) {
-    for (const child of [...this.gun.children]) {
-      if (child === this.flashGroup || child === this.arms) continue;
-      this.gun.remove(child);
-      child.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+  /** Puts a gun in the hands as its upgrades make it (sight, magazine, silencer), with the matching ADS pose. */
+  setGun(g: GunLookKey) {
+    const key = gunModelKey(g);
+    let kit = this.kits.get(key);
+    if (!kit) {
+      const parts = gunParts(g);
+      const group = new THREE.Group();
+      for (const m of parts.meshes) group.add(m);
+      group.add(parts.mag);
+      for (const gl of parts.glow) group.add(gl);
+      bakeStaticParts(group, [parts.mag, ...parts.glow]);
+      kit = { group, mag: parts.mag, magY: parts.magY, sightY: parts.sightY, adsZ: parts.adsZ ?? null, scoped: parts.scoped, muzzle: parts.muzzle, hold: parts.hold };
+      this.kits.set(key, kit);
     }
-    const parts = rifleParts(level);
-    for (const m of parts.meshes) this.gun.add(m);
-    this.mag = parts.mag;
-    this.gun.add(this.mag);
-    for (const gl of parts.glow) this.gun.add(gl);
+    if (kit === this.kit) return;
+    if (this.kit) this.gun.remove(this.kit.group);
+    this.kit = kit;
+    this.gun.add(kit.group);
     if (!this.flashGroup.parent) this.gun.add(this.flashGroup);
     if (!this.arms.parent) this.gun.add(this.arms);
-    bakeStaticParts(this.gun, [this.mag, this.flashGroup, this.arms, ...parts.glow]);
-    this.ads.set(0, -parts.sightY, VM_FEEL.pose.adsZ);
-    this.scoped = parts.scoped;
-    if (!this.arms.children.length) this.buildArms();
+    this.flashGroup.position.copy(kit.muzzle);
+    this.ads.set(0, -kit.sightY, kit.adsZ ?? VM_FEEL.pose.adsZ);
+    this.scoped = kit.scoped;
+    // The support hand moves between a handguard and a pistol's grip.
+    const rebuild = (kit.hold === 'pistola') !== (this.hold === 'pistola') || !this.arms.children.length;
+    this.hold = kit.hold;
+    if (rebuild) this.buildArms();
   }
 
-  /** Swaps what the melee hand swings (knife, wooden spoon, rubber chicken...). */
-  setKnife(model: KnifeModel) {
+  /** A switch: the gun now in hand comes up from below over `seconds`. */
+  draw(seconds: number) {
+    this.drawLen = Math.max(0.05, seconds);
+    this.drawT = this.drawLen;
+  }
+
+  /** Swaps what the melee hand swings (the knife, the rubber chicken, the lightsaber). */
+  setKnife(form: KnifeForm) {
     if (this.knifeItem) {
       this.knife.remove(this.knifeItem);
       this.knifeItem.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
     }
-    this.knifeItem = knifeModel(model);
-    if (model !== 'faca') this.knifeItem.scale.setScalar(1.2);
+    this.knifeItem = knifeModel(form);
+    if (form !== 'faca') this.knifeItem.scale.setScalar(1.2);
     this.knife.add(this.knifeItem);
-    this.swingKeys = model === 'faca' ? Viewmodel.KNIFE_KEYS : Viewmodel.SWING_KEYS;
+    this.swingKeys = form === 'faca' ? Viewmodel.KNIFE_KEYS : Viewmodel.SWING_KEYS;
   }
+
+  /**
+   * Only the knife in hand (corrida armada's lightsaber, a blade-only loadout): no gun, and the knife stays up
+   * between swings instead of coming out only for one.
+   */
+  setBladeOnly(on: boolean) {
+    this.bladeOnly = on;
+    this.gun.visible = !on;
+  }
+  private bladeOnly = false;
 
   /** What the left hand holds for G: a grenade, a land mine or two grenades. */
   setGrenadeKind(kind: GrenadeKind) {
@@ -288,8 +342,8 @@ export class Viewmodel {
     [1, [0.3, -0.62, -0.2], [0.5, 0.2, -0.3]],
   ];
 
-  // Everything that isn't a blade (spoon, chicken, baguette, fish, noodle, saber) is swung in an arc from
-  // the upper right across to the left, so you see it side-on when it connects.
+  // Everything that isn't a blade (the rubber chicken, the lightsaber) is swung in an arc from the upper right
+  // across to the left, so you see it side-on when it connects.
   private static readonly SWING_KEYS: [t: number, pos: [number, number, number], rot: [number, number, number]][] = [
     [0, [0.34, -0.3, -0.3], [1.1, -0.6, 0]],
     [0.14, [0.3, -0.1, -0.36], [1.25, -0.95, 0.1]],
@@ -313,7 +367,7 @@ export class Viewmodel {
   /** Muzzle position in main-camera space, for tracers and the muzzle light. */
   muzzleCameraSpace(out: THREE.Vector3): THREE.Vector3 {
     this.gun.updateWorldMatrix(true, false);
-    return out.copy(MUZZLE_LOCAL).applyMatrix4(this.gun.matrixWorld);
+    return out.copy(this.kit.muzzle).applyMatrix4(this.gun.matrixWorld);
   }
 
   /** Re-applies the tuning (springs and arms) after VM_FEEL changed (the F6 panel). */
@@ -324,7 +378,7 @@ export class Viewmodel {
     this.tiltS.tune(F.tilt.settle);
     for (const s of [this.kickBack, this.kickUp, this.kickSide]) s.tune(F.recoil.settle);
     this.land.tune(F.landing.settle, F.landing.bounce);
-    this.ads.z = F.pose.adsZ;
+    this.ads.z = this.kit.adsZ ?? F.pose.adsZ;
     this.buildArms();
   }
 
@@ -381,9 +435,18 @@ export class Viewmodel {
       rz += tiltIn * 0.55;
       pos.y -= tiltIn * 0.03;
       const out = THREE.MathUtils.smoothstep(r, 0.12, 0.3) * (1 - THREE.MathUtils.smoothstep(r, 0.45, 0.62));
-      this.mag.position.y = -0.09 - out * 0.35;
+      this.kit.mag.position.y = this.kit.magY - out * 0.35;
     } else {
-      this.mag.position.y = -0.09;
+      this.kit.mag.position.y = this.kit.magY;
+    }
+
+    // Draw after a switch: the gun comes up from below, tilted, easing in.
+    if (this.drawT > 0) {
+      this.drawT = Math.max(0, this.drawT - dt);
+      const down = 1 - THREE.MathUtils.smoothstep(1 - this.drawT / this.drawLen, 0, 1);
+      pos.y -= down * F.draw.drop;
+      pos.x += down * 0.04;
+      rx -= down * F.draw.tilt;
     }
 
     // Slide: gun rolls inward and sits a bit lower, still aimable.
@@ -410,7 +473,15 @@ export class Viewmodel {
       rz -= duck * 0.4;
     }
     if (meleeOn) this.poseKnife(s.melee!);
-    this.knife.visible = s.melee !== null;
+    else if (this.bladeOnly) {
+      // Held up in view, moving with the bob, sway and landing like a gun would.
+      const hip = F.pose.hip;
+      const [bx, by, bz] = F.blade.pos;
+      const [ax, ay, az] = F.blade.rot;
+      this.knife.position.set(bx + pos.x - hip[0], by + pos.y - hip[1], bz + pos.z - hip[2]);
+      this.knife.rotation.set(ax + rx, ay + ry, az + rz);
+    }
+    this.knife.visible = meleeOn || this.bladeOnly;
 
     // Grenade: the rifle ducks while the left hand holds the grenade up, then a quick overhand throw.
     const cooking = s.grenadeCook !== null;

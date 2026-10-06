@@ -15,12 +15,18 @@ source_paths:
   - client/world/jardim/panda.ts
   - client/world/jardim/peixes.ts
   - README.md
+  - shared/arsenal.ts
+  - shared/zombieMatch.ts
+  - server/modes.ts
+  - server/navmesh.ts
+  - client/zombies/view.ts
+  - client/zombies/local.ts
 tags:
   - ai
   - bots
   - npc
   - index
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # AI Overview
@@ -29,12 +35,14 @@ updated: 2026-10-05
 
 ## Resumo (nível 1)
 
-O jogo tem dois tipos bem diferentes de personagens não controlados por humanos:
+O jogo tem três tipos bem diferentes de personagens não controlados por humanos:
 
 1. **Bots** (`client/ai/`): jogadores completos dirigidos por código, usados só no modo **Contra bots** (offline). Usam o mesmo movimento, a mesma arma, as mesmas hitboxes e as mesmas regras de pontos de um humano; só as decisões são artificiais. Andam por uma **malha de navegação Recast** gerada na hora a partir dos colisores do mapa.
 2. **NPCs de cenário** (`client/world/...`): criaturas roteirizadas e cosméticas ou de mecânica de mapa — a cadela **Amora** (Rua dos Vizinhos), o **panda** e as **carpas** (Jardim do Dragão), a **bruxa**, o **fantasma**, o **rato gigante**, morcegos, espantalhos e patos do caldeirão (Vila Assombrada) — além dos **bonecos de treino** (`client/entities/dummy.ts`). Nenhum deles navega nem toma decisões de combate: reagem a proximidade, tiros ou ao relógio.
 
-Toda a IA roda **no cliente**. O servidor não simula bots nem NPCs; ele só valida as recompensas ligadas a alguns NPCs (rato, peixes, poção da bruxa) por posição e tempo (`server/session.ts`).
+3. **Zumbis e chefes** do [[Zombie|modo zumbi]] (`shared/zombieMatch.ts`): uma horda que **o servidor simula** online, numa multidão do Detour (`Crowd` do recast-navigation) sobre uma navmesh do mapa **pré-gerada** em tempo de desenvolvimento; no jogo solo, o mesmo motor roda no navegador. Estados simples (saindo do chão, perseguindo o jogador de pé mais próximo, preparando o golpe, especiais do tipo e golpes telegrafados dos chefes). Os clientes só desenham (`client/zombies/view.ts`, interpolados como jogadores remotos) e informam os próprios acertos. Ver [[NPC Behavior]] §10 e [[ADR - Zumbis simulados no servidor sobre navmesh pré-gerada]].
+
+Bots e NPCs de cenário rodam **no cliente**. O servidor não simula bots nem NPCs de cenário; ele só valida as recompensas ligadas a alguns NPCs (rato, peixes, poção da bruxa) por posição e tempo (`server/session.ts`). Os **zumbis** são a exceção: online, o servidor os simula.
 
 ## Mapa da área
 
@@ -71,10 +79,12 @@ flowchart LR
 | --- | --- | --- | --- |
 | Treino offline ([[Training]]) | não | sim (`map.dummies`) | sim |
 | Contra bots ([[Versus Bots]]) | sim: 3, 5, 7 ou 9 (padrão 7, `client/ui/home.ts`) | não (`DummyManager` recebe lista vazia) | sim |
-| Online ([[Free For All]]) | **não** | não | sim (gags sincronizados por `PropBus`/servidor) |
+| Online ([[Free For All]], [[Gun Game]]) | **não** | não | sim (gags sincronizados por `PropBus`/servidor) |
+| Online, zumbi ([[Zombie]]) | não; **zumbis simulados no servidor** | não | sim |
+| Contra bots, zumbi (solo) | não; **zumbis simulados no navegador** (o mesmo motor) | não | sim |
 
 > [!warning]
-> Bots online não existem: o README diz que "bots nas sessões online precisam de simulação no servidor". Ver [[Problem - Bots só existem offline]].
+> Bots online não existem: o README diz que "bots nas sessões online precisam de simulação no servidor". Ver [[Problem - Bots só existem offline]]. Desde o modo zumbi o servidor já anda no mapa (navmesh pré-gerada + Detour), o que abre esse caminho.
 
 ## Decisões importantes
 
@@ -84,7 +94,7 @@ flowchart LR
 ## Limitações conhecidas (código/README)
 
 - Bots não pegam a cereja (README) e, pelo código, não usam granadas, minas, poções nem coletáveis: o `BotWorld` só oferece `fire` e `stab`.
-- Bots usam sempre o Rifle Padrão base (`WEAPONS.rifle_padrao`) e a faca base (`MELEE.faca`), sem progressão.
+- Bots sorteiam uma arma de fogo a cada vida (`pickGun` em `client/ai/bot.ts`: rifle 60%, submetralhadora 25%, pistola 15%) e usam a faca base (`MELEE.faca`), sempre **sem melhorias** (`gunStats(arma)`). Não trocam de arma durante a vida.
 - NPCs de cenário (bruxa, rato, fantasma) reagem à posição da **câmera local** (`listener`), não à de bots ou jogadores remotos. A Amora é exceção: olha para o mais próximo entre jogador, bots e remotos.
 
 ## Código relacionado
@@ -92,5 +102,6 @@ flowchart LR
 - `client/ai/bot.ts`, `client/ai/bots.ts`, `client/ai/navmesh.ts`
 - `client/main.ts` (seção "Bots", `dogTick`, chamadas de `bots.fixedUpdate`/`render`)
 - `client/entities/dummy.ts`, `client/world/dog.ts`, `client/world/halloween.ts`, `client/world/jardim/panda.ts`, `client/world/jardim/peixes.ts`
+- Zumbis: `shared/zombieMatch.ts` (motor), `server/modes.ts` (`ZombieMode`), `server/navmesh.ts`, `tools/bake-navmesh.ts`, `client/zombies/view.ts`, `client/zombies/local.ts`
 
 Ver também: [[Code Architecture Overview]], [[Combat]], [[Map Gags]].

@@ -12,11 +12,12 @@ source_paths:
   - client/weapons/grenades.ts
   - client/main.ts
   - server/session.ts
+  - shared/arsenal.ts
 tags:
   - game
   - gameplay
   - grenades
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Grenades
@@ -28,7 +29,7 @@ updated: 2026-10-05
 
 Arremesso de área que obriga o inimigo a sair da cobertura. A granada é **de impacto**: depois de lançada, explode no primeiro contato. O "cozimento" serve para arriscar e decidir o momento.
 
-Este documento cobre os tipos `granada` (nível 1) e `dupla` (nível 3). O tipo `mina` (nível 2) está em [[Land Mines]]. Fórmula de dano em [[Damage System]].
+Este documento cobre o tipo `granada` (padrão) e o `dupla` (melhoria opcional **Dose Dupla**, nível 3). O tipo `mina` (melhoria opcional do nível 2) está em [[Land Mines]]; mina e Dose Dupla são do mesmo grupo (`modo`), então só uma fica ligada. As melhorias comuns **Cinto** (nível 4, +1 carga) e **Pólvora** (nível 5, raios ×1,2) valem para todos os tipos. Os números saem de `grenadeStats(melhorias)` (`shared/arsenal.ts`); árvore completa em [[Weapons]] e [[Progression]]. Fórmula de dano em [[Damage System]].
 
 ## Como o jogador interage
 
@@ -41,7 +42,7 @@ Este documento cobre os tipos `granada` (nível 1) e `dupla` (nível 3). O tipo 
 
 | Regra | Valor |
 |---|---|
-| Cargas por vida (`quantidade`) | 2 |
+| Cargas por vida (`quantidade`) | 2 (3 com o Cinto; liberado no meio da vida, a carga extra vem pela recarga) |
 | Recarga de uma carga (`recargaSegundos`) | 10 s |
 | Pavio (`pavio`) | 3,0 s — passando disso, **explode na mão** |
 | Puxar mínimo (`tempoMinimoPuxar`) | 0,2 s |
@@ -52,13 +53,13 @@ Este documento cobre os tipos `granada` (nível 1) e `dupla` (nível 3). O tipo 
 | Tempo máximo de voo | 8 s (se não tocar em nada) |
 | Intervalo entre arremessos | 0,8 s |
 | Projétil | esfera de 7 cm, quique 0,35, atrito 0,7, CCD ligado |
-| Dano | 85 até 2,5 m → 12 a 7 m; 0 além de 7 m; paredes bloqueiam |
+| Dano | 85 até 2,5 m → 12 a 7 m; 0 além de 7 m; paredes bloqueiam. Com a Pólvora: 3 m e 8,4 m |
 
 README: alcance aproximado ~9 m parado e ~18 m pulando (não verificado numericamente).
 
 - O lançador **pode se matar** com a própria granada (dano sem proteção). A própria hitbox não detona a granada.
 - Ao explodir: efeito de explosão, som, tremor de câmera proporcional à distância (até 18 m). Indicador no HUD aponta para qualquer granada viva dentro de 7 m.
-- **Dose Dupla** (nível 3, tipo `dupla`): ao soltar, uma segunda granada é lançada **0,3 s depois**, gastando **uma única carga**. Morrer entre os dois arremessos perde a segunda (correção do commit `d7bc9d1`).
+- **Dose Dupla** (melhoria opcional do nível 3, tipo `dupla`): ao soltar, uma segunda granada é lançada **0,3 s depois**, gastando **uma única carga**. Morrer entre os dois arremessos perde a segunda (correção do commit `d7bc9d1`).
 
 ## Estados possíveis (`GrenadeThrower`)
 
@@ -88,15 +89,16 @@ Eventos `pin`, `throw {fuseLeft, double}`, `inHand`, `mine`. Online: `grenade {i
 
 > [!warning] Pontos de atenção
 > - A recarga de 10 s está documentada no JSON como "Offline prototype convenience", mas roda também online, e **o servidor não controla a contagem de cargas** (só o limite de 4 vivas). Ver [[Problem - Cargas de granada controladas só pelo cliente]].
-> - Comentários em `shared/protocol.ts` e `client/main.ts` dizem que o nível 1 é "non-lethal", mas o JSON tem `podeMatar: true` e o README diz que mata. Ver [[Problem - Comentários dizem que a granada nível 1 não é letal]].
+> - Resolvido: os comentários que diziam que o nível 1 era "non-lethal" e a constante `ONLINE_GRENADE_LEVEL` foram removidos. O JSON tem `podeMatar: true` e a explosão vem de `grenadeStats`. Ver [[Problem - Comentários dizem que a granada nível 1 não é letal]].
 
 ## Código relacionado
 
-- `client/weapons/grenades.ts` — `GrenadeThrower` (máquina de estados, cargas, recarga), `GrenadeProjectiles` (corpos dinâmicos Rapier, detecção de impacto por *shape cast*), `grenadeModel`, `duckModel`.
+- `client/weapons/grenades.ts` — `GrenadeThrower` (máquina de estados, cargas, recarga, `setData` quando as melhorias mudam), `GrenadeProjectiles` (corpos dinâmicos Rapier, detecção de impacto por *shape cast*), `grenadeModel`, `duckModel`.
 - `client/main.ts` — `throwGrenade`, `launch`, `explode`, `explosionFx`, `blastDistance`, `dropCookedGrenade`, `DOUBLE_THROW_GAP`.
 - `shared/weapons.ts` — `GrenadeData`, `GrenadeLevel`, `grenadeLevel`, `explosionDamage`, `clampExplosionDamage`.
-- `server/session.ts` — case `grenade`, `onBoom`.
+- `shared/arsenal.ts` — `grenadeStats` (cargas, tipo, `explosao` com o raio da Pólvora).
+- `server/session.ts` — case `grenade` (guarda a explosão de cada granada no lançamento), `onBoom`.
 
 ## Configurações relacionadas
 
-`shared/data/weapons/granada_frag.json`, `progression.json` (`granada`), `ONLINE_GRENADE_LEVEL`. Ver [[Constants Reference]].
+`shared/data/weapons/granada_frag.json` (explosão do nível 1), `progression.json` (`granada`: mina, dupla, cinto, pólvora). Ver [[Constants Reference]].

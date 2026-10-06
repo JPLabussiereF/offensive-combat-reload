@@ -1,0 +1,88 @@
+{
+  "id": "smg",
+  "nome": "Submetralhadora Liquidificador",
+  "categoria": "submetralhadora",
+  "slot": "secundaria",
+  "dano": {
+    "max": 22,
+    "min": 12,
+    "distMax": 8,
+    "distMin": 25
+  },
+  "multiplicadores": {
+    "cabeca": 2.0,
+    "pescoco": 1.4,
+    "peito": 1.0,
+    "abdomen": 1.0,
+    "quadril": 0.9,
+    "bracos": 0.75,
+    "maos": 0.5,
+    "coxas": 0.75,
+    "canelas": 0.6
+  },
+  "cadencia": 950,
+  "modo": "auto",
+  "pente": 32,
+  "reserva": 128,
+  "recarga": {
+    "tatica": 1.9,
+    "vazia": 2.3
+  },
+  "dispersao": {
+    "mirando": 0.25,
+    "parado": 1.0,
+    "andando": 1.6,
+    "noAr": 3.5,
+    "porTiro": 0.25,
+    "decaimento": 8.0
+  },
+  "recuo": {
+    "vertical": 0.55,
+    "horizontal": [
+      -0.45,
+      0.45
+    ],
+    "retorno": 10.0
+  },
+  "ads": {
+    "tempo": 0.17,
+    "zoom": 0.9
+  },
+  "movimento": 1.08,
+  "troca": 0.35,
+  "alcanceMaximo": 200,
+  "penetracao": {
+    "maxSuperficies": 1,
+    "materiais": {
+      "wood": {
+        "dano": 0.5,
+        "espessuraMax": 0.3
+      },
+      "glass": {
+        "dano": 0.85,
+        "espessuraMax": 0.1
+      },
+      "paper": {
+        "dano": 0.9,
+        "espessuraMax": 0.1
+      }
+    }
+  },
+  "tracanteACada": 2,
+  "desbloqueioNivel": 1,
+  "preco": {
+    "moedaJogo": 0,
+    "premium": 0
+  },
+  "slotsAcessorio": [
+    "mira",
+    "pente",
+    "coronha"
+  ],
+  "modelo": "weapons/smg.glb",
+  "sons": {
+    "tiro": "smg_fire",
+    "recarga": "smg_reload",
+    "vazio": "dry_fire"
+  }
+}

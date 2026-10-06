@@ -17,7 +17,7 @@ tags:
   - game
   - rendering
   - materials
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Materials
@@ -44,7 +44,7 @@ As cores em si estão em [[Material Palette]]; as texturas em [[Texture System]]
 Objetos feitos de várias primitivas coloridas viram **uma geometria** com atributo `color` e **um** material:
 
 - `mergeColoredParts(parts)` (`materials.ts`): usado no cachorro, no topo de sorvete, nos flamingos, nas lanternas do céu, no pato-granada etc. Remove UVs.
-- `bakeStaticParts` (`viewmodel.ts`): o rifle e os braços em primeira pessoa (~18 caixas) viram um mesh com `MeshToonMaterial({ vertexColors: true })`; ficam de fora o carregador (animado), o clarão, os braços e as partes que brilham.
+- `bakeStaticParts` (`viewmodel.ts`): a arma de fogo em mãos (rifle, pistola ou submetralhadora, um *kit* por visual) e os braços em primeira pessoa (~18 caixas) viram um mesh com `MeshToonMaterial({ vertexColors: true })`; ficam de fora o carregador (animado), o clarão, os braços e as partes que brilham.
 - `mergeColored` (`heldWeapons.ts`): as armas vistas em terceira pessoa, com **um** material toon compartilhado por todas as armas de todos os personagens. Partes transparentes ou `MeshBasicMaterial` (brilhos) são descartadas ("são minúsculas de longe").
 - `MapBuilder.addGeometry`: toda peça estática recebe o tint como cor de vértice (multiplicado por `shade`, se houver).
 

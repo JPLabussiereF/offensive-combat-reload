@@ -22,11 +22,14 @@ source_paths:
   - vite.config.ts
   - .github/workflows/ci.yml
   - deploy/nginx
+  - shared/progression.ts
+  - shared/data/weapons/pistola.json
+  - shared/data/weapons/smg.json
 tags:
   - game
   - decisions
   - technical-debt
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Dívida técnica
@@ -65,7 +68,8 @@ Lista consolidada da dívida técnica encontrada ao documentar o código (2026-1
 
 ## Dados e esquema sem uso
 
-- Campos sem uso em `shared/weapons.ts` e no JSON do rifle: `preco.moedaJogo`, `premium`, `desbloqueioNivel`, `slotsAcessorio`, `categoria`, `slot`, `sons`, e `modelo` apontando para um `.glb` inexistente ([[Economy Design]]).
+- Campos sem uso em `shared/weapons.ts` e nos JSON das armas de fogo (rifle, pistola, submetralhadora): `preco.moedaJogo`, `premium`, `desbloqueioNivel`, `slotsAcessorio`, `categoria`, `sons`, `nome` (os nomes exibidos agora vêm de `arma_*` em `client/ui/strings.ts`), e `modelo` apontando para um `.glb` inexistente ([[Economy Design]]). O campo `slot` **passou a ser usado**: monta `PRIMARIES`/`SECONDARIES` em `shared/progression.ts`.
+- A coluna `weapon_progress.equipped_level` não é mais escrita; só é lida para derivar a escolha do Arsenal de contas antigas (`legacyChoice`, [[Data Migrations]]).
 - Campos sem uso no esquema: `player_stats.mmr`, `avatar_url`, `bio`, o status `suspended`, as sanções `ranked_ban`/`shadow_ban`. Também `matches_played` conta entradas em sala, não partidas ([[Database]]).
 - `spawnsB` e os spawns de time não são lidos por nenhum modo ([[Spawn Design]], [[Team Deathmatch]]).
 - Os contadores de "segredos" da Vila não são lidos por ninguém. A máquina de refrigerante, o esqueleto do palco e os olhos dos retratos são promessas sem implementação (`client/world/halloween.ts`, `hauntedTown.ts`).
@@ -73,7 +77,7 @@ Lista consolidada da dívida técnica encontrada ao documentar o código (2026-1
 ## Comentários e documentação desatualizados
 
 - O README diz que o Gordo tem 150 de vida e que a altura escala hitbox e visão, mas o código dá 100 de vida para todos e a altura é só visual ([[ADR - Altura e biotipo apenas visuais]]).
-- Comentários dizem que a granada nível 1 online "não é letal", mas `granada_frag.json` tem `podeMatar: true`. Além disso, o dano usa sempre o nível 1 da granada ([[Problem - Comentários dizem que a granada nível 1 não é letal]]).
+- ~~Comentários dizem que a granada nível 1 online "não é letal"~~ — resolvido: `ONLINE_GRENADE_LEVEL` e os comentários foram removidos; a explosão vem de `grenadeStats` ([[Problem - Comentários dizem que a granada nível 1 não é letal]]).
 - `taunt.ts` diz "G near a fresh corpse", mas a tecla é E. `localPlayer.ts` diz que corpos mais pesados têm mais vida. O comentário de `lanternas.ts` cita escopetas, que não existem. O comentário do placar diz "Tab, online", mas ele também aparece contra bots.
 - `docs/PERSONAGENS.md` diz 336 itens, e o código tem 306. A contagem de superfícies varia entre 12, 13 e 19 nos documentos, e o código tem 20. O README fala de 3 estilos de olho e 3 cabelos (o código tem 6 e 30).
 - `docs/MAPAS.md` promete uma checagem automática de vãos que não existe ([[Problem - Teste de estrutura de vãos ausente]]).

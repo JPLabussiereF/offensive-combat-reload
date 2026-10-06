@@ -13,11 +13,12 @@ source_paths:
   - client/main.ts
   - client/ui/scoreboard.ts
   - client/ui/strings.ts
+  - shared/progression.ts
 tags:
   - game
   - gameplay
   - scoring
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Scoring
@@ -57,7 +58,7 @@ O comentário no código explica o valor da opressão: *"Tripled: dancing on a b
 
 - **Os bônus só valem no golpe que mata.** No servidor, os prêmios são montados a cada acerto e só são somados se aquele dano matar (`damage` → `kill`).
 - `headshot` e `groin` se excluem: a região do acerto decide o tipo (`head`, `groin` ou `gun`).
-- `longShot` vale só para o rifle. A distância usada é a informada pelo cliente, limitada ao alcance máximo do rifle e conferida pelo servidor.
+- `longShot` vale só para armas de fogo (rifle, pistola ou submetralhadora). A distância usada é a informada pelo cliente, limitada ao alcance máximo da arma que atirou e conferida pelo servidor.
 - **Poção crítica** ([[Buffs & Debuffs]]): todo tiro causa dano de cabeça, mas o prêmio continua sendo da região que foi acertada.
 - **Mortes sem atacante** (queda, vazio, a própria granada, a Amora) não dão pontos a ninguém e **não tiram pontos** de ninguém. Só somam uma morte. Não há pontuação negativa.
 - **Opressão:** a pontuação só sai se a dança durar pelo menos `HUMILIATION.duration` (3,2 s, com 0,4 s de tolerância no servidor). Se for interrompida, não pontua.
@@ -67,7 +68,7 @@ O comentário no código explica o valor da opressão: *"Tripled: dancing on a b
 | Contador | Online | Contra bots | Treino |
 | --- | --- | --- | --- |
 | Pontos, abates, mortes e opressões **da sessão** | servidor, em memória; zera ao reentrar | `BotManager`, em memória | contador local |
-| XP da arma que matou | soma dos pontos do abate | — | — |
+| XP da arma que matou (`kill.arma`; um abate de pistola evolui a pistola) | soma dos pontos do abate | — | — |
 | XP da conta | +25 por abate, +50 por opressão | — | — |
 | Estatísticas da conta (abates, mortes, cabeça, virilha, facadas, pelas costas, granadas, opressões, tempo) | `player_stats` | — | — |
 | Participação (pontos, abates, mortes e opressões daquela entrada) | `session_participation` | — | — |
@@ -77,7 +78,7 @@ A opressão soma à pontuação da sessão e ao XP da conta, mas **não** ao XP 
 ## Saídas (feedback)
 
 - **Pop-ups** com o nome e o valor de cada prêmio ([[HUD]]). Faixas "NO PÁSSARO!" e "OPRIMIDO!".
-- **Kill feed** com o atacante, a arma (nome do nível equipado) e a vítima ([[Notifications]]).
+- **Kill feed** com o atacante, a arma que matou (nome da arma, ou da forma ligada: "Sabre de Luz Paraguaio", "Mina Terrestre") e a vítima ([[Notifications]]).
 - **Placar** (`Tab`): #, jogador, nível, pontos, abates, mortes, opressões e ping. A ordem é por **pontos ↓**, depois **abates ↓**, depois **mortes ↑**. Online, o servidor manda `scores` a cada 1 s. Ver [[Scoreboard]].
 
 ## Estados / exceções

@@ -13,11 +13,12 @@ source_paths:
   - client/gameplay/targets.ts
   - server/session.ts
   - shared/weapons.ts
+  - shared/arsenal.ts
 tags:
   - game
   - gameplay
   - combat
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Combat
@@ -29,14 +30,14 @@ Visão geral do combate. Fórmulas ficam em [[Damage System]]; detalhes de cada 
 
 ## Objetivo
 
-Combate rápido de arena "todos contra todos": rifle hitscan com TTK curto, faca que mata com um golpe, granada de impacto, mortes instantâneas especiais ("No pássaro!", faca) e a [[Humiliation]] sobre o corpo como recompensa arriscada.
+Combate rápido de arena "todos contra todos": armas de fogo hitscan com TTK curto (rifle na primária, pistola ou submetralhadora na secundária), faca que mata com um golpe, granada de impacto, mortes instantâneas especiais ("No pássaro!", faca) e a [[Humiliation]] sobre o corpo como recompensa arriscada.
 
 ## Estrutura
 
 ```text
 Combat
 ├── Hit Detection   → hitscan (raio Rapier) + hitboxes por osso  → [[Damage System]]
-├── Weapons         → rifle / faca / granada                     → [[Weapons]], [[Melee]], [[Grenades]], [[Land Mines]]
+├── Weapons         → rifle + secundária / faca / granada        → [[Weapons]], [[Melee]], [[Grenades]], [[Land Mines]]
 ├── Damage          → queda por distância, regiões, penetração   → [[Damage System]]
 ├── Reload / Recoil / Spread                                     → [[Weapons]]
 ├── Critical Hits   → cabeça ×2,5, virilha e faca instantâneas, poção do crítico
@@ -48,9 +49,10 @@ Combat
 
 | Ação | Tecla | Bloqueada quando |
 |---|---|---|
-| Atirar | Mouse esquerdo | recarregando, golpe de faca, dançando |
-| Mirar | Mouse direito | correndo, golpe de faca, granada na mão, dançando |
-| Recarregar | R | golpe de faca, granada na mão, dançando |
+| Atirar | Mouse esquerdo | recarregando, sacando a arma após a troca, golpe de faca, dançando |
+| Mirar | Mouse direito | correndo, sacando a arma, golpe de faca, granada na mão, dançando |
+| Recarregar | R | sacando a arma, golpe de faca, granada na mão, dançando |
+| Trocar de arma | 1 / 2 / roda do mouse (←/→ no controle) | golpe de faca, granada na mão, dançando (o aperto é descartado) |
 | Faca | F | intenção de tiro no tick, dançando, granada na mão |
 | Granada / mina | G (segurar = cozinhar) | intenção de tiro, dançando, golpe de faca |
 | Oprimir | E perto do corpo | intenção de tiro, golpe de faca, granada na mão |
@@ -61,7 +63,7 @@ Comentário explícito em `client/main.ts`:
 
 1. **Tiro tem prioridade** sobre o sprint (cancelado no mesmo tick) e sobre uma granada na mão (o pino volta; a granada não é perdida).
 2. O tiro **nunca interrompe**: uma recarga (não atira até acabar), um golpe de faca ("cancelar seria um exploit") ou a dança (só a morte encerra).
-3. Faca, granada e dança **cancelam a recarga**.
+3. Faca, granada, dança e a **troca de arma** cancelam a recarga. Depois da troca, a arma nova leva o seu tempo de saque (`troca` do JSON) sem atirar nem mirar ([[Weapons]]).
 4. O slide continua: dá para atirar deslizando.
 5. Teclas apertadas enquanto morto são descartadas (não disparam ao renascer).
 
@@ -91,11 +93,11 @@ Hitmarker (normal / cabeça / abate), números de pontos, confete/estrelas, kill
 
 ## Código relacionado
 
-- `client/main.ts` — `stepInner` (ordem das ações), hooks do rifle, `startMelee`/`resolveMelee`, `throwGrenade`/`explode`/`plantMine`.
+- `client/main.ts` — `stepInner` (ordem das ações), `gunHooks` (compartilhados pelas duas armas), `holdSlot`/`switchTo` (troca), `startMelee`/`resolveMelee`, `throwGrenade`/`explode`/`plantMine`.
 - `client/weapons/weapon.ts`, `hitscan.ts`, `melee.ts`, `grenades.ts`, `mines.ts`.
 - `client/gameplay/targets.ts` — `Target`, `Humiliable`, `HitboxRegistry`.
 - `server/session.ts` — `onHit`, `onStab`, `onBoom`, `damage`, `kill`.
 
 ## Configurações relacionadas
 
-`shared/data/weapons/*.json`, `shared/data/progression.json`, `SCORE`, `HUMILIATION`. Ver [[Constants Reference]].
+`shared/data/weapons/*.json`, `shared/data/progression.json` (melhorias, aplicadas por `shared/arsenal.ts`), `SCORE`, `HUMILIATION`. Ver [[Constants Reference]] e [[Shared Systems]].

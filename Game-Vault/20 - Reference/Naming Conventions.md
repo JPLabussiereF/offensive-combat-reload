@@ -25,11 +25,13 @@ source_paths:
   - shared/data/progression.json
   - docker-compose.yml
   - docs/MAPAS.md
+  - shared/progression.ts
+  - server/migrations/003_melhorias.sql
 tags:
   - reference
   - naming
   - conventions
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Naming Conventions
@@ -44,30 +46,31 @@ Convenções **observadas** no código (não há guia de estilo escrito nem lint
 | --- | --- | --- |
 | Classes, funções, variáveis, tipos | Inglês | `BotManager`, `GrenadeThrower`, `PropBus`, `startServer`, `computeDamage`, `pickSafeSpawn` |
 | Comentários de código | Inglês, frases completas, explicam o "porquê" | "Coalesce bursts of joins/leaves into one lobby update." |
-| Valores de domínio (uniões de string) | **Português**, sem acento | Regiões `'cabeca' \| 'pescoco' \| 'virilha'`; poções `'pato' \| 'veloz' \| 'lerdo' \| 'critico' \| 'bebado'`; dificuldade `'facil' \| 'normal' \| 'dificil'`; qualidade `'auto' \| 'baixa' \| 'media' \| 'alta'`; coletáveis `'cereja' \| 'biscoito'`; armas de progressão `'rifle' \| 'faca' \| 'granada'`; altura `'pequeno' \| 'medio' \| 'alto'` |
+| Valores de domínio (uniões de string) | **Português**, sem acento | Regiões `'cabeca' \| 'pescoco' \| 'virilha'`; poções `'pato' \| 'veloz' \| 'lerdo' \| 'critico' \| 'bebado'`; dificuldade `'facil' \| 'normal' \| 'dificil'`; qualidade `'auto' \| 'baixa' \| 'media' \| 'alta'`; coletáveis `'cereja' \| 'biscoito'`; armas de progressão `'rifle' \| 'pistola' \| 'smg' \| 'faca' \| 'granada'` (`smg` é a exceção em inglês); espaços `'primaria' \| 'secundaria'`; ids de melhoria em camelCase pt (`'pontoVermelho' \| 'luneta' \| 'silenciador' \| 'frango' \| 'sabre' \| 'mina'`…); formas da faca `'faca' \| 'frango' \| 'sabre'`; altura `'pequeno' \| 'medio' \| 'alto'` |
 | Ids de mapa | Português/curto | `rua`, `jardim`, `halloween` (nome exibido em `MAPS[id].nome`) |
 | Chaves de superfície | Português | `grama`, `asfalto`, `calcada`, `tijolo`, `reboco`, `madeira`, `telhado`, `vidro`, `papel`, `lataria`... (`client/world/surfaces.ts`) |
 | Ids de gags (`PropBus`) | Português, minúsculas, `nome[:n]` | `hidrante:1`, `fantasma`, `bruxa`, `espantalho:2`, `caldeirao` (o servidor exige `^[a-z]{1,16}(:\d{1,3})?$`) |
-| Ações de input | Inglês | `fire`, `ads`, `reload`, `melee`, `grenade`, `taunt`, `scoreboard`, `chat` (`client/core/keybinds.ts`) |
+| Ações de input | Inglês | `fire`, `ads`, `reload`, `melee`, `grenade`, `weapon1`, `weapon2`, `swapWeapon`, `taunt`, `scoreboard`, `chat` (`client/core/keybinds.ts`) |
 | Tipos de mensagem do protocolo | Inglês camelCase, campo `t` | `hello`, `playerJoined`, `tauntEnd`, `selfDamage`, `chatRefused` — exceção: `progresso` |
-| Campos de mensagem | Inglês curto, às vezes 1–2 letras | `p` (posição), `s` (estado), `f` (flags), `h` (vida), `o`/`e` (origem/fim), `lo` (loadout), `ap` (aparência); exceções em pt: `nivel`, `armas`, `conta`, `subiu`, `equipado` |
+| Campos de mensagem | Inglês curto, às vezes 1–2 letras | `p` (posição), `s` (estado), `f` (flags), `h` (vida), `o`/`e` (origem/fim), `lo` (loadout ou escolha do Arsenal), `ap` (aparência), `w` (arma do acerto); exceções em pt: `nivel`, `armas`, `arma`, `conta`, `subiu`, `escolha` |
 | Constantes | `UPPER_SNAKE` com objeto `as const` | `NET`, `MOVE`, `SCORE`, `HUMILIATION`, `BOT_SKILLS`, `LAG_SLACK`, `REVOCATION_CHANNEL` |
 | Ids de DOM | Inglês kebab-case | `#hud`, `#crosshair`, `#killfeed`, `#health-fill`, `#net-status`, `#loading-tip` |
 
 ## Dados JSON (`shared/data/`)
 
 - **Chaves em português camelCase**: `dano`, `distMax`, `multiplicadores`, `cadencia`, `pente`, `reserva`, `recarga.tatica/vazia`, `dispersao.mirando/parado/andando/noAr`, `alcanceMaximo`, `alcanceInvestida`, `quantidade`, `recargaSegundos`, `pavio`, `tempoMaximoVoo`, `bonusPulo`, `porMinutoVivo`, `porAbate`, `porOpressao`, `expoente`.
-- Arquivos em `snake_case`: `rifle_padrao.json`, `granada_frag.json`, `nivel_conta.json`; o `id` interno repete o nome (`"id": "rifle_padrao"`).
+- Arquivos em `snake_case`: `rifle_padrao.json`, `pistola.json`, `smg.json`, `granada_frag.json`, `nivel_conta.json`; o `id` interno repete o nome (`"id": "rifle_padrao"`).
+- Em `progression.json`, cada melhoria tem `id` em camelCase pt e `efeitos` com chaves pt (`dano`, `cadencia`, `recuo`, `mirando`, `troca`, `golpe`, `investida`, `raio`…); os textos ficam em `client/ui/strings.ts` com chaves derivadas do id: `arma_<arma>`, `armaDesc_<arma>`, `upg_<arma>_<id>`, `upgDesc_<arma>_<id>`, `fx_<efeito>`.
 - Campo `_doc` (ou `_leia-me` no manifesto de texturas) com a explicação em português (o carregador do manifesto de texturas ignora explicitamente chaves que começam com `_`, em `client/world/surfaces.ts`).
 - O código TypeScript que lê esses dados mantém os nomes pt (`rifle.cadencia`, `knife.alcanceInvestida`, `GRENADE.tempoMaximoVoo`).
 
 ## API HTTP e banco
 
 - Rotas em português: `/api/auth/cadastro`, `/entrar`, `/sair`, `/recuperar`, `/redefinir`, `/api/perfil`, `/api/conta`, `/api/conta/cancelar-exclusao`, `/api/auth/discord/retorno`; exceções em inglês: `/api/me`, `/api/ws-ticket`.
-- Corpos JSON em pt: `nome`, `sexo`, `aparencia`, `equipado`, `senha`; erros `{ erro: '<código>' }`.
+- Corpos JSON em pt: `nome`, `sexo`, `aparencia`, `arsenal` (`{ secundaria, ligadas }`), `senha`; erros `{ erro: '<código>' }`.
 - Códigos de erro em **pt `snake_case`** sem acento: `nao_autorizado`, `credenciais_invalidas`, `conta_suspensa`, `nome_esgotado`, `origem_invalida`, `erro_interno` (`ApiErrorCode` em `shared/account.ts`).
 - Tabelas SQL em **inglês `snake_case` no singular**: `account`, `player_profile`, `weapon_progress`, `session_participation`, `sanction`, `auth_event`.
-- Migrations numeradas `NNN_<nome-pt>.sql` (`001_contas.sql`, `002_aparencia.sql`) com `.down.sql` manual.
+- Migrations numeradas `NNN_<nome-pt>.sql` (`001_contas.sql`, `002_aparencia.sql`, `003_melhorias.sql`) com `.down.sql` manual.
 
 ## Chaves de armazenamento e infraestrutura
 

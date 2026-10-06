@@ -18,7 +18,7 @@ tags:
   - ui
   - mobile
   - touch
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Touch Controls
@@ -41,6 +41,7 @@ Controles de toque para celulares e tablets (`TouchControls` em `client/ui/touch
 | Recarregar | `reload` | direita | anel enche durante a recarga; **pulsa** com pente baixo |
 | Faca | `melee` | direita, embaixo | — |
 | Granada | `grenade` | direita, acima | segurar cozinha, soltar arremessa; mostra quantas restam (apagado sem nenhuma) e um anel enchendo com a próxima em recarga |
+| Trocar de arma | `swapWeapon` | direita, acima do pular | ícone de duas setas; troca entre primária e secundária ([[Weapons]]) |
 | Pausa | — | fileira de cima à esquerda | abre o menu |
 | Placar | `scoreboard` | fileira de cima | **alterna** |
 | Tela cheia | — | fileira de cima | só onde há Fullscreen API |

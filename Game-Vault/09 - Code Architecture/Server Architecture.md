@@ -4,6 +4,8 @@ type: architecture
 status: documented
 area: code-architecture
 source_paths:
+  - server/modes.ts
+  - server/navmesh.ts
   - server/index.ts
   - server/app.ts
   - server/session.ts
@@ -26,7 +28,7 @@ tags:
   - server
   - bun
   - websocket
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Server Architecture
@@ -70,8 +72,10 @@ O estado do lobby (`sessions`, `conns`, `byAccount`, `nextId`) vive como variáv
 | Módulo | Papel | Tipo (informal) |
 | --- | --- | --- |
 | `app.ts` | Composição, lobby, handshake WS, roteamento das mensagens de lobby, flush do progresso, assinatura Redis | composição / "servidor" |
-| `session.ts` | Classe `Session`: uma partida de mata-mata livre, tick a `NET.tickRate` (20 Hz) por `setInterval`, validação de cada mensagem do cliente, regras de dano/abate/coletáveis | regra de jogo autoritativa |
-| `progress.ts` | `LiveAccount` em memória, XP de arma e de conta, `delta` desde a última gravação | domínio |
+| `session.ts` | Classe `Session`: uma sala com mapa e modo de jogo, tick a `NET.tickRate` (20 Hz) por `setInterval`, validação de cada mensagem do cliente, regras de dano/abate/coletáveis comuns a todos os modos | regra de jogo autoritativa |
+| `modes.ts` | O que muda entre modos (`SessionMode`, `createMode`): `DeathmatchMode` (Arsenal da conta, travado ao entrar), `GunGameMode` (escada, rodadas) e `ZombieMode` (a horda simulada aqui pelo motor `ZombieMatch` de `shared/zombieMatch.ts`, validação de acertos em zumbis, dinheiro, caixão, caídos, XP). Ver [[ADR - Modos de jogo com regras declaradas e ganchos no servidor]] e [[ADR - Zumbis simulados no servidor sobre navmesh pré-gerada]] | regra de modo autoritativa |
+| `navmesh.ts` | Carrega a navmesh pré-gerada de cada mapa do modo zumbi (`shared/data/navmesh/*.json`, Recast em WebAssembly), uma vez por processo | infraestrutura de jogo |
+| `progress.ts` | `LiveAccount` em memória, XP de arma e de conta, a escolha do Arsenal (`equip`) e o loadout que sai dela (`loadoutOf`), `delta` desde a última gravação | domínio |
 | `api.ts` | Tabela de rotas `'MÉTODO /caminho' → handler`, checagem de Origin em métodos que mudam estado | API |
 | `auth/sessions.ts` | Sessões do navegador (cookie `oc_sessao`, SHA-256 no banco, renovação deslizante) | auth |
 | `auth/password.ts` | Cadastro, login (rate limit + bloqueio), recuperação por e-mail | auth |
@@ -100,7 +104,8 @@ Detalhes de protocolo em [[Remote Calls]] e [[Sessions]].
 ## Sessão (`Session`)
 
 - Estado: `players` (Map de `SPlayer` com vida, kills, score, granadas vivas, dança, buffs), `corpses`, `pickups`, `fish`, `rats`, e o tópico `sessao:<id>`.
-- `tick()` (20 Hz): fim do bônus da cereja, regeneração de vida, tempo vivo/XP, limpeza de corpos, `broadcast('snap')` e, a cada 1 s, `broadcast('scores')`.
+- `tick()` (20 Hz): `mode.tick` (no zumbi: a horda inteira), fim do bônus da cereja, regeneração de vida (não para quem está `downed`), tempo vivo/XP, limpeza de corpos, `broadcast('snap')`, a mensagem do modo (`mode.snapshot()`: `zsnap`) e, a cada 1 s, `broadcast('scores')`.
+- Mensagens que a `Session` não conhece vão para `mode.handle`; granadas validadas também passam pelo `mode.blast`; vida a zero pergunta ao `mode.onLethal` antes de matar (zumbi: caído).
 - `broadcast()` serializa uma vez e publica no tópico; quando a ação veio de um jogador, usa `ws.publish` desse jogador para não ecoar para ele.
 - Validações: posição (`vec`), regiões de acerto, cadência (`hitTimes`), distância servidor × relatada (`LAG_SLACK = 4 m` + 10%), alcance da faca, alcance físico da granada, janela da opressão, distância a coletáveis (`PICKUP_SLACK = 1,5 m`). Ver [[Validation]] e [[Anti Cheat]].
 - Sessões não permanentes vazias são descartadas no `sessionsChanged()` (coalescido em 100 ms).
@@ -127,7 +132,8 @@ O servidor assina `oc:revogacao` (fecha a conexão da conta com `CLOSE.revoked` 
 ## Código relacionado
 
 - `server/index.ts`, `server/app.ts` (`startServer`, `upgrade`, `staticFile`, `flush`)
-- `server/session.ts` (`Session.handle`, `tick`, `damage`, `kill`, `onHit`, `onBoom`...)
+- `server/session.ts` (`Session.handle`, `tick`, `damage`, `kill`, `onHit`, `onBoom`, `fireRate`...)
+- `server/modes.ts` (`createMode`, `ZombieMode`), `server/navmesh.ts`
 - `server/api.ts` (`routes`, `handleApi`)
 - `server/progress.ts`, `server/accounts.ts`, `server/db.ts`, `server/redis.ts`, `server/jobs.ts`
 

@@ -8,6 +8,7 @@ source_paths:
   - client/ui/menu.ts
   - client/main.ts
   - index.html
+  - client/ui/home.ts
 tags:
   - game
   - ui
@@ -17,7 +18,7 @@ updated: 2026-10-05
 
 # Settings
 
-Configurações do jogador, editadas na coluna "Configurações" do menu inicial/pausa ([[Menus]]) e aplicadas na hora. Ficam **só no navegador** (`localStorage`, chave `oc.settings.v1`); não são salvas na conta. Ver [[Save System]].
+Configurações do jogador, editadas na coluna "Configurações" do menu inicial/pausa e na aba **Configurações** da tela inicial (o mesmo bloco `#menu-settings`, emprestado à aba; ver [[Menus]]) e aplicadas na hora. Ficam **só no navegador** (`localStorage`, chave `oc.settings.v1`); não são salvas na conta. Ver [[Save System]].
 
 ## Opções
 
@@ -45,7 +46,7 @@ Itens mostrados ou escondidos por classes CSS conforme o dispositivo: `.desktop-
 ## Persistência e carregamento
 
 - `loadSettings()` lê o JSON salvo e o espalha sobre os padrões (`{...DEFAULTS, ...salvo}`), com tratamento especial para teclas (`mergeKeybinds`) e nomes de teclas (só caracteres únicos imprimíveis).
-- `saveSettings()` grava a cada mudança (callback de `screens.bindSettings` em `main.ts`), que também reaplica teclas, volume, modo espacial, qualidade e layout de toque.
+- `saveSettings()` grava a cada mudança (callback de `screens.bindSettings` em `main.ts`, ligado **antes** da tela inicial), que também reaplica teclas, volume, modo espacial, qualidade e, já na partida, o layout de toque.
 - Sem `localStorage` disponível, tudo funciona com os padrões (erros são ignorados).
 
 > [!info]
@@ -53,7 +54,7 @@ Itens mostrados ou escondidos por classes CSS conforme o dispositivo: `.desktop-
 
 ## Outras preferências locais
 
-- `oc.bots` — dificuldade, número de bots e mapa escolhidos na tela inicial (`client/ui/home.ts`).
+- `oc.bots` — preferências da tela inicial (`client/ui/home.ts`): `skill` (dificuldade), `count` (bots), `map`, `mode` (`online` | `bots` | `treino`, a aba Jogar abre nele) e `filtro` (mapas marcados no Online). Valores inválidos voltam ao padrão.
 - Chaves antigas `oc.name`, `oc.sex`, `oc.profile` são apagadas ao abrir a tela inicial (nome, corpo e progressão passaram a viver na conta).
 
 ## Código relacionado

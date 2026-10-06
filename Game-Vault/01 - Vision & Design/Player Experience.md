@@ -12,11 +12,12 @@ source_paths:
   - client/ui/scoreboard.ts
   - client/core/keybinds.ts
   - shared/appearance.ts
+  - client/ui/arsenal.ts
 tags:
   - game
   - design
   - ux
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Player Experience
@@ -50,7 +51,7 @@ O jogo dá um retorno claro a cada ação:
 ## 4. Humor constante
 
 - Mensagens de morte por causa: queda ("A calçada mandou lembranças."), vazio, a própria granada ("Você cozinhou demais. A granada, e você.") e a cachorra ("A Amora não gostou da visita.").
-- Nomes de bots ("Capitão Lag", "Vovó Turbo"), evoluções de arma absurdas e gags nos mapas ([[Map Gags]]).
+- Nomes de bots ("Capitão Lag", "Vovó Turbo"), armas e melhorias absurdas (Pistola do Porteiro, Silenciador de Batata) e gags nos mapas ([[Map Gags]]).
 - Chat rápido no celular: "GG", "Boa!", "Kkkkk", "Bora x1?"… ([[Chat]]).
 
 ## 5. Sentir-se dono do personagem
@@ -60,8 +61,8 @@ O jogo dá um retorno claro a cada ação:
 
 ## 6. Evoluir jogando do seu jeito
 
-- Cada arma evolui com os próprios abates. A evolução aparece numa faixa com o ícone e o nome novo ("🌸 Rifle nível 3: Rifle da Tia do Zap!"). Ver [[Progression]].
-- O Arsenal deixa equipar qualquer nível já liberado.
+- Cada arma evolui com os próprios abates, e cada nível libera uma melhoria. A faixa mostra o ícone e o nome dela ("🔴 Rifle Padrão nível 2: Mira de Ponto Vermelho da Feira!"); se a melhoria é opcional, aparece também o aviso "Ligue no Arsenal". Ver [[Progression]] e [[Notifications]].
+- O Arsenal deixa escolher a secundária (pistola ou submetralhadora) e ligar ou desligar as melhorias opcionais já liberadas ([[Inventory UI]]).
 
 ## 7. Conforto e acessibilidade
 

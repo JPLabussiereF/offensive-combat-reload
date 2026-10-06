@@ -218,8 +218,11 @@ function effectsText(a: Appearance): string {
   return parts.join(' · ');
 }
 
-/** The big stage: the character turning, the camera gliding to the part being edited. */
-class Stage {
+/**
+ * The big stage: the character turning, the camera gliding to the part being edited. Also the home's character
+ * card, without wheel zoom there (the wheel scrolls the page).
+ */
+export class Stage {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(30, 1, 0.1, 30);
@@ -238,7 +241,10 @@ class Stage {
   private anim: Anim = 'idle';
   private t = 0;
 
-  constructor(private canvas: HTMLCanvasElement) {
+  constructor(
+    private canvas: HTMLCanvasElement,
+    opts: { wheelZoom?: boolean } = {},
+  ) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(2, devicePixelRatio));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -259,10 +265,11 @@ class Stage {
       this.lastX = e.clientX;
     };
     canvas.onpointerup = () => (this.dragging = false);
-    canvas.onwheel = (e) => {
-      e.preventDefault();
-      this.zoom = THREE.MathUtils.clamp(this.zoom * (e.deltaY > 0 ? 1.1 : 0.9), 0.5, 1.8);
-    };
+    if (opts.wheelZoom !== false)
+      canvas.onwheel = (e) => {
+        e.preventDefault();
+        this.zoom = THREE.MathUtils.clamp(this.zoom * (e.deltaY > 0 ? 1.1 : 0.9), 0.5, 1.8);
+      };
     const loop = (now: number) => {
       this.raf = requestAnimationFrame(loop);
       const dt = Math.min(0.1, (now - this.last) / 1000);
@@ -410,6 +417,17 @@ class Thumbnails {
     this.renderer.dispose();
     this.renderer.forceContextLoss();
   }
+}
+
+/** A head-and-shoulders picture of the character (the home's account chip), as a data URL. */
+export function renderPortrait(look: Appearance, sex: Sex): Promise<string> {
+  const thumbs = new Thumbnails();
+  return new Promise((resolve) =>
+    thumbs.request(look, sex, 'head', (url) => {
+      thumbs.dispose();
+      resolve(url);
+    }),
+  );
 }
 
 // --- Editor -------------------------------------------------------------------------------------------------

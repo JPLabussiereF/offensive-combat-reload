@@ -1,4 +1,4 @@
-// Land mines (grenade level 2): planted at your feet with G, armed after a moment, set off by an enemy
+// Land mines (a grenade upgrade): planted at your feet with G, armed after a moment, set off by an enemy
 // stepping close. They exist only while their owner is alive: they vanish when the owner respawns (so they
 // linger a few seconds after the owner dies). Other players' mines are visual; their owner reports the blast.
 import * as THREE from 'three';

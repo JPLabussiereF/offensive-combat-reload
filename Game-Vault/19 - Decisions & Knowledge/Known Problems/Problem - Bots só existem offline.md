@@ -8,12 +8,15 @@ source_paths:
   - client/main.ts
   - client/ai/bots.ts
   - server/session.ts
+  - server/navmesh.ts
+  - shared/zombieMatch.ts
+  - tools/bake-navmesh.ts
 tags:
   - problem
   - ai
   - bots
   - multiplayer
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Problem - Bots só existem offline
@@ -40,6 +43,10 @@ A IA depende de Rapier (movimento compartilhado, raios de visão, tiros) e de Re
 ## Caminho apontado pelo projeto
 
 Simulação de movimento no servidor (que também habilitaria predição/reconciliação e compensação de lag, listadas como "Ainda não feito" no README). Exigiria rodar Rapier/Recast no Bun (inferência).
+
+## Atualização (2026-10-06): o servidor já anda no mapa
+
+O [[Zombie|modo zumbi]] pôs **Recast/Detour para rodar no servidor** (Bun), sobre uma navmesh do mapa **pré-gerada** a partir do código do cliente (`tools/bake-navmesh.ts`, `server/navmesh.ts`): os zumbis são simulados lá, com hitboxes e validação de acertos iguais às dos jogadores ([[ADR - Zumbis simulados no servidor sobre navmesh pré-gerada]]). Bots online continuam não existindo, mas a parte de **navegação** do problema está resolvida para os mapas com malha pré-gerada (hoje só a Vila Assombrada). Para bots completos online ainda faltariam o movimento compartilhado com física no servidor (Rapier) e linha de visão de verdade (a do zumbi é um raycast na navmesh).
 
 ## Código relacionado
 

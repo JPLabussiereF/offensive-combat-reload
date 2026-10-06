@@ -5,8 +5,8 @@
 //
 // In a match the controller drives the same named actions as the keyboard (core/input.ts), CoD layout:
 //   L2/LT aim · R2/RT fire · L1/LB grenade (hold to cook) · R1/RB knife · ✕/A jump · ◯/B crouch (tap toggles;
-//   while running it slides) · □/X reload · △/Y humiliate · L3 run (toggle) · R3 knife · Options/Menu pause ·
-//   Touchpad/View scoreboard (hold).
+//   while running it slides) · □/X reload · △/Y humiliate · L3 run (toggle) · R3 knife · D-pad ←/→ switch
+//   weapon · Options/Menu pause · Touchpad/View scoreboard (hold).
 // The left stick moves (analog), the right stick looks (dead zone, response curve, a turn boost held at the
 // edge). Out of a match the controller drives the menus (ui/padNav.ts). It also rumbles on hits and damage.
 
@@ -31,6 +31,8 @@ const HOLD: [PadButton, Action][] = [
   ['a', 'jump'],
   ['x', 'reload'],
   ['y', 'taunt'],
+  ['left', 'swapWeapon'],
+  ['right', 'swapWeapon'],
   ['select', 'scoreboard'],
   ['touchpad', 'scoreboard'],
 ];

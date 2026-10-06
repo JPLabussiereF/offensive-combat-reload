@@ -17,15 +17,15 @@ const IDENTITY = { x: 0, y: 0, z: 0, w: 1 };
 
 export type ThrowerEvent =
   | { type: 'pin' }
-  /** double: grenade level 3 ("Dose Dupla"), a second grenade follows this one for the same charge. */
+  /** double: the "Dose Dupla" upgrade, a second grenade follows this one for the same charge. */
   | { type: 'throw'; fuseLeft: number; double: boolean }
   | { type: 'inHand' }
-  /** Grenade level 2: plant a land mine at your feet (no cooking). */
+  /** The land mine upgrade: plant a mine at your feet (no cooking). */
   | { type: 'mine' };
 
 export class GrenadeThrower {
   count: number;
-  /** Progression level of the grenade slot: frag, land mine or double frag. */
+  /** What G does, from the grenade's upgrades: frag, land mine or double frag. */
   kind: GrenadeKind = 'granada';
   /** Seconds since the pin was pulled while still in hand, or null. */
   cookT: number | null = null;
@@ -35,8 +35,14 @@ export class GrenadeThrower {
   private cooldown = 0;
   private recharge = 0;
 
-  constructor(readonly data: GrenadeData) {
+  constructor(public data: GrenadeData) {
     this.count = data.quantidade;
+  }
+
+  /** The grenade's stats changed (an upgrade): a bigger belt doesn't refill it mid-life. */
+  setData(d: GrenadeData) {
+    this.data = d;
+    this.count = Math.min(this.count, d.quantidade);
   }
 
   /** Holding a live grenade (the throw follow-through is only an animation and never blocks). */

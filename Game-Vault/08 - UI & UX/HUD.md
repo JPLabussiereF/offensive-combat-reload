@@ -4,16 +4,18 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - client/ui/ladder.ts
   - client/ui/hud.ts
   - client/ui/corpseTimer.ts
   - client/main.ts
   - index.html
   - client/styles.css
+  - client/zombies/client.ts
 tags:
   - game
   - ui
   - hud
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # HUD
@@ -26,20 +28,26 @@ Interface sobreposta durante a partida (`#hud` em `index.html`, classe `Hud` em 
 | --- | --- | --- | --- |
 | **Retículo dinâmico** (`#crosshair`) | centro | 4 traços + ponto; o espaço entre eles é o **cone de dispersão projetado** da arma (`gap = tan(dispersão)/tan(FOV/2) · altura/2 + 3 px`). Some ao mirar (ADS ≥ 0,6), correr, morrer ou dançar. | [[Weapons]], [[Combat]] |
 | **Hitmarker** (`#hitmarker`) | centro | X animado; variantes `hit`, `head` e `kill` (0,18 s; 0,35 s no abate). Vibra o celular (12/40 ms) e o controle. | [[Damage System]] |
-| **Luneta** (`#scope`) | tela cheia | Overlay de mira telescópica nos níveis de rifle com ótica de aumento, quando totalmente mirado. | [[Weapons]] |
+| **Luneta** (`#scope`) | tela cheia | Overlay de mira telescópica quando o rifle tem a melhoria Luneta ligada e está totalmente mirado. | [[Weapons]] |
 | **Vinheta** (`#vignette`) | bordas | Avermelha com vida < 30 (`--low`) e pisca ao levar dano (`damageFlash`, intensidade pelo dano; também vibra o controle). | [[Health System]] |
 | **Vida** (`#health`) | inferior esquerdo | Número + barra; barra cheia na vida máxima do corpo; classe `low` abaixo de 25; fica rosa com a Cereja do Dragão (`boost`). | [[Health System]], [[Pickups]] |
-| **Munição** (`#ammo`) | inferior direito | Pente/reserva; linha de status: "RECARREGANDO…" com barra de progresso, "RECARREGUE" com a tecla (R, glifo do controle, ou nada no celular) quando o pente ≤ 30%, "SEM MUNIÇÃO". Nome da arma embaixo. | [[Weapons]] |
+| **Munição** (`#ammo`) | inferior direito | Com só o sabre na mão (corrida armada) a contagem, o status e as armas somem e fica o nome da arma (`hud.setMeleeOnly`). Pente/reserva; linha de status: "RECARREGANDO…" com barra de progresso, "RECARREGUE" com a tecla (R, glifo do controle, ou nada no celular) quando o pente ≤ 30%, "SEM MUNIÇÃO". Nome da arma em mãos embaixo (`setWeaponName`, texto de `arma_*` em `strings.ts`). | [[Weapons]] |
+| **Armas carregadas** (`#weapon-slots`) | sob a munição | Uma linha por arma de fogo (primária e secundária): a tecla que a seleciona (`1`/`2` ou a remapeada), o nome e `pente/reserva` (no zumbi, o nome da arma do caixão na cor da raridade: verde, azul, roxo, dourado; o nome em mãos também). A da mão fica acesa; pisca enquanto é sacada após a troca. No celular, só aparece a arma guardada, sem tecla. `hud.setWeaponSlots`. | [[Weapons]], [[Inventory]] |
 | **Granadas** (`#grenades`) | à esquerda da munição | Um ícone por granada (acesa = disponível); a próxima em recarga **enche de baixo para cima** como barra de progresso (`--p`). | [[Grenades]] |
 | **Pavio** (`#cook`) | sob o retículo | Barra do pavio ao "cozinhar" a granada; fica vermelha no último terço. | [[Grenades]] |
 | **Aviso de granada** (`#grenade-warn`) | em volta do retículo (raio 96 px) | 💣 + seta apontando para a granada viva mais próxima dentro do raio de dano; mais opaca quanto mais perto. | [[Grenades]] |
+| **Escada** (`#ladder`) | topo, sob o placar | Só na corrida armada: "ARMA N/7", o nome do degrau e uma bolinha por abate necessário (verdes as feitas); rosa no Sabre de Luz. `hud.setLadder`. | [[Gun Game]] |
+| **Fim de rodada** (`#round-end`) | centro-alto | Cartão do vencedor ("{nome} venceu a corrida armada!" / "VOCÊ VENCEU…", laranja) e "Nova rodada em N…". `hud.showRoundEnd`. | [[Gun Game]] |
+| **Onda** (`#zwave`) | topo, sob o placar | Só no zumbi: "ONDA 3/12 · 14 zumbis" (vermelho numa onda de chefe), "A HORDA VEM AÍ em Ns · ache o caixão!", "INTERVALO · próxima onda em Ns" ou "FIM DA PARTIDA"; com chefe vivo, o nome dele e uma **barra de vida** (pulsa com a fúria do Prefeito). `hud.setZombie`. | [[Zombie]] |
+| **Dinheiro** (`#zmoney`) | sobre a vida | Só no zumbi: "$ 1.250", salta quando sobe. `hud.setMoney`; os ganhos aparecem nos pop-ups como "+$100 Tiro na cabeça" (`hud.cash`). | [[Zombie]], [[Economy Design]] |
+| **Resumo da partida zumbi** (`#zsummary`) | centro | "SOBREVIVERAM À HORDA!" / "A HORDA VENCEU", onda e tempo, uma linha por jogador (abates, na cabeça, dinheiro, caiu, reanimou, XP) e "Nova partida em Ns…". `hud.showZombieSummary`. | [[Zombie]] |
 | **Placar pessoal** (`#score`) | topo | Pontos, Abates, Precisão (%). Online/bots: números do servidor/gerenciador; offline: contagem local. | [[Scoring]] |
 | **Bônus/penalidades** (`#buffs`) | superior esquerdo | Um cartão por efeito: ícone, nome, segundos restantes e barra que esvazia; pisca nos últimos 10 s; efeitos sem tempo dizem "até morrer". No celular viram chips compactos. | [[Buffs & Debuffs]] |
-| **Prompt de contexto** (`#prompt`) | centro-baixo | Tecla + texto + barra: "Oprimir {nome}" (barra = tempo restante da janela), "Oprimindo {nome}…" (progresso da dança), "Beber Poção". | [[Humiliation]], [[Interaction System]] |
-| **Banner** (`#banner`) | centro | Texto grande animado por 1,8 s: variantes `bird` ("NO PÁSSARO!"), `taunt` ("OPRIMIDO!"), `level` (subida de nível, bônus). | [[Notifications]] |
+| **Prompt de contexto** (`#prompt`) | centro-baixo | Tecla + texto + barra: "Oprimir {nome}" (barra = tempo restante da janela), "Oprimindo {nome}…" (progresso da dança), "Beber Poção". No zumbi: "Caixão Misterioso: arma aleatória por $950" (ou "…você tem $N"), "Girando…", "Pegar {arma} ({raridade})" (barra = tempo da oferta), "Segure para reanimar {nome}" / "Reanimando {nome}…". | [[Humiliation]], [[Interaction System]], [[Zombie]] |
+| **Banner** (`#banner`) | centro | Texto grande animado por 1,8 s: variantes `bird` ("NO PÁSSARO!", "Esfaqueado! Voltou para…"), `taunt` ("OPRIMIDO!"), `level` (subida de nível, bônus, "Próxima arma: …", "SABRE DE LUZ!", "Nova rodada…"). | [[Notifications]] |
 | **Pop-ups de pontos** (`#popups`) | sob o retículo | "+N Motivo" empilhados (1,6 s) e um total acumulado que some 2 s após o último. | [[Scoring]] |
 | **Kill feed** (`#killfeed`) | superior direito | Ver [[Notifications]]. | — |
-| **Tela de morte** (`#death`) | centro | Mensagem + "Renascendo em N…". Ver [[Flow - Death and Respawn]]. | [[Respawn]] |
+| **Tela de morte** (`#death`) | centro | Mensagem + "Renascendo em N…". Ver [[Flow - Death and Respawn]]. No zumbi também serve para **caído** ("CAÍDO!" + "Um amigo pode te reanimar · sangra em Ns" ou "{nome} está te reanimando!", com batimento cardíaco e a câmera rente ao chão) e para quem morreu numa onda ("Você volta no intervalo"). `hud.setDeathText`. | [[Respawn]], [[Zombie]] |
 | **Placar** (`#scoreboard`) | centro | Segurando Tab. Ver [[Scoreboard]]. | — |
 | **Chat** (`#chat`) | esquerda | Ver [[Chat]]. | — |
 | **Status de rede** (`#net-status`) | — | "Sem conexão com o servidor" ou motivo do fechamento (sessão encerrada, conta conectada em outro lugar). | [[Sessions]] |
@@ -60,11 +68,12 @@ Interface sobreposta durante a partida (`#hud` em `index.html`, classe `Hud` em 
 
 ## O que não existe
 
-Não há minimapa, radar, bússola, cronômetro de partida nem indicador de objetivo no HUD (verificado em `index.html` e `client/ui/hud.ts`). Ver [[Objectives]].
+Não há minimapa, radar, bússola, cronômetro de partida nem indicador de objetivo no HUD (as contagens entre rodadas da corrida armada e as do zumbi são as únicas de partida) (verificado em `index.html` e `client/ui/hud.ts`). No zumbi, uma **cruz vermelha 3D** sobre cada colega caído é vista através das paredes, e o caixão tem um feixe de luz visível de longe. Ver [[Objectives]].
 
 ## Código relacionado
 
-- `client/ui/hud.ts` — classe `Hud` (`setHealth`, `setBoost`, `setBuffs`, `setAmmo`, `setReload`, `setCrosshair`, `setScore`, `hit`, `popup`, `killfeed`, `setGrenades`, `setCook`, `setGrenadeWarning`, `showBanner`, `setPrompt`, `notice`, `setNetStatus`, `damageFlash`, `showDeath`, `setDeathTimer`, `setDebug`, `update`).
+- `client/ui/hud.ts` — classe `Hud` (`setHealth`, `setBoost`, `setBuffs`, `setAmmo`, `setWeaponName`, `setWeaponSlots`, `setReload`, `setCrosshair`, `setScore`, `hit`, `popup`, `killfeed`, `setGrenades`, `setCook`, `setGrenadeWarning`, `showBanner`, `setPrompt`, `notice`, `setNetStatus`, `damageFlash`, `showDeath`, `setDeathTimer`, `setDebug`, `update`; zumbi: `setZombie`, `setMoney`, `cash`, `showZombieSummary`, `setZombieSummaryNext`, `setDeathText`).
+- `client/zombies/client.ts` — o que o HUD do zumbi mostra (`renderHud`, `prompt`, marcadores de colegas caídos).
 - `client/ui/corpseTimer.ts` — `CorpseTimer`.
 - `client/main.ts` — `buffs()`, cálculo do retículo e do aviso de granada, laço de atualização do HUD.
 - `client/styles.css` — seções "HUD", "Banner, prompt", "Grenades", "Phones and tablets".

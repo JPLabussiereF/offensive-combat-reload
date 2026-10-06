@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { GROUP, groups } from '@shared/constants';
 import type { HitRegion } from '@shared/weapons';
-import { CharacterAnimator, type AvatarPose, type Posable } from '../character/animator';
+import { CharacterAnimator, type AvatarPose, type Posable, type ZombiePose } from '../character/animator';
 import { createCanonicalSkeleton } from '../character/rig';
 import type { HitboxRegistry, Target } from '../gameplay/targets';
 import { GROIN, GROIN_FROM, NOTHING_MISSING, zonesFor, type Missing, type ZoneDef } from './hitboxes';
@@ -21,7 +21,12 @@ const UP = new THREE.Vector3(0, 1, 0);
 const Y = new THREE.Vector3(0, 1, 0);
 
 /** The pose the hitboxes take (the same the visible character plays). */
-export type HitPose = { kind: 'armed'; pose: AvatarPose } | { kind: 'idle'; t: number } | { kind: 'walk'; speed: number } | { kind: 'dance'; t: number };
+export type HitPose =
+  | { kind: 'armed'; pose: AvatarPose }
+  | { kind: 'idle'; t: number }
+  | { kind: 'walk'; speed: number }
+  | { kind: 'dance'; t: number }
+  | { kind: 'zombie'; pose: ZombiePose };
 
 interface Shape {
   zone: ZoneDef;
@@ -37,6 +42,8 @@ const tmpP = new THREE.Vector3();
 const tmpQ = new THREE.Quaternion();
 const tmpBoneQ = new THREE.Quaternion();
 const tmpD = new THREE.Vector3();
+const tmpS = new THREE.Vector3();
+const tmpScale = new THREE.Vector3();
 
 export class CharacterRig {
   readonly body: RAPIER.RigidBody;
@@ -59,11 +66,14 @@ export class CharacterRig {
     entity: Target,
     registry: HitboxRegistry,
     missing: Missing = NOTHING_MISSING,
+    /** Body size (the zumbi mode's brutes and bosses are bigger): every shape grows with it. */
+    scale = 1,
   ) {
     this.body = world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(0, -100, 0));
     const { root, bones } = createCanonicalSkeleton('m');
     const holder = new THREE.Group();
     holder.add(root);
+    holder.scale.setScalar(scale);
     this.poser = { bones: Object.fromEntries(bones.map((b) => [b.name, b])), body: holder, holder, setGrip: () => {} };
     this.animator = new CharacterAnimator(this.poser);
     const mat = new THREE.MeshBasicMaterial({ color: 0xff00ff, wireframe: true });
@@ -71,16 +81,17 @@ export class CharacterRig {
       const a = new THREE.Vector3(...zone.a);
       const b = zone.b ? new THREE.Vector3(...zone.b) : null;
       const half = b ? a.distanceTo(b) / 2 : 0;
-      const desc = b ? RAPIER.ColliderDesc.capsule(half, zone.r) : RAPIER.ColliderDesc.ball(zone.r);
+      const desc = b ? RAPIER.ColliderDesc.capsule(half * scale, zone.r * scale) : RAPIER.ColliderDesc.ball(zone.r * scale);
       const collider = world.createCollider(desc.setCollisionGroups(HITBOX_GROUPS), this.body);
       registry.set(collider.handle, { entity, region: zone.region });
       const debug = new THREE.Mesh(b ? new THREE.CapsuleGeometry(zone.r, half * 2, 3, 8) : new THREE.SphereGeometry(zone.r, 10, 8), mat);
+      debug.scale.setScalar(scale);
       this.debug.add(debug);
       const align = b ? new THREE.Quaternion().setFromUnitVectors(Y, b.clone().sub(a).normalize()) : new THREE.Quaternion();
       this.shapes.push({ zone, collider, center: b ? a.clone().add(b).multiplyScalar(0.5) : a, align, debug });
     }
     // Movement blocker so players can't walk through each other (does not stop bullets).
-    this.blocker = world.createCollider(RAPIER.ColliderDesc.capsule(0.5, 0.35).setTranslation(0, 0.9, 0).setCollisionGroups(BLOCKER_GROUPS), this.body);
+    this.blocker = world.createCollider(RAPIER.ColliderDesc.capsule(0.5 * scale, 0.35 * scale).setTranslation(0, 0.9 * scale, 0).setCollisionGroups(BLOCKER_GROUPS), this.body);
     // The skeleton stays out of the scene: its world matrices are in the body's space.
     // The groin zone (yellow), riding on the hips bone.
     const size = new THREE.Vector3().subVectors(GROIN.max, GROIN.min);
@@ -119,6 +130,9 @@ export class CharacterRig {
       case 'dance':
         this.animator.dance(pose.t);
         break;
+      case 'zombie':
+        this.animator.zombie(dt, pose.pose);
+        break;
     }
     this.place();
   }
@@ -130,7 +144,8 @@ export class CharacterRig {
       const bone = this.poser.bones[s.zone.bone];
       tmpM.copy(bone.matrixWorld);
       tmpP.copy(s.center).applyMatrix4(tmpM);
-      tmpBoneQ.setFromRotationMatrix(tmpM);
+      // The bone's rotation alone (a scaled body's matrices carry its size too).
+      tmpM.decompose(tmpS, tmpBoneQ, tmpScale);
       tmpQ.copy(tmpBoneQ).multiply(s.align);
       s.collider.setTranslationWrtParent({ x: tmpP.x, y: tmpP.y, z: tmpP.z });
       s.collider.setRotationWrtParent({ x: tmpQ.x, y: tmpQ.y, z: tmpQ.z, w: tmpQ.w });

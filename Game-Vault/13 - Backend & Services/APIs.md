@@ -5,6 +5,7 @@ status: documented
 area: backend
 source_paths:
   - server/api.ts
+  - server/app.ts
   - server/http.ts
   - server/auth/password.ts
   - server/auth/discord.ts
@@ -12,11 +13,13 @@ source_paths:
   - shared/account.ts
   - client/net/api.ts
   - deploy/nginx/docker.conf
+  - server/accounts.ts
+  - shared/progression.ts
 tags:
   - backend
   - api
   - http
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # APIs
@@ -39,6 +42,7 @@ A API HTTP do jogo vive sob `/api/` e é atendida pelo próprio servidor do jogo
 
 | Método e caminho | Sessão? | O que faz | Respostas principais |
 | --- | --- | --- | --- |
+| `GET /api/sessoes` | não | Lista pública das salas abertas (`SessionInfo[]`, mesma ordem do lobby), sem cache. Respondida direto em `server/app.ts`, onde as salas vivem. A tela inicial a usa para mostrar quantas salas cada mapa tem antes de conectar. | 200 |
 | `GET /api/me` | sim | Dados resumidos da conta (tag `Nome#1234`, data de exclusão, etc.). | 200, 401 |
 | `GET /api/auth/provedores` | não | `{ discord: boolean }` — se o botão do Discord deve aparecer para o endereço atual. | 200 |
 | `POST /api/auth/cadastro` | não | Cria conta por e-mail/senha/nome e já abre sessão. | 201 + Set-Cookie; 400 `email_invalido`/`senha_invalida`/`nome_invalido`; 409 `email_em_uso`; 429 |
@@ -49,13 +53,13 @@ A API HTTP do jogo vive sob `/api/` e é atendida pelo próprio servidor do jogo
 | `POST /api/auth/recuperar` | não | Pede link de redefinição (sempre a mesma resposta). | 204 |
 | `POST /api/auth/redefinir` | não | Troca a senha com o token do link. | 204; 400 `token_invalido`/`senha_invalida` |
 | `DELETE /api/auth/identidade/discord` | sim | Desvincula o Discord. | 204; 404; 409 `unica_forma_de_entrar` |
-| `GET /api/perfil` | sim | Perfil completo (nível, totais, armas, participações, aparência). | 200 |
-| `PATCH /api/perfil` | sim | Muda `nome`, `sexo`, `aparencia` e/ou `equipado`. | 200 com o perfil; 400 `nome_invalido`; 429 `cooldown_nome` (+ `liberaEm`); 409 `nome_esgotado`; 400 `nivel_bloqueado` |
+| `GET /api/perfil` | sim | Perfil completo (nível, totais, `armas` com `{xp, nivel}` por arma, `arsenal` com a escolha do Arsenal, participações, aparência). | 200 |
+| `PATCH /api/perfil` | sim | Muda `nome`, `sexo`, `aparencia` e/ou `arsenal` (`ArsenalChoice {secundaria, ligadas}`: a secundária e as melhorias opcionais ligadas). | 200 com o perfil; 400 `nome_invalido`; 429 `cooldown_nome` (+ `liberaEm`); 409 `nome_esgotado`; 400 `nivel_bloqueado` (melhoria ainda não liberada na escolha) |
 | `POST /api/ws-ticket` | sim | Emite ticket de uso único (30 s) para abrir o WebSocket. | 200 `{ ticket }`; 403 `conta_em_exclusao` |
 | `DELETE /api/conta` | sim | Pede exclusão (30 dias de carência); revoga as outras sessões e derruba o jogo. | 204 |
 | `POST /api/conta/cancelar-exclusao` | sim | Cancela a exclusão. | 204 |
 
-Detalhes de cada fluxo de conta: [[Authentication]]. Regras de nome, aparência e equipamento: [[Player Data]], [[Character Customization]] e [[Progression]].
+Detalhes de cada fluxo de conta: [[Authentication]]. Regras de nome, aparência e escolha do Arsenal: [[Player Data]], [[Character Customization]] e [[Progression]].
 
 ## Limites de taxa
 

@@ -20,7 +20,8 @@
     "exemplos:glb": "bun tools/gerar-props-exemplo.mjs",
     "admin": "bun tools/admin.ts",
     "offensive": "bun tools/offensive.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "navmesh": "bun tools/bake-navmesh.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",

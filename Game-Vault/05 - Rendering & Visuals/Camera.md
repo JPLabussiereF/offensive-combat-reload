@@ -14,11 +14,13 @@ source_paths:
   - client/gameplay/taunt.ts
   - client/render/viewmodel.ts
   - client/styles.css
+  - shared/arsenal.ts
+  - client/render/weaponModels.ts
 tags:
   - game
   - rendering
   - camera
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Camera
@@ -55,25 +57,25 @@ vmFov = 58 × (1 − 0,1 × weapon.ads)
 - `sprintVis` e `slideVis` são suavizados exponencialmente (taxas 8/s e 10/s).
 - A projeção só é recalculada quando o FOV muda mais de 0,01°.
 
-### Zoom de mira (ADS) por nível do rifle
+### Zoom de mira (ADS) por arma e melhoria
 
-O multiplicador `zoom` vem de `shared/data/progression.json` (menor = mais zoom). Com FOV 75°, o FOV mirando fica:
+O multiplicador `zoom` é o `ads.zoom` da arma em mãos (`gunStats`): o valor do JSON da arma, substituído pela melhoria de mira ligada (`shared/data/progression.json`; menor = mais zoom). Com FOV 75°, o FOV mirando fica:
 
-| Nível | Rifle | Mira | `zoom` | FOV com 75° |
-| --- | --- | --- | --- | --- |
-| 1 | Rifle Padrão | ferro | 0,85 | 63,8° |
-| 2 | Remendado com Fita | ponto vermelho | 0,80 | 60° |
-| 3 | da Tia do Zap | holográfica | 0,78 | 58,5° |
-| 4 | Pisca-Pisca de Natal | holo + lupa | 0,66 | 49,5° |
-| 5 | Tunado com Adesivo de Chama | luneta 2x | 0,50 | 37,5° |
-| 6 | com Luneta do Vovô | luneta 3x | 0,38 | 28,5° |
-| 7 | Dourado Ostentação | luneta 4x | 0,30 | 22,5° |
+| Arma | Mira (melhoria) | `zoom` | FOV com 75° |
+| --- | --- | --- | --- |
+| Rifle | ferro (sem melhoria) | 0,85 | 63,8° |
+| Rifle | ponto vermelho (nível 2) | 0,78 | 58,5° |
+| Rifle | luneta 3x (nível 4, opcional; substitui o ponto vermelho) | 0,38 | 28,5° |
+| Pistola | ferro | 0,90 | 67,5° |
+| Pistola | mini ponto vermelho (nível 3) | 0,82 | 61,5° |
+| Submetralhadora | ferro | 0,90 | 67,5° |
+| Submetralhadora | holográfica (nível 3) | 0,82 | 61,5° |
 
 A sensibilidade do mouse é multiplicada pelo mesmo `zoom` (e por `adsSensitivity`) para manter a sensação de giro. Ver [[Input & Controls]] e [[Weapons]].
 
 ### Overlay de luneta
 
-Nos níveis com luneta (`scoped`), quando `weapon.ads > 0.85`, o viewmodel some e aparece o elemento HTML `#scope` (máscara radial em CSS com cruz e ponto). Não é um render-to-texture: o mundo continua sendo desenhado pela câmera principal com o FOV reduzido. Ver [[HUD]].
+Com a luneta do rifle ligada (mira `luneta`, `scoped` em `gunParts`), quando `weapon.ads > 0.85`, o viewmodel some e aparece o elemento HTML `#scope` (máscara radial em CSS com cruz e ponto). Não é um render-to-texture: o mundo continua sendo desenhado pela câmera principal com o FOV reduzido. Ver [[HUD]].
 
 ## Movimentos de câmera
 

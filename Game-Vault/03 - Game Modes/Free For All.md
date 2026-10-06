@@ -4,6 +4,8 @@ type: mode
 status: documented
 area: game-modes
 source_paths:
+  - server/modes.ts
+  - shared/modes.ts
   - server/session.ts
   - server/app.ts
   - server/progress.ts
@@ -14,18 +16,19 @@ source_paths:
   - client/main.ts
   - client/gameplay/spawnPicker.ts
   - client/ui/scoreboard.ts
+  - shared/arsenal.ts
 tags:
   - game
   - modes
   - online
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Free For All
 
-**Mata-mata livre online** ("Sessão: {nome} · mata-mata livre"): cada sessão é uma sala de até **10 jogadores**, todos contra todos, com regras aplicadas pelo servidor. É o único modo online.
+**Mata-mata online** (`GameModeId` `'mata-mata'`, "Sessão: {nome} · Mata-mata"): cada sessão é uma sala de até **10 jogadores**, todos contra todos, com regras aplicadas pelo servidor. É um dos dois modos online; o outro é a [[Gun Game|corrida armada]].
 
-> O modo [[Versus Bots]] usa as mesmas regras de mata-mata livre, mas offline e com bots. Esta nota trata da versão online.
+> O modo [[Versus Bots]] usa as mesmas regras de mata-mata, mas offline e com bots. Esta nota trata da versão online.
 
 ## Objetivo
 
@@ -47,13 +50,14 @@ Nenhum: todos contra todos. Não há fogo amigo porque não há times ([[Team De
 
 - **Entrada:** exige conta. O WebSocket abre com um ticket de uso único. A mesma conta só joga em um lugar: uma conexão nova derruba a antiga (código de fechamento `4002`). Ver [[Authentication]].
 - **Sessões:**
-  - Uma **sessão permanente por mapa**, sempre presente: "Rua dos Vizinhos" (id `principal`), "Jardim do Dragão" (`jardim`) e "Vila Assombrada" (`halloween`).
-  - Qualquer jogador pode **criar** uma sessão com nome (até 24 caracteres; vazio vira "Sala de {Nome}") e mapa. Ela é apagada quando fica vazia.
+  - Uma **sessão permanente de mata-mata por mapa**, sempre presente: "Rua dos Vizinhos" (id `principal`), "Jardim do Dragão" (`jardim`) e "Vila Assombrada" (`halloween`). A corrida armada tem as suas ([[Matchmaking]]).
+  - Qualquer jogador pode **criar** uma sessão com nome (até 24 caracteres; vazio vira "Sala de {Nome}"), mapa e modo. Ela é apagada quando fica vazia.
   - A lista mostra primeiro as permanentes, depois as mais cheias. Entrar numa sessão lotada responde "Sessão lotada."
 - **Nomes repetidos** na mesma sessão ganham sufixo: "Nome (2)".
 - **Regras de combate e opressão:** as globais ([[Game Rules]], [[Combat]], [[Humiliation]]), validadas pelo servidor ([[Validation]]).
 - **Coletáveis e bônus do mapa** (cereja, biscoito, carpas, rato, poções): validados e aplicados pelo servidor ([[Objectives]], [[Buffs & Debuffs]]).
-- **Granadas:** o dano usa o nível 1 da granada (`ONLINE_GRENADE_LEVEL = 1`). O tipo (granada, mina ou dupla) segue o nível equipado ([[Grenades]]).
+- **Armas — escolhidas antes, travadas durante:** cada jogador entra com o loadout da conta (rifle, a secundária escolhida, faca e granada, com as melhorias liberadas), resolvido pelo servidor **ao entrar** e enviado a todos (`joined`/`playerJoined`). A escolha é feita na aba Arsenal da tela inicial e mandada no saguão (`loadout`) antes do `join`. **Durante a partida nada muda**: o Arsenal da pausa é só leitura, o servidor recusa `loadout` e, ao subir de nível, as melhorias novas só valem **na próxima partida** — "partida" aqui é a estadia na sessão: sair para o início e entrar de novo pega a escolha e as melhorias novas ([[ADR - Equipamento travado no mata-mata]]). Dano, cadência e alcance são os da arma que atirou com as melhorias do loadout ([[Weapons]], [[Validation]]).
+- **Granadas:** a explosão vem de `grenadeStats` (nível 1 do JSON, raio ×1,2 com a Pólvora). O tipo (granada, mina ou dupla) segue a melhoria opcional ligada ([[Grenades]]).
 
 ## Fluxo da partida
 
@@ -93,7 +97,7 @@ Detalhes de protocolo em [[Remote Calls]] e [[Sessions]]. Detalhes do fluxo de i
 
 - A tabela `SCORE`, calculada no servidor ([[Scoring]]).
 - O placar da sessão (pontos, abates, mortes, opressões) fica **em memória** e recomeça do zero a cada entrada.
-- Persistem na conta: XP das armas, XP da conta, estatísticas e a participação (pontos, abates e mortes daquela entrada). Ver [[Progression]] e [[Player Data]].
+- Persistem na conta: XP das armas, a escolha do Arsenal, XP da conta, estatísticas e a participação (pontos, abates e mortes daquela entrada). Ver [[Progression]] e [[Player Data]].
 
 ## Limites de tempo
 
@@ -108,8 +112,9 @@ Nenhum limite de partida. Os temporizadores existentes são de regra: janela de 
 | `NET.corpseWindow` | 6 s (= `HUMILIATION.window`) | `shared/protocol.ts` |
 | `NET.tickRate` / `stateRate` | 20 Hz | `shared/protocol.ts` |
 | `NET.sessionNameMax` | 24 | `shared/protocol.ts` |
-| `ONLINE_GRENADE_LEVEL` | 1 | `shared/protocol.ts` |
-| Sessões permanentes | `rua`, `jardim`, `halloween` | `server/app.ts` |
+| `SWITCH_GRACE_MS` | 1000 ms (acertos da arma guardada após a troca) | `server/session.ts` |
+| Sessões permanentes | `principal` (rua), `jardim`, `halloween` | `server/app.ts` (`permanentSessionId`) |
+| `MODE_RULES['mata-mata']` | Arsenal, `lockedLoadout`, granadas, XP de arma, sem rodadas | `shared/modes.ts` |
 | Gravação do progresso | a cada 60 s e ao sair | `server/app.ts` (`FLUSH_EVERY_MS`) |
 
 ## Sistemas utilizados
@@ -119,6 +124,8 @@ Nenhum limite de partida. Os temporizadores existentes são de regra: janela de 
 ## Código relacionado
 
 - `server/session.ts`: a classe `Session` (regras, validação, tick, placar)
+- `server/modes.ts`: `DeathmatchMode` (loadout da conta ao entrar)
+- `server/modes.ts`: `DeathmatchMode` (loadout da conta ao entrar)
 - `server/app.ts`: lobby, sessões permanentes, criação e remoção, gravação do progresso
 - `client/ui/home.ts`: lista de sessões, criar e entrar
 - `client/main.ts`: handlers `conn.on(...)`, respawn online

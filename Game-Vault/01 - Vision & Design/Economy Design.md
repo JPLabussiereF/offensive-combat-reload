@@ -9,27 +9,41 @@ source_paths:
   - shared/data/progression.json
   - server/migrations/001_contas.sql
   - client/world/hauntedTown.ts
+  - shared/data/weapons/pistola.json
+  - shared/data/weapons/smg.json
+  - shared/data/zumbi.json
+  - shared/zombies.ts
+  - shared/zombieMatch.ts
 tags:
   - game
   - design
   - economy
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Economy Design
 
-> [!important] Não existe no código atual
-> Não há **moeda, loja, compra, preço, premium nem recompensa em moeda**. Isso foi verificado com buscas por `moeda`, `coin`, `loja`, `shop`, `currency`, `compra`, `purchase`, `price` e `preço` em `client/`, `server/`, `shared/`, `docs/` e no `README.md`, e nas tabelas de `server/migrations/`.
+> [!important] Não existe no código atual (fora do modo zumbi)
+> Não há **moeda salva, loja, preço, premium nem recompensa em moeda** na conta. A única moeda do jogo é o **dinheiro da partida do modo zumbi** (abaixo), que nunca é salvo. Isso foi verificado com buscas por `moeda`, `coin`, `loja`, `shop`, `currency`, `compra`, `purchase`, `price` e `preço` em `client/`, `server/`, `shared/`, `docs/` e no `README.md`, e nas tabelas de `server/migrations/`.
 
 ## O que existe no lugar
 
 - **Progressão por XP**: os pontos de abate viram XP da arma que matou, e o tempo vivo, os abates, as opressões e as carpas viram XP da conta. É o único recurso acumulável. Ver [[Progression]].
-- **Desbloqueio por uso**: os níveis de arma se liberam com XP e se equipam livremente no Arsenal. Não há custo nem escolha excludente.
-- **Recursos de partida** (não persistem): munição (cheia a cada nascimento), cargas de granada (2, recarga de 10 s) e bônus temporários do mapa ([[Buffs & Debuffs]], [[Pickups]]).
+- **Desbloqueio por uso**: cada nível de arma se libera com XP e traz uma melhoria. As comuns ficam ativas sozinhas; as opcionais se ligam e desligam livremente no Arsenal. Não há custo. A única escolha excludente é dentro de um grupo (luneta × ponto vermelho, frango × sabre, mina × Dose Dupla) e a secundária (pistola ou submetralhadora). Ver [[Weapons]].
+- **Recursos de partida** (não persistem): munição (cheia a cada nascimento, um pente por arma), cargas de granada (2, ou 3 com a melhoria Cinto; recarga de 10 s) e bônus temporários do mapa ([[Buffs & Debuffs]], [[Pickups]]).
+
+## Dinheiro da partida (modo zumbi)
+
+O [[Zombie|modo zumbi]] tem uma economia **fechada na partida** ([[ADR - Modo zumbi cooperativo com caixão e raridades]]):
+
+- **Fontes**: $500 ao começar (ou entrar), cada abate de zumbi ($60–120 conforme o tipo, $500 um chefe; +$40 tiro na cabeça, +$60 facada), ajuda (+$25), reanimar um colega (+$100), onda vencida (+$100), chefe derrotado (+$1.000 a $1.500 para o time).
+- **Ralo**: o **Caixão Misterioso**, $950 por rodada, que sorteia uma arma de uma raridade (o pato de borracha devolve o dinheiro).
+- **Autoridade**: online, o servidor credita, cobra e sorteia (`shared/zombieMatch.ts` rodando em `server/modes.ts`); o cliente só mostra.
+- **Persistência**: nenhuma. Zera a cada partida, ao sair da sessão e ao entrar de novo. Valores em `shared/data/zumbi.json` (`dinheiroInicial`, `dinheiro`, `tipos.*.dinheiro`, `chefes.*`, `caixa.custo`).
 
 ## Rastros de uma economia planejada (não usados)
 
-O esquema de dados das armas (`WeaponData` em `shared/weapons.ts`) já tem campos econômicos, preenchidos com zero e **não lidos por nenhum código**:
+O esquema de dados das armas (`WeaponData` em `shared/weapons.ts`) já tem campos econômicos, preenchidos com zero e **não lidos por nenhum código** (o mesmo vale para `pistola.json` e `smg.json`):
 
 | Campo | Valor em `rifle_padrao.json` | Uso no código |
 | --- | --- | --- |

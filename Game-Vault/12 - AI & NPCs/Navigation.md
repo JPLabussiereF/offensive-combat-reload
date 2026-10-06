@@ -10,19 +10,25 @@ source_paths:
   - client/world/physics.ts
   - shared/constants.ts
   - package.json
+  - tools/bake-navmesh.ts
+  - server/navmesh.ts
+  - shared/data/navmesh/halloween.json
+  - shared/zombieMatch.ts
 tags:
   - ai
   - navigation
   - navmesh
   - recast
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Navigation
 
 ## Responsabilidade
 
-`NavMap` (`client/ai/navmesh.ts`) gera e consulta a **malha de navegação** dos bots com a biblioteca `recast-navigation` (dependência `^0.43.1` no `package.json`). Só existe no modo **Contra bots**: `client/main.ts` faz `await NavMap.build(...)` apenas se `botMode`.
+`NavMap` (`client/ai/navmesh.ts`) gera e consulta a **malha de navegação** dos bots com a biblioteca `recast-navigation` (dependência `^0.43.1` no `package.json`). No navegador só existe offline (**Contra bots**, incluindo o zumbi solo): `client/main.ts` faz `await NavMap.build(...)` apenas se `botMode`.
+
+A **mesma malha** é usada pelo servidor para os zumbis online (ver "Malha pré-gerada para o servidor" abaixo).
 
 ## Entrada
 
@@ -84,6 +90,16 @@ Detalhes das decisões em [[AI Decisions]].
 
 `F4` alterna: hitboxes → hitboxes + colisores do mapa e **a navmesh dos bots** → desligado (`client/main.ts`). Em dev, `window.__ocNavDebug` guarda a malha.
 
+## Malha pré-gerada para o servidor (modo zumbi)
+
+O servidor não monta mapas; para mover os zumbis online ele carrega uma navmesh **gerada em tempo de desenvolvimento** ([[ADR - Zumbis simulados no servidor sobre navmesh pré-gerada]]):
+
+- `tools/bake-navmesh.ts` (`bun run navmesh`) monta o mapa **headless em Bun** com o próprio código do cliente (`client/world/*`, com um canvas que não desenha) e chama `NavMap.build`: as mesmas configurações e os mesmos colisores dos bots. Exporta com `exportNavMesh` para `shared/data/navmesh/<mapa>.json` (base64, ~265 KB na Vila Assombrada, com tamanho e hash). Hoje: só `halloween` (os mapas do modo zumbi, `modeMaps('zumbi')`).
+- `server/navmesh.ts` carrega a malha uma vez por processo (`importNavMesh`, depois de iniciar o WebAssembly do Recast), compartilhada por todas as sessões do mapa.
+- `ZombieMatch` (`shared/zombieMatch.ts`) usa uma `Crowd` do Detour por sessão (até 64 agentes) para seguir caminho e espaçar a horda, `findClosestPoint`/`findRandomPointAroundCircle` para pontos de surgimento e `raycast` na malha como linha de visão (cuspe da Tia da Fofoca, investida do Prefeito).
+- A geração é determinística (o mapa usa aleatoriedade com semente): `server/tests/zombies.test.ts` refaz a malha e compara o hash. **Mudou o mapa da Vila Assombrada, rode `bun run navmesh`**, senão o teste falha.
+- Offline, o zumbi solo usa a malha gerada na hora pelo navegador (é a mesma).
+
 ## Falhas
 
 Se a geração falhar, `console.warn('[bots] falha ao gerar a malha de navegação')` e `NavMap.build` devolve `null`; o `BotManager` só é criado com navmesh (`if (botMode && nav)`). Ver [[Error Handling]].
@@ -92,7 +108,8 @@ Se a geração falhar, `console.warn('[bots] falha ao gerar a malha de navegaç�
 
 - Malha estática, gerada uma vez: colisores que mudam durante a partida (por exemplo, os do rato gigante, desabilitados quando ele morre) não atualizam a malha (inferência: não há reconstrução nem obstáculos dinâmicos do Recast no código).
 - Sem links fora da malha (off-mesh links) para pulos; pular é só o recurso anti-travamento.
-- O custo de gerar a malha entra no carregamento do modo bots (medido em `buildMs`; não há número registrado no repositório). Ver [[Loading Performance]].
+- O custo de gerar a malha entra no carregamento do modo bots (medido em `buildMs`). Gerada headless em Bun, a da Vila Assombrada leva ~0,5 s (mapa ~0,6 s antes). Ver [[Loading Performance]].
+- O caixão do modo zumbi e outros objetos que não estão nos colisores estáticos do mapa não entram na malha: zumbis podem atravessá-los. Um jogador num lugar fora da malha (em cima de um carro) fica fora do alcance dos arranhões.
 
 ## Código relacionado
 
@@ -100,5 +117,6 @@ Se a geração falhar, `console.warn('[bots] falha ao gerar a malha de navegaç�
 - `client/ai/bot.ts` (`setGoal`, `followPath`, anti-travamento em `fixedUpdate`)
 - `client/main.ts` (construção em modo bots, depuração F4)
 - `shared/constants.ts` (`MOVE`)
+- `tools/bake-navmesh.ts`, `server/navmesh.ts`, `shared/data/navmesh/halloween.json`, `shared/zombieMatch.ts` (servidor, modo zumbi)
 
 Ver também: [[AI Overview]], [[Movement]], [[World Structure]].

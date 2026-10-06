@@ -1,6 +1,8 @@
 // Data-driven firearm logic (section 6/7): fire rate, magazine, reloads, four-state spread with bloom,
-// semi-deterministic recoil pattern, ADS and the sprint-out delay. Pure game logic, no rendering.
-import type { WeaponData } from '@shared/weapons';
+// semi-deterministic recoil pattern, ADS and the sprint-out delay. Pure game logic, no rendering. One per gun
+// slot: each keeps its own magazine while the other is in hand. Its data is the gun with its upgrades
+// (shared/arsenal.ts gunStats).
+import type { GunStats } from '@shared/arsenal';
 
 export interface WeaponInput {
   fireHeld: boolean;
@@ -48,7 +50,7 @@ export class Weapon {
   private semiLatch = false;
 
   constructor(
-    public data: WeaponData,
+    public data: GunStats,
     private hooks: WeaponHooks,
   ) {
     this.mag = data.pente;
@@ -56,11 +58,16 @@ export class Weapon {
   }
 
   /**
-   * Switches to another level of the gun mid-life. Ammo carries over (up to the new capacities), so a level
-   * up is not a free reload.
+   * Other stats for this gun mid-life. An upgrade keeps the ammo (up to the new capacities), so it is not a
+   * free reload; another gun in the slot comes as full as the one it replaces was.
    */
-  setData(d: WeaponData) {
+  setData(d: GunStats) {
     if (d === this.data) return;
+    if (d.arma !== this.data.arma) {
+      this.mag = Math.round((this.mag / this.data.pente) * d.pente);
+      this.reserve = Math.round((this.reserve / this.data.reserva) * d.reserva);
+      this.reloading = false;
+    }
     this.data = d;
     this.mag = Math.min(this.mag, d.pente);
     this.reserve = Math.min(this.reserve, d.reserva);
@@ -80,9 +87,16 @@ export class Weapon {
     return (hip + (aimed - hip) * this.ads) * this.spreadMul;
   }
 
-  /** Knife and humiliations interrupt a reload; the magazine is untouched and R starts over. */
+  /** Knife, humiliations and putting the gun away interrupt a reload; the magazine is untouched and R starts over. */
   cancelReload() {
     this.reloading = false;
+  }
+
+  /** Put away for the other gun: no reload carries on, no aim, no recoil left over when it comes back. */
+  holster() {
+    this.reloading = false;
+    this.ads = 0;
+    this.recoilPitch = this.recoilYaw = this.bloom = 0;
   }
 
   refill() {

@@ -2,7 +2,7 @@
 import { accountLevel } from '@shared/accountLevel';
 import { sanitizeAppearance, type Appearance } from '@shared/appearance';
 import { DELETION_GRACE_DAYS, formatTag, NAME_COOLDOWN_DAYS, type Participation, type ProfileResponse, type Totals } from '@shared/account';
-import { levelForXp, PROG_WEAPONS, type Loadout, type ProgWeapon } from '@shared/progression';
+import { legacyChoice, levelForXp, PROG_WEAPONS, sanitizeChoice, type ArsenalChoice, type Levels, type ProgWeapon } from '@shared/progression';
 import type { Sex } from '@shared/protocol';
 import { transaction, type Db, type Queryable } from './db';
 import { HttpError } from './http';
@@ -160,13 +160,15 @@ interface ProfileRow {
   discriminator: number;
   sex: Sex;
   appearance: unknown;
+  /** The Arsenal choice (JSON), null until the player makes one. */
+  loadout: unknown;
   name_changed_at: Date | null;
 }
 
 /** The account's game profile (one per account for now; the oldest one). */
 export async function profileOf(db: Queryable, accountId: string): Promise<ProfileRow> {
   const { rows } = await db.query<ProfileRow>(
-    'SELECT id, display_name, discriminator, sex, appearance, name_changed_at FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1',
+    'SELECT id, display_name, discriminator, sex, appearance, loadout, name_changed_at FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1',
     [accountId],
   );
   if (!rows[0]) throw new HttpError(404, 'nao_encontrado');
@@ -187,23 +189,28 @@ export async function me(db: Db, accountId: string) {
   };
 }
 
-async function weapons(db: Queryable, profileId: string) {
-  const { rows } = await db.query<{ weapon: ProgWeapon; xp: string; equipped_level: number }>('SELECT weapon, xp, equipped_level FROM weapon_progress WHERE profile_id = $1', [profileId]);
-  const out = {} as Record<ProgWeapon, { xp: number; nivel: number; equipado: number }>;
+/**
+ * Points and level of every weapon, and the Arsenal choice checked against those levels. A profile without a
+ * saved choice (an account from before the upgrades) gets the nearest one to its old equipped levels.
+ */
+async function weapons(db: Queryable, profile: Pick<ProfileRow, 'id' | 'loadout'>) {
+  const { rows } = await db.query<{ weapon: ProgWeapon; xp: string; equipped_level: number }>('SELECT weapon, xp, equipped_level FROM weapon_progress WHERE profile_id = $1', [profile.id]);
+  const armas = {} as Record<ProgWeapon, { xp: number; nivel: number }>;
   for (const w of PROG_WEAPONS) {
-    const r = rows.find((x) => x.weapon === w);
-    const xp = Number(r?.xp ?? 0);
-    const nivel = levelForXp(w, xp);
-    out[w] = { xp, nivel, equipado: Math.min(r?.equipped_level ?? 1, nivel) };
+    const xp = Number(rows.find((x) => x.weapon === w)?.xp ?? 0);
+    armas[w] = { xp, nivel: levelForXp(w, xp) };
   }
-  return out;
+  const legacy = () => legacyChoice(Object.fromEntries(rows.map((r) => [r.weapon, r.equipped_level])));
+  return { armas, arsenal: sanitizeChoice(profile.loadout ?? legacy(), levelsOf(armas)) };
 }
+
+const levelsOf = (armas: Record<ProgWeapon, { nivel: number }>) => Object.fromEntries(PROG_WEAPONS.map((w) => [w, armas[w].nivel])) as Levels;
 
 export async function fullProfile(db: Db, accountId: string): Promise<ProfileResponse> {
   const [account, profile, prov] = await Promise.all([getAccount(db, accountId), profileOf(db, accountId), providers(db, accountId)]);
-  const [stats, armas, parts] = await Promise.all([
+  const [stats, { armas, arsenal }, parts] = await Promise.all([
     db.query('SELECT * FROM player_stats WHERE profile_id = $1', [profile.id]),
-    weapons(db, profile.id),
+    weapons(db, profile),
     db.query(
       `SELECT session_name, joined_at, left_at, kills, deaths, score, humiliations, account_xp
          FROM session_participation WHERE profile_id = $1 ORDER BY joined_at DESC LIMIT 10`,
@@ -246,6 +253,7 @@ export async function fullProfile(db: Db, accountId: string): Promise<ProfileRes
     xpNoNivel: lvl.into,
     xpProximo: lvl.next,
     armas,
+    arsenal,
     totais,
     participacoes,
     nomeLiberaEm: libera && libera.getTime() > Date.now() ? libera.toISOString() : null,
@@ -257,7 +265,7 @@ export async function fullProfile(db: Db, accountId: string): Promise<ProfileRes
 /** Changes the display name: the first change is free, then one every NAME_COOLDOWN_DAYS days. */
 export async function changeName(db: Db, accountId: string, name: string, info: AuditInfo) {
   await transaction(db, async (c) => {
-    const { rows } = await c.query<ProfileRow>('SELECT id, display_name, discriminator, sex, appearance, name_changed_at FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1 FOR UPDATE', [accountId]);
+    const { rows } = await c.query<ProfileRow>('SELECT id, display_name, discriminator, sex, appearance, loadout, name_changed_at FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1 FOR UPDATE', [accountId]);
     const p = rows[0];
     if (!p) throw new HttpError(404, 'nao_encontrado');
     if (p.display_name === name) return;
@@ -288,18 +296,14 @@ export async function setAppearance(db: Queryable, accountId: string, raw: unkno
   return look;
 }
 
-/** Equips unlocked levels; a locked one fails the whole request. */
-export async function setEquipped(db: Db, accountId: string, lo: Partial<Loadout>) {
+/** Saves the Arsenal choice (secondary gun, optional upgrades on); an upgrade not unlocked yet fails the whole request. */
+export async function setArsenal(db: Db, accountId: string, raw: unknown): Promise<ArsenalChoice> {
   const profile = await profileOf(db, accountId);
-  const current = await weapons(db, profile.id);
-  for (const w of PROG_WEAPONS) {
-    const level = lo[w];
-    if (level === undefined) continue;
-    if (!Number.isInteger(level) || level < 1 || level > current[w].nivel) throw new HttpError(400, 'nivel_bloqueado');
-  }
-  for (const w of PROG_WEAPONS) {
-    if (lo[w] !== undefined) await db.query('UPDATE weapon_progress SET equipped_level = $3 WHERE profile_id = $1 AND weapon = $2', [profile.id, w, lo[w]]);
-  }
+  const { armas } = await weapons(db, profile);
+  const choice = sanitizeChoice(raw, levelsOf(armas));
+  if (JSON.stringify(choice) !== JSON.stringify(sanitizeChoice(raw))) throw new HttpError(400, 'nivel_bloqueado');
+  await db.query('UPDATE player_profile SET loadout = $2 WHERE id = $1', [profile.id, JSON.stringify(choice)]);
+  return choice;
 }
 
 // --- Deletion (LGPD) --------------------------------------------------------------------------------------
@@ -349,14 +353,17 @@ export interface GameProfile {
   sex: Sex;
   appearance: Appearance;
   xp: number;
-  weapons: Record<ProgWeapon, { xp: number; equipped: number }>;
+  /** Points earned with each weapon. */
+  weapons: Record<ProgWeapon, { xp: number }>;
+  /** The Arsenal choice (sanitized against the levels whenever it's used). */
+  arsenal: ArsenalChoice;
 }
 
 export async function loadGameProfile(db: Db, accountId: string): Promise<GameProfile> {
   const profile = await profileOf(db, accountId);
-  const [stats, armas] = await Promise.all([db.query<{ xp: string }>('SELECT xp FROM player_stats WHERE profile_id = $1', [profile.id]), weapons(db, profile.id)]);
+  const [stats, { armas, arsenal }] = await Promise.all([db.query<{ xp: string }>('SELECT xp FROM player_stats WHERE profile_id = $1', [profile.id]), weapons(db, profile)]);
   const w = {} as GameProfile['weapons'];
-  for (const k of PROG_WEAPONS) w[k] = { xp: armas[k].xp, equipped: armas[k].equipado };
+  for (const k of PROG_WEAPONS) w[k] = { xp: armas[k].xp };
   return {
     accountId,
     profileId: profile.id,
@@ -365,6 +372,7 @@ export async function loadGameProfile(db: Db, accountId: string): Promise<GamePr
     appearance: sanitizeAppearance(profile.appearance, profile.sex),
     xp: Number(stats.rows[0]?.xp ?? 0),
     weapons: w,
+    arsenal,
   };
 }
 
@@ -386,7 +394,7 @@ export interface ProgressDelta {
 
 export const emptyDelta = (): ProgressDelta => ({
   accountXp: 0,
-  weaponXp: { rifle: 0, faca: 0, granada: 0 },
+  weaponXp: { rifle: 0, pistola: 0, smg: 0, faca: 0, granada: 0 },
   kills: 0,
   deaths: 0,
   headshots: 0,
@@ -405,8 +413,11 @@ export async function openParticipation(db: Db, profileId: string, sessionName: 
   return rows[0].id;
 }
 
-/** Writes a delta in one transaction: stats, weapons, the participation row and (optionally) closes it. */
-export async function flushProgress(db: Db, profileId: string, participationId: string | null, d: ProgressDelta, close: boolean, equipped?: Loadout) {
+/**
+ * Writes a delta in one transaction: stats, weapon points, the Arsenal choice (when given), the participation
+ * row and (optionally) closes it.
+ */
+export async function flushProgress(db: Db, profileId: string, participationId: string | null, d: ProgressDelta, close: boolean, arsenal?: ArsenalChoice) {
   await transaction(db, async (c) => {
     const r = await c.query<{ xp: string }>(
       `UPDATE player_stats SET xp = xp + $2, kills = kills + $3, deaths = deaths + $4, headshots = headshots + $5,
@@ -418,10 +429,15 @@ export async function flushProgress(db: Db, profileId: string, participationId: 
     );
     if (r.rows[0]) await c.query('UPDATE player_stats SET level = $2 WHERE profile_id = $1', [profileId, accountLevel(Number(r.rows[0].xp)).level]);
     for (const w of PROG_WEAPONS) {
-      if (d.weaponXp[w] > 0 || equipped) {
-        await c.query('UPDATE weapon_progress SET xp = xp + $3, equipped_level = COALESCE($4, equipped_level) WHERE profile_id = $1 AND weapon = $2', [profileId, w, d.weaponXp[w], equipped?.[w] ?? null]);
-      }
+      if (d.weaponXp[w] <= 0) continue;
+      // An upsert: a weapon added after the account was made may not have its row yet.
+      await c.query(
+        `INSERT INTO weapon_progress (profile_id, weapon, xp) VALUES ($1, $2, $3)
+         ON CONFLICT (profile_id, weapon) DO UPDATE SET xp = weapon_progress.xp + EXCLUDED.xp`,
+        [profileId, w, d.weaponXp[w]],
+      );
     }
+    if (arsenal) await c.query('UPDATE player_profile SET loadout = $2 WHERE id = $1', [profileId, JSON.stringify(arsenal)]);
     if (participationId) {
       await c.query(
         `UPDATE session_participation SET kills = kills + $2, deaths = deaths + $3, score = score + $4,

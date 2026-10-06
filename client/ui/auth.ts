@@ -44,6 +44,8 @@ interface Options {
   discord: boolean;
   sex: Sex;
   resetToken?: string;
+  /** False: don't focus the first field (the landing renders the form before anyone asked for it). */
+  autofocus?: boolean;
   currentName?: string;
   setStatus(msg: string, error?: boolean): void;
   /** Signed in (or name saved): the home reloads the account. */
@@ -52,7 +54,7 @@ interface Options {
 }
 
 export function showAuth(root: HTMLElement, view: AuthView, o: Options) {
-  const go = (v: AuthView) => showAuth(root, v, o);
+  const go = (v: AuthView) => showAuth(root, v, { ...o, autofocus: true });
   const discordBtn = o.discord ? `<a class="discord-btn" href="/api/auth/discord">${t('withDiscord')}</a>` : '';
   const views: Record<AuthView, string> = {
     login: `<h3>${t('signInTitle')}</h3>${discordBtn}
@@ -130,5 +132,5 @@ export function showAuth(root: HTMLElement, view: AuthView, o: Options) {
   root.querySelectorAll<HTMLButtonElement>('[data-go]').forEach((b) => {
     b.onclick = () => (b.dataset.go === 'cancel' ? o.onCancel() : go(b.dataset.go as AuthView));
   });
-  root.querySelector<HTMLInputElement>('input')?.focus();
+  if (o.autofocus !== false) root.querySelector<HTMLInputElement>('input')?.focus();
 }

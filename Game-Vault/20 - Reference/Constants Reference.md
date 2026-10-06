@@ -20,11 +20,15 @@ source_paths:
   - client/ai/bots.ts
   - client/world/hydrant.ts
   - server/session.ts
+  - shared/data/weapons/pistola.json
+  - shared/data/weapons/smg.json
+  - shared/arsenal.ts
+  - client/ai/bot.ts
 tags:
   - reference
   - constants
   - gameplay
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Constants Reference
@@ -34,7 +38,7 @@ Tabela dos valores de gameplay como estão no código em 2026-10-05. **Fonte da 
 > [!info] Onde cada coisa mora
 > - `shared/constants.ts` — movimento, vida, coletáveis, poções, pontos, opressão, simulação, grupos de colisão (cliente **e** servidor).
 > - `shared/protocol.ts` — `NET` (rede, sessão, chat, respawn).
-> - `shared/data/weapons/*.json` e `shared/data/progression.json` — armas e seus níveis. Ver [[Configuration Data]].
+> - `shared/data/weapons/*.json` e `shared/data/progression.json` — armas e suas melhorias por nível (aplicadas por `gunStats`/`meleeStats`/`grenadeStats` em `shared/arsenal.ts`). Ver [[Configuration Data]].
 > - Constantes **locais** de módulos do cliente/servidor (minas, assistência de mira, folgas de validação) — listadas no fim, porque não são compartilhadas.
 
 ## `MOVE` — movimento (`shared/constants.ts`) → [[Movement]]
@@ -136,9 +140,9 @@ Posições: `PICKUPS`, `WITCHES`, `RATS`, `FISH` em `shared/maps.ts` (ver [[Maps
 | `respawnDelay` | 5 s (cliente usa 5,3 s online) |
 | `corpseWindow` | = `HUMILIATION.window` (6 s) |
 | `port` / `path` | 8787 / `/ws` |
-| `ONLINE_GRENADE_LEVEL` | 1 (nível de dano da granada online) |
+| `FLAG.secondary` | 512 (bit do `state`: secundária na mão) |
 
-## Rifle (`rifle_padrao.json`, nível 1) → [[Weapons]], [[Damage System]]
+## Rifle (`rifle_padrao.json`, sem melhorias) → [[Weapons]], [[Damage System]]
 
 | Campo | Valor |
 |---|---|
@@ -152,24 +156,44 @@ Posições: `PICKUPS`, `WITCHES`, `RATS`, `FISH` em `shared/maps.ts` (ver [[Maps
 | `recuo` vertical/horizontal/retorno | 0,9° / [−0,3°, 0,4°] / 8 |
 | `ads` tempo/zoom | 0,22 s / 0,85 |
 | `movimento` | 1,0 |
+| `troca` (tempo de saque) | 0,45 s |
 | `alcanceMaximo` | 300 m |
 | `penetracao` | 2 superfícies; madeira 0,6 (≤ 0,4 m), vidro 0,9 (≤ 0,1 m), papel 0,95 (≤ 0,1 m) |
 | `tracanteACada` | 3 |
-| `desbloqueioNivel`, `preco`, `slotsAcessorio`, `modelo`, `sons`, `categoria`, `slot` | presentes no JSON, **não usados** pelo código |
+| `slot` | `primaria` (monta `PRIMARIES`) |
+| `desbloqueioNivel`, `preco`, `slotsAcessorio`, `modelo`, `sons`, `categoria`, `nome` | presentes no JSON, **não usados** pelo código |
 
-Níveis 2–7 (dano, pente, cadência, multiplicadores): tabela em [[Weapons]]. XP para liberar: 400 / 1000 / 1800 / 2800 / 4000 / 5500.
+Melhorias (níveis 2–6) e os pontos para liberá-las (1000 / 2500 / 4500 / 7000 / 10000): [[Weapons]] e [[Progression]].
+
+## Pistola (`pistola.json`) e Submetralhadora (`smg.json`), sem melhorias → [[Weapons]]
+
+| Campo | Pistola | Submetralhadora |
+|---|---|---|
+| `slot` / `modo` | `secundaria` / `semi` | `secundaria` / `auto` |
+| `dano` max/min, distMax/distMin | 28 / 17, 12 m / 30 m | 22 / 12, 8 m / 25 m |
+| `multiplicadores` cabeça / pescoço | 2,8 / 1,5 | 2,0 / 1,4 |
+| `cadencia` | 400 rpm | 950 rpm |
+| `pente` / `reserva` | 12 / 48 | 32 / 128 |
+| `recarga` tática/vazia | 1,4 / 1,7 s | 1,9 / 2,3 s |
+| `ads` tempo/zoom | 0,14 s / 0,9 | 0,17 s / 0,9 |
+| `movimento` | 1,06 | 1,08 |
+| `troca` (tempo de saque) | 0,3 s | 0,35 s |
+| `alcanceMaximo` | 200 m | 200 m |
+| `penetracao` | 1 superfície; madeira 0,5 | 1 superfície; madeira 0,5 |
+
+Melhorias: pistola 700 / 1800 / 3200 / 5200; submetralhadora 800 / 2000 / 3800 / 6000. Ver [[Weapons]].
 
 ## Faca (`faca.json`) → [[Melee]]
 
 | Campo | Valor |
 |---|---|
 | `letal` | true (9999) |
-| `alcance` / `alcanceInvestida` | 1,8 / 3,2 m (níveis até 2,7 / 5,0 m) |
+| `alcance` / `alcanceInvestida` | 1,8 / 3,2 m (somas das melhorias em [[Melee]]) |
 | `anguloGraus` | 45° |
 | `duracao` / `impacto` / `intervalo` | 0,45 / 0,14 / 0,6 s |
 | `velocidadeInvestida` | 14 m/s |
 
-XP para liberar níveis 2–7: 300 / 750 / 1350 / 2100 / 3000 / 4100. Tabela em [[Items]].
+XP para liberar as melhorias (níveis 2–5): 600 / 1500 / 2800 / 4500. Ver [[Weapons]].
 
 ## Granada (`granada_frag.json`) → [[Grenades]], [[Land Mines]]
 
@@ -183,7 +207,7 @@ XP para liberar níveis 2–7: 300 / 750 / 1350 / 2100 / 3000 / 4100. Tabela em 
 | `raio` / `quique` / `atrito` | 0,07 m / 0,35 / 0,7 |
 | `niveis[1]` | raioDano 7 m, raioDanoMaximo 2,5 m, danoMax 85, danoMin 12, podeMatar true |
 
-Tipos por progressão: nível 1 `granada` (0 XP), 2 `mina` (500), 3 `dupla` (1300).
+Melhorias (níveis 2–5): `mina` (opcional, 700 XP), `dupla` (opcional, 1800), `cinto` +1 granada (3200), `polvora` raios ×1,2 (5000). A explosão usada é sempre `niveis[1]`, escalada pela Pólvora (`grenadeStats`).
 
 ## Corpo / aparência (`EFFECTS`, `shared/appearance.ts`) → [[Character Customization]]
 
@@ -209,6 +233,8 @@ Tipos por progressão: nível 1 `granada` (0 XP), 2 `mina` (500), 3 `dupla` (130
 | `client/world/hydrant.ts` | `GUSH_TIME` / `LAUNCH_RADIUS` / `LAUNCH_SPEED` | 3 s / 0,65 m / 15 m/s | [[Map Gags]] |
 | `server/session.ts` | `EYE` / `CHEST` | 1,6 / 1,1 m (alturas usadas na validação) | [[Validation]] |
 | `server/session.ts` | `LAG_SLACK` | 4 m (+10% da distância) | [[Anti Cheat]] |
+| `server/session.ts` | `SWITCH_GRACE_MS` | 1000 ms (acertos da arma recém-guardada ainda valem) | [[Anti Cheat]] |
+| `client/ai/bot.ts` | `pickGun` | rifle 60% · submetralhadora 25% · pistola 15% | [[Versus Bots]] |
 | `server/session.ts` | `PICKUP_SLACK` | 1,5 m | [[Pickups]] |
 | `server/session.ts` | limites de granadas vivas | 4 granadas / 3 minas | [[Grenades]] |
 

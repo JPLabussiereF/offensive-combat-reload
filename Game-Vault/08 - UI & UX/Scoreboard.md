@@ -4,6 +4,7 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - shared/gunGame.ts
   - client/ui/scoreboard.ts
   - client/main.ts
   - index.html
@@ -12,7 +13,7 @@ tags:
   - game
   - ui
   - scoreboard
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Scoreboard
@@ -28,13 +29,15 @@ Tabela de classificação da partida (`#scoreboard`, classe `Scoreboard` em `cli
 
 ## Conteúdo
 
-Cabeçalho com "Placar" e o nome da sessão (online) ou "Contra N bots · mata-mata livre". Colunas:
+Cabeçalho com "Placar" e o nome da sessão (online) ou "Contra N bots · {modo}". Colunas:
 
-| # | Jogador | Nível | Pontos | Abates | Mortes | Opress. | Ping |
-| --- | --- | --- | --- | --- | --- | --- | --- |
+| # | Jogador | Nível | (Arma) | Pontos | Abates | Mortes | Opress. | Ping |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
-- **Ordenação:** pontos (desc.), depois abates (desc.), depois mortes (asc.).
-- **Destaques:** a linha do próprio jogador recebe a classe `me`; jogadores mortos, `dead`.
+- **Arma** só existe na corrida armada (`new Scoreboard('ladder')`): degrau e abates nele, ex. "3/7 · 1/3" (`PlayerInfo.ladder`). Ver [[Gun Game]].
+- **Zumbi** (`new Scoreboard('zombie')`) tem colunas próprias, de time: **# · Jogador · Nível · Abates (de zumbi) · Dinheiro (atual) · Caiu · Reanimou · Ping** (`PlayerInfo.zumbi`). Quem está caído aparece com "✚" antes do nome e esmaecido. No zumbi solo não há placar. Ver [[Zombie]].
+- **Ordenação:** na corrida armada, primeiro pela escada (degrau, depois abates no degrau); depois pontos (desc.), abates (desc.), mortes (asc.). Os números zeram a cada rodada.
+- **Destaques:** a linha do próprio jogador recebe a classe `me`; jogadores mortos (ou caídos, no zumbi), `dead`.
 - **Nível:** nível da conta; bots e jogadores sem conta mostram "—".
 - **Ping** em ms.
 - A tabela só é redesenhada quando os dados mudam (chave = nome da sessão + JSON das linhas).

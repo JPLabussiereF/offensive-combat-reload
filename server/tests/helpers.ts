@@ -1,5 +1,6 @@
 // Test helpers: a real game server on a free port, and a tiny browser (cookie jar + Origin header +
 // its own IP through X-Forwarded-For, so per-IP limits don't leak between tests).
+import type { ProgWeapon } from '@shared/progression';
 import type { ServerMsg } from '@shared/protocol';
 import { startServer, type GameServer } from '../app';
 import { TEST_DATABASE_URL, TEST_REDIS_URL } from './env';
@@ -72,18 +73,22 @@ export class Browser {
 export class Player {
   msgs: ServerMsg[] = [];
   closed: { code: number } | null = null;
-  private waiters: { match: (m: ServerMsg) => boolean; resolve: (m: ServerMsg) => void }[] = [];
+  private waiters: { match: (m: ServerMsg) => boolean; claim: () => void; resolve: (m: ServerMsg) => void }[] = [];
 
   private constructor(readonly ws: WebSocket) {
     ws.addEventListener('message', (ev) => {
       const m = JSON.parse(String(ev.data)) as ServerMsg;
-      this.msgs.push(m);
-      for (const w of [...this.waiters]) {
-        if (w.match(m)) {
-          this.waiters.splice(this.waiters.indexOf(w), 1);
-          w.resolve(m);
-        }
+      // One message answers one waiter (the oldest that wants it); taken now, so no other waiter gets it.
+      const w = this.waiters.find((x) => x.match(m));
+      if (!w) {
+        this.msgs.push(m);
+        return;
       }
+      this.waiters.splice(this.waiters.indexOf(w), 1);
+      w.claim();
+      // Delivered on the next task, out of this message event: Bun's client WebSocket garbles its frames
+      // when a test sends from inside the event while snapshots keep arriving (the server closes it, 1002).
+      setTimeout(() => w.resolve(m), 0);
     });
     ws.addEventListener('close', (ev) => (this.closed = { code: ev.code }));
   }
@@ -120,15 +125,18 @@ export class Player {
       return Promise.resolve(found as Extract<ServerMsg, { t: T }>);
     }
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`sem mensagem ${t}`)), timeout);
-      this.waiters.push({
-        match: (m) => m.t === t && match(m as Extract<ServerMsg, { t: T }>),
-        resolve: (m) => {
-          clearTimeout(timer);
-          this.msgs.splice(this.msgs.indexOf(m), 1);
-          resolve(m as Extract<ServerMsg, { t: T }>);
-        },
-      });
+      const waiter = {
+        match: (m: ServerMsg) => m.t === t && match(m as Extract<ServerMsg, { t: T }>),
+        claim: () => clearTimeout(timer),
+        resolve: (m: ServerMsg) => resolve(m as Extract<ServerMsg, { t: T }>),
+      };
+      // A waiter that timed out goes away: it must not take a later message from the ones still waiting.
+      const timer = setTimeout(() => {
+        const i = this.waiters.indexOf(waiter);
+        if (i >= 0) this.waiters.splice(i, 1);
+        reject(new Error(`sem mensagem ${t}`));
+      }, timeout);
+      this.waiters.push(waiter);
     });
   }
 
@@ -153,3 +161,18 @@ export class Player {
 }
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Weapon points written straight into a signed-in account's progress (a veteran, as if earned before). The game
+ * server reads them on the next game connection.
+ */
+export async function setWeaponXp(b: Browser, xp: Partial<Record<ProgWeapon, number>>) {
+  const tag = (await b.req('GET', '/api/perfil')).body.tag as string;
+  const [name, disc] = tag.split('#');
+  for (const [weapon, points] of Object.entries(xp)) {
+    await b.game.deps.db.query(
+      `UPDATE weapon_progress SET xp = $3 WHERE weapon = $4 AND profile_id = (SELECT id FROM player_profile WHERE display_name = $1 AND discriminator = $2)`,
+      [name, Number(disc), points, weapon],
+    );
+  }
+}

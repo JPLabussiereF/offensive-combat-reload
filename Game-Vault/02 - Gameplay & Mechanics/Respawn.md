@@ -20,7 +20,7 @@ tags:
   - game
   - gameplay
   - respawn
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Respawn
@@ -68,7 +68,7 @@ Sorteio simples entre os `spawnsA` do mapa, sem repetir o último.
 ## O que acontece ao nascer
 
 - Vida cheia na máxima do corpo (100) ([[Health System]]).
-- Pente, reserva e cargas de granada recarregados (`weapon.refill`, `thrower.refill`).
+- Pente e reserva das **duas** armas de fogo e cargas de granada recarregados (`guns[*].refill`, `thrower.refill`), e a **primária volta para a mão** (`holdSlot('primaria')`; o servidor também volta a considerar a primária em mãos). Ver [[Weapons]].
 - As **minas do jogador somem** (só existem durante a vida em que foram plantadas): `mines.clearOwner` no cliente, e o servidor apaga as minas do jogador no `respawn`. Os outros clientes as removem ao receber `spawned` ([[Land Mines]]).
 - Contra bots, começa a **proteção de 2 s**: o jogador pisca, não recebe dano e os bots o ignoram. A proteção **acaba ao atirar** (`unprotect`).
 

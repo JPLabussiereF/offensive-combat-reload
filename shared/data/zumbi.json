@@ -1,0 +1,103 @@
+{
+  "_doc": "Modo zumbi (ondas cooperativas na Vila Assombrada). Todos começam com o Rifle Padrão sem melhorias (as melhorias da conta não valem) e a faca comum; as armas melhores saem do Caixão Misterioso, pago com o dinheiro da partida (não persiste). Cada onda tem 'zumbis' zumbis para 1 jogador, multiplicados por 1 + jogadoresFator × (jogadores − 1); 'vida' é a vida do zumbi comum na onda (os tipos multiplicam), 'intervalo' os segundos entre surgimentos, 'corrida' a fração de zumbis comuns que correm em vez de andar e 'tipos' a chance de cada variante. Ondas com 'chefe' trazem um chefe (vida × (1 + chefeVidaFator × (jogadores − 1))). Sobreviver à última onda vence; perder é ficar sem ninguém de pé. Velocidades em m/s, tempos em segundos, distâncias em metros. A raridade da arma multiplica o dano contra zumbis. Nomes em client/ui/strings.ts (zitem_<id>, ztype_<tipo>, zboss_<chefe>).",
+  "inicioSegundos": 15,
+  "intervaloSegundos": 20,
+  "intervaloChefeSegundos": 25,
+  "fimSegundos": 15,
+  "dinheiroInicial": 500,
+  "jogadoresFator": 0.6,
+  "chefeVidaFator": 0.75,
+  "maxVivosBase": 8,
+  "maxVivosPorJogador": 4,
+  "maxVivosTeto": 24,
+  "danoPorOnda": 0.04,
+  "ondas": [
+    { "zumbis": 8, "vida": 100, "intervalo": 2.2, "corrida": 0, "tipos": {} },
+    { "zumbis": 12, "vida": 118, "intervalo": 2.0, "corrida": 0, "tipos": {} },
+    { "zumbis": 16, "vida": 139, "intervalo": 1.8, "corrida": 0.15, "tipos": { "corredor": 0.1 } },
+    { "zumbis": 10, "vida": 164, "intervalo": 1.8, "corrida": 0.2, "tipos": { "corredor": 0.15 }, "chefe": "coveiro" },
+    { "zumbis": 22, "vida": 194, "intervalo": 1.5, "corrida": 0.3, "tipos": { "corredor": 0.15, "inchado": 0.08 } },
+    { "zumbis": 26, "vida": 229, "intervalo": 1.4, "corrida": 0.4, "tipos": { "corredor": 0.15, "inchado": 0.1, "brutamontes": 0.06 } },
+    { "zumbis": 30, "vida": 270, "intervalo": 1.2, "corrida": 0.5, "tipos": { "corredor": 0.15, "inchado": 0.1, "brutamontes": 0.08, "cuspidor": 0.08 } },
+    { "zumbis": 14, "vida": 319, "intervalo": 1.2, "corrida": 0.5, "tipos": { "corredor": 0.2, "cuspidor": 0.12 }, "chefe": "noiva" },
+    { "zumbis": 34, "vida": 376, "intervalo": 1.0, "corrida": 0.6, "tipos": { "corredor": 0.18, "inchado": 0.12, "brutamontes": 0.1, "cuspidor": 0.1 } },
+    { "zumbis": 38, "vida": 444, "intervalo": 0.9, "corrida": 0.7, "tipos": { "corredor": 0.2, "inchado": 0.12, "brutamontes": 0.12, "cuspidor": 0.12 } },
+    { "zumbis": 42, "vida": 524, "intervalo": 0.8, "corrida": 0.75, "tipos": { "corredor": 0.22, "inchado": 0.14, "brutamontes": 0.14, "cuspidor": 0.12 } },
+    { "zumbis": 18, "vida": 618, "intervalo": 0.8, "corrida": 0.8, "tipos": { "corredor": 0.25, "inchado": 0.12, "brutamontes": 0.12, "cuspidor": 0.12 }, "chefe": "prefeito" }
+  ],
+  "tipos": {
+    "comum": { "vida": 1, "andar": [1.4, 1.9], "correr": [3.2, 3.8], "dano": 25, "alcance": 1.3, "preparo": 0.5, "recarga": 1.3, "dinheiro": 60, "xp": 3, "escala": 1 },
+    "corredor": { "vida": 0.6, "andar": [5.4, 6.2], "correr": [5.4, 6.2], "dano": 15, "alcance": 1.3, "preparo": 0.35, "recarga": 1.0, "dinheiro": 70, "xp": 4, "escala": 0.95 },
+    "inchado": { "vida": 1.6, "andar": [1.2, 1.5], "correr": [2.4, 2.8], "dano": 0, "alcance": 2.2, "preparo": 1.0, "recarga": 99, "dinheiro": 80, "xp": 6, "escala": 1.05, "explosao": { "raio": 3.5, "dano": 50, "danoZumbi": 150 } },
+    "brutamontes": { "vida": 3.5, "andar": [1.3, 1.6], "correr": [2.2, 2.6], "dano": 45, "alcance": 1.7, "preparo": 0.7, "recarga": 1.8, "dinheiro": 120, "xp": 8, "escala": 1.25 },
+    "cuspidor": { "vida": 1.2, "andar": [2.0, 2.4], "correr": [2.6, 3.0], "dano": 10, "alcance": 1.3, "preparo": 0.5, "recarga": 1.3, "dinheiro": 90, "xp": 6, "escala": 1, "cuspe": { "dano": 15, "alcance": 14, "minimo": 5, "velocidade": 13, "raio": 1.3, "recarga": 3.2, "preparo": 0.6 } }
+  },
+  "chefes": {
+    "coveiro": {
+      "vida": 3500, "andar": 2.4, "dano": 40, "alcance": 2.3, "preparo": 0.6, "recarga": 1.6, "escala": 1.6,
+      "dinheiro": 500, "dinheiroTime": 1000, "xp": 50, "xpTime": 100,
+      "pancada": { "raio": 4.5, "dano": 45, "preparo": 1.2, "recarga": 7, "distancia": 5 },
+      "invocar": { "zumbis": 4, "preparo": 1.5, "recarga": 16, "primeira": 6 }
+    },
+    "noiva": {
+      "vida": 6000, "andar": 4.2, "dano": 30, "alcance": 1.9, "preparo": 0.45, "recarga": 1.2, "escala": 1.3,
+      "dinheiro": 500, "dinheiroTime": 1000, "xp": 50, "xpTime": 100,
+      "grito": { "raio": 12, "dano": 15, "lentidao": 0.55, "duracao": 3, "preparo": 1.0, "recarga": 10 },
+      "sumir": { "preparo": 0.7, "recarga": 8, "distancia": 15 }
+    },
+    "prefeito": {
+      "vida": 12000, "andar": 2.2, "dano": 50, "alcance": 2.8, "preparo": 0.7, "recarga": 1.8, "escala": 1.8,
+      "dinheiro": 500, "dinheiroTime": 1500, "xp": 50, "xpTime": 150,
+      "investida": { "dano": 50, "velocidade": 13, "maximo": 18, "minimo": 6, "largura": 1.6, "preparo": 1.1, "recarga": 9, "empurrao": 9 },
+      "tremor": { "raio": 15, "velocidade": 9, "dano": 35, "espessura": 1.2, "preparo": 1.4, "recarga": 12 },
+      "furia": { "vida": 0.5, "velocidade": 1.4, "recargas": 0.7, "corredores": 3, "intervalo": 15 }
+    }
+  },
+  "dinheiro": { "tiroNaCabeca": 40, "faca": 60, "assistencia": 25, "assistenciaMinima": 0.1, "reanimar": 100, "onda": 100 },
+  "xp": { "onda": 10, "vitoria": 250, "reanimar": 10 },
+  "jogador": { "caidoSegundos": 30, "reanimarSegundos": 3, "reanimarVida": 0.5, "reanimarAlcance": 2.5 },
+  "armas": { "faca": 120, "granadaPorOnda": 0.25, "municaoReserva": 3 },
+  "caixa": { "custo": 950, "girarSegundos": 3.5, "ofertaSegundos": 8, "patoApos": 3, "patoChance": 0.15, "patoAumento": 0.05, "patoSegundos": 3, "mudarSegundos": 6, "alcance": 2.5 },
+  "raridades": {
+    "inicial": { "peso": 0, "dano": 1 },
+    "comum": { "peso": 50, "dano": 1.4 },
+    "raro": { "peso": 32, "dano": 1.9 },
+    "epico": { "peso": 14, "dano": 2.6 },
+    "lendario": { "peso": 4, "dano": 3.5 }
+  },
+  "inicial": "riflePadrao",
+  "itens": [
+    { "id": "riflePadrao", "arma": "rifle", "melhorias": [], "raridade": "inicial" },
+    { "id": "rifleMira", "arma": "rifle", "melhorias": ["pontoVermelho"], "raridade": "comum" },
+    { "id": "rifleSilencioso", "arma": "rifle", "melhorias": ["pontoVermelho", "silenciador"], "raridade": "comum" },
+    { "id": "pistola", "arma": "pistola", "melhorias": [], "raridade": "comum" },
+    { "id": "pistolaBatata", "arma": "pistola", "melhorias": ["batata"], "raridade": "comum" },
+    { "id": "liquidificador", "arma": "smg", "melhorias": [], "raridade": "comum" },
+    { "id": "rifleFirme", "arma": "rifle", "melhorias": ["pontoVermelho", "empunhadura"], "raridade": "raro" },
+    { "id": "rifleVovo", "arma": "rifle", "melhorias": ["empunhadura", "luneta"], "raridade": "raro" },
+    { "id": "pistolaLigeira", "arma": "pistola", "melhorias": ["gatilho", "pontoVermelho", "coldre"], "raridade": "raro" },
+    { "id": "liquidificadorMotor", "arma": "smg", "melhorias": ["motor", "holo"], "raridade": "raro" },
+    { "id": "rifleRemendado", "arma": "rifle", "melhorias": ["empunhadura", "pente"], "raridade": "epico" },
+    { "id": "liquidificadorTurbo", "arma": "smg", "melhorias": ["motor", "holo", "coronha"], "raridade": "epico" },
+    { "id": "liquidificadorPipoca", "arma": "smg", "melhorias": ["motor", "holo", "tambor"], "raridade": "epico" },
+    { "id": "rifleCompleto", "arma": "rifle", "melhorias": ["pontoVermelho", "empunhadura", "pente"], "raridade": "lendario" },
+    { "id": "liquidificadorSupremo", "arma": "smg", "melhorias": ["motor", "holo", "tambor", "coronha"], "raridade": "lendario" },
+    { "id": "sabre", "arma": "faca", "melhorias": ["sabre"], "raridade": "lendario" }
+  ],
+  "mapas": {
+    "halloween": {
+      "surgir": [
+        [-10, 0, -30], [-4, 0, -33], [4, 0, -30], [10, 0, -33], [0, 0, -18], [-14, 0, -20], [12, 0, -19],
+        [-50, 0, -25], [-30, 0, -50], [4.6, 0, -50], [-55, 0, -35],
+        [55, 0, -47], [39, 0, -30], [51, 0, -29],
+        [-50, 0, 15], [-45, 0, 24],
+        [-40, 0, 50], [40, 0, 52], [0, 0, 52],
+        [52, 0, 28], [25, 0, 20],
+        [-30, -4, 31.5], [7.5, -4, 44],
+        [-15, 0, 20], [10, 0, 22]
+      ],
+      "caixa": [[2.6, 0, -22.4, 0], [-14, 0, 37.5, 0], [-48, 0, 20, 0], [25, 0, 20, 1.57], [-6, 0, 4.4, 0]],
+      "chefe": { "coveiro": [0, 0, -27], "noiva": [-14, 0, -20], "prefeito": [0, 0, 38] }
+    }
+  }
+}

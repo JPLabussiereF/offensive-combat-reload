@@ -12,11 +12,15 @@ source_paths:
   - server/session.ts
   - client/gameplay/spawnPicker.ts
   - docs/MAPAS.md
+  - shared/data/weapons/pistola.json
+  - shared/data/weapons/smg.json
+  - shared/arsenal.ts
+  - client/ui/strings.ts
 tags:
   - game
   - design
   - pillars
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Core Pillars
@@ -31,13 +35,13 @@ O jogo recompensa provocar o adversário, não só eliminá-lo.
 - A [[Humiliation]] (Opressão) vale **150 pontos**, mais que o abate (100). O comentário em `shared/constants.ts` diz que o valor foi **triplicado** porque dançar deixa o jogador exposto. Ver [[ADR - Pontuação da Opressão triplicada]].
 - O respawn online demora **5 s**, "o bastante para ver a própria humilhação" (`shared/protocol.ts`). Ver [[ADR - Atraso de respawn de 5 s online]].
 - O bônus "No pássaro!" (tiro na virilha) mata na hora e mostra uma faixa na tela.
-- As evoluções de arma são piadas: Colher de Pau da Vó, Frango de Borracha que grita, Rifle da Tia do Zap.
+- As melhorias de arma são piadas: Frango de Borracha que grita, Sabre de Luz Paraguaio, Silenciador de Garrafa PET, Mira Holográfica da Tia do Zap (nomes em `client/ui/strings.ts`).
 
 ## 2. Tiro de habilidade, guiado por dados
 
 A mecânica de tiro é séria e configurável em JSON.
 
-- Rifle hitscan com dano por distância, multiplicadores por região do corpo (cabeça ×2,5), dispersão em 4 estados, recuo e penetração em madeira/vidro (`shared/data/weapons/rifle_padrao.json`). Ver [[Weapons]] e [[Damage System]].
+- Armas de fogo hitscan com dano por distância, multiplicadores por região do corpo (cabeça ×2,5 no rifle), dispersão em 4 estados, recuo e penetração em madeira/vidro, cada uma num JSON (`shared/data/weapons/`). Ver [[Weapons]] e [[Damage System]].
 - O F3 mostra o TTK real × ideal, e os bonecos de treino servem para medi-lo ([[Training]]).
 
 ## 3. Justiça competitiva
@@ -62,14 +66,14 @@ O resultado deve depender da habilidade, não de vantagens ocultas.
 
 ## 6. Maestria por arma
 
-- Cada abate dá pontos **só para a arma que matou**. Quem só usa o rifle só evolui o rifle ([[Progression]], [[ADR - Progressão de XP por arma]]).
-- As evoluções mudam a mira e os números (dano, pente, alcance da faca) e trazem visuais cômicos.
+- Cada abate dá pontos **só para a arma que matou**. Quem só usa o rifle só evolui o rifle; um abate de pistola evolui a pistola ([[Progression]], [[ADR - Progressão de XP por arma]], [[ADR - Progressão por melhorias de arma]]).
+- Cada nível libera uma melhoria que muda números reais (recuo, cadência, pente, alcance da faca, raio da granada) e às vezes o visual. As opcionais trocam uma vantagem por um custo (o silenciador abafa o tiro e tira dano).
 
 ## Tensões entre pilares
 
 > [!info] Inferência
 > - *Zoeira* × *Justiça*: a Opressão dá muitos pontos, mas deixa quem dança vulnerável. O mapa Jardim do Dragão tem muros de 4 m e portões desalinhados para que "quem oprime um corpo não leve tiro do outro lado do mapa" (README).
-> - *Maestria* × *Justiça*: os níveis mais altos do rifle têm mais dano e menos recuo (vantagem real de progressão). Ver [[Progression]].
+> - *Maestria* × *Justiça*: as melhorias dão vantagem real de progressão (menos recuo e dispersão, pente maior, luneta). As opcionais cobram um preço, o que limita a vantagem. Ver [[Progression]].
 
 ## Notas relacionadas
 

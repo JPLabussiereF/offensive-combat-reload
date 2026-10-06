@@ -12,11 +12,12 @@ source_paths:
   - client/world/dragonGarden.ts
   - client/world/hauntedTown.ts
   - client/ui/strings.ts
+  - client/gameplay/progress.ts
 tags:
   - game
   - modes
   - offline
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Training
@@ -37,7 +38,7 @@ Nenhum.
 
 ## Regras
 
-- **Sem servidor e sem conta.** Com conta, usa os níveis de arma equipados. Sem conta, tudo fica no nível 1. **Não rende progresso** ([[Progression]]).
+- **Sem servidor e sem conta.** Com conta, usa os níveis de arma e a escolha do Arsenal da conta (secundária e melhorias). Sem conta, rifle e pistola sem melhorias; a escolha feita no Arsenal vale só para aquela partida. **Não rende progresso** ([[Progression]]).
 - **Mapa:** o escolhido no seletor da home ([[Game Modes Index]]).
 - **Bonecos** (`map.dummies`, só neste modo): têm hitboxes por região (cabeça, tronco, braços, pernas), barra de vida e as mesmas regras de regeneração (4 s, 25/s).
   - Quantidade por mapa: Rua dos Vizinhos **12** (4 patrulham), Jardim do Dragão **13** (5 patrulham), Vila Assombrada **13** (3 patrulham). Os que patrulham vão e voltam num eixo (`patrol`).

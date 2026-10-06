@@ -17,7 +17,7 @@ tags:
   - art
   - palette
   - colors
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Material Palette
@@ -82,15 +82,13 @@ Textura 256 × 256 com células de 16 × 16 px, cada uma um degradê vertical cu
 
 ## Pinturas das armas (`LOOKS` em `weaponModels.ts`)
 
+Só o rifle troca de pintura, pelas melhorias (`visual`): `fita` com o Pente, `vovo` com a Luneta. A pistola e a submetralhadora usam cores próprias fixas no modelo (e `padrao` para a mira). Ver [[Weapon Models]].
+
 | Pintura | metal | escuro | coronha/guarda-mão | faixa | óptica |
 | --- | --- | --- | --- | --- | --- |
 | `padrao` | `#3a3f47` | `#24272c` | `#6b5a45` | teamA | `#2a2d33` |
 | `fita` | `#3a3f47` | `#24272c` | `#5d5347` | teamA | `#2a2d33` |
-| `tia` | `#e9e4ee` | `#6b4a6e` | `#ff8fc8` | `#7fe0c8` | `#8a5a8e` |
-| `natal` | `#3a3f47` | `#24272c` | `#c0392b` | `#2e8b57` | `#2a2d33` |
-| `chamas` | `#1f1f23` | `#141417` | `#2b2b30` | `#ff6a1a` | `#1a1a1e` |
 | `vovo` | `#2d3440` | `#1e232b` | `#8a4f25` | `#c8a24a` | `#c8a24a` |
-| `ouro` | `#f2c230` | `#b8860b` | `#d9a520` | `#fff1a8` | `#e0b020` |
 
 ## Cores de efeitos
 

@@ -11,59 +11,38 @@ source_paths:
   - shared/data/progression.json
   - shared/progression.ts
   - shared/catalog.ts
+  - shared/data/weapons/pistola.json
+  - shared/data/weapons/smg.json
+  - shared/arsenal.ts
+  - client/ui/strings.ts
 tags:
   - game
   - gameplay
   - items
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Items
 
 > [!info] Escopo
-> Neste jogo, "item" de gameplay = **o que o jogador segura e usa**: as três armas e suas variantes por nível. Coisas coletadas no mapa estão em [[Pickups]]; efeitos temporários em [[Buffs & Debuffs]]; roupas e acessórios do personagem (`shared/catalog.ts`) são cosméticos e ficam em [[Character Customization]] — **nunca alteram hitbox ou status**.
+> Neste jogo, "item" de gameplay = **o que o jogador segura e usa**: as armas de fogo (primária e secundária), a faca, a granada e suas melhorias. Coisas coletadas no mapa estão em [[Pickups]]; efeitos temporários em [[Buffs & Debuffs]]; roupas e acessórios do personagem (`shared/catalog.ts`) são cosméticos e ficam em [[Character Customization]] — **nunca alteram hitbox ou status**.
 
 Não há itens consumíveis carregáveis (kits médicos, munição, etc.). Ver [[Inventory]].
 
 ## Catálogo de itens de gameplay
 
-### Rifle (arma de fogo) — 7 níveis
+Todo jogador leva **uma primária, uma secundária, a faca e a granada**. Cada arma tem níveis; cada nível depois do primeiro libera **uma melhoria** (comum, ativa na hora, ou opcional, ligada no Arsenal). Os números de cada arma e de cada melhoria ficam em [[Weapons]]; a regra dos níveis, em [[Progression]].
 
-Mesma mecânica em todos; os níveis mudam dano, pente, cadência, recuo, dispersão, recarga e zoom, além da mira e do visual. Tabela completa em [[Weapons]].
-
-| Nível | Nome | Mira | Visual |
-|---|---|---|---|
-| 1 | Rifle Padrão | ferro | padrão |
-| 2 | Rifle Remendado com Fita | ponto vermelho | fita |
-| 3 | Rifle da Tia do Zap | holográfica (carinha feliz) | tia (rosa) |
-| 4 | Rifle Pisca-Pisca de Natal | holo com lupa 1,5x | natal |
-| 5 | Rifle Tunado com Adesivo de Chama | luneta 2x | chamas |
-| 6 | Rifle com Luneta do Vovô | luneta 3x | vovô |
-| 7 | Rifle Dourado Ostentação | luneta 4x | ouro |
-
-### Faca (corpo a corpo) — 7 níveis
-
-Sempre mata com um golpe; cada nível aumenta o alcance e troca o modelo/som. Ver [[Melee]].
-
-| Nível | Nome | Modelo / som | Alcance | Alcance da investida | XP |
-|---|---|---|---|---|---|
-| 1 | Faca de Cozinha | faca / faca | 1,80 m | 3,2 m | 0 |
-| 2 | Colher de Pau da Vó | colher / madeira | 1,95 m | 3,5 m | 300 |
-| 3 | Frango de Borracha | frango / frango | 2,10 m | 3,8 m | 750 |
-| 4 | Baguete Amanhecida | baguete / crocante | 2,25 m | 4,1 m | 1350 |
-| 5 | Peixe Congelado | peixe / tapa | 2,40 m | 4,4 m | 2100 |
-| 6 | Macarrão de Piscina | macarrao / boing | 2,55 m | 4,7 m | 3000 |
-| 7 | Sabre de Luz Paraguaio | sabre / sabre | 2,70 m | 5,0 m | 4100 |
-
-### Granada (arremesso) — 3 tipos
-
-Os níveis da granada **mudam o comportamento**, não o dano (o dano vem sempre de `granada_frag.json` nível 1).
-
-| Nível | Nome | Tipo (`GrenadeKind`) | Comportamento | XP |
+| Item | Espaço | Nome exibido | Níveis | Melhorias (opcionais em *itálico*) |
 |---|---|---|---|---|
-| 1 | Granada de Fragmentação | `granada` | cozinha segurando G; explode no impacto — [[Grenades]] | 0 |
-| 2 | Mina Terrestre | `mina` | G planta uma mina — [[Land Mines]] | 500 |
-| 3 | Dose Dupla | `dupla` | um G lança duas granadas gastando uma carga — [[Grenades]] | 1300 |
+| `rifle` (`rifle_padrao.json`) | primária | Rifle Padrão | 6 | ponto vermelho, empunhadura, *luneta 3x*, pente +10, *silenciador* |
+| `pistola` (`pistola.json`) | secundária (padrão) | Pistola do Porteiro | 5 | gatilho, ponto vermelho, coldre, *silenciador de batata* |
+| `smg` (`smg.json`) | secundária | Submetralhadora Liquidificador | 5 | motor, holográfica, *pente tambor*, coronha |
+| `faca` (`faca.json`) | corpo a corpo | Faca de Cozinha | 5 | afiador, *frango de borracha*, tênis, *sabre de luz* — ver [[Melee]] |
+| `granada` (`granada_frag.json`) | arremesso | Granada de Fragmentação | 5 | *mina* ([[Land Mines]]), *Dose Dupla*, cinto +1, pólvora (raio ×1,2) — ver [[Grenades]] |
+
+- A faca sempre mata com um golpe; as melhorias mudam alcance, investida e intervalo. O frango e o sabre (grupo `forma`) trocam o modelo e o som, e só um pode estar ligado.
+- A mina e a Dose Dupla (grupo `modo`) mudam o **comportamento** de G; só uma pode estar ligada. O dano da explosão vem de `granada_frag.json` nível 1, com o raio da Pólvora.
 
 ### Variante visual temporária
 
@@ -71,14 +50,16 @@ Os níveis da granada **mudam o comportamento**, não o dano (o dano vem sempre 
 
 ## Regras gerais
 
-- Todos começam com nível 1 de tudo (`DEFAULT_LOADOUT`); sem conta, as armas ficam no nível 1.
-- O nível equipado pode ser qualquer um já liberado; online o servidor ignora níveis não liberados (`sanitizeLoadout` + `equip`).
-- Outros jogadores veem o modelo do nível equipado (`playerLoadout`).
+- Todos começam no nível 1, sem melhorias, com rifle e pistola (`DEFAULT_LOADOUT`); sem conta, as armas ficam assim.
+- A escolha do Arsenal só pode ligar melhorias opcionais já liberadas; online o servidor descarta as não liberadas (`sanitizeChoice` em `equip`).
+- Outros jogadores veem as armas e as melhorias visíveis (mira, pente, silenciador, forma da faca) pelo `playerLoadout`.
 
 ## Código relacionado
 
-- `shared/weapons.ts` — `WEAPONS`, `MELEE`, `GRENADES`.
-- `shared/progression.ts` — `PROGRESSION`, `rifleData`, `knifeData`, `levelInfo`, `GrenadeKind`.
+- `shared/weapons.ts` — `WEAPONS` (`rifle_padrao`, `pistola`, `smg`), `MELEE`, `GRENADES`.
+- `shared/progression.ts` — `PROGRESSION`, `GunId`, `ProgWeapon`, `PRIMARIES`/`SECONDARIES`, `GrenadeKind`, `KnifeForm`.
+- `shared/arsenal.ts` — `gunStats`, `meleeStats`, `grenadeStats`, `DEFAULT_LOADOUT`.
+- `client/ui/strings.ts` — nomes e descrições (`arma_*`, `upg_<arma>_<id>`).
 - `client/render/weaponModels.ts` — modelos procedurais (ver [[Weapon Models]]).
 
 ## Configurações relacionadas

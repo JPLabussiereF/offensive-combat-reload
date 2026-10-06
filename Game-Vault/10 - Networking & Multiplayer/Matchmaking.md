@@ -4,6 +4,7 @@ type: system
 status: documented
 area: networking
 source_paths:
+  - shared/modes.ts
   - server/app.ts
   - server/session.ts
   - shared/protocol.ts
@@ -14,7 +15,7 @@ tags:
   - game
   - networking
   - lobby
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Matchmaking
@@ -35,24 +36,36 @@ O que existe é um **lobby com lista de salas** (browser de servidores), no pró
 
 ## Salas permanentes
 
-Ao iniciar, o servidor cria **uma sala fixa por mapa**, que nunca é removida:
+Ao iniciar, o servidor cria **uma sala fixa por mapa e por modo de jogo** (cada modo nos mapas em que é jogado, `modeMaps`: o zumbi só na Vila Assombrada, sala `zumbi-halloween`), que nunca é removida. O nome é o do mapa; o modo aparece ao lado na lista:
 
-| id | Nome (de `MAPS[...].nome`) | Mapa |
-|---|---|---|
-| `principal` | Rua dos Vizinhos | `rua` |
-| `jardim` | Jardim do Dragão | `jardim` |
-| `halloween` | Vila Assombrada | `halloween` |
+| id (`permanentSessionId`) | Nome (de `MAPS[...].nome`) | Mapa | Modo |
+|---|---|---|---|
+| `principal` | Rua dos Vizinhos | `rua` | mata-mata |
+| `jardim` | Jardim do Dragão | `jardim` | mata-mata |
+| `halloween` | Vila Assombrada | `halloween` | mata-mata |
+| `corrida-armada-rua` | Rua dos Vizinhos | `rua` | corrida armada |
+| `corrida-armada-jardim` | Jardim do Dragão | `jardim` | corrida armada |
+| `corrida-armada-halloween` | Vila Assombrada | `halloween` | corrida armada |
 
-O id `principal` foi mantido "de quando só havia a rua" (comentário em `server/app.ts`). Ver [[Maps Index]].
+Os ids do mata-mata são os de antes dos modos (`principal` foi mantido "de quando só havia a rua"); os outros modos usam `<modo>-<mapa>`. Ver [[Maps Index]] e [[Game Modes Index]].
+
+## Sempre uma vaga por mapa e por modo
+
+Todo par mapa/modo tem sempre **pelo menos uma sala com vaga** (`keepRoom()` em `server/app.ts`, chamado em cada rodada de `sessionsChanged()`):
+
+- Quando todas as salas de um mapa num modo estão cheias (`players >= 10`), o servidor abre outra, não permanente e do mesmo modo, chamada `<Mapa> 2` (ou o próximo número livre: `<Mapa> 3`…).
+- Uma sala vazia não permanente só é removida se o mesmo mapa e modo tiverem vaga em **outra** sala. Assim, a sala extra fica aberta enquanto for a única vaga do mapa e fecha quando a fixa volta a ter lugar.
+- Como `sessionsChanged()` agrupa as mudanças em 100 ms, a sala extra aparece até 100 ms depois da sala que lotou.
 
 ## Salas criadas por jogadores
 
 - id aleatório de 6 caracteres base36 (`Math.random`), único no processo.
-- Removidas (com `dispose()` do timer) quando ficam **vazias**, na próxima rodada de `sessionsChanged()`.
+- O `create` leva o mapa e o **modo** (`mode`; desconhecido → `mata-mata`).
+- Removidas (com `dispose()` do timer) quando ficam **vazias**, na próxima rodada de `sessionsChanged()`, salvo se forem a única vaga do mapa (ver acima).
 
 ## Ordenação da lista
 
-Permanentes primeiro; depois por número de jogadores (decrescente). Cada item é um `SessionInfo`: `{ id, name, map, players, max, permanent }`.
+Permanentes primeiro; depois por número de jogadores (decrescente). Cada item é um `SessionInfo`: `{ id, name, map, mode, players, max, permanent }`. A mesma lista sai no `welcome`/`sessions` do WebSocket e em `GET /api/sessoes` (sem conexão de jogo, ver [[APIs]]).
 
 ## Regras da sala
 

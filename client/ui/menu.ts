@@ -30,6 +30,9 @@ const ACTION_NAME: Record<RebindableAction, StringKey> = {
   reload: 'keyReload',
   melee: 'keyMelee',
   grenade: 'keyGrenade',
+  weapon1: 'keyWeapon1',
+  weapon2: 'keyWeapon2',
+  swapWeapon: 'keySwapWeapon',
   taunt: 'keyTaunt',
   scoreboard: 'keyScoreboard',
   chat: 'keyChat',
@@ -48,6 +51,8 @@ export class Screens {
     $('controls-title').textContent = t('controls');
     $('settings-title').textContent = t('settings');
     $('menu-debug-hint').textContent = t('debugHint');
+    $('arsenal-title').textContent = t('arsenal');
+    $('arsenal-hint').textContent = t('arsenalHint');
     $('menu-resume-hint').textContent = t(IS_MOBILE ? 'tapToResume' : 'clickToResume');
     const labels: [string, StringKey][] = [['lbl-sens', 'sensitivity'], ['lbl-ads', 'adsSensitivity'], ['lbl-fov', 'fov'], ['lbl-vol', 'volume'], ['lbl-spatial', 'spatialAudio'], ['lbl-invert', 'invertY'], ['lbl-quality', 'quality']];
     for (const [id, key] of labels) $(id).textContent = t(key);
@@ -145,6 +150,7 @@ export class Screens {
         ['keyReload', g('x')],
         ['keyMelee', `${g('rb')} / ${g('r3')}`],
         ['keyGrenade', g('lb')],
+        ['keySwapWeapon', `${g('left')} / ${g('right')}`],
         ['keyTaunt', g('y')],
         ['keyPause', g('start')],
       ];

@@ -4,6 +4,11 @@ type: reference
 status: documented
 area: reference
 source_paths:
+  - server/modes.ts
+  - shared/gunGame.ts
+  - shared/zombies.ts
+  - shared/zombieMatch.ts
+  - shared/modes.ts
   - shared/constants.ts
   - shared/protocol.ts
   - shared/maps.ts
@@ -12,11 +17,14 @@ source_paths:
   - client/main.ts
   - server/session.ts
   - server/app.ts
+  - shared/arsenal.ts
+  - client/ui/arsenal.ts
+  - shared/data/progression.json
 tags:
   - game
   - reference
   - glossary
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Glossário
@@ -27,7 +35,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 
 | Termo exibido | No código | Significado | Nota |
 |---|---|---|---|
-| Arsenal | `arsenal.ts`, `Loadout` | Tela para equipar os níveis liberados de rifle, faca e granada | [[Progression]] · [[Menus]] |
+| Arsenal | `client/ui/arsenal.ts`, `ArsenalChoice` | Tela (menu de pausa e aba da home) para escolher a arma secundária e ligar/desligar as melhorias opcionais já liberadas; mostra o nível, o XP e os atributos de cada arma | [[Inventory UI]] · [[Progression]] · [[Menus]] |
 | Banner | `hud.showBanner` | Texto grande animado (NO PÁSSARO!, OPRIMIDO!, nível) | [[Notifications]] |
 | Beber Poção | prompt `promptPotion` | Ação da tecla de contexto perto da bruxa | [[Interaction System]] |
 | Biscoito Scooby | `biscoito` | Coletável da Vila Assombrada: cura total; aparece com o armário da cozinha aberto | [[Pickups]] |
@@ -37,14 +45,28 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Contra bots | `mode: 'bots'` | Modo offline contra bots (`facil`/`normal`/`dificil`) | [[Versus Bots]] |
 | Cozinhar | `cookT` | Segurar G com o pino tirado; depois de 3 s a granada explode na mão | [[Grenades]] |
 | Dancinha da Vitória | `taunt`, `danceMusic` | A dança da Opressão (3,2 s, funk de 150 bpm) | [[Humiliation]] |
-| Dose Dupla | granada nível 3, `tipo: 'dupla'` | Duas granadas por carga, com 0,3 s entre elas | [[Grenades]] |
+| Dose Dupla | melhoria opcional da granada (nível 3, grupo `modo`), `tipo: 'dupla'` | Duas granadas por carga, com 0,3 s entre elas | [[Grenades]] |
 | Frases rápidas | `QUICK_CHAT` | Mensagens de chat de um toque no celular | [[Chat]] |
 | Granada de pato | poção `pato` | Visual e som de pato de borracha nas granadas, sem efeito de jogo | [[Buffs & Debuffs]] |
 | Humanidade | `humanity`, `RAT.extraHealth` | +50 de vida máxima até morrer, por derrubar o rato gigante | [[Buffs & Debuffs]] |
 | Investida | `lunge` | Avanço da faca até o alvo próximo | [[Melee]] |
 | Kill feed | `hud.killfeed` | Linhas "Matador [arma] ícone Vítima" | [[HUD]] |
-| Mata-mata livre | `Session`, `spawnsFFA` | Modo online cada um por si | [[Free For All]] |
-| Mina Terrestre | granada nível 2, `tipo: 'mina'` | Mina plantada com G; arma em 1 s, no máximo 3 por jogador | [[Land Mines]] |
+| Mata-mata (livre) | `'mata-mata'` (`GameModeId`), `DeathmatchMode` | Modo todos contra todos com o Arsenal da conta, escolhido antes e travado durante a partida | [[Free For All]] · [[Versus Bots]] |
+| Corrida armada (en: Gun game) | `'corrida-armada'`, `GunGameMode`, `shared/gunGame.ts` | Modo em que todos sobem a mesma escada de armas: 3 abates sobem, facada desce, abate com o Sabre de Luz vence a rodada | [[Gun Game]] |
+| Escada / degrau | `LADDER`, `LadderPos {step, kills}`, `PlayerInfo.ladder`, `ladder_<id>` | Sequência de 7 armas fixas da corrida armada e a posição de cada jogador nela ("ARMA N/7") | [[Gun Game]] |
+| Zumbi (en: Zombies) | `'zumbi'`, `ZombieMode`, `ZombieMatch`, `shared/zombies.ts` | Modo cooperativo de 12 ondas de zumbis e 3 chefes na Vila Assombrada; dinheiro da partida e armas do caixão | [[Zombie]] |
+| Onda / intervalo | `ZPhase` (`countdown`, `wave`, `break`, `over`), `zwave` | Uma leva de zumbis do modo zumbi; o intervalo de 20–25 s entre ondas (munição e granadas cheias, caídos levantam, mortos voltam) | [[Zombie]] |
+| Caixão Misterioso (en: Mystery Coffin) | `box`, `zbox`, `rollBox`, `client/zombies/coffin.ts` | A "caixa" do modo zumbi: $950 sorteiam uma arma (arma + melhorias fixas) de uma raridade; às vezes sai um **pato** e o caixão muda de lugar | [[Zombie]] |
+| Raridade | `Rarity` (`inicial`, `comum`, `raro`, `epico`, `lendario`), `rar_<id>` | Cor e força de uma arma do caixão: multiplica o dano contra zumbis (×1 a ×3,5) | [[Zombie]] · [[Weapons]] |
+| Caído / reanimar / sangrar | `SPlayer.downed`, `zdown`, `revive`, `zrevive`, `zup`, `KillKind 'zombie'` | No modo zumbi, vida a zero numa onda derruba o jogador; um colega reanima segurando E (3 s); depois de 30 s ele sangra até morrer e volta no intervalo | [[Zombie]] |
+| Dinheiro (zumbi) | `ZombiePlayer.money`, `zmoney` | Moeda **só da partida** do modo zumbi, nunca salva | [[Zombie]] · [[Economy Design]] |
+| Chefes: Coveiro, Noiva, Prefeito | `BossId` (`coveiro`, `noiva`, `prefeito`), `zboss_<id>` | Os chefes das ondas 4, 8 e 12 do modo zumbi | [[Zombie]] |
+| Maratonista, Tio do Churrasco, Segurança da Balada, Tia da Fofoca | `ZType` (`corredor`, `inchado`, `brutamontes`, `cuspidor`), `ztype_<id>` | As variantes de zumbi (rápido, explode, tanque, cospe de longe); o comum é `comum` | [[Zombie]] |
+| Tipo de partida | `#home-game`, `GameModeId` | Seletor de modo de jogo na home (Mata-mata / Corrida armada / Zumbi) | [[Matchmaking UI]] |
+| Rodada | `roundEnd`, `roundStart` | Na corrida armada, do início até o abate com o sabre; 6 s de intervalo antes da próxima | [[Gun Game]] |
+| Melhoria (upgrade) | `Upgrade` em `progression.json` (`melhorias`), `upg_<arma>_<id>` | O que cada nível de arma ≥ 2 libera: muda atributos reais (e às vezes o visual). As **comuns** ficam ativas assim que liberadas | [[Weapons]] · [[Progression]] |
+| Melhoria opcional | `opcional: true`, `grupo`, `ArsenalChoice.ligadas` | Melhoria com troca (ganha algo, perde algo; ex.: silenciador, luneta, frango, sabre, mina). Vem desligada; o jogador liga no Arsenal. Num `grupo`, só uma fica ligada e ela substitui as comuns do grupo | [[Weapons]] · [[Inventory UI]] |
+| Mina Terrestre | melhoria opcional da granada (nível 2, grupo `modo`), `tipo: 'mina'` | Mina plantada com G; arma em 1 s, no máximo 3 por jogador | [[Land Mines]] |
 | Modo PCD | membro ausente na aparência | Sem um membro: recarga ×1,3 ou velocidade ×0,75, e o membro não tem hitbox | [[Character Customization]] |
 | No pássaro! | região `virilha`, kind `groin` | Tiro na virilha: morte instantânea, +100 pontos | [[Damage System]] · [[Scoring]] |
 | Oprimir / Opressão (en: Humiliation) | `taunt`, `humiliation`, `HUMILIATION` | Dançar sobre um corpo até 6 s depois da morte; vale 150 pontos. Coluna "Opress." no placar e faixa OPRIMIDO! | [[Humiliation]] |
@@ -52,7 +74,9 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Poções da bruxa | `POTION`, `pato`/`veloz`/`lerdo`/`critico`/`bebado` | Efeito sorteado, uma poção por minuto | [[Buffs & Debuffs]] |
 | Prompt | `hud.setPrompt` | Dica de ação ("Oprimir {nome}", "Beber Poção") | [[HUD]] |
 | Sala / Sessão | `Session` | Uma partida online; ≠ sessão de login (cookie `oc_sessao`) | [[Sessions]] |
-| Sala permanente | ids `principal` (rua), `jardim`, `halloween` | Uma sala fixa por mapa | [[Sessions]] · [[Matchmaking]] |
+| Primária | `primaria`, `PRIMARIES`, tecla `weapon1` | Espaço da arma de fogo principal: o Rifle Padrão. Toda vida começa com ela na mão | [[Weapons]] |
+| Sala permanente | ids `principal` (rua), `jardim`, `halloween` (mata-mata) e `corrida-armada-<mapa>` | Uma sala fixa por mapa e por modo | [[Sessions]] · [[Matchmaking]] |
+| Secundária | `secundaria`, `SECONDARIES`, `FLAG.secondary`, tecla `weapon2` | Segundo espaço de arma de fogo: Pistola do Porteiro (padrão) ou Submetralhadora Liquidificador, escolhida no Arsenal; troca com 1/2/roda | [[Weapons]] · [[Inventory]] |
 
 ## Mapas
 
@@ -86,7 +110,8 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Prêmio (`Award`, `AwardLabel`) | Bônus de pontos de um abate | [[Scoring]] |
 | Traçante (`tracanteACada`) | Um traçante a cada N tiros (3) | [[Visual Effects]] |
 | Luneta / scoped | Mira ampliada com overlay em CSS | [[Camera]] |
-| XP de arma / XP da conta | `weapon_progress.xp` por arma; `ACCOUNT_XP` e `nivel_conta.json` para a conta | [[Progression]] |
+| XP de arma / XP da conta | `weapon_progress.xp` por arma (rifle, pistola, smg, faca, granada); `ACCOUNT_XP` e `nivel_conta.json` para a conta | [[Progression]] |
+| `troca` (tempo de saque) | Segundos para a arma subir depois de uma troca; nada atira, mira ou recarrega nesse tempo | [[Weapons]] |
 
 ## Rede e servidor
 
@@ -119,7 +144,9 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `boot()` | Função de `client/main.ts` que monta e roda o cliente inteiro | [[Client Architecture]] |
 | `startServer()` | Função de `server/app.ts` que monta o servidor (Bun.serve, lobby, flush, Redis) | [[Server Architecture]] |
 | `Conn` / `Peer` / `SPlayer` | Conexão de socket / dados presos ao socket / jogador dentro de uma sala (servidor) | [[Server Architecture]] |
-| `HomeChoice` | O que a tela inicial devolve: `offline`, `bots` ou `online` | [[Client Architecture]] |
+| `HomeChoice` | O que a tela inicial devolve: `offline`, `bots` (com `game`, o modo de jogo) ou `online` (o modo vem da sessão) | [[Client Architecture]] |
+| `SessionMode` / `MODE_RULES` | Lado do servidor de um modo de jogo (ganchos chamados pela `Session`) / regras declaradas de cada modo | [[ADR - Modos de jogo com regras declaradas e ganchos no servidor]] |
+| `soFaca` | Campo do `Loadout`: só a faca, sempre na mão, o tiro golpeia (Sabre de Luz da corrida armada) | [[Melee]] · [[Gun Game]] |
 | `GameMap` / `MapFrame` | Contrato que todo mapa devolve / informações por quadro passadas ao mapa | [[World Structure]] |
 | `MapBuilder` / célula | Construtor de mapas que funde geometria por (material, célula de 40/45/60 m) e cria colisores | [[ADR - Lotes estáticos por material e célula]] |
 | `PropBus` | Registro que sincroniza piadas de mapa (gatilho local → mensagem `prop` → `remote`) | [[Map Gags]] · [[Events & Messaging]] |
@@ -127,6 +154,10 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `BotManager` / `Bot` / `BOT_SKILLS` / `NavMap` | Gerente da partida contra bots / um bot / tabela de dificuldades / navmesh Recast | [[AI Overview]] |
 | Modos do bot (`roam`, `engage`, `chase`, `flee`, `toTaunt`, `taunt`) | Estados de comportamento dos bots | [[States]] |
 | `GrenadeThrower` | A mão do jogador como máquina de estados (cozinhar, arremessar, recarga) | [[Controllers]] |
+| `ArsenalChoice` | O que o jogador escolheu no Arsenal e a conta guarda: `{ secundaria, ligadas }` (melhorias opcionais ligadas por arma); sempre limpo por `sanitizeChoice` | [[Shared Systems]] · [[Player Data]] |
+| `Loadout` | O que o jogador leva na partida: `{ primaria, secundaria, ativas }` (arma de cada espaço e melhorias em efeito por arma), resolvido por `resolveLoadout(choice, níveis)` e replicado em `playerLoadout` | [[Shared Systems]] · [[Inventory]] |
+| `gunStats` / `meleeStats` / `grenadeStats` | Atributos efetivos de uma arma com uma lista de melhorias (`shared/arsenal.ts`); cliente e servidor usam as mesmas funções | [[Shared Systems]] · [[Weapons]] |
+| `GunId` / `ProgWeapon` | Armas de fogo (`rifle`, `pistola`, `smg`) / todas as armas com progressão (+ `faca`, `granada`) | [[Shared Systems]] |
 | `SIM` | Passo fixo da simulação (1/60 s, até 5 passos por quadro) | [[ADR - Simulação em passo fixo com render interpolado]] |
 | `FLAG` | Bits de animação enviados junto com o estado | [[Replication]] |
 | `HttpError` / `ApiError` / `ApiErrorCode` | Códigos de erro estáveis em snake_case português | [[Error Handling]] |

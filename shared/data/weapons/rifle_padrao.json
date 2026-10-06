@@ -49,6 +49,7 @@
     "zoom": 0.85
   },
   "movimento": 1.0,
+  "troca": 0.45,
   "alcanceMaximo": 300,
   "penetracao": {
     "maxSuperficies": 2,
