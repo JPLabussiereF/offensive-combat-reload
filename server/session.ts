@@ -11,7 +11,7 @@
 // with a lag tolerance.
 import type { ServerWebSocket } from 'bun';
 import { BISCUIT, CHERRY, HEALTH, HUMILIATION, KOI, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
-import { clampExplosionDamage, computeDamage, explosionDamage, HIT_REGIONS, LETHAL_DAMAGE, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
+import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, HIT_REGIONS, LETHAL_DAMAGE, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
 import { ACCOUNT_XP } from '@shared/accountLevel';
 import { bodyStats } from '@shared/appearance';
 import { FISH, PICKUPS, RATS, WITCHES, type MapId, type PickupKind } from '@shared/maps';
@@ -574,9 +574,10 @@ export class Session {
     if (dist > SCORE.longShotDistance) awards.push({ label: 'longShot', value: SCORE.longShot });
     // Went through wood/glass: never less than the weapon allows, never more than a clean hit.
     const keep = finite(reportedKeep) ? Math.min(1, Math.max(minPenetrationKeep(gun), reportedKeep!)) : 1;
-    // The critical potion: every bullet does a head's damage (the hit still counts where it landed).
+    // The critical potion: every bullet does a head's damage (the hit still counts where it landed), except a
+    // groin hit, which stays an instant kill.
     const crit = p.potion?.kind === 'critico' && p.potion.until > now;
-    this.damage(target, p, computeDamage(gun, dist, crit ? 'cabeca' : region, keep), kind, eye(p), awards, gun.arma);
+    this.damage(target, p, computeDamage(gun, dist, critRegion(region, crit), keep), kind, eye(p), awards, gun.arma);
   }
 
   private onStab(p: SPlayer, targetId: number, behind: boolean, now: number) {

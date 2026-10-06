@@ -5,6 +5,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import type { ServerWebSocket } from 'bun';
 import { defaultAppearance } from '@shared/appearance';
+import { gunStats, slotStats } from '@shared/arsenal';
+import { computeDamage, critRegion, LETHAL_DAMAGE } from '@shared/weapons';
 import { HUMILIATION } from '@shared/constants';
 import { FINAL_STEP } from '@shared/gunGame';
 import { modeMaps, type GameModeId } from '@shared/modes';
@@ -257,6 +259,35 @@ describe('figurinhas próprias numa sessão (relógio falso)', () => {
     room.kill(C, A, 'knife', 'faca');
     expect(room.own(C)).toMatchObject({ corredor: 1, 'volta-olimpica': 1 });
     room.dispose();
+  });
+});
+
+// Not the album, but the same fake session: the witch's critical potion against a real Session.
+describe('poção crítico (sessão, relógio falso)', () => {
+  it('todo tiro vale como cabeça, mas o pássaro continua matando na hora', () => {
+    const room = new Room('mata-mata');
+    const A = room.join();
+    const B = room.join();
+    room.p(A).potion = { kind: 'critico', until: room.t + 60_000 };
+    const gun = slotStats(room.p(A).loadout, 'primaria')!;
+    // A chest hit does a head's damage.
+    room.send(A, { t: 'hit', target: B.conn.id, region: 'peito', dist: 1, w: gun.arma });
+    expect(room.take(B, 'damage').at(-1)?.amount).toBe(computeDamage(gun, 1, 'cabeca'));
+    // Healed back to full, a groin hit: still an instant kill (it was a head's damage before the fix).
+    room.t += 1000;
+    room.p(B).health = 100;
+    room.send(A, { t: 'hit', target: B.conn.id, region: 'virilha', dist: 1, w: gun.arma });
+    expect(room.p(B).alive).toBe(false);
+    expect(room.take(B, 'kill').at(-1)?.kind).toBe('groin');
+    room.dispose();
+  });
+
+  it('a regra: com a poção, tudo vira cabeça menos a virilha; sem ela, nada muda', () => {
+    expect(critRegion('peito', true)).toBe('cabeca');
+    expect(critRegion('canelas', true)).toBe('cabeca');
+    expect(critRegion('virilha', true)).toBe('virilha');
+    expect(critRegion('peito', false)).toBe('peito');
+    expect(computeDamage(gunStats('rifle'), 10, critRegion('virilha', true))).toBe(LETHAL_DAMAGE);
   });
 });
 
