@@ -13,7 +13,7 @@ import { MapBuilder, stairRun, type Opening, type WallOpening } from './mapBuild
 import { addGltfToMap, gltfLoader } from './gltfMap';
 import { Hydrant, WaterDrops, type HydrantSfx } from './hydrant';
 import { PropBus } from './props';
-import { skySpot } from '../audio/spatial';
+import { skySpot, type RoomVolume } from '../audio/spatial';
 import { surfaceMaterial } from './surfaces';
 import { buildCar, buildIceCreamTruck, buildVan } from './vehicles';
 import { flamingoGeometry, iceCreamTopper, skyClouds } from './decor';
@@ -114,6 +114,8 @@ export interface GameMap {
   stats: MapBuilder['stats'];
   /** Every hole left in a wall (doors and windows), for automated structure checks. */
   openings: WallOpening[];
+  /** Enclosed places marked by hand (MapBuilder.room, ROOM_ boxes in glTF), for the sound's echo and muffling. */
+  rooms: RoomVolume[];
   /** Gags synchronized between players online. */
   props: PropBus;
   /** Per-frame updates for animated props and proximity gags. */
@@ -322,7 +324,7 @@ export async function buildBlockoutMap(physics: Physics, scene: THREE.Scene, ren
   // --- Life: street trees, bushes, lamp posts, pun signs, clouds, birds --------------------------------
   const pintura = surfaceMaterial('pintura');
   const tree = (x: number, z: number, scale = 1) => {
-    b.cylinder(x, 0, z, 0.2 * scale, 2.6 * scale, 'madeira', { tint: P.trunk, radiusTop: 0.14 * scale, segments: 8 });
+    b.cylinder(x, 0, z, 0.2 * scale, 2.6 * scale, 'madeira', { tint: P.trunk, radiusTop: 0.14 * scale, segments: 8, occluder: 'trunk' });
     const greens = [0x4fa83a, 0x5dbb45, 0x44962f];
     const blobs: [number, number, number, number][] = [[0, 3.3, 0, 1.5], [0.8, 2.9, 0.4, 1.0], [-0.7, 3.0, -0.4, 1.1], [0.1, 4.1, 0.1, 1.0]];
     blobs.forEach(([ox, oy, oz, r], i) => {
@@ -483,6 +485,7 @@ export async function buildBlockoutMap(physics: Physics, scene: THREE.Scene, ren
     killY: -20,
     stats: b.stats,
     openings: b.openings,
+    rooms: b.rooms,
     props,
     update(dt, frame) {
       for (const f of animated) f(dt, frame);
@@ -552,6 +555,8 @@ function buildHouse(b: MapBuilder, cx: number, cz: number, wallTint: number, roo
   // Railing between the stair hole and the upstairs room.
   b.span(hx0, floorH, hz1, hx1 - 1.2, floorH + 1.0, hz1 + 0.08, 'madeira', { tint: PALETTE.wood });
   b.span(ix0, floorH * 2, iz0, ix1, wallH, iz1, 'concreto', { tint: 0xe8e4da });
+  // Both floors are one closed room for the sound.
+  b.room({ x: ix0, y: 0, z: iz0 }, { x: ix1, y: floorH * 2, z: iz1 }, 1);
 
   // Gable roof with the ridge along the street, and a brick chimney.
   b.gableRoof(x0, z0, x1, z1, wallH, 2.2, 'telhado', { tint: roofTint, ridgeAxis: 'x', gableSurface: 'reboco', gableTint: wallTint });
