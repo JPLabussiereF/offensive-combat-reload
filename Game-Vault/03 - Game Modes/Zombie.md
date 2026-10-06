@@ -20,6 +20,7 @@ source_paths:
   - client/zombies/coffin.ts
   - client/zombies/looks.ts
   - client/zombies/local.ts
+  - client/zombies/link.ts
   - client/zombies/ambience.ts
   - client/character/animator.ts
   - client/entities/rig.ts
@@ -29,6 +30,8 @@ source_paths:
   - client/ui/scoreboard.ts
   - client/audio/sfx.ts
   - server/tests/zombies.test.ts
+  - server/tests/progression-modes.test.ts
+  - client/tests/offlineModes.test.ts
 tags:
   - game
   - modes
@@ -233,9 +236,9 @@ Tudo em `shared/data/zumbi.json` (lido por `shared/zombies.ts` como o objeto `ZO
 - `shared/zombieMatch.ts`: o motor da partida (`ZombieMatch`): ondas, zumbis numa `Crowd` do Detour, ataques, chefes, cuspes e ondas de choque, o caixão, caído/reanimar, resumo. Roda no servidor e no navegador (solo).
 - `server/modes.ts` (`ZombieMode`): liga o motor à `Session`, valida `zhit`/`zstab`/granadas contra as posições do servidor, dá o XP. `server/navmesh.ts`: carrega a navmesh pré-gerada. `server/session.ts`: ganchos novos e o estado `downed`.
 - `tools/bake-navmesh.ts` (`bun run navmesh`) e `shared/data/navmesh/halloween.json`: a navmesh do mapa para o servidor ([[ADR - Zumbis simulados no servidor sobre navmesh pré-gerada]]).
-- `client/zombies/`: `client.ts` (eventos, HUD, `E` no caixão e para reanimar, caído, renascimento), `view.ts` (zumbis desenhados e interpolados, hitboxes, telegrafias), `coffin.ts` (o caixão), `looks.ts` (visuais), `local.ts` (o jogo solo: o mesmo motor no navegador), `ambience.ts` (névoa e a página do caixão na pausa).
+- `client/zombies/`: `client.ts` (eventos, HUD, `E` no caixão e para reanimar, caído, renascimento), `view.ts` (zumbis desenhados e interpolados, hitboxes, telegrafias), `coffin.ts` (o caixão), `looks.ts` (visuais), `local.ts` (o jogo solo: o mesmo motor no navegador), `link.ts` (a interface `ZombieLink` entre o lado do cliente e a partida, online ou solo; sem DOM, para o jogo solo rodar nos testes), `ambience.ts` (névoa e a página do caixão na pausa).
 - `client/character/animator.ts` (`zombie()`: pose de zumbi e dos golpes de chefe), `client/entities/rig.ts` (hitboxes com escala), `client/entities/avatar.ts` (`disarm`, `zombie`), `client/net/remote.ts` (colega caído deitado).
-- Testes: `server/tests/zombies.test.ts`.
+- Testes: `server/tests/zombies.test.ts` (inclui progressão de armas no modo, chefes contra vários jogadores, entrar no meio da onda e sangrar até o intervalo), `server/tests/progression-modes.test.ts` (matriz de modos) e `client/tests/offlineModes.test.ts` (jogo solo). Ver [[Integration Tests]].
 
 ## UI relacionada
 
@@ -249,4 +252,5 @@ Tudo em `shared/data/zumbi.json` (lido por `shared/zombies.ts` como o objeto `ZO
 - Só um mapa. Outro mapa precisa de `mapas.<id>` no JSON, de uma navmesh pré-gerada (`BUILDERS` em `tools/bake-navmesh.ts`, `BAKED` em `server/navmesh.ts`) e de entrar em `MODE_RULES.zumbi.maps`.
 - Zumbis não sobem em lugares fora da navmesh (em cima de um carro, de uma caixa): o jogador lá em cima ainda leva cuspe e golpes de chefe, mas foge dos arranhões. Ver [[Navigation]].
 - O caixão tem colisão para os jogadores, mas não está na navmesh: um zumbi pode atravessá-lo (os lugares foram escolhidos fora das rotas).
+- O ponto de surgimento do Prefeito (`mapas.halloween.chefe.prefeito` = `[0, 0, 38]`) fica em cima do banco da praça (`bench` em `(0, 38.6)` no `client/world/hauntedTown.ts`): a malha o põe na borda do banco, em `(0, 0.1, 37.8)`. Dali o raycast da investida bate na borda em quase toda direção, então a primeira investida só sai depois que ele anda alguns metros (no jogo ele anda logo atrás do alvo, por isso o efeito é pequeno; visto nos testes, onde ele fica parado). Mudar o ponto é decisão de mapa; não foi mudado.
 - Não há "loja" de munição, perks nem portas pagas (ideias para depois).

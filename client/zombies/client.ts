@@ -4,7 +4,7 @@
 // coffin's purchase or a revive. It reports our hits on zombies; it never decides one: the match does.
 import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
-import type { ClientMsg, PlayerInfo, ServerMsg, Vec3, ZombieSync, ZPhase } from '@shared/protocol';
+import type { PlayerInfo, ServerMsg, Vec3, ZombieSync, ZPhase } from '@shared/protocol';
 import type { GunStats } from '@shared/arsenal';
 import type { HitRegion } from '@shared/weapons';
 import type { MapId } from '@shared/maps';
@@ -17,17 +17,10 @@ import type { HitboxRegistry } from '../gameplay/targets';
 import { t, type StringKey } from '../ui/strings';
 import { ZombieView, Zombie } from './view';
 import { Coffin } from './coffin';
+import type { ZombieLink } from './link';
 
-/** How the zombie side talks to its match: the server's connection online, the local match solo. */
-export interface ZombieLink {
-  readonly online: boolean;
-  send(msg: ClientMsg): void;
-  on<T extends ServerMsg['t']>(type: T, fn: (msg: Extract<ServerMsg, { t: T }>) => void): void;
-  /** The match clock (ms). */
-  now(): number;
-  /** The match time zombies are drawn at (a little in the past, between two snapshots). */
-  renderTime(): number;
-}
+/** How the zombie side talks to its match (link.ts): the server's connection online, the local match solo. */
+export type { ZombieLink };
 
 /** What the zombie side needs from the game (client/main.ts). */
 export interface ZombieGame {

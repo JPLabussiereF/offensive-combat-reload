@@ -11,8 +11,12 @@ source_paths:
   - server/tests/game.test.ts
   - server/tests/appearance.test.ts
   - server/tests/zombies.test.ts
+  - server/tests/modes.test.ts
+  - server/tests/progression-modes.test.ts
   - tools/bake-navmesh.ts
   - server/app.ts
+  - server/session.ts
+  - server/modes.ts
 tags:
   - testes
   - integracao
@@ -34,6 +38,7 @@ Os testes de servidor sobem um **servidor de jogo real** (`startServer` de `serv
 | `uniqueEmail()` | E-mails únicos por execução. |
 | `outbox` (`server/email.ts`) | Sem SMTP, os e-mails ficam em memória — os testes leem o link de recuperação dali. |
 | `game.deps` | Acesso direto a `db` e `redis` para preparar estado (ex.: expirar ticket com `pexpire`, envelhecer `deletion_requested_at`). |
+| `setWeaponXp(browser, {arma: pontos})` | Grava pontos de arma direto em `weapon_progress` (uma conta "veterana", como se já tivesse jogado); o servidor lê na próxima conexão de jogo. |
 
 Como o servidor confia em `X-Forwarded-For` só vindo de endereço privado, e os testes conectam por `127.0.0.1`, o IP simulado é aceito (ver `clientIp` em `server/http.ts`).
 
@@ -66,7 +71,25 @@ Como o servidor confia em `X-Forwarded-For` só vindo de endereço privado, e os
 - **Navmesh pré-gerada em dia**: refaz a malha da Vila Assombrada headless (`tools/bake-navmesh.ts`) e compara o hash com `shared/data/navmesh/halloween.json`.
 - **Motor com relógio falso** (`ZombieMatch` sobre a navmesh real, sem servidor): contagem → onda → dinheiro e XP por abate → intervalo → próxima onda; zumbis andam até o jogador e o derrubam, sozinho cair é perder, resumo e nova partida; em dupla, reanimar (dinheiro do reanimador) e sangrar (volta no intervalo com o rifle inicial); vencer as 12 ondas com os três chefes (XP de vitória); o caixão (sem dinheiro não gira, longe não gira, gira → oferta → arma no slot certo; o pato devolve o dinheiro e muda de lugar); o tio que explode leva os outros com o crédito de quem o matou; sair libera; snapshot com tipo e flags.
 - **No servidor real**: sala fixa só na Vila Assombrada; criar zumbi noutro mapa cai lá; começa com o rifle sem melhorias mesmo com outra escolha no Arsenal; acerto com distância errada ou arma que não tem é recusado; acerto válido mata, paga e dá XP de conta (`progresso`); troca de Arsenal recusada; o caixão gira no servidor e entrega a arma no slot dela (`playerLoadout`); zumbis do servidor machucam quem está de pé; sem fogo amigo; queda mortal numa onda derruba (sem `kill`), o colega reanima (`zrevive` → `zup` com o dinheiro), os dois caídos → `zend` (derrota, com as quedas e reanimações) → `roundStart`.
-- Os testes encurtam tempos e preços mexendo no objeto `ZOMBIE` (o servidor roda no mesmo processo) e o restauram depois de cada um.
+- **Progressão de armas no modo** (conta veterana com tudo liberado e as opcionais ligadas): entra com o rifle simples; o dano no chefe (lido na barra do chefe do `zsnap`) é o do rifle sem melhorias e o da faca comum (não o silenciador nem o sabre da conta); a arma do caixão chega com as melhorias fixas dela, granada sem melhorias, e o dano no chefe é o dessa arma × a raridade.
+- **Chefes contra vários jogadores** (duas sessões ao mesmo tempo): o grito da Noiva fere e manda `zhitfx` com a lentidão (55% por 3 s) a quem está no raio, e não a quem está longe; a investida do Prefeito acerta e arremessa (`zhitfx` com o empurrão no sentido da investida) os dois jogadores na linha. O teste muda o ponto de surgimento do Prefeito (no lugar dele, parado, a borda da área andável corta a investida; ver [[Zombie]]).
+- **Entrar no meio de uma onda**: `joined.zumbi` traz a fase, a onda, o total, o caixão e quem está caído (`down` com o prazo); `joined.players` traz o dinheiro e as armas de cada um (quem comprou no caixão aparece com $400 e a arma); quem entra tem $500 e o rifle simples mesmo com a conta no máximo; o primeiro `zsnap` traz os zumbis que os outros já viam; entra de pé.
+- **Sangrar até morrer**: depois de comprar uma arma, cai e sangra (`kill` com `zombie`, sem atacante); o `respawn` é recusado até o intervalo; no intervalo volta o rifle inicial (`playerLoadout`) e o renascimento é aceito, com o mesmo dinheiro ($400; morto não ganha o prêmio da onda). Quem limpou a onda recebe exatamente o XP de conta de cada abate (`killXp`) mais o da onda, e nenhum ponto de arma.
+- Os testes encurtam tempos e preços mexendo no objeto `ZOMBIE` (o servidor roda no mesmo processo) e o restauram depois de cada um. Os novos também tiram o pato do caixão (`patoApos`), porque o caixão da sala fixa guarda a contagem de giros entre testes.
+
+### `modes.test.ts` — modos online e progressão de armas
+
+- **Regras puras**: a escada da corrida armada (`ladderProblems`, sobe com 3 abates da arma do degrau, a facada desce, só o sabre vence) e `MODE_RULES` de todo modo.
+- **Mata-mata**: o Arsenal escolhido no saguão vale e a troca no meio é recusada; subir de nível não muda a arma na mão (vale na próxima sessão). Com uma **conta veterana**: o dano do rifle é o dele com o silenciador ligado (mais fraco a 30 m que o simples), a cadência aceita é a da pistola com o gatilho (11 acertos por segundo em vez de 9), G planta mina (a melhoria ligada) e o abate de pistola dá os pontos à pistola e 25 XP à conta. Um **cliente ganancioso** (secundária inexistente, opcionais não liberadas, um `Loadout` inteiro com o sabre) fica com a escolha limpa; acertos de armas fora do loadout são ignorados e a mina sem a melhoria vira granada comum.
+- **Corrida armada**: sala fixa por mapa, primeiro degrau para todos, sem granadas, subir/descer, vitória com o sabre e nova rodada. Com uma **conta no máximo** (silenciador, sabre e mina ligados): entra no primeiro degrau; o dano é o da arma do degrau com as melhorias do degrau; ao subir, tiros da arma anterior valem por 1 s com os atributos dela e a arma nova vale com os dela; nenhuma arma ganha pontos (nem no banco depois de sair) e a conta ganha 25 XP por abate.
+
+### `progression-modes.test.ts` — matriz progressão × modos
+
+Sem rede nem banco: uma `Session` real (com os ganchos reais de `server/modes.ts`) sobre sockets falsos e relógio falso, tudo síncrono (~0,3 s). Para **todo modo de `GAME_MODE_IDS`** (um modo novo entra sozinho) × contas com cada arma de `PRIMARIES`/`SECONDARIES` em cada nível, com as opcionais desligadas, cada uma ligada e todas ligadas (mais faca, granada, conta nova, conta no máximo e um cliente pedindo o que não tem):
+
+- o equipamento de entrada é válido (só ids conhecidos, `slotStats`/`meleeStats`/`grenadeStats` finitos e positivos, dano positivo em toda região e distância) e segue `MODE_RULES.weapons`: `'arsenal'` dá a escolha da conta nos níveis dela (só melhorias liberadas, opcionais só se pedidas, uma por grupo, comuns todas ligadas); `'mode'` ignora a conta (o mesmo equipamento para todas);
+- `lockedLoadout`: trocar o Arsenal na partida é recusado; `grenades`: a granada chega aos outros só no modo com granadas, e a mina só com a melhoria; `weaponXp`: abates com cada arma de fogo carregada e com a faca dão os pontos à arma só no modo que diz isso (a conta ganha 25 XP sempre), e em modo `coop` não há dano entre jogadores;
+- regras coerentes: modo com armas próprias nunca dá XP de arma e precisa registrar no teste tudo o que entrega no meio da partida (degraus da escada, toda combinação de itens do caixão), e tudo isso é válido; toda combinação de melhorias de toda arma dá atributos válidos.
 
 ### `appearance.test.ts` — blocos "perfil" e "no online"
 
@@ -80,6 +103,6 @@ Como o servidor confia em `X-Forwarded-For` só vindo de endereço privado, e os
 ## Código relacionado
 
 - `server/tests/helpers.ts`, `server/tests/preload.ts`, `server/tests/env.ts`
-- `server/tests/auth.test.ts`, `server/tests/game.test.ts`, `server/tests/appearance.test.ts`, `server/tests/modes.test.ts`, `server/tests/zombies.test.ts`
+- `server/tests/auth.test.ts`, `server/tests/game.test.ts`, `server/tests/appearance.test.ts`, `server/tests/modes.test.ts`, `server/tests/zombies.test.ts`, `server/tests/progression-modes.test.ts`
 
 Ver também: [[Testing Overview]], [[Authentication]], [[APIs]].

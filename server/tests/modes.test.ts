@@ -1,15 +1,19 @@
 // Game modes on the real server: mata-mata keeps the loadout chosen before the match (the Arsenal is changed
 // in the lobby, level-ups wait for the next session), and corrida armada's ladder (three kills with the step's
-// weapon move you up, a stab moves you down, a lightsaber kill wins the round and a new one starts).
+// weapon move you up, a stab moves you down, a lightsaber kill wins the round and a new one starts). With the
+// weapon progression around them: a veteran's unlocked upgrades are what the server validates in mata-mata
+// (damage, fire rate, the mine, the secondary's points), a client can't claim what it hasn't unlocked, and the
+// ladder ignores the account entirely (its own stats, no weapon points).
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { FLAG, type PlayerInfo, type Vec3 } from '@shared/protocol';
-import { DEFAULT_LOADOUT, gunStats } from '@shared/arsenal';
+import { FLAG, type PlayerInfo, type ServerMsg, type Vec3 } from '@shared/protocol';
+import { DEFAULT_LOADOUT, gunStats, resolveLoadout } from '@shared/arsenal';
 import { afterDeath, afterKill, FINAL_STEP, GUN_GAME, LADDER, ladderLoadout, ladderProblems, killsForStep, stepWeapon } from '@shared/gunGame';
 import { GAME_MODE_IDS, MODE_RULES } from '@shared/modes';
-import { isGun } from '@shared/progression';
+import { isGun, MAX_LEVELS, PROG_WEAPONS, START_LEVELS, xpForLevel, type GunId, type ProgWeapon } from '@shared/progression';
+import { ACCOUNT_XP } from '@shared/accountLevel';
 import { computeDamage } from '@shared/weapons';
 import type { GameServer } from '../app';
-import { Browser, Player, sleep, startTestServer } from './helpers';
+import { Browser, Player, setWeaponXp, sleep, startTestServer } from './helpers';
 
 let game: GameServer;
 beforeAll(async () => {
@@ -25,13 +29,16 @@ async function signedIn(name: string) {
   return b;
 }
 
-/** Connects, says hello, sends `lobby` messages (they're processed in order) and joins `session`. */
-async function enter(b: Browser, session: string, lobby: object[] = []) {
+/**
+ * Connects, says hello, sends `lobby` messages (they're processed in order) and joins `session`, or creates a
+ * session of a mode on a map (fresh: no other test's round or ladder in it).
+ */
+async function enter(b: Browser, session: string | { mode: string; map: string }, lobby: object[] = []) {
   const p = await Player.connect(game, await b.ticket());
   p.send({ t: 'hello' });
   const welcome = await p.next('welcome');
   for (const m of lobby) p.send(m);
-  p.send({ t: 'join', session });
+  p.send(typeof session === 'string' ? { t: 'join', session } : { t: 'create', name: 'Sala de teste', ...session });
   const joined = await p.next('joined');
   return { p, welcome, joined, id: joined.you, me: joined.players.find((x) => x.id === joined.you)! };
 }
@@ -283,4 +290,158 @@ describe('corrida armada (online)', () => {
     await spawn(a, [0, 0, 0]);
     for (const x of [a, ...vs]) x.p.close();
   }, 60_000);
+});
+
+// --- Weapon progression in the online modes ---------------------------------------------------------------------
+
+/** A signed-in veteran: the weapon levels in `levels` already earned (the others at level 1). */
+async function veteran(name: string, levels: Partial<Record<ProgWeapon, number>>) {
+  const b = await signedIn(name);
+  await setWeaponXp(b, Object.fromEntries(Object.entries(levels).map(([w, lvl]) => [w, xpForLevel(w as ProgWeapon, lvl)])));
+  return b;
+}
+
+/** Puts a player at `p`, standing on the ground (`f`: extra state flags, e.g. the secondary in hand). */
+const at = (who: In, p: Vec3, f = 0) => who.p.send({ t: 'state', s: { p, yaw: 0, pitch: 0, f: FLAG.grounded | f } });
+
+const lastProgress = (who: In) => who.p.msgs.filter((m): m is Extract<ServerMsg, { t: 'progresso' }> => m.t === 'progresso').at(-1);
+
+describe('progressão de armas no mata-mata (online)', () => {
+  it('as melhorias liberadas valem nas armas travadas: dano do silenciador, cadência do gatilho, a mina e os pontos da secundária', async () => {
+    const levels = { rifle: 6, pistola: 2, granada: 2 };
+    const choice = { secundaria: 'pistola' as const, ligadas: { rifle: ['silenciador'], granada: ['mina'] } };
+    const lo = resolveLoadout(choice, { ...START_LEVELS, ...levels });
+    const a = await enter(await veteran('Veterana', levels), 'principal', [{ t: 'loadout', lo: choice }]);
+    expect(a.me.lo).toEqual(lo);
+    expect(lo.ativas).toMatchObject({ rifle: ['pontoVermelho', 'empunhadura', 'pente', 'silenciador'], pistola: ['gatilho'], granada: ['mina'] });
+    const v1 = await enter(await signedIn('Alvo Longe'), 'principal');
+    const v2 = await enter(await signedIn('Alvo Lado'), 'principal');
+    await spawn(a, [0, 0, 0], v1);
+    await spawn(v1, [0, 0, 30], a);
+    await spawn(v2, [30, 0, 0], a);
+    at(a, [0, 0, 0]);
+
+    // Damage and reach: the rifle with the silencer the account turned on (softer at 30 m than the plain one).
+    const rifle = gunStats('rifle', lo.ativas.rifle);
+    expect(computeDamage(rifle, 30, 'peito')).toBeLessThan(computeDamage(gunStats('rifle'), 30, 'peito'));
+    a.p.send({ t: 'hit', target: v1.id, region: 'peito', dist: 30, w: 'rifle' });
+    expect((await a.p.next('damage', (m) => m.target === v1.id)).amount).toBe(computeDamage(rifle, 30, 'peito'));
+
+    // Fire rate: the pistol's trigger lets more hits a second through than the plain pistol would.
+    const pistol = gunStats('pistola', lo.ativas.pistola);
+    const allowed = Math.ceil(pistol.cadencia / 60) + 2;
+    expect(allowed).toBeGreaterThan(Math.ceil(gunStats('pistola').cadencia / 60) + 2);
+    // (hand hits from 30 m, split between the two: nobody dies)
+    expect(computeDamage(rifle, 30, 'peito') + Math.ceil(allowed / 2) * computeDamage(pistol, 30, 'maos')).toBeLessThan(100);
+    await sleep(1100); // the rifle's hit out of the one-second window
+    at(a, [0, 0, 0], FLAG.secondary);
+    for (let i = 0; i <= allowed; i++) a.p.send({ t: 'hit', target: i % 2 ? v2.id : v1.id, region: 'maos', dist: 30, w: 'pistola' });
+    for (let i = 0; i < allowed; i++) expect((await a.p.next('damage', (m) => m.attacker === a.id)).amount).toBe(computeDamage(pistol, 30, 'maos'));
+    await expect(a.p.next('damage', (m) => m.attacker === a.id, 300)).rejects.toThrow();
+
+    // The grenade's upgrade turned on: G plants a land mine, and the others see a mine.
+    a.p.send({ t: 'grenade', id: 1, p: [0, 0.1, 0], v: [0, 0, 0], fuse: 0, mine: true });
+    expect(await v1.p.next('grenade', (m) => m.owner === a.id)).toMatchObject({ mine: true });
+
+    // A kill with the secondary: its points go to the pistol, the account gets its XP, the rifle nothing.
+    await sleep(1100);
+    const k = await groinKill(a, v2, 'pistola', 30);
+    expect(k.arma).toBe('pistola');
+    const points = k.awards.reduce((s, x) => s + x.value, 0);
+    const prog = lastProgress(a)!;
+    expect(prog.armas.pistola.xp).toBe(xpForLevel('pistola', 2) + points);
+    expect(prog.armas.rifle.xp).toBe(xpForLevel('rifle', 6));
+    expect(prog.conta.xp).toBe(ACCOUNT_XP.perKill);
+    // Locked: nobody heard of other weapons.
+    expect(a.p.msgs.some((m) => m.t === 'playerLoadout')).toBe(false);
+    for (const x of [a, v1, v2]) x.p.close();
+  });
+
+  it('um cliente não finge armas nem melhorias que a conta não liberou', async () => {
+    // Rifle level 3 (red dot, grip), grenade level 2 (the mine unlocked, the double not yet).
+    const b = await veteran('Esperto', { rifle: 3, granada: 2 });
+    const greedy = {
+      secundaria: 'bazuca',
+      ligadas: { rifle: ['luneta', 'silenciador'], granada: ['dupla'], faca: ['sabre'], smg: ['tambor'] },
+      // A whole loadout where a choice goes: never read.
+      primaria: 'smg',
+      soFaca: true,
+      ativas: { rifle: ['silenciador'], faca: ['sabre'] },
+    };
+    const a = await enter(b, 'jardim', [{ t: 'loadout', lo: greedy }]);
+    expect(lastProgress(a)?.escolha).toEqual({ secundaria: 'pistola', ligadas: {} });
+    expect(a.me.lo).toEqual({ primaria: 'rifle', secundaria: 'pistola', ativas: { rifle: ['pontoVermelho', 'empunhadura'], pistola: [], smg: [], faca: [], granada: [] } });
+    const v = await enter(await signedIn('Conferente'), 'jardim');
+    await spawn(a, [0, 0, 0], v);
+    await spawn(v, [0, 0, 30], a);
+    at(a, [0, 0, 0]);
+    // Weapons outside the loadout (or no gun at all): ignored.
+    for (const w of ['smg', 'faca', 'granada', 'bazuca']) a.p.send({ t: 'hit', target: v.id, region: 'peito', dist: 30, w });
+    await expect(a.p.next('damage', (m) => m.attacker === a.id, 300)).rejects.toThrow();
+    // The rifle hits with what the account has: no silencer.
+    a.p.send({ t: 'hit', target: v.id, region: 'peito', dist: 30, w: 'rifle' });
+    expect((await a.p.next('damage', (m) => m.attacker === a.id)).amount).toBe(computeDamage(gunStats('rifle', ['pontoVermelho', 'empunhadura']), 30, 'peito'));
+    // A mine without the upgrade turned on: a plain grenade for everyone.
+    a.p.send({ t: 'grenade', id: 7, p: [0, 1, 0], v: [0, 5, -5], fuse: 2, mine: true });
+    expect((await v.p.next('grenade', (m) => m.owner === a.id)).mine).toBeUndefined();
+    a.p.close();
+    v.p.close();
+  });
+});
+
+describe('progressão de armas na corrida armada (online)', () => {
+  it('a escada ignora as melhorias e a escolha da conta: valida com as armas do degrau (e da anterior por um instante), sem pontos para arma nenhuma', async () => {
+    const b = await veteran('Mestre', MAX_LEVELS);
+    const choice = { secundaria: 'smg' as const, ligadas: { rifle: ['silenciador'], faca: ['sabre'], granada: ['mina'] } };
+    // What the account plays with in mata-mata...
+    const own = resolveLoadout(choice, MAX_LEVELS);
+    // ...and what it gets here: the ladder's first step, like everyone.
+    const a = await enter(b, { mode: 'corrida-armada', map: 'rua' }, [{ t: 'loadout', lo: choice }]);
+    expect(a.joined.session.mode).toBe('corrida-armada');
+    expect(a.me.lo).toEqual(ladderLoadout(0));
+    const [s0, s1] = [LADDER[0], LADDER[1]];
+    // (the test needs two different guns on the first two steps)
+    expect(isGun(s0.arma) && isGun(s1.arma) && s0.arma !== s1.arma).toBe(true);
+    const g0 = gunStats(s0.arma as GunId, s0.melhorias);
+    const g1 = gunStats(s1.arma as GunId, s1.melhorias);
+    expect(g0).not.toBe(gunStats(s0.arma as GunId, own.ativas[s0.arma]));
+
+    const vs: In[] = [];
+    for (const n of ['Degrau A', 'Degrau B', 'Degrau C', 'Saco de Pancada']) vs.push(await enter(await signedIn(n), a.joined.session.id));
+    const [v1, v2, v3, dummy] = vs;
+    await spawn(a, [0, 0, 0]);
+    for (const [i, v] of [v1, v2, v3].entries()) await spawn(v, [i * 2 - 2, 0, 10], a);
+    await spawn(dummy, [0, 0, 30], a);
+    at(a, [0, 0, 0]);
+
+    // The step's gun, with the step's upgrades.
+    a.p.send({ t: 'hit', target: dummy.id, region: 'peito', dist: 30, w: s0.arma });
+    expect((await a.p.next('damage', (m) => m.target === dummy.id)).amount).toBe(computeDamage(g0, 30, 'peito'));
+    // Three kills: the next step's weapons.
+    await groinKill(a, v1, s0.arma);
+    await groinKill(a, v2, s0.arma);
+    const next = a.p.next('playerLoadout', (m) => m.id === a.id);
+    await groinKill(a, v3, s0.arma);
+    expect((await next).lo).toEqual(ladderLoadout(1));
+    // Shots of the last step's gun still in flight count for a moment, with that step's stats...
+    a.p.send({ t: 'hit', target: dummy.id, region: 'peito', dist: 30, w: s0.arma });
+    expect((await a.p.next('damage', (m) => m.target === dummy.id)).amount).toBe(computeDamage(g0, 30, 'peito'));
+    a.p.send({ t: 'hit', target: dummy.id, region: 'peito', dist: 30, w: s1.arma });
+    expect((await a.p.next('damage', (m) => m.target === dummy.id)).amount).toBe(computeDamage(g1, 30, 'peito'));
+    // ...and not after it.
+    await sleep(1100);
+    a.p.send({ t: 'hit', target: dummy.id, region: 'peito', dist: 30, w: s0.arma });
+    await expect(a.p.next('damage', (m) => m.target === dummy.id, 300)).rejects.toThrow();
+
+    // No weapon points for the kills (the account still earns its XP), and the database agrees after leaving.
+    const prog = lastProgress(a)!;
+    for (const w of PROG_WEAPONS) expect(prog.armas[w].xp).toBe(xpForLevel(w, MAX_LEVELS[w]));
+    expect(prog.conta.xp).toBe(3 * ACCOUNT_XP.perKill);
+    a.p.send({ t: 'leave' });
+    await sleep(300);
+    const profile = (await b.req('GET', '/api/perfil')).body;
+    for (const w of PROG_WEAPONS) expect(profile.armas[w].xp).toBe(xpForLevel(w, MAX_LEVELS[w]));
+    expect(profile.xp).toBe(3 * ACCOUNT_XP.perKill);
+    for (const x of [a, ...vs]) x.p.close();
+  });
 });

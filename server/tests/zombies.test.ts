@@ -1,13 +1,17 @@
 // Zumbi mode: the rules (shared/zombies.ts), the match engine with a fake clock (shared/zombieMatch.ts over
 // the baked navmesh of the haunted town: waves, money, the coffin, revives, winning and losing), the baked
 // navmesh being up to date with the map's code, and the mode on the real server (start loadout, shots at
-// zombies checked against the server's positions, money and account XP, the coffin's weapon, revives).
+// zombies checked against the server's positions, money and account XP, the coffin's weapon, revives), with the
+// weapon progression around it (a maxed-out account still starts with the plain rifle, the coffin's weapons hit
+// with their own upgrades, kills give account XP only), the bosses' moves against several players, joining in
+// the middle of a wave and bleeding out until the break.
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test';
 import { importNavMesh, init, type NavMesh } from 'recast-navigation';
 import nav from '@shared/data/navmesh/halloween.json';
-import { gunStats } from '@shared/arsenal';
+import { gunStats, resolveLoadout } from '@shared/arsenal';
 import { modeMaps, MODE_RULES } from '@shared/modes';
-import type { ServerMsg, Vec3 } from '@shared/protocol';
+import { MAX_LEVELS, PROG_WEAPONS, xpForLevel, type ArsenalChoice, type ProgWeapon } from '@shared/progression';
+import { FLAG, type ServerMsg, type Vec3 } from '@shared/protocol';
 import {
   BOX_ITEMS,
   duckChance,
@@ -15,6 +19,10 @@ import {
   itemOf,
   itemSlot,
   killMoney,
+  killXp,
+  kindScale,
+  knifeDamageToZombie,
+  rarityMul,
   rollBox,
   startItems,
   waveSpec,
@@ -23,12 +31,14 @@ import {
   ZOMBIE,
   zombieLoadout,
   zombieProblems,
+  type BossId,
   type ZItems,
+  type ZKind,
 } from '@shared/zombies';
 import { ZombieMatch, type ZombieHost } from '@shared/zombieMatch';
 import { LETHAL_DAMAGE } from '@shared/weapons';
 import type { GameServer } from '../app';
-import { Browser, Player, sleep, startTestServer } from './helpers';
+import { Browser, Player, setWeaponXp, sleep, startTestServer } from './helpers';
 import { bakeNavmesh, navmeshHash } from '../../tools/bake-navmesh';
 
 /** The mode's numbers as they ship: tests shorten them and put them back. */
@@ -512,4 +522,286 @@ describe('modo zumbi no servidor', () => {
     b.p.close();
     await sleep(100);
   }, 60_000);
+});
+
+// --- On the real server: weapon progression, bosses against several players, joining mid-wave --------------------
+
+/** A signed-in account; `levels`: weapon levels it already earned (a veteran). */
+async function account(name: string, levels: Partial<Record<ProgWeapon, number>> = {}) {
+  const b = new Browser(game);
+  await b.register(name);
+  const xp = Object.fromEntries(Object.entries(levels).map(([w, lvl]) => [w, xpForLevel(w as ProgWeapon, lvl)]));
+  if (Object.keys(xp).length) await setWeaponXp(b, xp);
+  return b;
+}
+
+/** A game connection in the lobby (hello done), ready to join at the right moment. */
+async function lobby(b: Browser) {
+  const p = await Player.connect(game, await b.ticket());
+  p.send({ t: 'hello' });
+  await p.next('welcome');
+  return p;
+}
+
+/** Sends the lobby messages, then joins `session` (an id) or creates a new session of the zumbi mode. */
+async function joinWith(p: Player, session: string, before: object[] = []): Promise<In> {
+  for (const m of before) p.send(m);
+  p.send(session === 'nova' ? { t: 'create', name: 'Horda de teste', map: 'halloween', mode: 'zumbi' } : { t: 'join', session });
+  const joined = await p.next('joined');
+  return { p, joined, id: joined.you };
+}
+
+/** The next snapshot from now on (older ones dropped), matching `match`. */
+function fresh(who: In, match: (m: Extract<ServerMsg, { t: 'zsnap' }>) => boolean = () => true, timeout = 5000) {
+  who.p.msgs = who.p.msgs.filter((m) => m.t !== 'zsnap');
+  return who.p.next('zsnap', match, timeout);
+}
+
+/** The boss of a snapshot: id, kind and where its feet are. */
+function bossIn(s: Extract<ServerMsg, { t: 'zsnap' }>) {
+  const z = s.z.find((x) => x[0] === s.boss![0])!;
+  return { id: z[0], kind: Z_KINDS[z[1]], pos: [z[2], z[3], z[4]] as Vec3 };
+}
+
+/** Wave 1 is only `boss`; every boss stands still and its swipes do nothing (its special moves still hurt). */
+function bossWave(boss: BossId) {
+  quick();
+  Object.assign(ZOMBIE.ondas[0], { zumbis: 0, chefe: boss });
+  for (const b of Object.values(ZOMBIE.chefes)) Object.assign(b, { andar: 0.01, dano: 0 });
+}
+
+/** The coffin is cheap and quick, and never the duck (the permanent session's coffin keeps its roll count). */
+function cheapCoffin() {
+  Object.assign(ZOMBIE.caixa, { custo: 100, girarSegundos: 0.2, patoApos: 99 });
+}
+
+/** Stands by the coffin, pays, takes the weapon it offers: the item and the loadout the server sent. */
+async function buyFromCoffin(who: In, spot: number) {
+  const [x, y, z] = ZOMBIE.mapas.halloween!.caixa[spot];
+  who.p.send({ t: 'state', s: { p: [x + 1, y + 0.1, z], yaw: 0, pitch: 0, f: FLAG.grounded } });
+  // The match reads positions on its tick.
+  await sleep(120);
+  who.p.send({ t: 'box' });
+  const offer = await who.p.next('zbox', (m) => m.state === 'offer' && m.by === who.id);
+  who.p.send({ t: 'box' });
+  const lo = (await who.p.next('playerLoadout', (m) => m.id === who.id)).lo;
+  return { item: itemOf(offer.item)!, lo };
+}
+
+/**
+ * Hits the boss once (`msg` builds the report from the boss's id and the distance to its chest) and returns how
+ * much health it lost, from the boss bar of the snapshots.
+ */
+async function hurtBoss(who: In, at: Vec3, msg: (z: number, dist: number) => object) {
+  const before = await fresh(who, (m) => !!m.boss);
+  const boss = bossIn(before);
+  const dist = eyeDist(at, boss.pos, kindScale(boss.kind));
+  who.p.send(msg(boss.id, dist));
+  const after = await who.p.next('zsnap', (m) => !!m.boss && m.boss[1] < before.boss![1]);
+  return { lost: before.boss![1] - after.boss![1], dist };
+}
+
+/** Shoots every zombie in sight (groin: a plain zombie dies at once) until the wave's break; the kinds killed. */
+async function clearWave(who: In, at: Vec3): Promise<ZKind[]> {
+  const kinds = new Map<number, ZKind>();
+  const shotAt = new Map<number, number>();
+  const deadline = Date.now() + 20_000;
+  const over = () => who.p.msgs.some((m) => m.t === 'zwave' && m.phase === 'break');
+  while (!over() && Date.now() < deadline) {
+    const snap = await fresh(who, () => true, 500).catch(() => null);
+    for (const z of snap?.z ?? []) {
+      kinds.set(z[0], Z_KINDS[z[1]]);
+      // Once in a while each (a shot the fire rate refused is tried again).
+      if (Date.now() - (shotAt.get(z[0]) ?? 0) < 400) continue;
+      shotAt.set(z[0], Date.now());
+      who.p.send({ t: 'zhit', z: z[0], region: 'virilha', dist: eyeDist(at, [z[2], z[3], z[4]], kindScale(Z_KINDS[z[1]])), w: 'rifle' });
+    }
+    await sleep(80);
+  }
+  await who.p.next('zwave', (m) => m.phase === 'break', 1000);
+  return who.p.msgs.filter((m): m is Extract<ServerMsg, { t: 'zdie' }> => m.t === 'zdie' && m.by === who.id).map((m) => kinds.get(m.id)!);
+}
+
+describe('modo zumbi no servidor: progressão de armas, chefes e quem entra no meio', () => {
+  it('a conta no máximo começa com o rifle simples; o caixão dá a arma com as melhorias dela, e o dano no chefe é o dessa arma', async () => {
+    bossWave('coveiro');
+    Object.assign(ZOMBIE.chefes.coveiro.pancada!, { dano: 0 });
+    Object.assign(ZOMBIE.chefes.coveiro.invocar!, { zumbis: 0 });
+    cheapCoffin();
+    // Everything unlocked, the trade-off upgrades on (the silencer would make the rifle weaker, the saber the knife deadly).
+    const choice: ArsenalChoice = { secundaria: 'smg', ligadas: { rifle: ['silenciador'], pistola: ['batata'], smg: ['tambor'], faca: ['sabre'], granada: ['mina'] } };
+    const own = resolveLoadout(choice, MAX_LEVELS);
+    const a = await joinWith(await lobby(await account('Veterano', MAX_LEVELS)), 'zumbi-halloween', [{ t: 'loadout', lo: choice }]);
+    expect(a.joined.players.find((x) => x.id === a.id)!.lo).toEqual(zombieLoadout(startItems()));
+    const spot = a.joined.zumbi!.box.spot;
+
+    // The plain rifle's damage on the boss (the account's rifle would hit softer).
+    const boss = bossIn(await fresh(a, (m) => !!m.boss, 10_000));
+    expect(boss.kind).toBe('coveiro');
+    const at: Vec3 = [boss.pos[0], 0.1, boss.pos[2] + 10];
+    await stand(a, at);
+    const shot = await hurtBoss(a, at, (z, dist) => ({ t: 'zhit', z, region: 'peito', dist, w: 'rifle' }));
+    expect(shot.lost).toBe(gunDamageToZombie(gunStats('rifle'), shot.dist, 'peito', 1, 1, true));
+    expect(shot.lost).not.toBe(gunDamageToZombie(gunStats('rifle', own.ativas.rifle), shot.dist, 'peito', 1, 1, true));
+    // The plain knife, not the account's saber.
+    const close: Vec3 = [boss.pos[0], 0.1, boss.pos[2] + 3];
+    a.p.send({ t: 'state', s: { p: close, yaw: 0, pitch: 0, f: FLAG.grounded } });
+    expect((await hurtBoss(a, close, (z) => ({ t: 'zstab', z }))).lost).toBe(knifeDamageToZombie(1));
+
+    // The coffin's weapon: in its slot, with its own fixed upgrades, never the account's.
+    const { item, lo } = await buyFromCoffin(a, spot);
+    expect(lo).toEqual(zombieLoadout({ ...startItems(), [itemSlot(item)]: item.id }));
+    expect(lo.ativas[item.arma]).toEqual(item.melhorias);
+    expect(lo.ativas.granada).toEqual([]);
+    // And its damage on the boss: that weapon with those upgrades, times its rarity.
+    if (item.arma === 'faca') {
+      a.p.send({ t: 'state', s: { p: close, yaw: 0, pitch: 0, f: FLAG.grounded } });
+      await sleep(1000); // the saber swings slower
+      expect((await hurtBoss(a, close, (z) => ({ t: 'zstab', z }))).lost).toBe(knifeDamageToZombie(rarityMul(item.raridade)));
+    } else {
+      a.p.send({ t: 'state', s: { p: at, yaw: 0, pitch: 0, f: FLAG.grounded | (itemSlot(item) === 'secundaria' ? FLAG.secondary : 0) } });
+      const hit = await hurtBoss(a, at, (z, dist) => ({ t: 'zhit', z, region: 'peito', dist, w: item.arma }));
+      expect(hit.lost).toBe(gunDamageToZombie(gunStats(item.arma, item.melhorias), hit.dist, 'peito', 1, rarityMul(item.raridade), true));
+    }
+    a.p.close();
+    await sleep(100);
+  }, 30_000);
+
+  it('chefes contra vários jogadores: o grito da Noiva fere e deixa lento quem está perto; a investida do Prefeito acerta e arremessa todos no caminho', async () => {
+    bossWave('noiva');
+    Object.assign(ZOMBIE.chefes.noiva.grito!, { preparo: 0.3 });
+    Object.assign(ZOMBIE.chefes.prefeito.investida!, { preparo: 0.3 });
+    // The mayor rises on open ground of the plaza with a long clear line east of him (his usual spot is against a
+    // bench: standing still there, the walkable area's edge cuts every charge short).
+    ZOMBIE.mapas.halloween!.chefe.prefeito = [-10, 0, 34.5];
+    // Everyone in the lobby first: the bosses' first moves come a few seconds after they rise.
+    const [p1, p2, p3, p4, p5] = await Promise.all(['Gritada', 'Arrepiada', 'Distante', 'Atropelado', 'Arremessado'].map(async (n) => lobby(await account(n))));
+    const bride = await joinWith(p1, 'nova');
+    await bride.p.next('zwave', (m) => m.phase === 'wave' && m.boss === 'noiva', 5000);
+    // The next session's first wave gets the mayor.
+    ZOMBIE.ondas[0].chefe = 'prefeito';
+    const mayor = await joinWith(p4, 'nova');
+    await mayor.p.next('zwave', (m) => m.phase === 'wave' && m.boss === 'prefeito', 5000);
+    const bride2 = await joinWith(p2, bride.joined.session.id);
+    const far = await joinWith(p3, bride.joined.session.id);
+    const mayor2 = await joinWith(p5, mayor.joined.session.id);
+    const nb = bossIn(await fresh(bride, (m) => !!m.boss)).pos;
+    const pm = bossIn(await fresh(mayor, (m) => !!m.boss)).pos;
+    // Two players within the scream's reach and one well outside it.
+    await stand(bride, [nb[0] - 4, 0.1, nb[2]]);
+    await stand(bride2, [nb[0] - 7, 0.1, nb[2]]);
+    await stand(far, [nb[0], 0.1, nb[2] + 25]);
+    // Two players in a line over open ground east of the mayor, beyond the reach that makes him pound the ground.
+    const reachPound = ZOMBIE.chefes.prefeito.tremor!.raio * 0.8;
+    await stand(mayor, [pm[0] + reachPound + 0.6, 0.1, pm[2]]);
+    await stand(mayor2, [pm[0] + reachPound + 2.6, 0.1, pm[2]]);
+
+    const grito = ZOMBIE.chefes.noiva.grito!;
+    const scream = await bride.p.next('zfx', (m) => m.fx === 'scream', 12_000);
+    for (const x of [bride, bride2]) {
+      const fx = await bride.p.next('zhitfx', (m) => m.fx === 'scream' && m.id === x.id, 4000);
+      expect(fx.slow).toBe(grito.lentidao);
+      expect(fx.until! - scream.t1).toBeGreaterThanOrEqual(grito.duracao * 1000);
+      expect(fx.until! - scream.t1).toBeLessThan(grito.duracao * 1000 + 200);
+      expect((await x.p.next('damage', (m) => m.target === x.id && m.attacker === null, 4000)).amount).toBe(grito.dano);
+    }
+    await expect(far.p.next('zhitfx', (m) => m.id === far.id, 300)).rejects.toThrow();
+    expect(far.p.msgs.some((m) => m.t === 'damage' && m.target === far.id)).toBe(false);
+
+    const investida = ZOMBIE.chefes.prefeito.investida!;
+    const charge = await mayor.p.next('zfx', (m) => m.fx === 'charge', 12_000);
+    expect(charge.to![0] - charge.at[0]).toBeGreaterThan(investida.minimo);
+    for (const x of [mayor, mayor2]) {
+      const fx = await mayor.p.next('zhitfx', (m) => m.fx === 'charge' && m.id === x.id, 4000);
+      // Thrown along the charge (east), and up.
+      expect(fx.v![0]).toBeCloseTo(investida.empurrao, 0);
+      expect(fx.v![1]).toBe(6);
+      expect(Math.abs(fx.v![2])).toBeLessThan(1);
+      expect((await x.p.next('damage', (m) => m.target === x.id && m.attacker === null, 4000)).amount).toBe(investida.dano);
+    }
+    for (const x of [bride, bride2, far, mayor, mayor2]) x.p.close();
+    await sleep(150);
+  }, 40_000);
+
+  it('quem entra no meio de uma onda recebe a onda, os zumbis, o dinheiro de cada um e quem está caído', async () => {
+    quick();
+    Object.assign(ZOMBIE.ondas[0], { zumbis: 6, intervalo: 0.1 });
+    for (const t of Object.values(ZOMBIE.tipos)) t.dano = 0;
+    cheapCoffin();
+    const [pa, pb, pc] = await Promise.all([lobby(await account('Anfitriao')), lobby(await account('Caido')), lobby(await account('Atrasado', MAX_LEVELS))]);
+    const a = await joinWith(pa, 'zumbi-halloween');
+    const b = await joinWith(pb, 'zumbi-halloween');
+    const spot = a.joined.zumbi!.box.spot;
+    await stand(a, [0, 0.1, 0]);
+    await stand(b, [1.5, 0.1, 0]);
+    const wave = await a.p.next('zwave', (m) => m.phase === 'wave', 5000);
+    // A buys a weapon; B goes down (A is still up, so the wave goes on).
+    const { item } = await buyFromCoffin(a, spot);
+    b.p.send({ t: 'selfDamage', amount: 9999, cause: 'fall' });
+    const down = await a.p.next('zdown', (m) => m.id === b.id);
+    const seen = await fresh(a, (m) => m.z.length >= 2, 10_000);
+
+    // C (with a maxed-out account and another Arsenal choice) joins now.
+    const c = await joinWith(pc, 'zumbi-halloween', [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: { rifle: ['silenciador'] } } }]);
+    expect(c.joined.zumbi).toMatchObject({ phase: 'wave', wave: 1, total: wave.total, box: { spot, state: 'idle' } });
+    expect(c.joined.zumbi!.down).toEqual([[b.id, down.until]]);
+    const info = (id: number) => c.joined.players.find((p) => p.id === id)!;
+    const aItems = { ...startItems(), [itemSlot(item)]: item.id };
+    expect(info(a.id).zumbi).toMatchObject({ money: ZOMBIE.dinheiroInicial - ZOMBIE.caixa.custo, state: 'up', items: aItems });
+    expect(info(a.id).lo).toEqual(zombieLoadout(aItems));
+    expect(info(b.id).zumbi).toMatchObject({ money: ZOMBIE.dinheiroInicial, state: 'down' });
+    expect(info(c.id).zumbi).toMatchObject({ money: ZOMBIE.dinheiroInicial, state: 'up', items: startItems() });
+    expect(info(c.id).lo).toEqual(zombieLoadout(startItems()));
+    // The horde comes with the next snapshot: the zombies A was seeing.
+    const first = await c.p.next('zsnap');
+    const ids = new Set(first.z.map((z) => z[0]));
+    expect(seen.z.filter((z) => !ids.has(z[0]))).toEqual([]);
+    // And C plays at once, on their feet.
+    await stand(c, [0, 0.1, 2]);
+    for (const x of [a, b, c]) x.p.close();
+    await sleep(150);
+  }, 30_000);
+
+  it('quem sangra até morrer fica fora até o intervalo e volta com o rifle inicial e o seu dinheiro; abates dão só XP de conta', async () => {
+    quick();
+    Object.assign(ZOMBIE.ondas[0], { zumbis: 2, intervalo: 0.1 });
+    for (const t of Object.values(ZOMBIE.tipos)) t.dano = 0;
+    Object.assign(ZOMBIE.jogador, { caidoSegundos: 0.5 });
+    cheapCoffin();
+    const [pa, pb] = await Promise.all([lobby(await account('Limpador')), lobby(await account('Sangrador'))]);
+    const a = await joinWith(pa, 'zumbi-halloween');
+    const b = await joinWith(pb, 'zumbi-halloween');
+    const spot = b.joined.zumbi!.box.spot;
+    const atA: Vec3 = [0, 0.1, 0];
+    await stand(a, atA);
+    await stand(b, [1.5, 0.1, 0]);
+    await a.p.next('zwave', (m) => m.phase === 'wave', 5000);
+    // B buys a weapon ($100 out of $500), then goes down and nobody revives: bled out, dead until the break.
+    const { lo } = await buyFromCoffin(b, spot);
+    expect(lo).not.toEqual(zombieLoadout(startItems()));
+    b.p.send({ t: 'selfDamage', amount: 9999, cause: 'fall' });
+    await a.p.next('zdown', (m) => m.id === b.id);
+    expect(await a.p.next('kill', (m) => m.victim === b.id, 3000)).toMatchObject({ attacker: null, kind: 'zombie' });
+    b.p.send({ t: 'respawn', p: [1.5, 0.1, 0], yaw: 0 });
+    await expect(b.p.next('spawned', (m) => m.id === b.id, 400)).rejects.toThrow();
+
+    // A clears the wave: each kill gives A its money and account XP from the server, and no weapon points.
+    const killed = await clearWave(a, atA);
+    expect(killed.length).toBeGreaterThan(0);
+    const prog = a.p.msgs.filter((m): m is Extract<ServerMsg, { t: 'progresso' }> => m.t === 'progresso').at(-1)!;
+    for (const w of PROG_WEAPONS) expect(prog.armas[w].xp).toBe(0);
+    expect(prog.conta.xp).toBe(killed.reduce((s, k) => s + killXp(k), 0) + ZOMBIE.xp.onda);
+
+    // The break: B gets the starting rifle back (the coffin's gun is lost) and may respawn, with the money B had.
+    const back = await b.p.next('playerLoadout', (m) => m.id === b.id, 5000);
+    expect(back.lo).toEqual(zombieLoadout(startItems()));
+    await stand(b, [1.5, 0.1, 0]);
+    // (the scoreboards from before the purchase still in the queue showed B alive with $500)
+    a.p.msgs = a.p.msgs.filter((m) => m.t !== 'scores');
+    const scores = await a.p.next('scores', (m) => m.players.some((p) => p.id === b.id && p.alive && p.zumbi?.state === 'up'), 4000);
+    expect(scores.players.find((p) => p.id === b.id)!.zumbi).toMatchObject({ money: ZOMBIE.dinheiroInicial - ZOMBIE.caixa.custo, items: startItems() });
+    a.p.close();
+    b.p.close();
+    await sleep(150);
+  }, 40_000);
 });

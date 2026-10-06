@@ -18,6 +18,10 @@ source_paths:
   - .github/workflows/ci.yml
   - server/tests/arsenal.test.ts
   - client/tests/arsenalText.test.ts
+  - server/tests/modes.test.ts
+  - server/tests/zombies.test.ts
+  - server/tests/progression-modes.test.ts
+  - client/tests/offlineModes.test.ts
 tags:
   - testes
 updated: 2026-10-06
@@ -33,14 +37,18 @@ Os testes usam o executor nativo **`bun test`** (`bun:test`: `describe`, `it`, `
 | --- | --- | --- | --- |
 | `server/tests/auth.test.ts` | Integração (HTTP) | 16 | cadastro, login, limites, sessão, origem, recuperação de senha, perfil, exclusão |
 | `server/tests/game.test.ts` | Integração (HTTP + WebSocket) / gameplay | 26 | ticket do WS, conexões por conta, progresso, mapas, pickups, Vila Assombrada, loadout, arma que atirou, chat |
+| `server/tests/modes.test.ts` | Integração (WebSocket) + regras puras | 13 | mata-mata (equipamento travado, melhorias da conta valendo, cliente ganancioso), corrida armada (escada, rodadas, a conta ignorada) |
+| `server/tests/zombies.test.ts` | Unitário + motor com relógio falso + integração | 25 | modo zumbi: regras, navmesh em dia, motor, servidor real (inclui progressão de armas, chefes com vários jogadores, entrar no meio da onda, sangrar) |
+| `server/tests/progression-modes.test.ts` | `Session` real sobre sockets falsos (sem rede) | 9 (dois `it` repetidos por modo) | matriz progressão × modos (`GAME_MODE_IDS` × armas × níveis e melhorias) |
 | `server/tests/arsenal.test.ts` | Unitário | 18 | níveis, melhorias, escolha do Arsenal, atributos, migração 003 |
 | `server/tests/appearance.test.ts` | Unitário + integração | 12 | regras de aparência (puras), perfil, aparência online |
 | `client/tests/aimAssist.test.ts` | Unitário | 4 | assistência de mira |
 | `client/tests/keybinds.test.ts` | Unitário | 28 | teclas configuráveis |
-| `client/tests/arsenalText.test.ts` | Unitário | 2 (um `it` repetido por idioma) | textos de armas e melhorias nos dois idiomas |
+| `client/tests/arsenalText.test.ts` | Unitário | 4 (dois `it` repetidos por idioma) | textos de armas, melhorias e modos nos dois idiomas |
+| `client/tests/offlineModes.test.ts` | Unitário | 5 | treino e bots com o Arsenal da conta (`Progress`), armas dos bots e da escada, zumbi sozinho (`LocalZombies`) |
 | `client/tests/spatial.test.ts` | Unitário | 6 | som espacial |
 
-(Contagem por `it(` nos arquivos em 2026-10-06; `bun test` roda 112 casos.)
+(Contagem dos casos em 2026-10-06; `bun test` roda 166 casos em ~85–90 s, dos quais ~25 s são esperas reais dos testes do modo zumbi e da corrida armada.)
 
 ## Configuração (`bunfig.toml`)
 
@@ -72,7 +80,8 @@ Cenários detalhados em `Test Scenarios/`:
 
 ## O que não é testado
 
-- Renderização, física/movimento do cliente, UI/DOM, bots, mapas (montagem), áudio além da lógica espacial.
+- Renderização, física/movimento do cliente, UI/DOM, mapas (montagem; a da Vila Assombrada só pela navmesh), áudio além da lógica espacial.
+- Bots e treino só pelas peças puras (`Progress`, escada, atributos das armas): `BotManager`/`Bot` e a escolha do equipamento inicial em `client/main.ts` precisam do navegador. A lentidão e o empurrão dos chefes são aplicados pelo cliente (`client/zombies/client.ts`): o teste confere só o que o servidor manda (`zhitfx`).
 - Fluxo do Discord (não há mock do provedor).
 - Envio real de SMTP (testes usam o `outbox` em memória).
 - Build (`vite build`/`bun build`) e Docker.

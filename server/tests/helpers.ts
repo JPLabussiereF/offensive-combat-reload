@@ -1,5 +1,6 @@
 // Test helpers: a real game server on a free port, and a tiny browser (cookie jar + Origin header +
 // its own IP through X-Forwarded-For, so per-IP limits don't leak between tests).
+import type { ProgWeapon } from '@shared/progression';
 import type { ServerMsg } from '@shared/protocol';
 import { startServer, type GameServer } from '../app';
 import { TEST_DATABASE_URL, TEST_REDIS_URL } from './env';
@@ -160,3 +161,18 @@ export class Player {
 }
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Weapon points written straight into a signed-in account's progress (a veteran, as if earned before). The game
+ * server reads them on the next game connection.
+ */
+export async function setWeaponXp(b: Browser, xp: Partial<Record<ProgWeapon, number>>) {
+  const tag = (await b.req('GET', '/api/perfil')).body.tag as string;
+  const [name, disc] = tag.split('#');
+  for (const [weapon, points] of Object.entries(xp)) {
+    await b.game.deps.db.query(
+      `UPDATE weapon_progress SET xp = $3 WHERE weapon = $4 AND profile_id = (SELECT id FROM player_profile WHERE display_name = $1 AND discriminator = $2)`,
+      [name, Number(disc), points, weapon],
+    );
+  }
+}

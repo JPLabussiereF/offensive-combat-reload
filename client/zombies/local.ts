@@ -10,7 +10,7 @@ import { explosionDamage, type HitRegion } from '@shared/weapons';
 import type { ClientMsg, ServerMsg, Vec3 } from '@shared/protocol';
 import { grenadeDamageToZombie, gunDamageToZombie, isBoss, knifeDamageToZombie, weaponMul, zombieLoadout, type ZombieMapData } from '@shared/zombies';
 import { ZombieMatch } from '@shared/zombieMatch';
-import type { ZombieLink } from './client';
+import type { ZombieLink } from './link';
 
 export interface LocalZombieOptions {
   me: number;

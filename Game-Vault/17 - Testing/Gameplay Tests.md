@@ -6,6 +6,10 @@ area: testing
 source_paths:
   - server/tests/game.test.ts
   - server/tests/appearance.test.ts
+  - server/tests/modes.test.ts
+  - server/tests/zombies.test.ts
+  - server/tests/progression-modes.test.ts
+  - client/tests/offlineModes.test.ts
   - server/session.ts
   - shared/constants.ts
   - shared/arsenal.ts
@@ -44,10 +48,14 @@ E em `appearance.test.ts` ("no online"): o corpo (cadáver) mantém a aparência
 3. Ação (`hit`, `pickup`, `fish`, `rat`, `potion`, `grenade`, `loadout`).
 4. Espera a mensagem de difusão no **outro** jogador, ou confirma com timeout curto (300 ms) que **nada** foi difundido quando a ação deve ser ignorada.
 
+## Modos e progressão de armas
+
+As regras de cada modo com a progressão de armas em volta estão em `server/tests/modes.test.ts` (mata-mata e corrida armada), `server/tests/zombies.test.ts` (zumbi) e na matriz `server/tests/progression-modes.test.ts` (todo modo × armas × níveis): o dano, a cadência e a mina validados com as melhorias da conta no mata-mata, a escada e o zumbi ignorando a conta, XP de arma só onde `weaponXp`, chefes contra vários jogadores, entrar no meio de uma onda e sangrar até o intervalo. Detalhes em [[Integration Tests]].
+
 ## Lacunas
 
-- Não testam opressão (dança sobre o corpo), facada, mina terrestre, dano de explosão, respawn/proteção, regeneração de vida, cereja expirando.
-- Lógica offline (bots, treino) não é testada.
+- Não testam opressão (dança sobre o corpo), dano de explosão, respawn/proteção, regeneração de vida, cereja expirando. Facada e mina só aparecem nos testes de modo (abate de faca dá pontos à faca; a mina só com a melhoria ligada).
+- Lógica offline: só as peças puras (`Progress`, escada, `LocalZombies`) em `client/tests/offlineModes.test.ts`; o `BotManager` precisa do navegador.
 
 ## Código relacionado
 
