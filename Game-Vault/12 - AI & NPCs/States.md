@@ -12,7 +12,7 @@ source_paths:
 tags:
   - ai
   - state-machine
-updated: 2026-10-05
+updated: 2026-10-07
 ---
 
 # States
@@ -54,7 +54,7 @@ stateDiagram-v2
 
 Prioridades efetivas em `decide()` (ordem do código): `taunt` não é interrompido por decisão (só pela morte) → alvo visível (`flee` ou `engage`) → fuga ainda ativa → `chase` → oportunidade de `toTaunt` → `toTaunt` em andamento → `roam`.
 
-Estados auxiliares paralelos (temporizadores, não modos): `reactionLeft`, `burstLeft`/`pauseLeft` (rajadas), `strafeUntil`/`crouchUntil`, `knifeCooldown`/`knifeAnim`, `stuckCount`. Detalhes em [[AI Decisions]].
+Estados auxiliares paralelos (temporizadores, não modos): `reactionLeft`, `burstLeft`/`pauseLeft` (rajadas), `strafeUntil`/`crouchUntil`, `knifeCooldown`/`knifeAnim`, o golpe em andamento (`swingTarget`/`swingT`, acerta no `impacto` da faca), a chance da faca por alvo (`BotKnife`), `stuckCount`. Detalhes em [[AI Decisions]].
 
 ## Proteção de spawn (bots e jogador no modo bots)
 

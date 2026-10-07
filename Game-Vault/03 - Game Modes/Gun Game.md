@@ -144,7 +144,7 @@ Nenhum limite de rodada. Só o intervalo de 6 s entre rodadas.
 - `shared/data/corrida_armada.json`: degraus e números do modo
 - `server/modes.ts`: `GunGameMode` (degrau por jogador, armas, rodada, XP de vitória)
 - `server/session.ts`: ganchos do modo, `setLoadout` (manda `playerLoadout` a todos), `resetForRound`, tiros em voo da arma anterior aceitos por 1 s
-- `client/ai/bots.ts` (`climb`, `newRound`) e `client/ai/bot.ts` (`arm`, bot só com lâmina corre para esfaquear)
+- `client/ai/bots.ts` (`climb`, `newRound`) e `client/ai/bot.ts` (`arm`, bot só com lâmina corre para esfaquear e recua depois de cada golpe). Contra bots, a facada deles segue a regra do jogador e dá **um golpe por aproximação** ([[ADR - Facada dos bots com uma chance por aproximação]]), para a facada valer abate sem deixar os bots invencíveis de perto.
 - `client/main.ts`: `takeLadderWeapons`, `watchLadder`, `endRound`, `startRound`, modo lâmina (`bladeOnly`)
 - Testes: `server/tests/modes.test.ts` (regras puras e online, incluindo subir um degrau só com facadas) e `client/tests/offlineModes.test.ts` (os bots usam as mesmas regras)
 

@@ -110,11 +110,12 @@ Entrada: F, posição do olho, yaw, alvos. Saída: `MoveInput.lunge` para o [[Mo
 - Servidor: aceita `stab` se ambos vivos, intervalo ≥ 75% do `intervalo` e distância horizontal ≤ `alcanceInvestida` + 1,5 m, com os valores da **faca do jogador** com as melhorias dele (`loadoutKnife`). Ex.: com o Tênis, a baguete alcança 3,8 + 1,5 m e o macarrão 3,3 + 1,5 m. **O `behind` é confiado ao cliente.**
 - Modo PCD sem a mão direita: a faca vai para a mão esquerda (visual, README).
 - Na corrida armada, **morrer por facada** (faca ou sabre) tira um abate do degrau (sem abates nele, volta à arma anterior); a facada com a faca de cozinha **conta como um abate** para quem esfaqueia, igual a um abate com a arma do degrau (desde 2026-10-07; todo degrau de arma de fogo leva a faca de cozinha, qualquer que seja a do Arsenal). Ver [[Gun Game]].
+- **Bots** (offline) golpeiam pelas mesmas regras de alcance, cone e visão, sem investida, e só **uma vez por aproximação** a cada alvo; ver [[AI Decisions]] e [[ADR - Facada dos bots com uma chance por aproximação]].
 - Se `letal` for `false`, o código usa 55 de dano fixo (hoje nunca acontece).
 
 ## Código relacionado
 
-- `client/weapons/melee.ts` — `Melee` (tempo, cooldown, `lunging`), `findMeleeTarget`.
+- `client/weapons/melee.ts` — `Melee` (tempo, cooldown, `lunging`), `findMeleeTarget` (também usado pelos bots).
 - `client/main.ts` — `startMelee`, `resolveMelee`, cálculo de `lunge` no tick.
 - `client/entities/hitboxes.ts` — `isBehind`.
 - `server/session.ts` — `onStab`.

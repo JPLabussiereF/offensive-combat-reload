@@ -25,7 +25,7 @@ tags:
   - ai
   - npc
   - bots
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # NPC Behavior
@@ -43,7 +43,7 @@ Comportamento observável de cada personagem não humano. As regras de decisão 
 | Armas | `Weapon` com a arma sorteada a cada vida (`pickGun`: rifle 60%, submetralhadora 25%, pistola 15%; `gunStats` sem melhorias: cadência, pente, recarga, dispersão, recuo) e facada letal com `MELEE.faca` |
 | Movimento | `stepMovement` de `@shared/movement` com `MoveInput` igual ao de um humano (anda, corre, agacha, pula, mira) |
 | Percepção | Campo de visão por dificuldade, linha de visão por raio, memória da última posição vista, vira para quem atirou |
-| Ações | Vagar, enfrentar (mirar, metralhar em rajadas, strafe, agachar), perseguir, fugir com pouca vida, faca de perto, dançar sobre corpos (opressão) |
+| Ações | Vagar, enfrentar (mirar, metralhar em rajadas, strafe, agachar), perseguir, fugir com pouca vida, faca de perto (só com o alvo na frente, um golpe por aproximação — [[AI Decisions#Movimento em combate (`engage`)]]), dançar sobre corpos (opressão) |
 | Vida | `bodyStats.maxHealth` (100); regenera com a mesma regra dos jogadores (4 s sem dano, 25/s — valores literais em `bots.ts`) |
 | Morte | Vira `Corpse` oprimível; renasce em 5 s (`RESPAWN`) num ponto escolhido por `pickSafeSpawn`; ganha 2 s de proteção (`SPAWN_PROTECTION`), pisca e é ignorado pelos outros; atirar cancela a proteção |
 | Perigos | Morre se cair abaixo de y = −20 (`kind: 'void'`); morre mordido pela Amora se entrar na zona (`dogTick` em `main.ts`) — mas a navmesh já desvia dessa zona |
