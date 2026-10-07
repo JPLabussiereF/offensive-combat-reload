@@ -22,7 +22,16 @@ source_paths:
   - client/editor/rectTool.ts
   - client/editor/rectOverlay.ts
   - client/editor/groups.ts
-  - client/editor/palette.ts
+  - client/editor/project.ts
+  - client/editor/thumbs.ts
+  - client/editor/thumbRenderer.ts
+  - client/editor/thumbCache.ts
+  - client/editor/thumbQueue.ts
+  - client/editor/dropPiece.ts
+  - client/editor/playMode.ts
+  - client/editor/playHost.ts
+  - client/editor/playEmbed.ts
+  - client/editor/playBridge.ts
   - client/editor/style.ts
   - client/editor/strings.ts
   - client/tests/editorLayout.test.ts
@@ -33,6 +42,9 @@ source_paths:
   - client/tests/editorClipboard.test.ts
   - client/tests/editorShortcuts.test.ts
   - client/tests/editorRect.test.ts
+  - client/tests/editorThumbs.test.ts
+  - client/tests/editorDrop.test.ts
+  - client/tests/editorPlay.test.ts
 tags:
   - ui
   - ux
@@ -43,7 +55,7 @@ updated: 2026-10-07
 
 # Map Editor UI
 
-A janela do editor de mapas no jogo, no estilo do editor do Unity (PF-6 Revisions 01: a janela na etapa 2 de 4; a navegação e a edição da cena na etapa 3). O que o editor faz com os dados está em [[ADR - Editor de mapas no jogo]]; o formato do mapa (peças, pose, grupos) em [[World Structure]].
+A janela do editor de mapas no jogo, no estilo do editor do Unity (PF-6 Revisions 01: a janela na etapa 2 de 4; a navegação e a edição da cena na etapa 3; o painel Projeto com miniaturas e o Play dentro do editor na etapa 4). O que o editor faz com os dados está em [[ADR - Editor de mapas no jogo]]; o formato do mapa (peças, pose, grupos) em [[World Structure]].
 
 ## Visão geral (nível 1)
 
@@ -53,8 +65,8 @@ O editor ocupa a página inteira (`#editor`, criado em código; sem HUD nem entr
 ┌──────────────────────────── toolbar ────────────────────────────┐
 │ título · desfazer refazer · mão mover girar escalar retângulo · Pivô Global · ▦ Grade ▾ ·  ▶ ❚❚ ■  · centralizar duplicar apagar · Layout ▾ · Salvar Sair │
 ├───────────────┬───────────────────────────────┬─────────────────┤
-│  Hierarquia   │            Cena               │                 │
-│               │      (canvas do three.js)     │    Inspetor     │
+│  Hierarquia   │       Cena | Jogo (abas)      │                 │
+│               │ (canvas do three.js / o jogo) │    Inspetor     │
 ├───────────────┴───────────────────────────────┤                 │
 │                    Projeto                    │                 │
 ├────────────────────────── barra de status ──────────────────────┤
@@ -62,8 +74,8 @@ O editor ocupa a página inteira (`#editor`, criado em código; sem HUD nem entr
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-- **Toolbar**: as ferramentas do Unity (**Mão** Q, **Mover** W, **Girar** E, **Escalar** R, **Retângulo** T); **Pivô/Centro** e **Global/Local** (cada botão alterna e mostra o estado); **▦ Grade** (encaixe sempre ligado) e **▾** com os passos do encaixe; **▶ Play** abre o teste do mapa (o mesmo "Testar" de antes, que recarrega a página); **Pause** e **Stop** ficam desligados até o Play rodar dentro do editor (etapa 4). **Layout ▾** tem "Restaurar layout padrão". Pivô/Centro, Global/Local, a grade e os passos ficam no `localStorage` (`oc.editor.ferramentas.v1`); um valor quebrado volta ao padrão (Pivô, Global, grade desligada, 0,5 m, 15°).
-- **Painéis encaixáveis** (Hierarquia, Cena, Inspetor, Projeto): cada um é uma aba numa pilha. Arrastar a aba (mais de 6 px) mostra onde ela cai na pilha sob o ponteiro: no **meio**, entra na pilha como mais uma aba; numa **borda** (um quarto de cada lado), divide a pilha e fica à esquerda, à direita, em cima ou embaixo. Esc desiste. Clicar numa aba a traz para a frente. As **bordas** entre painéis se arrastam para redimensionar (cada lado fica com pelo menos 6%). O layout fica no `localStorage` (`oc.editor.layout.v1`); um layout guardado quebrado (sem um painel, com painel repetido, tamanhos inválidos) volta ao padrão. O canvas da cena acompanha o tamanho do painel Cena a cada quadro.
+- **Toolbar**: as ferramentas do Unity (**Mão** Q, **Mover** W, **Girar** E, **Escalar** R, **Retângulo** T); **Pivô/Centro** e **Global/Local** (cada botão alterna e mostra o estado); **▦ Grade** (encaixe sempre ligado) e **▾** com os passos do encaixe; **▶ ❚❚ ■** (Play, Pause, Stop) jogam o mapa dentro do editor, na aba Jogo (ver [[#Play dentro do editor]]); enquanto o jogo roda a toolbar fica azulada e, pausado, âmbar, como no Unity. **Layout ▾** tem "Restaurar layout padrão". Pivô/Centro, Global/Local, a grade e os passos ficam no `localStorage` (`oc.editor.ferramentas.v1`); um valor quebrado volta ao padrão (Pivô, Global, grade desligada, 0,5 m, 15°).
+- **Painéis encaixáveis** (Hierarquia, Cena, Jogo, Inspetor, Projeto; o Jogo é uma aba atrás da Cena no layout padrão, e um layout guardado antes dele ganha a aba ali): cada um é uma aba numa pilha. Arrastar a aba (mais de 6 px) mostra onde ela cai na pilha sob o ponteiro: no **meio**, entra na pilha como mais uma aba; numa **borda** (um quarto de cada lado), divide a pilha e fica à esquerda, à direita, em cima ou embaixo. Esc desiste. Clicar numa aba a traz para a frente. As **bordas** entre painéis se arrastam para redimensionar (cada lado fica com pelo menos 6%). O layout fica no `localStorage` (`oc.editor.layout.v1`); um layout guardado quebrado (sem um painel, com painel repetido, tamanhos inválidos) volta ao padrão. O canvas da cena acompanha o tamanho do painel Cena a cada quadro.
 - **Barra de status**: a barra de orçamento, as mensagens do editor e os atalhos.
 
 ## Hierarquia
@@ -75,6 +87,8 @@ O editor ocupa a página inteira (`#editor`, criado em código; sem HUD nem entr
 - **Duplo clique** numa linha enquadra a peça (ou o marcador) na Cena, como o Unity (etapa 3; antes renomeava).
 - **Renomear**: F2; Enter guarda, Esc desiste, vazio volta ao `id` (o nome vai em `Peca.nome`).
 - **Busca**: mostra, sem árvore, as peças cujo nome, id ou tipo batem.
+- **Soltar uma miniatura do Projeto** numa linha cria a peça **dentro do grupo daquela linha** (a própria, se for um grupo), na **origem do grupo** (posição e giro zero no referencial dele), no fim dos filhos; abaixo das linhas, no topo, na origem do mundo. Um marcador solto aqui vai para o ponto do mundo da origem do grupo (marcadores não entram em grupos).
+- Durante o Play, só seleciona e enquadra (nada se arrasta, renomeia nem agrupa).
 
 ## Inspetor
 
@@ -83,6 +97,7 @@ O editor ocupa a página inteira (`#editor`, criado em código; sem HUD nem entr
 - O **componente do tipo**: semente, id da piada, coletável e os parâmetros do esquema (o formulário de antes).
 - **Seleção múltipla**: o título diz quantas; o Transform mostra o valor quando é igual em todas e um traço quando difere, e a edição vale para cada uma (digitar põe o mesmo valor; arrastar soma o mesmo tanto). Os parâmetros aparecem quando todas são do mesmo tipo, com os valores da última e um "≠" nos que diferem; a edição vai para todas. Peças dentro de um grupo também selecionado não são editadas duas vezes.
 - Marcador selecionado e nada selecionado (as configurações do mapa) continuam como antes.
+- Durante o Play (jogando ou pausado) fica só leitura: os campos aparecem desligados.
 
 ## Cena
 
@@ -139,11 +154,31 @@ A Cena funciona como o Scene View do Unity (etapa 3). As contas da câmera, do e
 
 ## Projeto
 
-A paleta de sempre (tipos por categoria com busca, modelos GLB, marcadores), em lista, até ganhar miniaturas e arrastar para a cena (etapa 4).
+O navegador de assets do Unity (etapa 4; substitui a paleta em lista):
+
+- **Pastas** à esquerda, com a quantidade: as categorias do catálogo (Primitivas, Estrutura, Construções, Natureza, Móveis, Veículos, Objetos, Luzes, Ambiente), **Modelos GLB** (os modelos que o mapa já usa e o botão **＋ Importar .glb do computador**) e **Marcadores** (spawns, boneco, cereja, biscoito, rato, peixe e, num mapa com dados do zumbi, surgimento e brecha). A pasta aberta e o tamanho ficam no `localStorage` (`oc.editor.projeto.v1`).
+- **Grade de miniaturas** à direita, com o nome embaixo; a **busca** procura em todas as pastas (nome em pt e en, id); a **barra de tamanho** vai de 56 a 160 px. Um tipo no limite do mapa (a bruxa, o caminhão de sorvete) fica apagado e não arrasta.
+- **As miniaturas são desenhadas pelo editor**: cada tipo é montado sozinho como uma peça nova dele (o exemplo dos mapas oficiais ou os padrões do catálogo, com a semente fixa), numa cena e numa câmera próprias, fora da tela, e guardado no navegador. Na primeira vez são feitas aos poucos (a pasta na tela primeiro, depois as outras), com um marcador girando onde ainda falta; da segunda vez em diante vêm do cache. O que não desenha nada (sala, colisor, luz) mostra o ícone da pasta. Os marcadores mostram um ícone.
+- **Arrastar** uma miniatura para a **Cena** mostra uma caixa fantasma do tamanho da peça onde o mouse aponta e cria a peça ali ao soltar, com X e Z na grade do passo de mover; para a **Hierarquia**, cria dentro do grupo de destino (ver acima). **Clique duplo** (ou Enter) cria na frente da câmera. Cada criação é uma edição só (um Ctrl+Z desfaz) e a peça nova fica selecionada.
+- Durante o Play, nada se arrasta nem se cria.
+
+## Play dentro do editor
+
+| Botão | Editando | Jogando | Pausado |
+|---|---|---|---|
+| **▶ Play** | joga o mapa | (aceso) | continua |
+| **❚❚ Pause** | desligado | congela o jogo e solta o mouse | continua |
+| **■ Stop** | desligado | termina e volta a editar | termina e volta a editar |
+
+- **▶** joga o **mapa como está no editor** (sem salvar) na aba **Jogo**, que vem para a frente; os outros painéis continuam à vista. O modo é o do antigo Testar (P41): o **treino**; num mapa exclusivo do zumbi, a **partida de zumbi sozinho contra a horda**. O jogo aparece com o cartão "Jogar" (o clique prende o mouse); o botão de sair do menu de pausa dele vira **Voltar ao editor (Stop)**. Um mapa com dados inválidos não joga (a barra de status avisa).
+- **Jogando**: o editor só olha. Os atalhos e a câmera da Cena ficam desligados, o documento não aceita edição (nem desfazer), a Hierarquia, o Inspetor e o Projeto ficam só leitura e a toolbar fica tingida. A Cena (se estiver à vista ao lado do Jogo) é redesenhada a cada quatro quadros, e as miniaturas que faltam esperam.
+- **❚❚** congela o jogo (nada simula nem desenha) sob um véu "Pausado" e solta o mouse. Aí a câmera da Cena e a seleção voltam (clique, caixa, Hierarquia, F), para olhar o mapa e ler o Inspetor, mas nada muda o mapa: dos atalhos, só F, Esc, Ctrl+C e Ctrl+A. **▶** (ou ❚❚ de novo) continua com a aba Jogo na frente e tenta prender o mouse de volta; se o navegador não deixar, o menu de pausa do jogo pede um clique.
+- **■** termina o jogo, libera tudo o que ele criou e **volta a editar no mesmo ponto**: a seleção e a câmera de antes do ▶ (mesmo que tenham mudado na pausa), o histórico intacto e a aba Cena na frente, sem recarregar a página. O **Sair** do editor durante o Play para o jogo antes.
+- O rascunho automático (P40) continua valendo; o Play não grava nada.
 
 ## Atalhos
 
-Nenhum dispara enquanto um campo de texto tem o foco (nome, busca, números do Inspetor). Com o botão direito segurado, as letras são da câmera.
+Nenhum dispara enquanto um campo de texto tem o foco (nome, busca, números do Inspetor). Com o botão direito segurado, as letras são da câmera. Durante o Play nenhum dispara; pausado, só F, Esc, Ctrl+C e Ctrl+A (as teclas do jogo vão para a aba Jogo, que é uma página à parte).
 
 | Tecla | Ação |
 |---|---|
@@ -169,6 +204,8 @@ As teclas 1/2/3 da fase 3 saíram (agora W/E/R) e o Shift não tira mais o encai
 - `client/editor/shortcuts.ts` (o mapa de atalhos), `client/editor/boxSelect.ts` (a caixa), `client/editor/clipboard.ts` (copiar e colar), `client/editor/rectTool.ts` (as contas do retângulo) e `client/editor/rectOverlay.ts` (o desenho e o arrasto dele).
 - `client/editor/dock.ts` (DOM) e `client/editor/dockLayout.ts` (árvore do layout, sem tela).
 - `client/editor/hierarchy.ts`, `client/editor/inspector.ts`, `client/editor/transformFields.ts`, `client/editor/selection.ts`, `client/editor/groups.ts`.
+- `client/editor/project.ts` (o painel Projeto), `client/editor/thumbs.ts` (as miniaturas: cache no IndexedDB e fila), `client/editor/thumbRenderer.ts` (o desenho), `client/editor/thumbCache.ts` e `client/editor/thumbQueue.ts` (chave, assinatura e fila, sem tela), `client/editor/dropPiece.ts` (onde a peça arrastada cai, sem tela).
+- `client/editor/playMode.ts` (estados do Play e a sessão, sem tela), `client/editor/playHost.ts` (a aba Jogo), `client/editor/playEmbed.ts` e `client/editor/playBridge.ts` (o lado do jogo).
 - `client/editor/style.ts` (CSS do editor) e `client/editor/strings.ts` (textos pt e en).
 
 Relacionado: [[UI Overview]] · [[Menus]] · [[Input & Controls]] · [[ADR - Editor de mapas no jogo]] · [[ADR - Lotes do editor com BatchedMesh]] · [[Unit Tests]]

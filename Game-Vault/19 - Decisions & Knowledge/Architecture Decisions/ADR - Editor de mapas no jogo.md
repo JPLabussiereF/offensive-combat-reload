@@ -21,7 +21,16 @@ source_paths:
   - client/editor/rectTool.ts
   - client/editor/rectOverlay.ts
   - client/editor/selection.ts
-  - client/editor/palette.ts
+  - client/editor/project.ts
+  - client/editor/thumbs.ts
+  - client/editor/thumbRenderer.ts
+  - client/editor/thumbCache.ts
+  - client/editor/thumbQueue.ts
+  - client/editor/dropPiece.ts
+  - client/editor/playMode.ts
+  - client/editor/playHost.ts
+  - client/editor/playEmbed.ts
+  - client/editor/playBridge.ts
   - client/editor/inspector.ts
   - client/editor/create.ts
   - client/editor/linearHandles.ts
@@ -61,6 +70,10 @@ source_paths:
   - client/tests/editorClipboard.test.ts
   - client/tests/editorShortcuts.test.ts
   - client/tests/editorRect.test.ts
+  - client/tests/editorThumbs.test.ts
+  - client/tests/editorDrop.test.ts
+  - client/tests/editorPlay.test.ts
+  - vite.config.ts
 tags:
   - decision
   - adr
@@ -85,7 +98,7 @@ A PF-6 (fase 3 de 4) pede o editor de mapas dentro do jogo: câmera livre, gizmo
 - **Peças novas** copiam o primeiro exemplo do tipo nos mapas oficiais (cada tipo usado neles tem um exemplo montável; os outros vêm dos padrões do esquema). Peças `linear` e `fixa` caem no lugar certo pela pose (o editor monta o exemplo uma vez, fora do mapa, para achar o meio).
 - **Orçamento como o servidor.** O editor mostra cada peça à parte, então o custo de desenho é medido montando o mapa de novo **no modo jogo**, fora da tela (cena e mundo físico próprios), com `measureMapBudget`, 600 ms depois da última edição. Salvar fica desligado acima de `MAP_BUDGET` ou com dados inválidos.
 - **Rascunho automático (P40).** Cada edição grava o rascunho no IndexedDB (`oc-mapas` versão 2, store `rascunhos`; o store `versoes` continua), 150 ms depois da última, como `{ dados, em, base }` (a data e a versão de onde veio; um mapa guardado sem data pela fase 3 é lido como o mais velho possível). Ao abrir um mapa cujo rascunho é mais novo que a versão atual (`em` > `MapaResumo.atualizadoEm`; um mapa novo, `novo`, sempre), o editor pergunta se recupera; recuperado, salva sobre `base` (uma versão salva depois dá 409). Recusado ou velho, é apagado; salvar com sucesso ou sair pelo botão Sair também o apagam. As decisões puras estão em `client/editor/recovery.ts`.
-- **Testar** grava o rascunho e recarrega a página no teste dele; o que precisa atravessar o recarregamento vai no `sessionStorage` (`oc.editor`). Um mapa exclusivo do zumbi abre a **partida de zumbi sozinho contra a horda** (`HomeChoice` `bots` com `game: 'zumbi'`, a mesma do "Encarar a horda sozinho"); os outros, o treino (P41). Sair do teste volta ao editor no mesmo rascunho.
+- **Testar** (até a Revisions 01, etapa 4) gravava o rascunho e recarregava a página no teste dele, com o handoff no `sessionStorage` (`oc.editor`). Foi trocado pelo **Play dentro do editor** (ver a seção da etapa 4); o modo continua o da P41: um mapa exclusivo do zumbi abre a **partida de zumbi sozinho contra a horda** (`HomeChoice` `bots` com `game: 'zumbi'`, a mesma do "Encarar a horda sozinho"); os outros, o treino. A chave `oc.editor` ficou só para o "Abrir a versão atual" (P39); um handoff `testar` ou `voltar` gravado por uma página antiga abre o editor no rascunho que ele nomeia.
 - **Salvar** usa a API da fase 2 (`POST /api/mapas`, `PUT /api/mapas/:id` com `baseVersao`); `validateMapData` roda antes de enviar. `orcamento_excedido` e `mapa_invalido` são mostrados como vêm. No **409** (P39) o diálogo oferece **Salvar como nova versão mesmo assim** (envia de novo com `baseVersao` = a versão atual que o 409 trouxe; a outra fica no histórico) e **Abrir a versão atual** (apaga o rascunho e recarrega o editor nela pelo handoff `abrir`, descartando as edições). Nada é sobrescrito sem a pessoa escolher.
 - **Textos** do editor em `client/editor/strings.ts` (pt e en, a língua do jogo).
 
@@ -113,6 +126,22 @@ Decisões do dev: a câmera, os atalhos, o encaixe, Pivot/Center, Local/Global, 
 - **Atalhos** (`client/editor/shortcuts.ts`, um mapa puro): Q W E R T, F, F2, Delete, Esc, Ctrl+Z/Y/Shift+Z/D/C/V/A/G; nenhum dispara em campo de texto (`isTextField`: checkbox e cor não contam) e as letras são da câmera com o botão direito segurado. As teclas 1/2/3 saíram; o duplo clique na Hierarchy passou a enquadrar (renomear ficou no F2).
 
 Consequências: Ctrl+A num mapa grande tira todas as peças dos lotes enquanto estão selecionadas (as chamadas por quadro sobem, como numa seleção grande da etapa 2); a caixa testa triângulos no soltar (no Jardim, uma caixa grande leva alguns milissegundos).
+
+## Revisions 01: etapa 4 (Project com miniaturas e Play dentro do editor)
+
+Decisões do dev: o painel Project vira o navegador de assets do Unity, com miniaturas **geradas pelo editor** e guardadas no navegador, arrastar para a Cena e para a Hierarchy e clique duplo; o Play roda o mapa em edição numa aba **Jogo** do editor, com Pause e Stop como no Unity, e substitui o Testar que recarregava a página. O uso está em [[Map Editor UI]].
+
+- **Miniaturas** (`client/editor/thumbRenderer.ts`, `thumbs.ts`): cada tipo é montado sozinho pelo carregador do jogo (modo editor) como a peça nova que o Project cria (o exemplo dos oficiais ou os padrões do catálogo, semente fixa), num **mundo físico próprio** (criado e liberado a cada miniatura: o `MapBuild` lista como colisores da peça todos os que encontra no mundo) e numa cena e câmera próprias, e desenhado num **render target sRGB do renderer do editor** (sem um segundo contexto WebGL), em 256 px reduzidos para 128, com fundo transparente; o render target não aplica a conversão de cor da tela, então o formato sRGB do alvo faz a codificação. O mapa de sombra do editor não é tocado (`shadowMap.needsUpdate` guardado e devolvido). A caixa do que é visível (gatilhos escondidos não contam) vai junto: é a prévia fantasma do arrastar.
+- **Cache** (`client/editor/thumbCache.ts`, puro): IndexedDB `oc-editor`, store `miniaturas` (banco à parte do `oc-mapas`, para não subir a versão dele), chave `peca:<tipo>` ou `glb:<sha256>`, valor `{ sig, blob, box, em }`. A **assinatura** é o hash da entrada do catálogo e da peça nova (parâmetros, giro, escala, semente), da **versão do jogo** (`__OC_BUILD__`, definida no `vite.config.ts`: o commit, ou, sem git como no build do Docker, a versão do pacote e a hora do build) e do formato do desenho (`THUMB_FORMAT`); outra assinatura conta como ausente e a miniatura é desenhada de novo. Os tipos que saem do catálogo são esquecidos.
+- **Geração aos poucos** (`client/editor/thumbQueue.ts`, pura): uma miniatura por vez, cada uma num momento livre da página (`requestIdleCallback`), a pasta na tela primeiro e depois as outras; uma falha não para a fila; a fila espera enquanto o mapa é jogado. Medido no Chrome com GPU (RTX 4070): as 145 miniaturas em ~3,4 s, com o intervalo entre quadros do editor em 7 ms na mediana e 56 ms no pior.
+- **Arrastar** (`client/editor/dropPiece.ts`, puro): na Cena, o ponto onde o raio do mouse encontra o mapa (`Selection.dropPoint`, com a câmera desenhada), X e Z na grade do passo de mover; na Hierarchy, a origem do grupo de destino (o da linha, ou ela mesma se for um grupo; abaixo das linhas, o topo), giro zero no referencial dele, no fim dos filhos. Peças `linear` e `fixa` são medidas sozinhas (sem pai nem pose) e posadas com o meio da base no ponto, como antes. A peça e os lugares do servidor que ela traz (o rato, a bruxa, no ponto do mundo) são **uma edição** (`setPieces`). O drag usa o arrastar do HTML (tipo `application/x-oc-asset`); `dragover` e `drop` são ouvidos no painel Scene (o SVG do Retângulo fica por cima do canvas).
+- **Play numa página própria**: ▶ abre o jogo num **iframe da mesma origem** (`?jogoEditor=<token>`) posto sobre o painel Jogo a cada quadro (fora da árvore do dock: mover um iframe no DOM o recarrega). A página roda o `boot()` de sempre (`client/editor/playEmbed.ts`): sem tela inicial, pega o mapa como JSON da ponte que o editor deixa na janela dele (`client/editor/playBridge.ts`), escolhe o modo da P41 e devolve os controles (pausar, continuar, terminar, memória). **❚❚** congela o laço do jogo (nem simula nem desenha) sob um véu e solta o mouse; **▶** continua dentro do clique (a ativação do usuário chega à página filha da mesma origem e o mouse pode voltar a ser preso). **■** pede ao jogo que solte o mouse, feche o `AudioContext` (`Sfx.dispose`) e perca o contexto WebGL (`renderer.dispose` + `forceContextLoss`), e remove a página: o navegador libera tudo o que ela criou (física, navmesh, cena). O Sair do menu do jogo vira "Voltar ao editor (Stop)".
+- **Editor só leitura** (`client/editor/playMode.ts`, puro): estados `editando`, `jogando`, `pausado`; `EditorDocument.locked` recusa toda edição, desfazer e refazer, venha de onde vier; jogando, a câmera (`SceneCamera.enabled`), o clique e a caixa (`Selection.enabled`) e os atalhos ficam desligados; pausado, voltam a câmera, a seleção e os atalhos que só olham (F, Esc, Ctrl+C, Ctrl+A). Hierarchy, Project e Inspector (num `fieldset` desligado) ficam só leitura; o gizmo, o Retângulo e as alças das paredes somem. A sessão guarda no ▶ a seleção e a câmera e as devolve no ■ (o histórico e o mapa não mudam no meio); cada jogo iniciado é solto uma vez (no ■, no Sair dele, quando não sobe, ou assim que ficar pronto se o ■ veio durante o carregamento: o carregamento é abortado e a página removida).
+- **Layout**: o painel `game` entrou em `PanelId`; o padrão o põe como aba atrás da Cena; um layout guardado sem ele (das etapas 2 e 3) ganha a aba ali, sem mudar a aba mostrada.
+
+Opções consideradas para o Play: (a) transformar o `boot()` numa partida descartável dentro da mesma página, com o renderer, a cena e a física do editor; (b) a página do jogo inteira num iframe. A (a) exigiria um `dispose` em cada sistema da partida (ouvintes de janela do `Input`, HUD, bots, navmesh, zumbis, efeitos, viewmodel, sons), que nunca precisaram de um porque o jogo monta um mapa por página ([[ADR - Bootstrap do cliente numa única closure]]): qualquer esquecimento viraria vazamento ou estado misturado com o editor. A (b) reusa o jogo sem mudá-lo e o Stop libera tudo por construção.
+
+Consequências: enquanto o jogo roda há dois contextos WebGL (o do editor desenha a Cena a cada quatro quadros, e nada quando a aba Cena está escondida); o jogo carrega o próprio código e monta a física e o mapa de novo a cada ▶ (cerca de 1 s com o cache do navegador, na Rua). A Cena e a Hierarchy mostram o mapa do editor, não o estado vivo do jogo (jogador, bots, zumbis não aparecem nelas). Repetir ▶/■ não muda o `renderer.info.memory` do editor nem o heap da página depois da coleta (conferido em cinco ciclos). As miniaturas sobem as texturas dos materiais de todos os tipos para a GPU do editor na primeira geração.
 
 ## Motivo
 

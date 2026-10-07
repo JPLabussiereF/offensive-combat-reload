@@ -117,6 +117,8 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Encaixe (snap) e Grade | O gizmo do editor anda em passos (0,5 m e 15° por padrão) com Ctrl segurado, ou sempre com o botão Grade | [[Map Editor UI]] |
 | Retângulo (Rect Tool, T) | Ferramenta do editor: retângulo sobre a seleção que move, estica caixas, salas e colisores e escala o resto pelos cantos | [[Map Editor UI]] |
 | Pivô da câmera | O ponto que a câmera do editor olha, à distância dela; a órbita, a roda e o F giram em volta dele | [[Map Editor UI]] |
+| Projeto (Project) / miniatura | Painel do editor com os tipos do catálogo por pasta em miniaturas desenhadas pelo próprio editor e guardadas no navegador (IndexedDB `oc-editor`); arrastar cria a peça | [[Map Editor UI]] |
+| Play / aba Jogo (Game) | ▶ joga o mapa em edição numa página própria posta sobre a aba Jogo (`?jogoEditor=`); ❚❚ congela, ■ termina e devolve o editor como estava | [[Map Editor UI]], [[ADR - Editor de mapas no jogo]] |
 
 ## Combate e dados
 

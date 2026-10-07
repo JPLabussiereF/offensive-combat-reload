@@ -103,6 +103,8 @@ Ver [[Touch Controls]].
 
 O editor de mapas não usa `Input` nem as teclas remapeáveis: tem a câmera e os atalhos do Unity, fixos (PF-6 Revisions 01, etapa 3). Botão direito + WASD/QE voa, Alt + botão esquerdo orbita, o botão do meio arrasta, a roda aproxima na direção do cursor; Q W E R T trocam a ferramenta, Ctrl encaixa, Ctrl+C/V copiam e colam. Nenhum atalho dispara com um campo de texto em foco. A tabela completa está em [[Map Editor UI]]; o mapa de teclas é `client/editor/shortcuts.ts` e a câmera, `client/editor/sceneCamera.ts`.
 
+No **Play dentro do editor** (etapa 4) o jogo roda numa página própria na aba Jogo, com o `Input` e as teclas remapeáveis de sempre: as teclas vão para ela quando ela tem o foco (o ▶ dá o foco), e o Esc abre o menu de pausa dela. Enquanto o jogo roda, os atalhos e a câmera do editor ficam desligados; com o ❚❚, voltam a câmera e os atalhos que só olham (F, Esc, Ctrl+C, Ctrl+A). O ▶ que continua tenta prender o mouse dentro do próprio clique (a ativação chega à página filha da mesma origem); se o navegador não deixar, o menu de pausa do jogo pede um clique. Ver [[Map Editor UI]].
+
 ## Código relacionado
 
 - `client/core/input.ts` — `Input`, `BINDINGS`, `applyKeybinds`.
