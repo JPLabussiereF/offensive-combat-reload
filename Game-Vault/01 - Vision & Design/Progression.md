@@ -18,6 +18,7 @@ source_paths:
   - server/migrations/003_melhorias.sql
   - client/gameplay/progress.ts
   - client/ui/arsenal.ts
+  - client/ui/arsenalTree.ts
   - client/main.ts
   - shared/zombies.ts
   - shared/zombieMatch.ts
@@ -60,9 +61,13 @@ Não há moeda, loja nem desbloqueio comprado ([[Economy Design]]).
 
 Cada arma começa no **nível 1** (só os atributos base do seu JSON, ver [[Weapons]]). Cada nível seguinte libera **uma melhoria** que muda atributos de verdade, do tipo que combina com a arma. Os números dos efeitos são **multiplicadores** sobre a base (×0,8 = −20%), exceto os marcados com "+" (somam).
 
-- **Comuns**: ficam ativas assim que liberadas.
+- **Comuns**: ficam ativas assim que liberadas; o jogador pode **desligá-las** no [[Inventory UI|Arsenal]] (ex.: voltar à mira de ferro).
 - **Opcionais** (têm troca, "Opcional: tem troca" no Arsenal): começam **desligadas**; o jogador liga e desliga no [[Inventory UI|Arsenal]].
-- **Grupos**: num mesmo grupo só uma opcional fica ligada, e enquanto ligada ela **substitui as comuns do grupo** (a luneta tira o ponto vermelho).
+- **Grupos**: num mesmo grupo só uma fica ligada: uma opcional ligada **substitui as comuns do grupo** (a luneta tira o ponto vermelho), e ligar a comum desliga a opcional. Ver [[ADR - Árvore do Arsenal e armas liberadas por nível]].
+
+### Armas trancadas
+
+Uma arma pode esperar a arma anterior do mesmo espaço chegar a um nível (`libera` em `shared/data/progression.json`). Hoje só a **Submetralhadora Liquidificador** tem trava: libera com a **Pistola do Porteiro no nível 3 (1.800 pontos com a pistola)**. Quem **já fez algum ponto com a submetralhadora** fica com ela liberada (contas de antes da trava). Sem conta tudo fica no nível 1, então a submetralhadora aparece trancada. Os bots não têm trava (sorteiam qualquer arma). O Arsenal mostra quantos pontos faltam, e o aviso de nível da pistola diz quando ela libera (sem equipar sozinha).
 
 #### Rifle (primária) — 6 níveis
 
@@ -116,9 +121,9 @@ Nomes e descrições (com o humor) estão em `client/ui/strings.ts` (`upg_<arma>
 
 ### Escolha do Arsenal
 
-- O jogador escolhe a **secundária** (pistola ou submetralhadora) e liga/desliga as **opcionais** já liberadas no **Arsenal** (menu de início e de pausa). Isso é a `ArsenalChoice` (`{ secundaria, ligadas }`), guardada na conta.
-- O servidor **descarta melhorias não liberadas** (`sanitizeChoice` com os níveis; a API responde `nivel_bloqueado`) e uma secundária que não é secundária.
-- Ao subir de nível, uma melhoria **comum** já entra em efeito (o loadout é recalculado e os outros jogadores veem, `playerLoadout`); uma **opcional** espera o jogador ligar (o banner avisa "Ligue no Arsenal").
+- O jogador equipa a **secundária** (pistola ou, depois de liberada, a submetralhadora) e liga/desliga **qualquer melhoria já liberada** na árvore do **Arsenal** (aba da tela inicial; no menu de pausa, só leitura em partida e editável no campo de tiro). Isso é a `ArsenalChoice` (`{ secundaria, ligadas, desligadas }`: opcionais ligadas e comuns desligadas), guardada na conta.
+- O servidor limpa a escolha com o **XP de cada arma** (`sanitizeChoice(raw, xp)`): **descarta melhorias não liberadas**, volta para a pistola uma **secundária trancada** ou que não é secundária; pela API, a requisição inteira é recusada (`nivel_bloqueado`).
+- Ao subir de nível, uma melhoria **comum** entra em efeito (na partida com equipamento travado, a partir da próxima; no campo de tiro, na hora); uma **opcional** espera o jogador ligar (o banner avisa "Ligue no Arsenal").
 - Online, o servidor aplica o dano, a cadência e o alcance de cada arma **com as melhorias do jogador**, e os outros veem os modelos certos (mira, pente, silenciador, frango/sabre).
 
 ### Contas de antes das melhorias
@@ -163,7 +168,7 @@ No modo zumbi o abate de um zumbi **não** dá os 25 XP do abate de jogador nem 
 | Online, zumbi | **Não**: todos começam com o rifle sem melhorias; as armas vêm do Caixão Misterioso | Só **XP de conta** por zumbi, chefe, onda, reanimação e vitória; **sem pontos de arma** ([[ADR - Modo zumbi cooperativo com caixão e raridades]]) |
 | Contra bots (com conta) | Mata-mata: sim, travadas na partida · corrida armada: a escada · zumbi (solo): o caixão | **Não** |
 | Treino offline (com conta) | Sim | **Não** |
-| Sem conta (qualquer modo offline) | Não: sem melhorias (a secundária pode ser trocada no Arsenal da pausa, só para a partida) | Não |
+| Sem conta (qualquer modo offline) | Não: sem melhorias e com a submetralhadora trancada (o Arsenal da pausa do campo de tiro vale só para a partida) | Não |
 
 ## Persistência (resumo)
 
@@ -175,9 +180,9 @@ O progresso fica em memória no servidor (`LiveAccount`) e o delta é gravado no
 
 ## Código relacionado
 
-- `shared/progression.ts`: `PROGRESSION`, `levelForXp`, `xpForLevel`, `activeUpgrades`, `ArsenalChoice`, `sanitizeChoice`, `legacyChoice`, `weaponOfKill`
+- `shared/progression.ts`: `PROGRESSION`, `levelForXp`, `xpForLevel`, `levelsOfXp`, `weaponUnlocked`, `pointsToUnlock`, `activeUpgrades`, `ArsenalChoice`, `sanitizeChoice`, `legacyChoice`, `weaponOfKill`
 - `shared/arsenal.ts`: `resolveLoadout`, `gunStats`, `meleeStats`, `grenadeStats` (atributos com as melhorias; ver [[Shared Systems]])
 - `shared/accountLevel.ts`: `ACCOUNT_XP`, `levelCost`, `accountLevel`
-- `server/progress.ts`: `addWeaponXp`, `addAccountXp`, `addTime`, `equip`, `levelsOf`, `loadoutOf`, `progressMsg`
-- `client/gameplay/progress.ts`: estado local do progresso; `toggle`, `setSecondary` (PATCH `/api/perfil {arsenal}`)
-- `client/ui/arsenal.ts`: tela do Arsenal
+- `server/progress.ts`: `addWeaponXp`, `addAccountXp`, `addTime`, `equip`, `xpOf`, `levelsOf`, `loadoutOf`, `progressMsg`
+- `client/gameplay/progress.ts`: estado local do progresso; `toggle`, `setSecondary`, `unlocked`, `toUnlock` (PATCH `/api/perfil {arsenal}`, um por vez, desfeito se falha)
+- `client/ui/arsenal.ts` e `client/ui/arsenalTree.ts`: a árvore do Arsenal

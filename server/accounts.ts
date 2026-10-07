@@ -3,7 +3,7 @@ import { accountLevel } from '@shared/accountLevel';
 import { album, canFeature, sourcesFromProfile, titlesOf, type Own } from '@shared/achievements';
 import { sanitizeAppearance, type Appearance } from '@shared/appearance';
 import { DELETION_GRACE_DAYS, formatTag, NAME_COOLDOWN_DAYS, type Participation, type ProfileResponse, type Totals, type ZombieTotals } from '@shared/account';
-import { legacyChoice, levelForXp, PROG_WEAPONS, sanitizeChoice, type ArsenalChoice, type Levels, type ProgWeapon } from '@shared/progression';
+import { legacyChoice, levelForXp, PROG_WEAPONS, sanitizeChoice, type ArsenalChoice, type ProgWeapon, type WeaponXp } from '@shared/progression';
 import type { Sex } from '@shared/protocol';
 import { transaction, type Db, type Queryable } from './db';
 import { HttpError } from './http';
@@ -194,8 +194,9 @@ export async function me(db: Db, accountId: string) {
 }
 
 /**
- * Points and level of every weapon, and the Arsenal choice checked against those levels. A profile without a
- * saved choice (an account from before the upgrades) gets the nearest one to its old equipped levels.
+ * Points and level of every weapon, and the Arsenal choice checked against those points (weapon locks and
+ * levels). A profile without a saved choice (an account from before the upgrades) gets the nearest one to its
+ * old equipped levels.
  */
 async function weapons(db: Queryable, profile: Pick<ProfileRow, 'id' | 'loadout'>) {
   const { rows } = await db.query<{ weapon: ProgWeapon; xp: string; equipped_level: number }>('SELECT weapon, xp, equipped_level FROM weapon_progress WHERE profile_id = $1', [profile.id]);
@@ -205,10 +206,10 @@ async function weapons(db: Queryable, profile: Pick<ProfileRow, 'id' | 'loadout'
     armas[w] = { xp, nivel: levelForXp(w, xp) };
   }
   const legacy = () => legacyChoice(Object.fromEntries(rows.map((r) => [r.weapon, r.equipped_level])));
-  return { armas, arsenal: sanitizeChoice(profile.loadout ?? legacy(), levelsOf(armas)) };
+  return { armas, arsenal: sanitizeChoice(profile.loadout ?? legacy(), xpOf(armas)) };
 }
 
-const levelsOf = (armas: Record<ProgWeapon, { nivel: number }>) => Object.fromEntries(PROG_WEAPONS.map((w) => [w, armas[w].nivel])) as Levels;
+const xpOf = (armas: Record<ProgWeapon, { xp: number }>) => Object.fromEntries(PROG_WEAPONS.map((w) => [w, armas[w].xp])) as WeaponXp;
 
 /** A zombie_stats row (or none yet: all zero) as the API sends it. */
 const zombieTotals = (z: Record<string, number | undefined>): ZombieTotals => ({
@@ -339,11 +340,14 @@ export async function setAppearance(db: Queryable, accountId: string, raw: unkno
   return look;
 }
 
-/** Saves the Arsenal choice (secondary gun, optional upgrades on); an upgrade not unlocked yet fails the whole request. */
+/**
+ * Saves the Arsenal choice (secondary gun, optional upgrades on, common ones off); a locked secondary or an
+ * upgrade not unlocked yet fails the whole request.
+ */
 export async function setArsenal(db: Db, accountId: string, raw: unknown): Promise<ArsenalChoice> {
   const profile = await profileOf(db, accountId);
   const { armas } = await weapons(db, profile);
-  const choice = sanitizeChoice(raw, levelsOf(armas));
+  const choice = sanitizeChoice(raw, xpOf(armas));
   if (JSON.stringify(choice) !== JSON.stringify(sanitizeChoice(raw))) throw new HttpError(400, 'nivel_bloqueado');
   await db.query('UPDATE player_profile SET loadout = $2 WHERE id = $1', [profile.id, JSON.stringify(choice)]);
   return choice;

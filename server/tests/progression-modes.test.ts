@@ -33,6 +33,7 @@ import {
   SECONDARIES,
   upgradeOf,
   weaponOfKill,
+  weaponUnlocked,
   xpForLevel,
   type GunId,
   type Levels,
@@ -41,7 +42,7 @@ import {
 import { FLAG, NET, type ClientMsg, type ServerMsg } from '@shared/protocol';
 import { computeDamage, explosionDamage, HIT_REGIONS, idealTtk } from '@shared/weapons';
 import { BOX_ITEMS, flawAmmo, itemOf, itemSlot, startItems, Z_FLAWS, ZOMBIE, zombieGunData, zombieLoadout, type ZFlaw, type ZItems, type ZSlot } from '@shared/zombies';
-import { equip, levelsOf, liveAccount, loadoutOf, type LiveAccount } from '../progress';
+import { equip, levelsOf, liveAccount, loadoutOf, xpOf, type LiveAccount } from '../progress';
 import { emptyTotals } from '../accounts';
 import { Session, type Conn } from '../session';
 
@@ -55,6 +56,7 @@ interface Acct {
 }
 
 const optionals = (w: ProgWeapon) => PROGRESSION[w].melhorias.filter((u) => u.opcional).map((u) => u.id);
+const commons = (w: ProgWeapon) => PROGRESSION[w].melhorias.filter((u) => !u.opcional).map((u) => u.id);
 const toggleSets = (w: ProgWeapon) => {
   const opt = optionals(w);
   return [[], ...opt.map((id) => [id]), ...(opt.length > 1 ? [opt] : [])];
@@ -67,6 +69,11 @@ function accounts(): Acct[] {
     // A client asking for what it doesn't have: a primary as the secondary, every optional upgrade at level 1,
     // a whole Loadout (with the lightsaber in hand) where a choice goes.
     { label: 'cliente pedindo o que não tem', levels: {}, choice: { secundaria: PRIMARIES[0], ligadas: Object.fromEntries(PROG_WEAPONS.map((w) => [w, optionals(w)])), primaria: 'smg', soFaca: true, ativas: { rifle: ['silenciador'] } } },
+    // The SMG's lock: asked for before and after the pistol's level 3.
+    { label: 'pistola nível 2 pedindo a submetralhadora', levels: { pistola: 2 }, choice: { secundaria: 'smg', ligadas: {} } },
+    { label: 'pistola nível 3 pedindo a submetralhadora', levels: { pistola: 3 }, choice: { secundaria: 'smg', ligadas: {} } },
+    // Every common upgrade turned off (an account that wants the plain weapons back).
+    { label: 'tudo liberado e todas as comuns desligadas', levels: MAX_LEVELS, choice: { secundaria: 'pistola', ligadas: {}, desligadas: Object.fromEntries(PROG_WEAPONS.map((w) => [w, commons(w)])) } },
   ];
   for (const gun of [...PRIMARIES, ...SECONDARIES]) {
     const secundaria = SECONDARIES.includes(gun) ? gun : DEFAULT_SECONDARY;
@@ -319,11 +326,13 @@ describe('matriz progressão × modos', () => {
           expect(lo).toEqual(resolveLoadout(a.profile.arsenal, levels));
           expect(lo).toEqual(loadoutOf(a));
           expect(PRIMARIES).toContain(lo.primaria);
+          // A locked secondary (the SMG before the pistol's level 3, unless already scored with) stays out.
           const asked = (acct.choice as { secundaria?: unknown }).secundaria;
-          expect(lo.secundaria).toBe(SECONDARIES.includes(asked as GunId) ? (asked as GunId) : DEFAULT_SECONDARY);
+          expect(lo.secundaria).toBe(SECONDARIES.includes(asked as GunId) && weaponUnlocked(asked as GunId, xpOf(a)) ? (asked as GunId) : DEFAULT_SECONDARY);
           for (const w of PROG_WEAPONS) {
             const level = levels[w];
             const asks = ((acct.choice as { ligadas?: Record<string, string[]> }).ligadas?.[w] ?? []) as string[];
+            const off = ((acct.choice as { desligadas?: Record<string, string[]> }).desligadas?.[w] ?? []) as string[];
             const groups = new Set<string>();
             for (const id of lo.ativas[w]) {
               const u = upgradeOf(w, id)!;
@@ -337,10 +346,11 @@ describe('matriz progressão × modos', () => {
                 }
               }
             }
-            // Every common upgrade unlocked is in effect, unless an optional one of its group replaced it.
+            // Every common upgrade unlocked is in effect, unless turned off or replaced by an optional one of its group.
             for (const u of PROGRESSION[w].melhorias) {
               if (u.opcional || u.nivel > level) continue;
-              if (!u.grupo || !groups.has(u.grupo)) expect({ acct: acct.label, w, id: u.id, on: lo.ativas[w].includes(u.id) }).toEqual({ acct: acct.label, w, id: u.id, on: true });
+              const on = !off.includes(u.id) && (!u.grupo || !groups.has(u.grupo));
+              expect({ acct: acct.label, w, id: u.id, on: lo.ativas[w].includes(u.id) }).toEqual({ acct: acct.label, w, id: u.id, on });
             }
           }
         } else {

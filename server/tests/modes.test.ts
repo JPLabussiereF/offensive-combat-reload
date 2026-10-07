@@ -116,7 +116,10 @@ describe('escada da corrida armada (regras puras)', () => {
 
 describe('mata-mata: equipamento travado durante a partida', () => {
   it('o Arsenal escolhido no saguão vale na partida, e a troca no meio dela é recusada', async () => {
-    const a = await enter(await signedIn('Travado'), 'principal', [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: {} } }]);
+    // Already scored with the SMG: unlocked for this account (it no longer waits for the pistol's level).
+    const travado = await signedIn('Travado');
+    await setWeaponXp(travado, { smg: 1 });
+    const a = await enter(travado, 'principal', [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: {} } }]);
     expect(a.joined.session.mode).toBe('mata-mata');
     expect(a.me.lo).toEqual({ ...DEFAULT_LOADOUT, secundaria: 'smg' });
     const v = await enter(await signedIn('Testemunha'), 'principal');
@@ -373,7 +376,7 @@ describe('progressão de armas no mata-mata (online)', () => {
       ativas: { rifle: ['silenciador'], faca: ['sabre'] },
     };
     const a = await enter(b, 'jardim', [{ t: 'loadout', lo: greedy }]);
-    expect(lastProgress(a)?.escolha).toEqual({ secundaria: 'pistola', ligadas: {} });
+    expect(lastProgress(a)?.escolha).toEqual({ secundaria: 'pistola', ligadas: {}, desligadas: {} });
     expect(a.me.lo).toEqual({ primaria: 'rifle', secundaria: 'pistola', ativas: { rifle: ['pontoVermelho', 'empunhadura'], pistola: [], smg: [], faca: [], granada: [] } });
     const v = await enter(await signedIn('Conferente'), 'jardim');
     await spawn(a, [0, 0, 0], v);

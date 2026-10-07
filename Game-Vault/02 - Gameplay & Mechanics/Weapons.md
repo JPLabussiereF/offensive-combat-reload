@@ -46,7 +46,7 @@ Todo jogador carrega **duas armas de fogo** (uma **primária** e uma **secundár
 | Faca | corpo a corpo | F | `faca.json` | [[Melee]] |
 | Granada (ou mina / dose dupla) | arremesso | G | `granada_frag.json` | [[Grenades]], [[Land Mines]] |
 
-O campo `slot` do JSON de cada arma de fogo decide em que espaço ela entra (`PRIMARIES`/`SECONDARIES` em `shared/progression.ts`). Hoje só o rifle é primário; o jogador leva **uma** das secundárias (padrão: a pistola).
+O campo `slot` do JSON de cada arma de fogo decide em que espaço ela entra (`PRIMARIES`/`SECONDARIES` em `shared/progression.ts`). Hoje só o rifle é primário; o jogador leva **uma** das secundárias (padrão: a pistola). A submetralhadora começa **trancada**: libera com a pistola no nível 3, ou já está liberada para quem fez pontos com ela ([[Progression#Armas trancadas]], [[ADR - Árvore do Arsenal e armas liberadas por nível]]).
 
 ## Atributos base das armas de fogo
 

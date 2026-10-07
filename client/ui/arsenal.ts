@@ -1,14 +1,16 @@
-// Arsenal panel (pause menu and the home's tab): a card per weapon (the primary, every secondary, the knife and
-// the grenade) with its level, the points toward the next one, the gun's stats as they are now, and every
-// upgrade: locked (with the points it needs), active, or — the optional ones, which have a trade-off — a switch
-// to turn it on or off. A secondary's card also puts it in the secondary slot. During a match with a locked
-// loadout (mata-mata) it is read-only: the progress shows, nothing can be changed until the next match.
+// Arsenal panel (pause menu and the home's tab), drawn as a tree (client/ui/arsenalTree.ts): one row per slot
+// (primary, secondary, knife, grenade) with its weapons in order, a locked one saying how many points the weapon
+// before it still needs. Clicking a weapon shows its panel under the row: level, points to the next one, the
+// gun's stats as they are now and its upgrades as a chain in level order, each with a switch (on/off) or a lock
+// with the points still missing. "Equip" puts an unlocked weapon in its slot. During a match with a locked
+// loadout (mata-mata) it is read-only: weapons can be looked at, nothing can be changed until the next match.
 import { getLang, t, type StringKey } from './strings';
 import { gunStats } from '@shared/arsenal';
-import { isGun, levelCount, PROG_WEAPONS, PROGRESSION, SECONDARIES, upgradeOf, xpForLevel, type Efeitos, type GunId, type ProgWeapon, type Upgrade } from '@shared/progression';
+import { isGun, PROGRESSION, upgradeOf, type Efeitos, type GunId, type ProgWeapon, type Upgrade } from '@shared/progression';
 import type { Progress } from '../gameplay/progress';
+import { arsenalTree, upgradeNodes, type RowId, type TreeRow, type UpgradeNode, type WeaponNode } from './arsenalTree';
 
-const SLOT: Record<ProgWeapon, StringKey> = { rifle: 'slotPrimary', pistola: 'slotSecondary', smg: 'slotSecondary', faca: 'slotMelee', granada: 'slotThrow' };
+const ROW: Record<RowId, StringKey> = { primaria: 'treeRow_primaria', secundaria: 'treeRow_secundaria', faca: 'treeRow_faca', granada: 'treeRow_granada' };
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 // Weapon and upgrade texts are keyed by their ids (client/tests/arsenalText.test.ts checks they all exist).
@@ -57,11 +59,13 @@ export function effectChips(fx: Efeitos): { text: string; good: boolean }[] {
 }
 
 export class Arsenal {
+  /** The weapon shown under each row (clicked), null = the one in the player's hands. */
+  private viewed: Partial<Record<RowId, ProgWeapon>> = {};
   /** Upgrade whose description is shown per weapon (hovered or focused), null = the weapon's own. */
   private preview: Partial<Record<ProgWeapon, string | null>> = {};
 
   /**
-   * `grid`: where the cards go (the pause menu's, or the home's Arsenal tab); `onChange`: the loadout changed;
+   * `grid`: where the tree goes (the pause menu's, or the home's Arsenal tab); `onChange`: the loadout changed;
    * `readOnly`: shown but not editable (a match with a locked loadout).
    */
   constructor(
@@ -70,17 +74,25 @@ export class Arsenal {
     private grid: HTMLElement,
     private readOnly = false,
   ) {
+    this.grid.classList.add('arsenal-tree');
     this.grid.classList.toggle('read-only', readOnly);
     this.grid.addEventListener('click', (e) => {
-      if (this.readOnly) return;
       const el = e.target as HTMLElement;
+      // Looking at a weapon changes nothing: it works read-only too.
+      const view = el.closest<HTMLButtonElement>('[data-view]');
+      if (view) {
+        this.viewed[view.dataset.row as RowId] = view.dataset.view as ProgWeapon;
+        this.render();
+        return;
+      }
+      if (this.readOnly) return;
       const toggle = el.closest<HTMLButtonElement>('[data-toggle]');
       if (toggle && !toggle.disabled) {
         if (this.progress.toggle(toggle.dataset.w as ProgWeapon, toggle.dataset.id!, toggle.getAttribute('aria-pressed') !== 'true')) this.onChange();
         return;
       }
-      const take = el.closest<HTMLButtonElement>('[data-secondary]');
-      if (take && this.progress.setSecondary(take.dataset.secondary as GunId)) this.onChange();
+      const equip = el.closest<HTMLButtonElement>('[data-equip]');
+      if (equip && this.progress.setSecondary(equip.dataset.equip as GunId)) this.onChange();
     });
     const hover = (e: Event) => {
       const row = (e.target as HTMLElement).closest<HTMLElement>('.upg');
@@ -93,7 +105,7 @@ export class Arsenal {
     this.grid.addEventListener('mouseover', hover);
     this.grid.addEventListener('focusin', hover);
     this.grid.addEventListener('mouseleave', () => {
-      for (const w of PROG_WEAPONS) {
+      for (const w of Object.keys(this.preview) as ProgWeapon[]) {
         if (!this.preview[w]) continue;
         this.preview[w] = null;
         this.renderDetail(w);
@@ -104,38 +116,62 @@ export class Arsenal {
   }
 
   render() {
-    // Keep the focus where it was (a controller or the keyboard toggling upgrades).
+    // Keep the focus where it was (a controller or the keyboard moving through the tree).
     const focused = document.activeElement as HTMLElement | null;
     const key = focused && this.grid.contains(focused) ? focused.dataset.key : undefined;
-    this.grid.innerHTML = PROG_WEAPONS.map((w) => this.card(w)).join('');
+    this.grid.innerHTML = arsenalTree(this.progress.weaponXp, this.progress.choice)
+      .map((r) => this.row(r))
+      .join('');
     if (key) this.grid.querySelector<HTMLElement>(`[data-key="${key}"]`)?.focus();
   }
 
-  private card(w: ProgWeapon): string {
-    const level = this.progress.level(w);
-    const max = levelCount(w);
-    const xp = this.progress.xp(w);
-    const active = this.progress.loadout.ativas[w];
-    const prevXp = xpForLevel(w, level);
-    const nextXp = level < max ? xpForLevel(w, level + 1) : null;
-    const frac = nextXp === null ? 1 : Math.min(1, (xp - prevXp) / (nextXp - prevXp));
-    const xpText = nextXp === null ? t('maxLevel', { xp }) : t('xpToNext', { xp, next: nextXp, level: level + 1 });
-    const secondary = SECONDARIES.includes(w as GunId);
-    const carried = !secondary || this.progress.choice.secundaria === w;
-    const take = !secondary || (this.readOnly && !carried)
-      ? ''
-      : carried
-        ? `<div class="in-secondary">✓ ${t('inSecondary')}</div>`
-        : `<button type="button" class="take-secondary" data-secondary="${w}" data-key="take-${w}">${t('takeSecondary')}</button>`;
-    return `<div class="arsenal-card${carried ? '' : ' spare'}" data-w="${w}">
-      <div class="arsenal-head"><span class="arsenal-icon">${PROGRESSION[w].icone}</span><div>
-        <div class="arsenal-weapon">${t(SLOT[w])} · ${t('level')} ${level}/${max}</div>
-        <div class="arsenal-name">${esc(weaponName(w))}</div></div></div>
-      ${take}
-      <div class="xp-bar"><div class="xp-fill" style="width:${(frac * 100).toFixed(1)}%"></div></div>
-      <div class="xp-text">${xpText}</div>
-      ${isGun(w) ? this.stats(w, active) : ''}
-      <ul class="upgrades">${PROGRESSION[w].melhorias.map((u) => this.row(w, u, level, active)).join('')}</ul>
+  /** The weapon shown under a row: the one clicked, else the one in hand, else the first. */
+  private shown(r: TreeRow): WeaponNode {
+    return r.armas.find((n) => n.arma === this.viewed[r.id]) ?? r.armas.find((n) => n.equipada) ?? r.armas[0];
+  }
+
+  private row(r: TreeRow): string {
+    const shown = this.shown(r);
+    const weapons = r.armas.map((n, i) => `${i ? '<span class="tree-link" aria-hidden="true"></span>' : ''}${this.weaponButton(r.id, n, n === shown)}`).join('');
+    return `<section class="tree-row" data-row="${r.id}">
+      <h4 class="tree-slot">${t(ROW[r.id])}</h4>
+      <div class="tree-weapons">${weapons}</div>
+      ${this.panel(shown)}
+    </section>`;
+  }
+
+  private weaponButton(row: RowId, n: WeaponNode, shown: boolean): string {
+    const sub = !n.liberada
+      ? `🔒 ${t('treeWeaponLocked', { xp: num(n.faltamLiberar, 0), weapon: weaponName(n.liberaCom!) })}`
+      : n.equipada
+        ? `✓ ${t('treeEquipped')}`
+        : `${t('level')} ${n.nivel}/${n.max}`;
+    const cls = `tree-weapon${shown ? ' shown' : ''}${n.equipada ? ' equipped' : ''}${n.liberada ? '' : ' locked'}`;
+    return `<button type="button" class="${cls}" data-view="${n.arma}" data-row="${row}" data-key="view-${n.arma}" aria-pressed="${shown}">
+      <span class="tw-icon">${weaponIcon(n.arma, n.ativas)}</span>
+      <span class="tw-text"><span class="tw-name">${esc(weaponName(n.arma))}</span><span class="tw-sub">${esc(sub)}</span></span>
+    </button>`;
+  }
+
+  /** The panel of the weapon shown in a row: its level, how to get it, its stats and its upgrade chain. */
+  private panel(n: WeaponNode): string {
+    const w = n.arma;
+    let action = '';
+    if (!n.liberada) action = `<div class="tree-lock">🔒 ${esc(t('treeWeaponLockedLong', { xp: num(n.faltamLiberar, 0), weapon: weaponName(n.liberaCom!), level: n.liberaNivel }))}</div>`;
+    else if (n.equipada) action = `<div class="tree-in-hand">✓ ${t('treeEquipped')}</div>`;
+    else if (!this.readOnly) action = `<button type="button" class="tree-equip" data-equip="${w}" data-key="equip-${w}">${t('treeEquip')}</button>`;
+    const xpText = n.faltamNivel === null ? t('maxLevel', { xp: num(n.xp, 0) }) : t('xpToNext', { xp: num(n.faltamNivel, 0), level: n.nivel + 1 });
+    const chain = upgradeNodes(w, this.progress.weaponXp, this.progress.choice)
+      .map((u) => this.upgrade(w, u))
+      .join('');
+    return `<div class="tree-panel${n.liberada ? '' : ' locked'}" data-w="${w}">
+      <div class="arsenal-head"><span class="arsenal-icon">${weaponIcon(w, n.ativas)}</span><div class="tree-title">
+        <div class="arsenal-weapon">${t('level')} ${n.nivel}/${n.max}</div>
+        <div class="arsenal-name">${esc(weaponName(w))}</div></div>${action}</div>
+      <div class="xp-bar"><div class="xp-fill" style="width:${(n.progresso * 100).toFixed(1)}%"></div></div>
+      <div class="xp-text">${esc(xpText)}</div>
+      ${isGun(w) ? this.stats(w, n.ativas) : ''}
+      <ol class="upgrades tree-upgrades">${chain}</ol>
       <div class="upg-detail">${this.detail(w)}</div>
     </div>`;
   }
@@ -156,27 +192,25 @@ export class Arsenal {
       .join('')}<small>${t('statMag', { mag: g.pente, reserve: g.reserva })}</small></div>`;
   }
 
-  private row(w: ProgWeapon, u: Upgrade, level: number, active: string[]): string {
-    const open = u.nivel <= level;
-    const on = active.includes(u.id);
+  /** One link of the upgrade chain: locked (with the points missing) or a switch. */
+  private upgrade(w: ProgWeapon, n: UpgradeNode): string {
+    const u = upgradeOf(w, n.id)!;
     let state: string;
-    let cls: string;
-    if (!open) {
-      cls = 'locked';
-      state = `<span class="upg-state" title="${esc(t('unlockAt', { xp: u.xp }))}">🔒 ${t('unlockShort', { xp: u.xp })}</span>`;
-    } else if (u.opcional) {
-      cls = on ? 'on' : 'off';
-      state = `<button type="button" class="upg-toggle" data-toggle data-w="${w}" data-id="${u.id}" data-key="${w}-${u.id}" aria-pressed="${on}"${this.readOnly ? ' disabled' : ''}>${t(on ? 'upgradeOn' : 'upgradeOff')}</button>`;
+    if (n.estado === 'trancada') {
+      state = `<span class="upg-state" title="${esc(t('unlockAt', { xp: num(n.faltam, 0) }))}">🔒 ${t('unlockShort', { xp: num(n.faltam, 0) })}</span>`;
     } else {
-      cls = on ? 'active' : 'replaced';
-      state = `<span class="upg-state">${on ? '✓ ' + t('upgradeActive') : t('upgradeReplaced')}</span>`;
+      const on = n.estado === 'ligada';
+      state = `<button type="button" class="upg-toggle" data-toggle data-w="${w}" data-id="${u.id}" data-key="${w}-${u.id}" aria-pressed="${on}"${this.readOnly ? ' disabled' : ''}>${t(on ? 'upgradeOn' : 'upgradeOff')}</button>`;
     }
+    const cls = n.estado === 'trancada' ? 'locked' : n.estado === 'ligada' ? 'on' : 'off';
     const chips = effectChips(u.efeitos)
       .map((c) => `<span class="fx ${c.good ? 'good' : 'bad'}">${esc(c.text)}</span>`)
       .join('');
-    return `<li class="upg ${cls}" data-w="${w}" data-id="${u.id}">
-      <div class="upg-top"><span class="upg-icon">${u.icone}</span><span class="upg-lvl">${u.nivel}</span><span class="upg-name">${esc(upgradeName(w, u.id))}</span>${state}</div>
-      <div class="upg-fx">${u.opcional ? `<span class="fx opt">${t('upgradeOptional')}</span>` : ''}${chips}</div>
+    const replaced = n.substituidaPor ? `<span class="fx opt">${esc(t('upgradeReplacedBy', { upgrade: upgradeName(w, n.substituidaPor) }))}</span>` : '';
+    return `<li class="upg tree-node ${cls}" data-w="${w}" data-id="${u.id}">
+      <div class="upg-top"><span class="upg-icon">${u.icone}</span><span class="upg-lvl">${u.nivel}</span><span class="upg-name">${esc(upgradeName(w, u.id))}</span></div>
+      <div class="upg-switch">${state}</div>
+      <div class="upg-fx">${u.opcional ? `<span class="fx opt">${t('upgradeOptional')}</span>` : ''}${replaced}${chips}</div>
     </li>`;
   }
 
@@ -188,7 +222,7 @@ export class Arsenal {
   }
 
   private renderDetail(w: ProgWeapon) {
-    const el = this.grid.querySelector(`.arsenal-card[data-w="${w}"] .upg-detail`);
+    const el = this.grid.querySelector(`.tree-panel[data-w="${w}"] .upg-detail`);
     if (el) el.innerHTML = this.detail(w);
   }
 }

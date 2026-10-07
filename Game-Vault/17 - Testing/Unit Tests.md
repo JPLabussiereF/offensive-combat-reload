@@ -18,6 +18,8 @@ source_paths:
   - client/zombies/local.ts
   - client/zombies/link.ts
   - server/tests/progression-modes.test.ts
+  - client/tests/arsenalTree.test.ts
+  - client/ui/arsenalTree.ts
 tags:
   - testes
   - unitarios
@@ -47,7 +49,11 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 
 ## `client/tests/arsenalText.test.ts` → [[Inventory UI]]
 
-- Um caso por idioma (pt-BR e en): toda arma e toda melhoria de `progression.json` tem nome e descrição (`arma_*`, `armaDesc_*`, `upg_<arma>_<id>`, `upgDesc_*`) e todo efeito tem o seu rótulo (`fx_*`) em `client/ui/strings.ts`.
+- Um caso por idioma (pt-BR e en): toda arma e toda melhoria de `progression.json` tem nome e descrição (`arma_*`, `armaDesc_*`, `upg_<arma>_<id>`, `upgDesc_*`), todo efeito tem o seu rótulo (`fx_*`) e toda linha da árvore do Arsenal o seu (`treeRow_*`) em `client/ui/strings.ts`.
+
+## `client/tests/arsenalTree.test.ts` → [[Inventory UI]]
+
+O modelo da árvore do Arsenal (`client/ui/arsenalTree.ts`, puro), 6 casos: as quatro linhas (Principal, Secundária, Faca, Granada) com as armas na ordem em que liberam e toda arma em uma linha; conta nova com a submetralhadora trancada e os 1.800 pontos que faltam com a pistola; a submetralhadora liberada e equipada; o nível máximo sem próximo nível; o estado de cada melhoria (ligada, desligada, trancada com os pontos que faltam, substituída pela opcional do grupo); um nó por melhoria em ordem de nível.
 
 ## `client/tests/spatial.test.ts` → [[Spatial Audio]]
 
@@ -74,11 +80,12 @@ Testa funções de `shared/appearance.ts` (puras):
 
 ## `server/tests/arsenal.test.ts` → [[Weapons]], [[Progression]]
 
-Testa `shared/progression.ts` e `shared/arsenal.ts` (puros), 18 casos:
+Testa `shared/progression.ts` e `shared/arsenal.ts` (puros), 24 casos:
 
 - **Níveis:** cada nível depois do primeiro libera uma melhoria, com pontos crescentes; o nível vem dos pontos da arma; armas diferentes têm quantidades diferentes de melhorias.
-- **Melhorias em efeito:** as comuns ligam sozinhas; as opcionais só quando ligadas e liberadas; uma opcional ligada substitui as comuns do seu grupo (a luneta tira o ponto vermelho).
-- **Escolha do Arsenal:** `sanitizeChoice` limpa o que veio do cliente (secundária válida, só opcionais conhecidas, uma por grupo) e, com os níveis, descarta o que não foi liberado; `legacyChoice` dá às contas antigas a escolha mais parecida; `resolveLoadout`; as armas de cada espaço vêm dos dados (`PRIMARIES`/`SECONDARIES`); `sanitizeLoadout` só aceita ids conhecidos.
+- **Melhorias em efeito:** as comuns ligam sozinhas; as opcionais só quando ligadas e liberadas; uma opcional ligada substitui as comuns do seu grupo (a luneta tira o ponto vermelho); uma comum desligada sai das ativas (sem as miras, volta a de ferro).
+- **Trava das armas:** a submetralhadora libera com 1.800 pontos de pistola (trancada com 1.799), ou com qualquer ponto dela; `pointsToUnlock`; as outras armas não têm trava; com os pontos, `sanitizeChoice` devolve a pistola no lugar da submetralhadora trancada.
+- **Escolha do Arsenal:** `sanitizeChoice` limpa o que veio do cliente (secundária válida, só opcionais conhecidas, uma por grupo, só comuns conhecidas em `desligadas`) e, com os pontos, descarta o que não foi liberado; `legacyChoice` dá às contas antigas a escolha mais parecida; `resolveLoadout`; as armas de cada espaço vêm dos dados (`PRIMARIES`/`SECONDARIES`); `sanitizeLoadout` só aceita ids conhecidos.
 - **Atributos:** sem melhorias, `gunStats` é o JSON; cada melhoria muda atributos de verdade; o silenciador abafa e cobra dano e alcance; a faca vira sabre; a granada vira mina ou Dose Dupla e ganha cinto e pólvora; cada abate de tiro vai para a arma que atirou (`weaponOfKill`).
 - **Migração 003:** lê `server/migrations/003_melhorias.sql` e confere que todo XP de destino é um limiar que existe nos níveis novos ([[Data Migrations]]).
 
@@ -86,7 +93,7 @@ Testa `shared/progression.ts` e `shared/arsenal.ts` (puros), 18 casos:
 
 O que o jogo offline usa da progressão, sem navegador:
 
-- **Treino e contra bots (`Progress`, `client/gameplay/progress.ts`)**: sem conta, rifle e pistola sem melhorias, nenhuma opcional liga e a secundária escolhida vale só para a partida (nada é salvo); com conta, cada arma em cada nível dá o equipamento da conta (só o que o nível liberou, uma opcional por grupo), ligar/desligar cada opcional muda as armas na mão e a outra do grupo desliga, e cada mudança é salva com `PATCH /api/perfil` (o `fetch` é trocado por um gravador); o `progresso` que chega do servidor é limpo contra os níveis novos.
+- **Treino e contra bots (`Progress`, `client/gameplay/progress.ts`)**: sem conta, rifle e pistola sem melhorias, nada liga, a submetralhadora fica trancada e nada é salvo; com conta, cada arma em cada nível dá o equipamento da conta (só o que o nível liberou, uma opcional por grupo; secundária trancada volta para a pistola), ligar/desligar cada opcional **e cada comum** muda as armas na mão (ligar a comum desliga a opcional do grupo), e as mudanças são salvas com `PATCH /api/perfil` (o `fetch` é trocado por um gravador; espera-se `settled()`); a submetralhadora libera com a pistola no nível 3 ou com pontos dela; um salvamento que falha volta à escolha da conta e avisa (`onSaveError`); cliques rápidos mandam um salvamento por vez e só a última escolha que esperava; o `progresso` que chega do servidor é limpo contra os pontos novos.
 - **Bots**: toda arma que um bot sorteia (sem melhorias) e todo degrau da escada (como o bot e o jogador recebem) dão atributos válidos; o abate com a arma do degrau conta, e no último só a facada do sabre.
 - **Zumbi sozinho (`LocalZombies`, `client/zombies/local.ts`)** sobre a navmesh pré-gerada: começa com o rifle simples; dano no chefe do rifle, da faca e da granada pelas mesmas funções do servidor; o caixão entrega a arma (gancho `setLoadout` e evento `playerLoadout`) com as melhorias dela, e o dano é o dela × a raridade; uma rodada danificada (os dois defeitos) chega com o defeito no equipamento, o dano × 0,75 e menos pente e reserva (`zombieGunData`); erguer uma barricada sozinho custa o mesmo e dá as mesmas tábuas; sozinho, cair encerra a partida (`zend`).
 

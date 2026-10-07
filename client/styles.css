@@ -1238,15 +1238,143 @@ html:not(.mobile) #chat-close {
     grid-template-columns: 1fr;
   }
 }
-.arsenal-card {
+/* The Arsenal as a tree: one row per slot, the slot's weapons linked in order, the shown weapon's panel under
+   them with its upgrades as a chain in level order. On a narrow screen each chain scrolls sideways. */
+.arsenal-grid.arsenal-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tree-row {
   border: 3px solid var(--ink);
   border-radius: 14px;
   background: #fff;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
+}
+.tree-slot {
+  margin: 0;
+  font: 900 12px var(--body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.tree-weapons {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  padding: 2px 2px 5px;
+}
+.tree-link {
+  flex: 0 0 28px;
+  height: 3px;
+  background: var(--ink);
+}
+.tree-weapon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 170px;
+  max-width: 260px;
+  padding: 6px 10px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff8ec;
+  font: 800 12px var(--body);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.tree-weapon:hover {
+  background: #fff1df;
+}
+.tree-weapon.shown {
+  background: var(--warn);
+  box-shadow: 0 3px 0 var(--ink);
+}
+.tree-weapon.locked {
+  border-style: dashed;
+  background: #e9e4dc;
+}
+.tree-weapon.locked.shown {
+  background: #f3e3a8;
+}
+.tree-weapon.locked .tw-icon {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.tw-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+.tw-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.tw-name {
+  font-family: var(--display);
+  font-size: 15px;
+  line-height: 1.05;
+}
+.tw-sub {
+  font-size: 11px;
+  font-weight: 900;
+  opacity: 0.75;
+}
+.tree-weapon.equipped .tw-sub {
+  color: var(--team-a);
+  opacity: 1;
+}
+.tree-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 2px dashed rgba(0, 0, 0, 0.2);
+}
+.tree-panel .arsenal-head {
+  flex-wrap: wrap;
+}
+.tree-title {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.tree-panel.locked .gun-stats {
+  opacity: 0.6;
+}
+/* Puts the shown weapon in its slot. */
+.tree-equip {
+  padding: 6px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  background: var(--warn);
+  font: 900 13px var(--body);
+  text-transform: uppercase;
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 3px 0 var(--ink);
+}
+.tree-equip:hover {
+  background: #ffe27a;
+}
+.tree-in-hand {
+  padding: 2px 9px;
+  border-radius: 9px;
+  background: var(--team-a);
+  color: #fff;
+  font: 900 11px var(--body);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.tree-lock {
+  max-width: 280px;
+  font: 800 12px var(--body);
+  line-height: 1.3;
 }
 .arsenal-head {
   display: flex;
@@ -1283,37 +1411,6 @@ html:not(.mobile) #chat-close {
   font-size: 12px;
   font-weight: 800;
 }
-/* A secondary not taken is dimmed; its button puts it in the slot. */
-.arsenal-card.spare {
-  background: #f6f1e8;
-}
-.arsenal-card.spare .arsenal-head,
-.arsenal-card.spare .gun-stats {
-  opacity: 0.7;
-}
-.take-secondary {
-  align-self: flex-start;
-  padding: 4px 10px;
-  border: 2px solid var(--ink);
-  border-radius: 9px;
-  background: var(--warn);
-  font: 900 12px var(--body);
-  color: var(--ink);
-  cursor: pointer;
-  box-shadow: 0 2px 0 var(--ink);
-}
-.take-secondary:hover {
-  background: #ffe27a;
-}
-.in-secondary {
-  align-self: flex-start;
-  padding: 2px 9px;
-  border-radius: 9px;
-  background: var(--team-a);
-  color: #fff;
-  font: 900 11px var(--body);
-  text-transform: uppercase;
-}
 /* The gun's stats as they are now (upgrades included): a label and a bar each. */
 .gun-stats {
   display: grid;
@@ -1338,14 +1435,37 @@ html:not(.mobile) #chat-close {
   height: 100%;
   background: var(--team-b);
 }
-/* Upgrades: one row each (icon, level, name, state or switch), what it changes as chips under it. */
+/* Upgrades: a chain in level order, one link each (icon, level, name, then the switch or the lock), what it
+   changes as chips under it. */
 .upgrades {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 2px 5px;
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+}
+.tree-node {
+  position: relative;
+  flex: 0 0 190px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+.tree-node + .tree-node {
+  margin-left: 22px;
+}
+.tree-node + .tree-node::before {
+  content: '';
+  position: absolute;
+  left: -25px;
+  top: 18px;
+  width: 22px;
+  height: 3px;
+  background: var(--ink);
+}
+.upg-switch {
+  display: flex;
 }
 .upg {
   padding: 4px 6px;
@@ -1361,13 +1481,12 @@ html:not(.mobile) #chat-close {
 .upg.locked .upg-icon {
   filter: grayscale(1);
 }
-.upg.active,
 .upg.on {
   background: #fff1df;
   box-shadow: inset 4px 0 0 var(--team-a);
 }
-.upg.replaced {
-  opacity: 0.6;
+.upg.off {
+  opacity: 0.8;
 }
 .upg-top {
   display: flex;
@@ -1398,9 +1517,6 @@ html:not(.mobile) #chat-close {
   font-weight: 900;
   text-transform: uppercase;
   white-space: nowrap;
-}
-.upg.active .upg-state {
-  color: var(--team-a);
 }
 .upg-toggle {
   min-width: 74px;

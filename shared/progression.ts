@@ -1,9 +1,10 @@
 // Weapon progression: each kill's points go to the weapon that made it, and each weapon levels up on its own.
 // Every level after the first unlocks one upgrade (data/progression.json) that changes the weapon's real
 // stats. Common upgrades are on as soon as they unlock; optional ones trade something for something else
-// (a silencer: quieter, weaker) and the player turns them on in the Arsenal. This module owns the levels,
-// the upgrade trees and the player's choice (ArsenalChoice); shared/arsenal.ts turns them into the stats the
-// game (client and server) actually uses.
+// (a silencer: quieter, weaker) and start off. The player turns any unlocked upgrade on or off in the Arsenal.
+// A weapon may also be locked until the one before it in its slot reaches a level (the SMG after the pistol).
+// This module owns the levels, the upgrade trees, the weapon locks and the player's choice (ArsenalChoice);
+// shared/arsenal.ts turns them into the stats the game (client and server) actually uses.
 import data from './data/progression.json';
 import { WEAPONS } from './weapons';
 import type { KillKind } from './protocol';
@@ -99,6 +100,8 @@ export interface Upgrade {
 
 export interface WeaponTree {
   icone: string;
+  /** Locked until `arma` (the weapon before it in its slot) reaches `nivel`; no lock when absent. */
+  libera?: { arma: ProgWeapon; nivel: number };
   /** In level order: melhorias[i] is unlocked at level i + 2. */
   melhorias: Upgrade[];
 }
@@ -128,17 +131,52 @@ export const START_LEVELS: Levels = { rifle: 1, pistola: 1, smg: 1, faca: 1, gra
 /** Every level of every weapon (handy for modes that hand out fully upgraded weapons). */
 export const MAX_LEVELS: Levels = Object.fromEntries(PROG_WEAPONS.map((w) => [w, levelCount(w)])) as Levels;
 
+/** Points earned with each weapon (what levels and weapon locks are computed from). */
+export type WeaponXp = Record<ProgWeapon, number>;
+export const NO_XP: WeaponXp = { rifle: 0, pistola: 0, smg: 0, faca: 0, granada: 0 };
+
+export const levelsOfXp = (xp: WeaponXp): Levels => Object.fromEntries(PROG_WEAPONS.map((w) => [w, levelForXp(w, xp[w])])) as Levels;
+
 /**
- * What the player chose in the Arsenal, saved on the account: the gun in the secondary slot and the optional
- * upgrades turned on, per weapon. Always sanitized against the unlocked levels before use.
+ * Whether the player may carry `w`: a weapon without a lock always; a locked one once the weapon before it in
+ * its slot reached the level, or if the player already scored with it (it stays theirs).
+ */
+export function weaponUnlocked(w: ProgWeapon, xp: WeaponXp): boolean {
+  const lock = PROGRESSION[w].libera;
+  return !lock || xp[w] > 0 || xp[lock.arma] >= xpForLevel(lock.arma, lock.nivel);
+}
+
+/** Points still needed with the weapon before `w` to unlock it (0 when it is unlocked). */
+export function pointsToUnlock(w: ProgWeapon, xp: WeaponXp): number {
+  const lock = PROGRESSION[w].libera;
+  return !lock || weaponUnlocked(w, xp) ? 0 : xpForLevel(lock.arma, lock.nivel) - xp[lock.arma];
+}
+
+/**
+ * What the player chose in the Arsenal, saved on the account: the gun in the secondary slot, the optional
+ * upgrades turned on and the common ones turned off, per weapon. Always sanitized against the points before use.
  */
 export interface ArsenalChoice {
   secundaria: GunId;
   ligadas: Partial<Record<ProgWeapon, string[]>>;
+  /** Common upgrades turned off (absent from clients older than the Arsenal tree: none off). */
+  desligadas?: Partial<Record<ProgWeapon, string[]>>;
 }
 
 export const DEFAULT_SECONDARY: GunId = 'pistola';
-export const DEFAULT_CHOICE: ArsenalChoice = { secundaria: DEFAULT_SECONDARY, ligadas: {} };
+export const DEFAULT_CHOICE: ArsenalChoice = { secundaria: DEFAULT_SECONDARY, ligadas: {}, desligadas: {} };
+
+/** The common upgrades turned off, cleaned: known, common, unlocked (when `level` is given), no repeats. */
+function cleanOff(w: ProgWeapon, raw: unknown, level?: number): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const id of raw) {
+    const u = typeof id === 'string' ? upgradeOf(w, id) : undefined;
+    if (!u || u.opcional || (level !== undefined && u.nivel > level) || out.includes(u.id)) continue;
+    out.push(u.id);
+  }
+  return out;
+}
 
 /** The optional upgrades turned on, cleaned: known, optional, unlocked (when `level` is given), one per group (the last one wins). */
 function cleanToggles(w: ProgWeapon, raw: unknown, level?: number): string[] {
@@ -156,29 +194,37 @@ function cleanToggles(w: ProgWeapon, raw: unknown, level?: number): string[] {
 
 /**
  * Whatever a client sent (or the database held) as a valid choice: a secondary that belongs in that slot,
- * known optional upgrades, one per group. With `levels`, upgrades not unlocked yet are dropped too.
+ * known optional upgrades on (one per group) and known common ones off. With `xp` (the points of each weapon),
+ * a locked secondary goes back to the default one and upgrades not unlocked yet are dropped too.
  */
-export function sanitizeChoice(raw: unknown, levels?: Levels): ArsenalChoice {
-  const o = (raw && typeof raw === 'object' ? raw : {}) as { secundaria?: unknown; ligadas?: unknown };
-  const sec = SECONDARIES.includes(o.secundaria as GunId) ? (o.secundaria as GunId) : DEFAULT_SECONDARY;
-  const src = (o.ligadas && typeof o.ligadas === 'object' ? o.ligadas : {}) as Partial<Record<ProgWeapon, unknown>>;
+export function sanitizeChoice(raw: unknown, xp?: WeaponXp): ArsenalChoice {
+  const o = (raw && typeof raw === 'object' ? raw : {}) as { secundaria?: unknown; ligadas?: unknown; desligadas?: unknown };
+  const levels = xp && levelsOfXp(xp);
+  const asked = o.secundaria as GunId;
+  const sec = SECONDARIES.includes(asked) && (!xp || weaponUnlocked(asked, xp)) ? asked : DEFAULT_SECONDARY;
+  const srcOn = (o.ligadas && typeof o.ligadas === 'object' ? o.ligadas : {}) as Partial<Record<ProgWeapon, unknown>>;
+  const srcOff = (o.desligadas && typeof o.desligadas === 'object' ? o.desligadas : {}) as Partial<Record<ProgWeapon, unknown>>;
   const ligadas: ArsenalChoice['ligadas'] = {};
+  const desligadas: NonNullable<ArsenalChoice['desligadas']> = {};
   for (const w of PROG_WEAPONS) {
-    const on = cleanToggles(w, src[w], levels?.[w]);
+    const on = cleanToggles(w, srcOn[w], levels?.[w]);
     if (on.length) ligadas[w] = on;
+    const off = cleanOff(w, srcOff[w], levels?.[w]);
+    if (off.length) desligadas[w] = off;
   }
-  return { secundaria: sec, ligadas };
+  return { secundaria: sec, ligadas, desligadas };
 }
 
 /**
- * The upgrades in effect on a weapon at `level`: every common one unlocked, plus the optional ones turned on
- * (and unlocked); an optional one that is on replaces the common upgrades of its group. In level order.
+ * The upgrades in effect on a weapon at `level`: every common one unlocked and not turned off, plus the
+ * optional ones turned on (and unlocked); an optional one that is on replaces the common upgrades of its
+ * group. In level order.
  */
-export function activeUpgrades(w: ProgWeapon, level: number, toggled: readonly string[] = []): string[] {
+export function activeUpgrades(w: ProgWeapon, level: number, toggled: readonly string[] = [], off: readonly string[] = []): string[] {
   const unlocked = PROGRESSION[w].melhorias.filter((u) => u.nivel <= level);
   const on = unlocked.filter((u) => u.opcional && toggled.includes(u.id));
   const replaced = new Set(on.map((u) => u.grupo).filter(Boolean));
-  return unlocked.filter((u) => (u.opcional ? on.includes(u) : !(u.grupo && replaced.has(u.grupo)))).map((u) => u.id);
+  return unlocked.filter((u) => (u.opcional ? on.includes(u) : !off.includes(u.id) && !(u.grupo && replaced.has(u.grupo)))).map((u) => u.id);
 }
 
 /**
@@ -193,7 +239,7 @@ export function legacyChoice(equipped: Partial<Record<'rifle' | 'faca' | 'granad
   if (equipped.faca === 7) ligadas.faca = ['sabre'];
   if (equipped.granada === 2) ligadas.granada = ['mina'];
   if (equipped.granada === 3) ligadas.granada = ['dupla'];
-  return { secundaria: DEFAULT_SECONDARY, ligadas };
+  return { secundaria: DEFAULT_SECONDARY, ligadas, desligadas: {} };
 }
 
 /** Which weapon gets the points of a kill: `gun` is the firearm a shot came from (rifle when unknown). */

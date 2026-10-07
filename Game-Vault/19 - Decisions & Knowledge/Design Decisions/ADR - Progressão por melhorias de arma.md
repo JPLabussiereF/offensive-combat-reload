@@ -30,6 +30,9 @@ updated: 2026-10-06
 > [!info] Substitui
 > Esta decisão substitui a parte "cada nível é uma arma diferente" de [[ADR - Progressão de XP por arma]]. A regra de XP por arma (os pontos do abate vão só para a arma que matou, só de eventos validados pelo servidor) continua valendo.
 
+> [!warning] Substituída em parte (06/10/2026)
+> [[ADR - Árvore do Arsenal e armas liberadas por nível]] mudou dois pontos desta decisão: as melhorias **comuns** também ligam e desligam no Arsenal (o item 3 abaixo vale para o estado inicial e para a regra de grupo), e a **submetralhadora** só libera com a pistola no nível 3 (o item 1 dizia que as duas secundárias vêm livres). A escolha guardada (item 6) ganhou `desligadas`.
+
 ## Contexto
 
 Até aqui, cada nível de arma era uma **arma diferente com nome próprio** (rifle: Remendado com Fita, da Tia do Zap, Pisca-Pisca de Natal… até o Dourado Ostentação; faca: Colher de Pau, Frango de Borracha, Baguete, Peixe, Macarrão, Sabre de Luz). O jogador **equipava um nível** no Arsenal; os atributos subiam um pouco a cada nível, quase sem diferença sentida, e os níveis vinham rápido (rifle completo com ~5.500 pontos). Só existia uma arma de fogo.
