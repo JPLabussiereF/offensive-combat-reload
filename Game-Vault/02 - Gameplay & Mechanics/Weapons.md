@@ -18,6 +18,11 @@ source_paths:
   - shared/data/weapons/rifle_ouro.json
   - shared/data/weapons/pistola.json
   - shared/data/weapons/smg.json
+  - shared/data/weapons/grampeador.json
+  - shared/data/weapons/revolver.json
+  - shared/data/weapons/furadeira.json
+  - shared/data/weapons/garrucha.json
+  - shared/data/weapons/pistolao.json
   - shared/data/weapons/faca.json
   - shared/data/weapons/granada_frag.json
   - shared/data/progression.json
@@ -26,12 +31,13 @@ source_paths:
   - client/main.ts
   - client/core/keybinds.ts
   - client/ai/bot.ts
+  - client/ai/botGuns.ts
   - server/session.ts
 tags:
   - game
   - gameplay
   - weapons
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Weapons
@@ -50,10 +56,11 @@ Todo jogador carrega **duas armas de fogo** (um **rifle** como primária e uma *
 | Rifle Padrão ou um dos 6 rifles antigos | primária | `1` · mouse esquerdo / direito (mirar) / R | `rifle_padrao.json`, `rifle_*.json` | esta nota (§ Rifles) + [[Damage System]] |
 | Pistola do Porteiro | secundária | `2` | `pistola.json` | esta nota |
 | Submetralhadora Liquidificador | secundária | `2` | `smg.json` | esta nota |
+| Grampeador do RH, Revólver do Delegado da Quadrilha, Furadeira do Vizinho de Domingo, Garrucha do Cangaceiro, Pistolão do Marombeiro | secundária | `2` | `grampeador.json`, `revolver.json`, `furadeira.json`, `garrucha.json`, `pistolao.json` | esta nota (§ Secundárias) |
 | Faca de cozinha ou uma das 6 facas antigas | corpo a corpo | F | `faca.json`, `colher.json`… | [[Melee]] |
 | Granada (ou mina / dose dupla) | arremesso | G | `granada_frag.json` | [[Grenades]], [[Land Mines]] |
 
-O campo `slot` do JSON de cada arma de fogo decide em que espaço ela entra (`PRIMARIES`/`SECONDARIES` em `shared/progression.ts`). Os sete rifles são primários (padrão: o Rifle Padrão); o jogador leva **uma** das secundárias (padrão: a pistola). As armas com `libera` no JSON começam **trancadas**: os rifles antigos com os pontos do rifle, a submetralhadora com 1.800 pontos de pistola (ou já liberada para quem fez pontos com ela) — ver [[Progression#Armas trancadas]], [[ADR - Árvore do Arsenal e armas liberadas por nível]] e [[ADR - Rifles e facas antigos como armas próprias]].
+O campo `slot` do JSON de cada arma de fogo decide em que espaço ela entra (`PRIMARIES`/`SECONDARIES` em `shared/progression.ts`). Os sete rifles são primários (padrão: o Rifle Padrão); o jogador leva **uma** das sete secundárias (padrão: a pistola). As armas com `libera` no JSON começam **trancadas**: os rifles antigos com os pontos do rifle, as outras seis secundárias com os pontos de **pistola** (a submetralhadora com 1.800, ou já liberada para quem fez pontos com ela; as da PF-10 com 700 a 9.000, ver § Secundárias) — ver [[Progression#Armas trancadas]], [[ADR - Árvore do Arsenal e armas liberadas por nível]] e [[ADR - Rifles e facas antigos como armas próprias]].
 
 ## Atributos base das armas de fogo
 
@@ -91,13 +98,31 @@ Os seis rifles antigos voltaram das primeiras versões do jogo (PF-8) como **arm
 
 O resto (multiplicadores, queda de dano, penetração, alcance) é igual ao do Padrão. As melhorias do rifle se aplicam por cima dos atributos de cada um (`gunStats(rifle, melhorias)`).
 
+## Secundárias
+
+Cinco secundárias entraram na PF-10 ([[ADR - Secundárias novas no Arsenal]]), cada uma com um **nicho estreito** e nenhum efeito cômico de gameplay (a graça está no nome, no [[Weapon Models|modelo]] e no [[SFX|som]]). Grampeador, revólver, garrucha e pistolão usam **os pontos, o nível e as melhorias da pistola**; a furadeira, os da **submetralhadora** (`progOf`). Todas liberam com pontos **de pistola**, na ordem da linha: pistola (livre), grampeador 700, submetralhadora 1.800, revólver 3.200, furadeira 5.200, garrucha 7.000, pistolão 9.000 (os dois últimos acima do último nível da pistola: os pontos continuam contando).
+
+Diferenças sobre a Pistola do Porteiro (o que não está na tabela é igual a ela, inclusive os multiplicadores fora a cabeça e a penetração, menos na garrucha):
+
+| Arma (`GunId`) | Gatilho | Dano perto → longe (queda entre) | Cabeça | Pente / reserva | Recarga tática / vazia | Outras diferenças |
+|---|---|---|---|---|---|---|
+| 📎 Grampeador do RH (`grampeador`) | **rajada** de 3 a 1.100/min, pausa mínima 0,2 s | 24 → 15 (10–28 m) | ×2,5 | 18 / 72 | 1,5 / 1,8 s | recuo 0,9°, +0,3° de dispersão por tiro |
+| ⭐ Revólver do Delegado da Quadrilha (`revolver`) | semi 150/min | 50 → 32 (10–30 m) | ×2 | 6 / 36 | 2,4 / 2,4 s | dispersão parado 0,5°, +0,9°/tiro; recuo 2,6°; ADS 0,18 s; mobilidade 1,04; saque 0,4 s; coice na tela ×1,6 |
+| 🔩 Furadeira do Vizinho de Domingo (`furadeira`) | automática 1.200/min | 17 → 9 (5–16 m) | ×1,8 | 20 / 80 | 1,6 / 1,9 s | dispersão parado 1,3°, mirando 0,4°, +0,35°/tiro; recuo 0,45° vertical, ±0,9° horizontal; ADS 0,12 s, zoom 0,95; mobilidade 1,08; saque 0,25 s; alcance 120 m |
+| 🌵 Garrucha do Cangaceiro (`garrucha`) | semi 300/min, **8 bagos** num cone fixo de 4,5° | 13 → 4 **por bago** (3–12 m) | ×1,5 por bago | 2 / 16 | 2,2 / 2,2 s | alcance 40 m; **sem penetração**; coice na tela ×2 |
+| 💪 Pistolão do Marombeiro (`pistolao`) | semi 170/min | 60 → 40 (15–40 m) | ×2 | 7 / 28 | 2,0 / 2,5 s | dispersão parado 1,0°, andando 2,0°, +1,2°/tiro; recuo 4,0°; ADS 0,2 s; mobilidade 1,0; saque 0,5 s; coice na tela ×2,5 |
+
+- **Rajada** (`modo: "rajada"`, `rajada: { tiros, pausa }`): um clique (ou um toque mais curto que um tick) dispara os 3 grampos na cadência; depois do último, pelo menos 0,2 s até a próxima. **Segurar não repete**: é preciso soltar e clicar de novo. A rajada termina sozinha ao soltar, mas para se a arma for guardada, a recarga começar, o sprint voltar, as mãos ficarem ocupadas (faca, dança, granada, saque) ou o pente acabar (com 2 grampos, saem 2). O Gatilho de Fliperama da pistola acelera a cadência dentro da rajada, não a pausa.
+- **Bagos** (`bagos`, `cone`): cada disparo sorteia 8 direções uniformes num cone de meio-ângulo 4,5° em volta de onde o tiro vai (a direção do tiro tem a dispersão normal da arma; o cone dos bagos não abre com movimento). **Cada bago é um raio e cada bago que acerta é um acerto próprio** (dano, região, distância e penetração dele) — ver [[Damage System]]. Os outros veem um único tiro.
+- **Regra de equilíbrio** (P10 do plano, `server/tests/secondaries.test.ts`): com qualquer combinação das melhorias da progressão dela, nenhuma mata (no peito) mais rápido que o Rifle Padrão de 15 m em diante (rifle: 0,257 s até 30 m, 0,343 s a 40 m). Cada uma ganha de perto, no seu nicho: a furadeira (0,223 s a 5 m com o Motor), a garrucha (um tiro com os 8 bagos no peito até 3 m), o pistolão (2 tiros até ~28 m, 0,271 s com o Gatilho). **Tiro único na cabeça** só de perto: revólver até 10 m, pistolão até ~27 m (com o Silenciador de Batata, o revólver perde o tiro único e o pistolão só o tem até ~22 m).
+
 **TTK ideal** (fórmula do design doc, `idealTtk`): `(ceil(100 / dano) − 1) × 60 / cadência`. No peito, a curta distância e sem melhorias: rifle 4 tiros ⇒ 0,257 s; SMG 5 tiros ⇒ 0,253 s (mas cai rápido com a distância); pistola 4 tiros ⇒ 0,45 s (se o dedo acompanhar).
 
 O que cada melhoria muda (dano, cadência, pente, mira, silenciador…) está em [[Progression]]; os números com as melhorias saem de `gunStats` (abaixo).
 
 ## Como o jogador interage
 
-- **Atirar**: segurar o botão nas automáticas (até 4 tiros por tick para não perder cadência); na pistola, cada clique é um tiro (`modo: semi`). Um toque mais curto que um tick ainda dispara.
+- **Atirar**: segurar o botão nas automáticas (até 4 tiros por tick para não perder cadência); nas semiautomáticas (pistola, revólver, garrucha, pistolão), cada clique é um tiro (`modo: semi`); no grampeador, cada clique é uma rajada de 3 (`modo: rajada`). Um toque mais curto que um tick ainda dispara.
 - **Mirar (ADS)**: segurar o botão direito. Entra em `ads.tempo`, sai 1,3× mais rápido. Reduz o FOV (`zoom`) e a sensibilidade (`adsSensitivity` das [[Settings]]). Correr derruba a mira. Com uma luneta (2x, a do Vovô 3x ou 4x), mirar por completo mostra a visão da luneta.
 - **Recarregar**: R. Atirar com pente vazio e reserva > 0 recarrega sozinho; sem reserva toca "clique seco".
 - **Trocar de arma**: `1` (primária), `2` (secundária), roda do mouse (qualquer direção vai para a outra) — ações `weapon1`, `weapon2`, `swapWeapon`, remapeáveis ([[ADR - Teclas remapeáveis com primária e alternativa]]); no controle, **D-pad ←/→**; no celular, o botão de troca acima do pulo ([[Touch Controls]]).
@@ -132,7 +157,7 @@ O que cada melhoria muda (dano, cadência, pente, mira, silenciador…) está em
 
 - Dano cai linearmente entre `distMax` e `distMin` ([[Damage System]]).
 - **Penetração**: atravessa superfícies finas dos materiais listados no JSON, mantendo parte do dano; mais grosso que `espessuraMax` no caminho para a bala. Tijolo, reboco, concreto e carros sempre param.
-- **Silenciador** (melhoria opcional do rifle e da pistola): os outros só ouvem o tiro de perto (som abafado, tipo `step` do áudio espacial) e não veem o traçante. Ver [[SFX]].
+- **Silenciador** (melhoria opcional do rifle e da pistola; a batata da pistola vale também no grampeador, no revólver, na garrucha e no pistolão): os outros só ouvem o tiro de perto (som abafado, tipo `step` do áudio espacial) e não veem o traçante. Ver [[SFX]].
 - Peixes e frutas não param a bala ([[Map Gags]]).
 
 ### Interações com outras ações
@@ -147,19 +172,19 @@ Por arma: `ads` (0..1), `reloading` (tática/vazia), `cooldown`, `bloom`, `recoi
 
 ## Entradas
 
-`WeaponInput`: `fireHeld`, `firePressed`, `adsHeld`, `reloadPressed`, `sprinting`, `grounded`, `crouched`, `speed`. Ações de troca: `weapon1`, `weapon2`, `swapWeapon`.
+`WeaponInput`: `fireHeld`, `firePressed`, `adsHeld`, `reloadPressed`, `sprinting`, `grounded`, `crouched`, `speed`, `holdFire?` (mãos ocupadas: corta uma rajada em andamento). Ações de troca: `weapon1`, `weapon2`, `swapWeapon`.
 
 ## Saídas
 
-Callback `shoot(spread, shotIndex)` → `traceShot` (raio Rapier) → acerto em hitbox / superfície / nada. Efeitos: flash, traçante, decal, partículas, som da arma (`gunshot(volume, voz)`: rifle, pistola, smg ou silenciado) — ver [[Visual Effects]], [[SFX]]. Online: `shot` (cosmético) e `hit {target, region, dist, w, keep?}` com `w` = a arma que atirou — ver [[Remote Calls]].
+Callback `shoot(spread, shotIndex, bagos)` → `traceShot` (raio Rapier; um por bago na garrucha, `offsetDir`) → acerto em hitbox / superfície / nada. Efeitos: flash, coice na tela (× `coiceVisual`), traçante, decal, partículas, som da arma (`gunshot(volume, voz)`: a voz de cada arma ou silenciado) — ver [[Visual Effects]], [[SFX]]. Online: um `shot` (cosmético) por disparo e um `hit {target, region, dist, w, keep?}` por bala ou bago que acerta, com `w` = a arma que atirou — ver [[Remote Calls]]. O som e o marcador de acerto tocam uma vez por disparo (o melhor resultado entre os bagos).
 
 ## Validação online
 
-O servidor aceita o `hit` só se `w` for a arma na mão (um rifle antigo vai com o próprio id, ex.: `rifleTia`) (pelo `FLAG.secondary`), a que acabou de ser guardada ou a que o modo acabou de trocar (menos de 1 s, `SWITCH_GRACE_MS`: tiros já disparados), e se ela estiver no loadout do jogador. Um loadout `soFaca` (o Sabre de Luz da corrida armada) não aceita tiro nenhum. Cadência, alcance, penetração mínima e dano são os **dessa arma com as melhorias do jogador** (`gunStats`). O abate informa a arma (`kill.arma`, o rifle que atirou) e **os pontos vão para a progressão dela**: abates de pistola evoluem a pistola; com qualquer rifle, o rifle. Ver [[ADR - Acertos informados pelo cliente com tolerância de lag]] e [[Anti Cheat]].
+O servidor aceita o `hit` só se `w` for a arma na mão (um rifle antigo vai com o próprio id, ex.: `rifleTia`) (pelo `FLAG.secondary`), a que acabou de ser guardada ou a que o modo acabou de trocar (menos de 1 s, `SWITCH_GRACE_MS`: tiros já disparados), e se ela estiver no loadout do jogador. Um loadout `soFaca` (o Sabre de Luz da corrida armada) não aceita tiro nenhum. Cadência, alcance, penetração mínima e dano são os **dessa arma com as melhorias do jogador** (`gunStats`); o limite de acertos por segundo é `(ceil(cadência/60) + 2) × bagos` (`hitsPerSecond`: 8× na garrucha). O abate informa a arma (`kill.arma`, a arma que atirou) e **os pontos vão para a progressão dela**: abates de pistola, grampeador, revólver, garrucha e pistolão evoluem a pistola; de furadeira, a submetralhadora; com qualquer rifle, o rifle. Ver [[ADR - Acertos informados pelo cliente com tolerância de lag]] e [[Anti Cheat]].
 
 ## Bots
 
-No mata-mata, cada bot sorteia a arma a cada vida (60% um dos sete rifles, todos com a mesma chance; 25% SMG; 15% pistola) e uma faca qualquer, sem melhorias e sem travas (bot não tem conta) (na corrida armada usa a do degrau), e a usa como um jogador (a pistola com o gatilho pulsado tick a tick). O kill feed mostra a arma certa. Ver [[Versus Bots]].
+No mata-mata, cada bot sorteia a arma a cada vida (`pickGun` em `client/ai/botGuns.ts`: 60% um dos sete rifles, 40% uma das sete secundárias, todos com a mesma chance dentro do grupo) e uma faca qualquer, sem melhorias e sem travas (bot não tem conta) (na corrida armada usa a do degrau), e a usa como um jogador (semi e rajada com o gatilho pulsado tick a tick; a garrucha com um raio por bago). O kill feed mostra a arma certa. Ver [[Versus Bots]].
 
 ## API para modos de jogo
 
@@ -179,17 +204,17 @@ Os modos montam armas só com dados, pelas funções de `shared/arsenal.ts` (det
 > [!warning] Divergência
 > O cabeçalho de `client/weapons/weapon.ts` e o `README.md` falam em "atraso de saída do sprint". No código atual não há atraso temporizado: puxar o gatilho encerra o sprint no mesmo tick e só um sprint **ainda ativo** bloqueia o tiro.
 
-- Campos do JSON das armas **declarados mas não usados** pelo código: `categoria`, `desbloqueioNivel` (a trava usada é `libera`), `preco`, `slotsAcessorio`, `modelo` (os `.glb` citados não existem; os modelos são procedurais) e `sons`. O `modo` só distingue `auto` de semi/rajada (rajada não está implementada à parte). Ver [[Technical Debt]].
+- Campos do JSON das armas **declarados mas não usados** pelo código: `categoria`, `desbloqueioNivel` (a trava usada é `libera`), `preco`, `slotsAcessorio`, `modelo` (os `.glb` citados não existem; os modelos são procedurais) e `sons`. O `modo` distingue `auto`, `semi` e `rajada` (esta com os dados de `rajada`; sem eles, vira semi). Ver [[Technical Debt]].
 
 ## Código relacionado
 
-- `shared/weapons.ts` — `WeaponData` (com `troca`, `icone`, `visual`, `libera`), `WeaponLock`, `PenetrationData`, `damageAtDistance`, `computeDamage`, `idealTtk`, `minPenetrationKeep`, `WEAPONS`.
+- `shared/weapons.ts` — `WeaponData` (com `troca`, `icone`, `visual`, `libera`, `rajada`, `bagos`, `cone`, `coiceVisual`), `WeaponLock`, `PenetrationData`, `damageAtDistance`, `computeDamage`, `idealTtk`, `minPenetrationKeep`, `pelletsOf`, `hitsPerSecond`, `WEAPONS`.
 - `shared/arsenal.ts` — `gunStats`, `meleeStats`, `grenadeStats`, `resolveLoadout`, `knifeOf`, `loadoutKnife`, `Loadout`, `GunSlot`.
 - `shared/progression.ts` — `GunId`, `GUN_IDS`, `GUN_DATA_ID`, `PRIMARIES`, `SECONDARIES`, `progOf`, `lockOf`, `weaponUnlocked`.
-- `client/weapons/weapon.ts` — classe `Weapon` (cadência, recarga, dispersão, recuo, ADS, `holster`, `setData`).
-- `client/weapons/hitscan.ts` — `traceShot` (penetração), `applySpread`.
+- `client/weapons/weapon.ts` — classe `Weapon` (cadência, rajada, recarga, dispersão, recuo, ADS, `holster`, `setData`), `pelletSpread`, `Pellet`.
+- `client/weapons/hitscan.ts` — `traceShot` (penetração), `applySpread`, `offsetDir` (a direção de cada bago).
 - `client/main.ts` — `guns`, `holdSlot`, `switchTo`, `applyLoadout`, hooks de tiro (`gunHooks`).
-- `server/session.ts` — `firedGun`, `onHit`.
+- `server/session.ts` — `firedGun`, `onHit`, `fireRate`.
 
 ## Configurações relacionadas
 

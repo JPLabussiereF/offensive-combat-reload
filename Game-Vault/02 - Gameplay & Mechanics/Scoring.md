@@ -18,7 +18,7 @@ tags:
   - game
   - gameplay
   - scoring
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Scoring
@@ -58,7 +58,7 @@ O comentário no código explica o valor da opressão: *"Tripled: dancing on a b
 
 - **Os bônus só valem no golpe que mata.** No servidor, os prêmios são montados a cada acerto e só são somados se aquele dano matar (`damage` → `kill`).
 - `headshot` e `groin` se excluem: a região do acerto decide o tipo (`head`, `groin` ou `gun`).
-- `longShot` vale só para armas de fogo (rifle, pistola ou submetralhadora). A distância usada é a informada pelo cliente, limitada ao alcance máximo da arma que atirou e conferida pelo servidor.
+- `longShot` vale só para armas de fogo (rifles e secundárias). A distância usada é a informada pelo cliente, limitada ao alcance máximo da arma que atirou e conferida pelo servidor.
 - **Poção crítica** ([[Buffs & Debuffs]]): todo tiro causa dano de cabeça, mas o prêmio continua sendo da região que foi acertada.
 - **Mortes sem atacante** (queda, vazio, a própria granada, a Amora) não dão pontos a ninguém e **não tiram pontos** de ninguém. Só somam uma morte. Não há pontuação negativa.
 - **Opressão:** a pontuação só sai se a dança durar pelo menos `HUMILIATION.duration` (3,2 s, com 0,4 s de tolerância no servidor). Se for interrompida, não pontua.

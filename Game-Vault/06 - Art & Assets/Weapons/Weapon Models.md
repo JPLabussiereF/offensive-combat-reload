@@ -16,35 +16,41 @@ source_paths:
   - client/entities/avatar.ts
   - client/character/animator.ts
   - shared/arsenal.ts
+  - shared/weapons.ts
 tags:
   - game
   - art
   - weapons
   - assets
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Weapon Models
 
 ## Visão geral
 
-Todas as armas são **modelos feitos de primitivas em código** ("placeholder art", comentário de `weaponModels.ts`), sem arquivos. Cada arma de fogo tem o seu modelo (rifle, pistola, submetralhadora); os sete rifles usam o mesmo modelo com a **pintura** de cada um, e as **melhorias** mudam a mira, o pente e o silenciador. Cada uma das sete facas tem o seu modelo, e a granada vira mina ou Dose Dupla. Os rifles pintados, as miras com aumento e as facas antigas voltaram das primeiras versões do jogo (PF-8; recuperados do histórico do git). Os mesmos modelos servem para a primeira pessoa (viewmodel) e para a terceira pessoa (o que os outros veem). Regras de jogo das melhorias: [[Weapons]] e [[Progression]].
+Todas as armas são **modelos feitos de primitivas em código** ("placeholder art", comentário de `weaponModels.ts`), sem arquivos. Cada arma de fogo tem o seu modelo (rifle, pistola, submetralhadora e as cinco secundárias da PF-10); os sete rifles usam o mesmo modelo com a **pintura** de cada um, e as **melhorias** mudam a mira, o pente e o silenciador. Cada uma das sete facas tem o seu modelo, e a granada vira mina ou Dose Dupla. Os rifles pintados, as miras com aumento e as facas antigas voltaram das primeiras versões do jogo (PF-8; recuperados do histórico do git). Os mesmos modelos servem para a primeira pessoa (viewmodel) e para a terceira pessoa (o que os outros veem). Regras de jogo das melhorias: [[Weapons]] e [[Progression]].
 
 ## Armas de fogo
 
-`gunParts(g)` monta o modelo de uma arma a partir de `GunLookKey` (`arma`, `mira`, `visual`, `silenciador`, `pente`, todos vindos de `gunStats`). `gunModelKey(g)` é a chave de cache com esses mesmos campos. Todas as armas têm o punho no mesmo lugar, então os braços, as poses e o suporte de terceira pessoa servem para todas. `holdOf(arma)` diz onde vai a mão de apoio: `longa` (guarda-mão do rifle), `curta` (empunhadura da submetralhadora) ou `pistola` (a mão esquerda envolve o punho).
+`gunParts(g)` monta o modelo de uma arma a partir de `GunLookKey` (`arma`, `mira`, `visual`, `silenciador`, `pente`, todos vindos de `gunStats`). `gunModelKey(g)` é a chave de cache com esses mesmos campos. Todas as armas têm o punho no mesmo lugar, então os braços, as poses e o suporte de terceira pessoa servem para todas. `holdOf(arma)` diz onde vai a mão de apoio, pelo `slot` do JSON: `longa` (guarda-mão: todo rifle), `curta` (empunhadura da submetralhadora) ou `pistola` (a mão esquerda envolve o punho: toda outra secundária). `GUN_MODELS` liga cada arma ao seu construtor; uma arma sem entrada cai no modelo do rifle (`client/tests/weapon.test.ts` confere que toda secundária tem o seu, na mão certa).
 
 | Arma | Construção base | Pente | Silenciador |
 | --- | --- | --- | --- |
 | Rifle | receptor, cano, guarda-mão, coronha, empunhadura, faixa colorida; mira de ferro (massa e alça) | com mais de 30 balas (melhoria Pente), **dois pentes lado a lado com fita** | garrafa PET de 2 L verde com rótulo vermelho na boca do cano |
 | Pistola | ferrolho com serrilhas, armação, punho de madeira, **chaveiro do porteiro** pendurado; massa de mira com ponto verde | pente curto no punho | **uma batata** na boca do cano |
 | Submetralhadora | corpo branco de eletrodoméstico com faixa vermelha, botão de velocidade (1 a 5) na lateral, empunhadura frontal, coronha de arame | com mais de 40 balas (Pente Tambor), **tambor de pipoqueira** listrado de branco e vermelho | — |
+| Grampeador do RH | **grampeador de escritório**: base cinza, braço preto com dobradiça atrás e lábio de aço na boca; etiqueta branca com **"RH"** em vermelho (letras de pixel) na lateral e um **post-it amarelo** colado em cima; punho preto da pistola | a barra de grampos prateada encaixada na base | a batata da pistola |
+| Revólver do Delegado da Quadrilha | cano longo, armação de aço, cão, **tambor** com seis canaletas, **cabo de madeira** curvo; **estrela de delegado de lata** na lateral e um **lenço xadrez de festa junina** (vermelho e branco) amarrado sob o cano | o tambor (desce na recarga) | a batata da pistola |
+| Furadeira do Vizinho de Domingo | **furadeira sem fio amarela e preta**: carcaça do motor, tampa traseira com respiros, anel de torque, mandril e **a broca como cano**; cabo preto com costas amarelas, gatilho vermelho e chave de sentido | **a bateria** (preta com faixa amarela) no pé do cabo | — (a progressão da submetralhadora não tem silenciador) |
+| Garrucha do Cangaceiro | **dois canos lado a lado** com as bocas escuras, culatra de aço, dois cães, telha de madeira; **cabo curvo de couro** com **estrelas e meia-lua** douradas e tachas de latão, terminando num pomo de madeira; **lenço vermelho** amarrado no cabo | os dois cartuchos na culatra | a batata da pistola |
+| Pistolão do Marombeiro | **pistola enorme cromada**: ferrolho grande com serrilhas e nervura; **munhequeira de academia** vermelha e branca no cabo; **adesivo "NO PAIN NO GAIN"** (amarelo, letras pretas de pixel) na lateral do ferrolho | pente grande no punho | a batata da pistola |
 
 | Mira (`mira`) | Onde aparece | Detalhe visual |
 | --- | --- | --- |
 | `ferro` | sem melhoria de mira | massa e alça da própria arma |
-| `pontoVermelho` | rifle (nível 2) e pistola (nível 3, versão mini, escala 0,65) | tubo com aros e ponto vermelho brilhante |
-| `holo` | submetralhadora (nível 3) | janela holográfica com **retículo de carinha feliz** amarelo |
+| `pontoVermelho` | rifle (nível 2) e pistola (nível 3, versão mini, escala 0,65; o mesmo no grampeador, no revólver, na garrucha e no pistolão) | tubo com aros e ponto vermelho brilhante |
+| `holo` | submetralhadora (nível 3; também na furadeira) | janela holográfica com **retículo de carinha feliz** amarelo |
 | `luneta` | rifle (nível 4, opcional) | luneta do vovô em latão com lente azulada; mirando por completo, o modelo some e entra o overlay de luneta ([[Camera]]) |
 | `holoLupa` | rifle (nível 7, opcional) | a holográfica de carinha feliz com uma **lupa** (tubo curto) atrás |
 | `luneta2x` / `luneta4x` | rifle (níveis 8 e 9, opcionais) | lunetas de latão como a do vovô, mais curta (2x) e mais comprida e larga (4x); mirando por completo, o overlay de luneta. `isScope(mira)`: toda mira que começa com `luneta` |
@@ -53,7 +59,7 @@ A pintura vem do JSON de cada rifle (`visual`); as melhorias não a mudam.
 
 | Pintura (`visual`) | Rifle | Detalhe |
 | --- | --- | --- |
-| `padrao` | Rifle Padrão; pistola e submetralhadora sempre | metal escuro, madeira, faixa laranja |
+| `padrao` | Rifle Padrão; as miras de todas as secundárias | metal escuro, madeira, faixa laranja (as secundárias da PF-10 têm cores próprias no construtor, sem `visual`) |
 | `fita` | Remendado com Fita | voltas de fita cinza no guarda-mão e na coronha |
 | `tia` | da Tia do Zap | branco e rosa, faixa verde-água, adesivo de florzinha na coronha |
 | `natal` | Pisca-Pisca de Natal | madeira vermelha, faixa verde, fio de luzinhas coloridas (brilhantes) no guarda-mão e no cano |
@@ -63,7 +69,9 @@ A pintura vem do JSON de cada rifle (`visual`); as melhorias não a mudam.
 
 O pente duplo com fita aparece em qualquer rifle com mais de 30 balas (o Pente, ou o Dourado, que já tem 40).
 
-- **Altura da linha de mira (`sightY`)** define a pose de ADS. A pistola e a submetralhadora têm também uma distância de ADS própria (`adsZ`: −0,46 e −0,42), "a pistol is held out farther".
+- **Altura da linha de mira (`sightY`)** define a pose de ADS. As secundárias têm também uma distância de ADS própria (`adsZ`): pistola e grampeador −0,46, submetralhadora −0,42, furadeira −0,44, garrucha −0,46, pistolão −0,48 e revólver −0,5, "a pistol is held out farther".
+- **Coice na tela**: o viewmodel dá um tranco para trás, para cima e para o lado a cada tiro; `viewmodel.kick(coiceVisual)` multiplica esse tranco (e o limite dele) pelo `coiceVisual` do JSON: revólver ×1,6, garrucha ×2, pistolão ×2,5; as outras ×1. Só visual: o recuo da mira é o `recuo` da arma ([[Weapons]]).
+- **Letras de pixel** (`pixelText`, fonte 3×5 de caixinhas): o "RH" do grampeador e o "NO PAIN NO GAIN" do pistolão, no lado esquerdo da arma (o que a câmera de primeira pessoa vê).
 - Partes que brilham (ponto vermelho, retículo, ponto da massa da pistola, lente) são `MeshBasicMaterial` e ficam fora do merge, "para continuarem claras".
 
 Paletas em `LOOKS` (`weaponModels.ts`); ver também [[Material Palette]].
@@ -112,16 +120,16 @@ Antebraço e mão do próprio personagem, gerados com o mesmo corpo facetado (`v
 
 ## Código relacionado
 
-- `client/render/weaponModels.ts` (`gunParts`, `gunModelKey`, `holdOf`, `sight`, `isScope`, `LOOKS`, `knifeModel`, `mineModel`, `glowMat`)
-- `client/render/viewmodel.ts` (`setGun`, `draw`, `setKnife`, `setGrenadeKind`, `bakeStaticParts`, `flashTexture`)
+- `client/render/weaponModels.ts` (`gunParts`, `GUN_MODELS`, `gunModelKey`, `holdOf`, `sight`, `isScope`, `LOOKS`, `pixelText`, `potato`, `knifeModel`, `mineModel`, `glowMat`)
+- `client/render/viewmodel.ts` (`setGun`, `draw`, `kick(mul)`, `setKnife`, `setGrenadeKind`, `bakeStaticParts`, `flashTexture`)
 - `client/render/viewmodelArms.ts` (`armMesh`, `placeArm`)
 - `client/entities/heldWeapons.ts` (`heldGun`, `heldKnife`, `heldGrenade`)
 - `client/entities/avatar.ts` (`setLoadout`: as duas armas na mão, a primária nas costas)
 - `client/character/animator.ts` (`GunHold`, `ANIM.leftGrip`)
 - `client/weapons/grenades.ts` (`grenadeModel`, `duckModel`)
 - `client/character/registry.ts` (itens `rifle`, `rifle_costas`)
-- `shared/data/progression.json` (miras), `shared/data/weapons/rifle_*.json` (`visual`), `shared/arsenal.ts` (`GunStats`: `mira`, `visual`, `silenciador`, `pente`)
+- `shared/data/progression.json` (miras), `shared/data/weapons/rifle_*.json` (`visual`), `shared/data/weapons/*.json` (`slot`, `coiceVisual`), `shared/arsenal.ts` (`GunStats`: `mira`, `visual`, `silenciador`, `pente`)
 
 ## Ver também
 
-[[Weapons]] · [[Progression]] · [[Animation]] · [[Visual Effects]] · [[Material Palette]]
+[[Weapons]] · [[Progression]] · [[Animation]] · [[Visual Effects]] · [[Material Palette]] · [[ADR - Secundárias novas no Arsenal]]

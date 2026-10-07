@@ -117,7 +117,7 @@ O servidor ([server/](server/)) é a autoridade sobre **contas, vida, dano, abat
 
 ## Armas e progressão
 
-Todo jogador leva uma **primária** (o Rifle Padrão), uma **secundária** à escolha no Arsenal (a **Pistola do Porteiro**, semiautomática e rápida de sacar, ou a **Submetralhadora Liquidificador**, que cospe bala de perto e deixa você mais rápido), a faca e as granadas. Troque de arma com `1`/`2` ou a roda do mouse (teclas remapeáveis), com `←`/`→` no controle ou o botão de troca no celular; sacar leva um instante (a pistola é a mais rápida). Cada arma tem o seu pente, e os outros jogadores veem qual está na sua mão. Os atributos de cada arma ficam em [shared/data/weapons/](shared/data/weapons/).
+Todo jogador leva uma **primária** (o Rifle Padrão), uma **secundária** à escolha no Arsenal entre sete: a **Pistola do Porteiro** (semiautomática e rápida de sacar; a de todo mundo no começo), o **Grampeador do RH** (três grampos por clique), a **Submetralhadora Liquidificador** (cospe bala de perto e deixa você mais rápido), o **Revólver do Delegado da Quadrilha** (seis balas que batem forte), a **Furadeira do Vizinho de Domingo** (fura tudo de pertinho), a **Garrucha do Cangaceiro** (dois tiros de chumbinho, oito bagos cada) e o **Pistolão do Marombeiro** (bate como um rifle, coice no teto). As seis depois da pistola liberam com os pontos da pistola (700 a 9.000), a faca e as granadas. Troque de arma com `1`/`2` ou a roda do mouse (teclas remapeáveis), com `←`/`→` no controle ou o botão de troca no celular; sacar leva um instante (a pistola é a mais rápida). Cada arma tem o seu pente, e os outros jogadores veem qual está na sua mão. Os atributos de cada arma ficam em [shared/data/weapons/](shared/data/weapons/).
 
 Cada abate rende pontos (o abate mais os bônus: tiro na cabeça, "no pássaro", facada pelas costas…) **só para a arma que matou**, inclusive a secundária. O progresso fica **na conta**, no servidor: os pontos só vêm de abates online que o servidor validou. No campo de tiro e contra bots valem as melhorias da conta, mas esses modos não dão pontos. Sem conta, as armas ficam sem melhorias.
 
@@ -126,8 +126,8 @@ Cada nível libera **uma melhoria** que muda atributos de verdade. As comuns lig
 | Arma | Melhorias (nível: pontos) |
 |---|---|
 | Rifle | 2: Mira de Ponto Vermelho da Feira (1000) · 3: Empunhadura de Cabo de Vassoura (2500) · 4: Luneta do Vovô 3x, opcional (4500) · 5: Pente Duplo com Silver Tape, +10 balas (7000) · 6: Silenciador de Garrafa PET, opcional (10000) |
-| Pistola | 2: Gatilho de Fliperama (700) · 3: Mini Ponto Vermelho (1800) · 4: Coldre de Velcro (3200) · 5: Silenciador de Batata, opcional (5200) |
-| Submetralhadora | 2: Motor Turbo (800) · 3: Mira Holográfica da Tia do Zap (2000) · 4: Pente Tambor de Pipoqueira, opcional (3800) · 5: Coronha de Mangueira (6000) |
+| Pistola (e grampeador, revólver, garrucha, pistolão) | 2: Gatilho de Fliperama (700) · 3: Mini Ponto Vermelho (1800) · 4: Coldre de Velcro (3200) · 5: Silenciador de Batata, opcional (5200) |
+| Submetralhadora (e furadeira) | 2: Motor Turbo (800) · 3: Mira Holográfica da Tia do Zap (2000) · 4: Pente Tambor de Pipoqueira, opcional (3800) · 5: Coronha de Mangueira (6000) |
 | Faca | 2: Afiador da Feira (600) · 3: Frango de Borracha, opcional (1500) · 4: Tênis de Molinha (2800) · 5: Sabre de Luz Paraguaio, opcional (4500) |
 | Granada | 2: **Mina Terrestre**, opcional (700): G planta; arma em 1 s e explode quando um inimigo pisa perto; até 3 no mapa · 3: **Dose Dupla**, opcional (1800): um G lança duas · 4: Cinto de Granadas da Tia, +1 (3200) · 5: Pólvora de São João, explosão 20% maior (5000) |
 

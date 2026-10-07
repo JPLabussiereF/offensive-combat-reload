@@ -22,7 +22,7 @@ tags:
   - game
   - security
   - validation
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Validation
@@ -59,9 +59,9 @@ Validação de entrada em cada camada. As regras ficam, sempre que possível, em
 | Chat | `sanitizeChat`: corta em 480 chars antes de processar, troca quebras/tabs por espaço, remove controles C0/C1, *zero-width* (exceto ZWJ, para emojis) e **overrides bidirecionais** (evita falsificar nome alheio), colapsa espaços, limita a **120 code points** |
 | Prop | regex `^[a-z]{1,16}(:\d{1,3})?$` |
 | Região de acerto | lista `HIT_REGIONS` |
-| Arma do acerto (`w`) | `isGun` (os sete rifles, a pistola e a submetralhadora); precisa ser a arma em mãos ou a guardada há < 1 s, e estar no loadout (`firedGun`): um rifle que não é o escolhido é ignorado |
+| Arma do acerto (`w`) | `isGun` (os sete rifles e as sete secundárias); precisa ser a arma em mãos ou a guardada há < 1 s, e estar no loadout (`firedGun`): um rifle que não é o escolhido é ignorado |
 | Golpe (`stab`) | alcance e intervalo da **faca do loadout** com as melhorias (`loadoutKnife`), + 1,5 m de folga |
-| Escolha do Arsenal (`loadout`) | `equip` → `sanitizeChoice(raw, xp)`: melhorias não liberadas são descartadas e a secundária trancada vira a pistola (sem erro); o `Loadout` é resolvido no servidor (`loadoutOf`) |
+| Escolha do Arsenal (`loadout`) | `equip` → `sanitizeChoice(raw, xp)`: melhorias não liberadas são descartadas e a secundária trancada (qualquer uma das seis com trava em pontos de pistola) vira a pistola (sem erro); o `Loadout` é resolvido no servidor (`loadoutOf`) |
 | `Loadout` recebido pelo cliente (`playerLoadout`, `PlayerInfo.lo`) | `sanitizeLoadout` em `client/net/remote.ts`: ids desconhecidos descartados; serve só para desenhar, nunca para regras |
 | Ids de itens/criaturas | precisam existir no mapa da sala |
 | Pitch | limitado a ±1,6 rad; flags `| 0` |

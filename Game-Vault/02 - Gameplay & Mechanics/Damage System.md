@@ -16,13 +16,14 @@ source_paths:
   - shared/protocol.ts
   - shared/data/weapons/pistola.json
   - shared/data/weapons/smg.json
+  - shared/data/weapons/garrucha.json
   - shared/arsenal.ts
 tags:
   - game
   - gameplay
   - combat
   - damage
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Damage System
@@ -54,7 +55,7 @@ Transformar um acerto (bala, faca, explosão, queda, mapa) em perda de vida de f
 
 ## Arma de fogo: fórmula
 
-A mesma fórmula vale para o rifle, a pistola e a submetralhadora. Os números saem de `gunStats(arma, melhorias)` (`shared/arsenal.ts`): o JSON da arma com as melhorias ativas aplicadas (o silenciador, por exemplo, multiplica o dano por 0,9). Valores de cada arma em [[Weapons]]; os exemplos abaixo são do rifle sem melhorias.
+A mesma fórmula vale para o rifle e todas as secundárias. Na **garrucha** (`bagos: 8`), a fórmula vale **por bago**: cada bago é um raio próprio, com a sua distância, região e `keep`, e cada um que acerta é um acerto (e um dano) separado; `dano` no JSON é o de um bago (13 → 4). Ver [[Weapons#Secundárias]]. Os números saem de `gunStats(arma, melhorias)` (`shared/arsenal.ts`): o JSON da arma com as melhorias ativas aplicadas (o silenciador, por exemplo, multiplica o dano por 0,9). Valores de cada arma em [[Weapons]]; os exemplos abaixo são do rifle sem melhorias.
 
 ```
 dano = max(1, round( danoPorDistância(dist) × multiplicador[região] × keep ))
@@ -76,7 +77,7 @@ dano = max(1, round( danoPorDistância(dist) × multiplicador[região] × keep )
 | `canelas` | 0,6 | 18 |
 | `virilha` | — | 9999 (instantâneo) |
 
-3. **`keep`** (penetração): produto das frações de cada superfície atravessada (madeira 0,6, vidro 0,9, papel 0,95; até 2 superfícies). Menor `keep` possível do rifle = 0,6² = 0,36; da pistola e da submetralhadora (1 superfície, madeira 0,5) = 0,5.
+3. **`keep`** (penetração): produto das frações de cada superfície atravessada (madeira 0,6, vidro 0,9, papel 0,95; até 2 superfícies). Menor `keep` possível do rifle = 0,6² = 0,36; da pistola e das outras secundárias (1 superfície, madeira 0,5) = 0,5; a garrucha não atravessa nada (sem `penetracao`, `keep` = 1).
 4. **Virilha ignora tudo**: mata mesmo atravessando madeira.
 5. **Poção do crítico**: enquanto ativa, todo tiro do jogador é calculado como `cabeca` (o acerto continua contando onde caiu para pontos), **exceto a virilha**, que continua morte instantânea. A regra é `critRegion` (`shared/weapons.ts`), usada no servidor (jogadores e zumbis) e no jogo offline (bots e campo de tiro). Até 2026-10-06 a virilha também virava cabeça: o abate contava "No pássaro" mas com dano de cabeça. Ver [[Buffs & Debuffs]].
 
@@ -158,4 +159,4 @@ Não há rewind de hitboxes nem checagem de linha de visão no servidor ("Not ye
 
 ## Configurações relacionadas
 
-`dano`, `multiplicadores`, `penetracao` (`rifle_padrao.json`, `pistola.json`, `smg.json`); efeitos das melhorias (`progression.json`); `niveis` (`granada_frag.json`); `letal` (`faca.json`); `MOVE.fallDamageHeight/fallDamagePerMeter`. Ver [[Constants Reference]].
+`dano`, `multiplicadores`, `penetracao` (`rifle_padrao.json`, `pistola.json`, `smg.json` e os das outras armas), `bagos` (`garrucha.json`); efeitos das melhorias (`progression.json`); `niveis` (`granada_frag.json`); `letal` (`faca.json`); `MOVE.fallDamageHeight/fallDamagePerMeter`. Ver [[Constants Reference]].
