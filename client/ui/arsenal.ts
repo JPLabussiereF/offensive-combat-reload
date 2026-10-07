@@ -14,7 +14,7 @@ import { arsenalTree, upgradeNodes, type RowId, type TreeRow, type UpgradeNode, 
 
 const ROW: Record<RowId, StringKey> = { primaria: 'treeRow_primaria', secundaria: 'treeRow_secundaria', faca: 'treeRow_faca', granada: 'treeRow_granada' };
 
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 // Weapon and upgrade texts are keyed by their ids (client/tests/arsenalText.test.ts checks they all exist).
 const str = (key: string, params?: Record<string, string | number>) => t(key as StringKey, params);
 
@@ -38,11 +38,25 @@ export function weaponIcon(w: WeaponId, active: readonly string[] = []): string 
   return formOf(w, active)?.icone ?? own ?? PROGRESSION[progOf(w)].icone;
 }
 
+/** A gun's stats with the upgrades in effect, each 0.06 to 1 for a bar, and its "magazine / reserve" line. */
+export function gunStatBars(w: GunId, active: readonly string[]): { bars: [StringKey, number][]; mag: string } {
+  const g = gunStats(w, [...active]);
+  const clamp = (x: number) => Math.max(0.06, Math.min(1, x));
+  const bars: [StringKey, number][] = [
+    ['statDamage', g.dano.max / 40],
+    ['statRate', g.cadencia / 1100],
+    ['statAccuracy', 1 - g.dispersao.parado / 1.6 - g.dispersao.mirando],
+    ['statRange', g.dano.distMin / 60],
+    ['statMobility', (g.movimento - 0.85) / 0.3],
+  ];
+  return { bars: bars.map(([k, v]) => [k, clamp(v)]), mag: t('statMag', { mag: g.pente, reserve: g.reserva }) };
+}
+
 /** Effects where a lower number is the better one. */
 const LOWER_IS_BETTER = new Set<keyof Efeitos>(['recarga', 'dispersao', 'mirando', 'recuo', 'adsTempo', 'troca', 'intervalo', 'recargaGranada']);
 const ADDED = new Set<keyof Efeitos>(['pente', 'golpe', 'investida', 'granadas']);
 
-const num = (n: number, digits = 1) => n.toLocaleString(getLang() === 'en' ? 'en' : 'pt-BR', { maximumFractionDigits: digits });
+export const num = (n: number, digits = 1) => n.toLocaleString(getLang() === 'en' ? 'en' : 'pt-BR', { maximumFractionDigits: digits });
 
 /** What an upgrade changes, as short labeled chips (good in green, the price in red). */
 export function effectChips(fx: Efeitos): { text: string; good: boolean }[] {
@@ -190,18 +204,10 @@ export class Arsenal {
 
   /** The gun's stats with the upgrades in effect, as bars. */
   private stats(w: GunId, active: string[]): string {
-    const g = gunStats(w, active);
-    const clamp = (x: number) => Math.max(0.06, Math.min(1, x));
-    const bars: [StringKey, number][] = [
-      ['statDamage', g.dano.max / 40],
-      ['statRate', g.cadencia / 1100],
-      ['statAccuracy', 1 - g.dispersao.parado / 1.6 - g.dispersao.mirando],
-      ['statRange', g.dano.distMin / 60],
-      ['statMobility', (g.movimento - 0.85) / 0.3],
-    ];
+    const { bars, mag } = gunStatBars(w, active);
     return `<div class="gun-stats">${bars
-      .map(([k, v]) => `<span>${t(k)}</span><div class="stat-bar"><div style="width:${(clamp(v) * 100).toFixed(0)}%"></div></div>`)
-      .join('')}<small>${t('statMag', { mag: g.pente, reserve: g.reserva })}</small></div>`;
+      .map(([k, v]) => `<span>${t(k)}</span><div class="stat-bar"><div style="width:${(v * 100).toFixed(0)}%"></div></div>`)
+      .join('')}<small>${esc(mag)}</small></div>`;
   }
 
   /** One link of the upgrade chain of `w` (its progression `prog`'s upgrades): locked (with the points missing) or a switch. */

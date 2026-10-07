@@ -87,7 +87,7 @@ Decisão em [[ADR - Teclas remapeáveis com primária e alternativa]]. Regras (`
 - Zona morta radial (movimento 0,16; olhar 0,12), gatilhos acima de 0,35; olhar com curva de resposta (expoente 1,8), 220°/s a sensibilidade 1, e **impulso de 1,6×** ao segurar no limite para virar.
 - Vibra em acertos, abates e dano (Chrome/Edge; Safari ignora).
 - Jogar no controle **não prende o mouse**; um clique no jogo devolve o controle ao mouse. O "dispositivo atual" (`mouse` | `touch` | `pad`) muda com o último usado.
-- Fora da partida, navega os menus (`PadNav`, ver [[Menus]]).
+- Fora da partida, navega os menus (`PadNav`, ver [[Menus]]); no canvas do Arsenal da tela inicial, o analógico direito move o canvas ([[Inventory UI]]).
 
 ## Toque
 

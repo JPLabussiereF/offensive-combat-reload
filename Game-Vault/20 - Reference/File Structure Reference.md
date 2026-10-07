@@ -117,7 +117,9 @@ client/
 │   ├── hud.ts              HUD em DOM (Hud)
 │   ├── chat.ts             Chat da sessão
 │   ├── scoreboard.ts       Placar (Tab)
-│   ├── arsenal.ts          Painel Arsenal: secundária, níveis e melhorias das armas
+│   ├── arsenal.ts          Árvore do Arsenal (menu de pausa): armas, níveis e melhorias; nomes e fichas
+│   ├── arsenalCanvas.ts    Canvas do Arsenal da tela inicial (arrastar, zoom, painel, minimapa)
+│   ├── arsenalCanvasLayout.ts  Geometria e câmera do canvas do Arsenal (sem DOM)
 │   ├── corpseTimer.ts      Contagem sobre corpos oprimíveis
 │   ├── touch.ts            Controles de toque estilo CoD Mobile
 │   ├── padNav.ts           Navegação de menus com controle

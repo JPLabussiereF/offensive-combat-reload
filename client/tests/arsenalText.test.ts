@@ -16,8 +16,17 @@ describe('textos do Arsenal', () => {
         const text = t(key as StringKey);
         if (!text || text === 'undefined') missing.push(key);
       };
-      // The tree's rows (client/ui/arsenalTree.ts).
-      for (const r of TREE_ROWS) check(`treeRow_${r.id}`);
+      // The tree's rows (client/ui/arsenalTree.ts), as the pause menu and the home's canvas name them, and every
+      // weapon of every row (the old rifles and knives too).
+      for (const r of TREE_ROWS) {
+        check(`treeRow_${r.id}`);
+        check(`cvRow_${r.id}`);
+        check(`cvSlot_${r.id}`);
+        for (const w of r.armas) {
+          check(`arma_${w}`);
+          check(`armaDesc_${w}`);
+        }
+      }
       for (const w of PROG_WEAPONS) {
         check(`arma_${w}`);
         check(`armaDesc_${w}`);
