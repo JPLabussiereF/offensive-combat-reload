@@ -1,7 +1,8 @@
 // The Mapas tab of the home (PF-6): the official maps and the community's, with search (by name or by author),
 // order (most played, most recent) and, for the staff, the hidden maps too (P34). Each map's card (name, emoji
 // and color from its current version) shows what the one looking may do with it (client/ui/mapsRules.ts):
-// play it online (in a mode it's played in), edit it in the editor, start a new map, duplicate it, delete it,
+// play it online (in a mode it's played in) or, a map open to every mode, against bots and on the training
+// range on its current version (P43), edit it in the editor, start a new map, duplicate it, delete it,
 // hide it or show it again, and see its saved versions to go back to one. The server checks every action again.
 import type { MeResponse } from '@shared/account';
 import type { MapaResumo, VersaoMapa } from '@shared/mapData';
@@ -9,7 +10,7 @@ import type { GameModeId } from '@shared/modes';
 import { isEquipe } from '@shared/roles';
 import { api } from '../net/api';
 import { errorText, formatDate } from './auth';
-import { canCreateMap, mapActions, mapsUrl, playMode, playModes, type MapsQuery, type MapsTab, type Viewer } from './mapsRules';
+import { botGame, canCreateMap, mapActions, mapsUrl, playMode, playModes, type MapsQuery, type MapsTab, type Viewer } from './mapsRules';
 import { t, type StringKey } from './strings';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -22,6 +23,9 @@ export interface MapsOptions {
   setGame(g: GameModeId): void;
   /** Jogar: the 'play' message for the map in that mode (online). */
   play(map: string, mode: GameModeId): void;
+  /** Contra bots and Campo de tiro (P43): offline on that version of the map (the bots' difficulty and count are the Play tab's). */
+  bots(mapa: { id: string; versao: number }, game: GameModeId): void;
+  range(mapa: { id: string; versao: number }): void;
   /** Editar (a saved map at its current version) and Novo mapa (null): the home opens the editor. */
   edit(mapa: { id: string; versao: number } | null): void;
 }
@@ -96,6 +100,8 @@ export function showMaps(root: HTMLElement, o: MapsOptions) {
         ? `<select class="maps-mode" title="${esc(t('gameModeTitle'))}">${modes.map((g) => `<option value="${g}" ${g === mode ? 'selected' : ''}>${esc(gameName(g))}</option>`).join('')}</select>`
         : '',
       can.jogar ? `<button type="button" class="small-btn" data-act="jogar">${esc(t('mapsPlay'))}${modes.length === 1 ? ` · ${esc(gameName(mode))}` : ''}</button>` : '',
+      can.bots ? `<button type="button" class="small-btn alt" data-act="bots">${esc(t('mapsBots'))}</button>` : '',
+      can.treino ? `<button type="button" class="small-btn alt" data-act="treino">${esc(t('mapsRange'))}</button>` : '',
       can.editar ? `<button type="button" class="small-btn alt" data-act="editar">${esc(t('mapsEdit'))}</button>` : '',
       can.duplicar ? `<button type="button" class="small-btn alt" data-act="duplicar">${esc(t('mapsDuplicate'))}</button>` : '',
       can.versoes ? `<button type="button" class="link-btn" data-act="versoes" aria-expanded="${open.get(m.id) === 'versoes'}">${esc(t('mapsVersions'))}</button>` : '',
@@ -225,6 +231,13 @@ export function showMaps(root: HTMLElement, o: MapsOptions) {
         o.play(m.id, mode);
         return;
       }
+      case 'bots': {
+        // The match type picked in the card (bots play mata-mata and corrida armada).
+        const picked = li.querySelector<HTMLSelectElement>('.maps-mode')?.value as GameModeId | undefined;
+        return o.bots({ id: m.id, versao: m.versao }, botGame(picked ?? o.game));
+      }
+      case 'treino':
+        return o.range({ id: m.id, versao: m.versao });
       case 'editar':
         return o.edit({ id: m.id, versao: m.versao });
       case 'duplicar':

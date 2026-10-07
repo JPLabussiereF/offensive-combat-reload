@@ -4,7 +4,8 @@
 // the maps of the sessions open now). The server checks every action again: this only hides what it would
 // refuse.
 import type { MapaResumo, TipoMapa } from '@shared/mapData';
-import { GAME_MODE_IDS, modeAllowsMap, type GameModeId } from '@shared/modes';
+import { isOfficialMap } from '@shared/maps';
+import { GAME_MODE_IDS, modeAllowsMap, MODE_RULES, type GameModeId } from '@shared/modes';
 import { isEquipe, type Papel } from '@shared/roles';
 
 /** A map as the pickers show it: its card (name, emoji and color from its current version) and its modes. */
@@ -30,7 +31,11 @@ export interface Viewer {
 
 /** The buttons a map's card shows. */
 export interface MapActions {
+  /** Online: the 'play' message in a mode the map is played in. */
   jogar: boolean;
+  /** Offline on the map's current version (P43): against bots and on the training range. Only maps open to every mode. */
+  bots: boolean;
+  treino: boolean;
   editar: boolean;
   duplicar: boolean;
   apagar: boolean;
@@ -42,20 +47,25 @@ export interface MapActions {
 
 /**
  * What a viewer may do with a map: its author edits and deletes their community map; the staff (admin,
- * moderator) edits the official maps and hides, shows again or deletes any map; anyone signed in duplicates
- * what they can see (and plays it, unless it's hidden: a hidden map opens no session). Going back to a saved
- * version goes with editing.
+ * moderator) edits the official maps and hides, shows again or deletes any map, except the four original official
+ * maps, which nobody deletes nor hides (P44, P45); anyone signed in duplicates what they can see (and plays it, unless it's
+ * hidden: a hidden map opens no session; a map open to every mode also against bots and on the training range,
+ * offline: P43). Going back to a saved version goes with editing.
  */
-export function mapActions(m: Pick<MapaResumo, 'tipo' | 'meu' | 'oculto' | 'pode'>, v: Viewer): MapActions {
+export function mapActions(m: Pick<MapaResumo, 'id' | 'tipo' | 'meu' | 'oculto' | 'pode' | 'exclusivo'>, v: Viewer): MapActions {
   const staff = v.signedIn && isEquipe(v);
   const editar = v.signedIn && m.pode.editar && (m.tipo === 'oficial' ? staff : m.meu);
   return {
     jogar: v.signedIn && !m.oculto,
+    // A zumbi-only map stays in its mode (online, or the solo match from the editor's Testar).
+    bots: v.signedIn && !m.oculto && !m.exclusivo,
+    treino: v.signedIn && !m.oculto && !m.exclusivo,
     editar,
     duplicar: v.signedIn && m.pode.duplicar,
-    apagar: v.signedIn && m.pode.apagar && (staff || (m.tipo === 'comunidade' && m.meu)),
-    ocultar: staff && m.pode.ocultar && !m.oculto,
-    desocultar: staff && m.pode.ocultar && !!m.oculto,
+    apagar: v.signedIn && m.pode.apagar && !isOfficialMap(m.id) && (staff || (m.tipo === 'comunidade' && m.meu)),
+    // The four original official maps are never hidden (P45); one hidden before can still be shown again.
+    ocultar: staff && m.pode.ocultar && !m.oculto && !isOfficialMap(m.id),
+    desocultar: staff && !!m.oculto,
     versoes: editar,
   };
 }
@@ -69,6 +79,12 @@ export const playModes = (exclusivo: 'zumbi' | null | undefined): GameModeId[] =
 /** The mode "Jogar" uses: the one wanted, if the map is played in it; otherwise the map's first. */
 export function playMode(exclusivo: 'zumbi' | null | undefined, wanted: GameModeId): GameModeId {
   const modes = playModes(exclusivo);
+  return modes.includes(wanted) ? wanted : modes[0];
+}
+
+/** The match type "Contra bots" uses on an open map: the one wanted if bots play it, else the first bots play there. */
+export function botGame(wanted: GameModeId): GameModeId {
+  const modes = playModes(null).filter((g) => MODE_RULES[g].bots);
   return modes.includes(wanted) ? wanted : modes[0];
 }
 

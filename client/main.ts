@@ -157,7 +157,16 @@ async function boot() {
   const mapUrl = new URLSearchParams(location.search).get('mapa');
   // Online: the version the session plays, downloaded from the server (cached). Offline: the official maps' data
   // ship with the client (shared/data/mapas), so training and bots work without the server.
-  const mapData = tested ? tested.data : mapUrl ? null : online ? await fetchMapVersion(online.joined.session.map, online.joined.session.versao) : await loadOfficialMap(choice.map);
+  // A map picked in the Mapas tab for bots or the range (P43) comes at its version from the server, like online.
+  const mapData = tested
+    ? tested.data
+    : mapUrl
+      ? null
+      : online
+        ? await fetchMapVersion(online.joined.session.map, online.joined.session.versao)
+        : choice.versao
+          ? await fetchMapVersion(choice.map, choice.versao)
+          : await loadOfficialMap(choice.map);
   // An offline match counts as a play of the map (the server counts the online ones itself); a test from the editor doesn't.
   if (!online && !mapUrl && !tested) api('POST', `/api/mapas/${encodeURIComponent(choice.map)}/jogadas`).catch(() => {});
   const buildMap = mapData ? buildMapFromData(mapData, { physics, scene: ctx.scene, renderer: ctx.renderer, sfx, modo: 'jogo' }) : buildGltfMap(mapUrl!, new MapBuilder(physics, ctx.scene), ctx.renderer);

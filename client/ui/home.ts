@@ -32,7 +32,11 @@ import { t, type StringKey } from './strings';
 
 export type BotSkillName = 'facil' | 'normal' | 'dificil';
 
-export type HomeChoice = { name: string; sex: Sex; account: ProfileResponse | null; map: MapId } & (
+/**
+ * `versao`: offline (bots, the range) on that saved version of the map, downloaded from the server (the Mapas tab,
+ * P43); absent, the official map shipped with the client.
+ */
+export type HomeChoice = { name: string; sex: Sex; account: ProfileResponse | null; map: MapId; versao?: number } & (
   | { mode: 'offline'; variant: 'range' }
   | { mode: 'bots'; count: number; skill: BotSkillName; game: GameModeId }
   | { mode: 'online'; conn: Connection; joined: Extract<ServerMsg, { t: 'joined' }> }
@@ -773,6 +777,21 @@ export function showHome(): Promise<HomeChoice> {
         },
         // Jogar: online, the 'play' message in the mode chosen (a session of that version of the map with room, or a new one).
         play: (map, mode) => void join({ t: 'play', map, mode }),
+        // Contra bots and Campo de tiro (P43): offline on the map's current version, with the Play tab's bot settings.
+        bots: (mapa, game) => {
+          if (busy) return;
+          busy = true;
+          closeConn();
+          void account().then((acct) =>
+            leave({ mode: 'bots', name: playerName(), sex, account: acct, map: mapa.id, versao: mapa.versao, count: prefs.count, skill: prefs.skill, game }),
+          );
+        },
+        range: (mapa) => {
+          if (busy) return;
+          busy = true;
+          closeConn();
+          void account().then((acct) => leave({ mode: 'offline', name: playerName(), sex, account: acct, map: mapa.id, versao: mapa.versao, variant: 'range' }));
+        },
         // Editar and Novo mapa: the editor takes over the page (client/editor).
         edit: (mapa) => {
           if (busy) return;

@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'bun:test';
 import type { ContaGestao } from '@shared/account';
 import type { MapaResumo } from '@shared/mapData';
-import { canCreateMap, mapActions, mapsUrl, playableMaps, playMode, playModes, unknownSessionMaps, type MapCard, type MapsQuery, type Viewer } from '../ui/mapsRules';
+import { botGame, canCreateMap, mapActions, mapsUrl, playableMaps, playMode, playModes, unknownSessionMaps, type MapCard, type MapsQuery, type Viewer } from '../ui/mapsRules';
 import { accountControls, progressPatch, sanctionBody } from '../ui/managementRules';
 
 const ADMIN: Viewer = { signedIn: true, papeis: ['admin'] };
@@ -39,19 +39,19 @@ const asAuthor = (o: Partial<MapaResumo> = {}) => resumo({ pode: { editar: true,
 
 describe('Mapas: botões de cada cartão', () => {
   it('o dono edita, apaga e vê as versões do seu mapa da comunidade; não oculta', () => {
-    expect(mapActions(asAuthor(), USER)).toEqual({ jogar: true, editar: true, duplicar: true, apagar: true, ocultar: false, desocultar: false, versoes: true });
+    expect(mapActions(asAuthor(), USER)).toEqual({ jogar: true, bots: true, treino: true, editar: true, duplicar: true, apagar: true, ocultar: false, desocultar: false, versoes: true });
   });
 
-  it('outro jogador só joga e duplica', () => {
-    expect(mapActions(resumo(), USER)).toEqual({ jogar: true, editar: false, duplicar: true, apagar: false, ocultar: false, desocultar: false, versoes: false });
+  it('outro jogador joga (online, contra bots, no campo de tiro) e duplica', () => {
+    expect(mapActions(resumo(), USER)).toEqual({ jogar: true, bots: true, treino: true, editar: false, duplicar: true, apagar: false, ocultar: false, desocultar: false, versoes: false });
     // Even if the server's flags said more, a player never edits an official map.
     expect(mapActions(resumo({ tipo: 'oficial', autor: null, pode: { editar: true, apagar: true, ocultar: false, duplicar: true } }), USER)).toMatchObject({ editar: false, apagar: false });
   });
 
   it('admin e moderador editam os oficiais, ocultam e apagam qualquer um, mas não editam o mapa da comunidade de outro', () => {
     for (const staff of [ADMIN, MOD]) {
-      expect(mapActions(asStaff({ tipo: 'oficial', autor: null }), staff)).toEqual({ jogar: true, editar: true, duplicar: true, apagar: true, ocultar: true, desocultar: false, versoes: true });
-      expect(mapActions(asStaff(), staff)).toEqual({ jogar: true, editar: false, duplicar: true, apagar: true, ocultar: true, desocultar: false, versoes: false });
+      expect(mapActions(asStaff({ tipo: 'oficial', autor: null }), staff)).toEqual({ jogar: true, bots: true, treino: true, editar: true, duplicar: true, apagar: true, ocultar: true, desocultar: false, versoes: true });
+      expect(mapActions(asStaff(), staff)).toEqual({ jogar: true, bots: true, treino: true, editar: false, duplicar: true, apagar: true, ocultar: true, desocultar: false, versoes: false });
       // Their own community map: edited too.
       expect(mapActions(asStaff({ meu: true }), staff).editar).toBe(true);
     }
@@ -59,12 +59,30 @@ describe('Mapas: botões de cada cartão', () => {
 
   it('mapa oculto: a equipe desoculta; ninguém joga nele', () => {
     const hidden = asStaff({ oculto: { em: '2026-10-03T00:00:00.000Z', motivo: 'nome ofensivo' } });
-    expect(mapActions(hidden, MOD)).toMatchObject({ jogar: false, ocultar: false, desocultar: true });
+    expect(mapActions(hidden, MOD)).toMatchObject({ jogar: false, bots: false, treino: false, ocultar: false, desocultar: true });
     expect(mapActions(asAuthor({ oculto: hidden.oculto }), USER)).toMatchObject({ jogar: false, desocultar: false, editar: true });
   });
 
+  it('os 4 oficiais originais: a equipe edita e restaura, mas não apaga nem oculta (P44, P45); um oficial novo, sim', () => {
+    for (const id of ['rua', 'jardim', 'halloween', 'cemiterio']) {
+      // Even if the server's flags said otherwise.
+      const original = asStaff({ id, tipo: 'oficial', autor: null });
+      for (const staff of [ADMIN, MOD]) expect(mapActions(original, staff)).toMatchObject({ editar: true, versoes: true, apagar: false, ocultar: false });
+      // One hidden before the rule can still be shown again.
+      expect(mapActions(asStaff({ id, tipo: 'oficial', autor: null, oculto: { em: '2026-10-03T00:00:00.000Z', motivo: null } }), ADMIN).desocultar).toBe(true);
+    }
+    expect(mapActions(asStaff({ id: 'arena', tipo: 'oficial', autor: null }), MOD)).toMatchObject({ apagar: true, ocultar: true });
+  });
+
+  it('contra bots e campo de tiro só nos mapas abertos (P43); o exclusivo de zumbi só joga zumbi', () => {
+    expect(mapActions(resumo(), USER)).toMatchObject({ jogar: true, bots: true, treino: true });
+    expect(mapActions(resumo({ exclusivo: 'zumbi' }), USER)).toMatchObject({ jogar: true, bots: false, treino: false });
+    expect(botGame('corrida-armada')).toBe('corrida-armada');
+    expect(botGame('zumbi')).toBe('mata-mata');
+  });
+
   it('sem conta: nada', () => {
-    const none = { jogar: false, editar: false, duplicar: false, apagar: false, ocultar: false, desocultar: false, versoes: false };
+    const none = { jogar: false, bots: false, treino: false, editar: false, duplicar: false, apagar: false, ocultar: false, desocultar: false, versoes: false };
     expect(mapActions(resumo({ pode: { editar: false, apagar: false, ocultar: false, duplicar: false } }), GUEST)).toEqual(none);
     expect(canCreateMap(GUEST)).toBe(false);
     expect(canCreateMap(USER)).toBe(true);

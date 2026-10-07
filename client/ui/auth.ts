@@ -26,6 +26,7 @@ const ERRORS: Partial<Record<ApiErrorCode | 'offline', StringKey>> = {
   nao_encontrado: 'errNotFound',
   mapa_oculto: 'errNotFound',
   json_invalido: 'errBadInput',
+  mapa_protegido: 'errProtectedMap',
   offline: 'errOffline',
 };
 

@@ -608,6 +608,8 @@ const ptBR = {
   mapsHiddenTag: 'Oculto',
   mapsHiddenWhy: 'Oculto: {motivo}',
   mapsPlay: 'Jogar',
+  mapsBots: 'Contra bots',
+  mapsRange: 'Campo de tiro',
   mapsEdit: 'Editar',
   mapsDuplicate: 'Duplicar',
   mapsDelete: 'Excluir',
@@ -684,6 +686,7 @@ const ptBR = {
   errNotFound: 'Não encontrado.',
   errBadInput: 'Dados inválidos.',
   errLastAdmin: 'O último admin não pode ser removido.',
+  errProtectedMap: 'Os quatro mapas oficiais originais não podem ser apagados nem ocultados.',
   gpuWarning:
     'Seu navegador está desenhando o jogo sem placa de vídeo (renderizador: {gpu}), por isso fica em ~10 FPS. Ative “Usar aceleração gráfica quando disponível” em chrome://settings/system (no Edge: edge://settings/system) e reinicie o navegador.',
 } as const;
@@ -1287,6 +1290,8 @@ const en: Record<keyof typeof ptBR, string> = {
   mapsHiddenTag: 'Hidden',
   mapsHiddenWhy: 'Hidden: {motivo}',
   mapsPlay: 'Play',
+  mapsBots: 'Vs bots',
+  mapsRange: 'Training range',
   mapsEdit: 'Edit',
   mapsDuplicate: 'Duplicate',
   mapsDelete: 'Delete',
@@ -1363,6 +1368,7 @@ const en: Record<keyof typeof ptBR, string> = {
   errNotFound: 'Not found.',
   errBadInput: 'Invalid data.',
   errLastAdmin: 'The last admin can\'t be removed.',
+  errProtectedMap: 'The four original official maps can\'t be deleted or hidden.',
   gpuWarning:
     'Your browser is rendering the game without a graphics card (renderer: {gpu}), which caps it around 10 FPS. Enable “Use graphics acceleration when available” in chrome://settings/system (Edge: edge://settings/system) and restart the browser.',
 };
