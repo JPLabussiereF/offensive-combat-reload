@@ -6,12 +6,12 @@ area: liveops
 source_paths:
   - shared/maps.ts
   - server/app.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/world/halloween.ts
 tags:
   - liveops
   - eventos
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Events
@@ -22,7 +22,7 @@ Não existe no código atual (verificado: nenhuma checagem de data/mês em `clie
 
 ## Conteúdo temático permanente
 
-A **Vila Assombrada** (`halloween` em `shared/maps.ts`) tem tema de Halloween, mas é um **mapa permanente**, com sala fixa criada sempre na partida do servidor (`server/app.ts`). Não é um evento por tempo limitado. Ver [[Map - Vila Assombrada]].
+A **Vila Assombrada** (`halloween` em `shared/maps.ts`) tem tema de Halloween, mas é um **mapa permanente** (oficial, sempre na lista; as salas abrem sob demanda). Não é um evento por tempo limitado. Ver [[Map - Vila Assombrada]].
 
 ## Eventos dentro da partida
 
@@ -34,4 +34,4 @@ Sem infraestrutura de eventos, uma ação temporária exigiria alterar o código
 
 ## Código relacionado
 
-- `shared/maps.ts`, `server/app.ts`, `client/world/hauntedTown.ts`, `client/world/halloween.ts`
+- `shared/maps.ts`, `server/app.ts`, `shared/data/mapas/halloween.json`, `client/world/halloween.ts`

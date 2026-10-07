@@ -33,17 +33,24 @@ export type AuthEventType =
   | 'chat_mute'
   | 'chat_unmute'
   | 'role_grant'
-  | 'role_revoke';
+  | 'role_revoke'
+  /** A staff member changed the account's name, body, look or progress (detail: what). */
+  | 'staff_edit'
+  /** A staff member hid, showed again or deleted a map of the account (detail: the map id). */
+  | 'map_hide'
+  | 'map_unhide'
+  | 'map_delete';
 
 export interface AuditInfo {
   ip?: string | null;
   userAgent?: string | null;
 }
 
-export function audit(db: Queryable, accountId: string | null, type: AuthEventType, info: AuditInfo = {}, detail: string | null = null) {
+/** `actorId`: who did it, when it isn't the account itself (a staff member; null: the account, the console or the system). */
+export function audit(db: Queryable, accountId: string | null, type: AuthEventType, info: AuditInfo = {}, detail: string | null = null, actorId: string | null = null) {
   // Never awaited by the caller's response path: an audit failure must not break a login.
   return db
-    .query('INSERT INTO auth_event (account_id, type, detail, ip, user_agent) VALUES ($1, $2, $3, $4, $5)', [accountId, type, detail, info.ip ?? null, info.userAgent ?? null])
+    .query('INSERT INTO auth_event (account_id, type, detail, ip, user_agent, actor_id) VALUES ($1, $2, $3, $4, $5, $6)', [accountId, type, detail, info.ip ?? null, info.userAgent ?? null, actorId])
     .catch((err) => console.error('[auditoria]', err.message));
 }
 
@@ -306,14 +313,18 @@ export async function fullProfile(db: Db, accountId: string): Promise<ProfileRes
   };
 }
 
-/** Changes the display name: the first change is free, then one every NAME_COOLDOWN_DAYS days. */
-export async function changeName(db: Db, accountId: string, name: string, info: AuditInfo) {
+/**
+ * Changes the display name: the first change is free, then one every NAME_COOLDOWN_DAYS days. A staff member
+ * (`staffId`, the Management screen) changes it without the wait, and the player's wait starts again from that
+ * change (P35: a name taken away for being offensive can't be put back at once).
+ */
+export async function changeName(db: Db, accountId: string, name: string, info: AuditInfo, staffId: string | null = null) {
   await transaction(db, async (c) => {
     const { rows } = await c.query<ProfileRow>('SELECT id, display_name, discriminator, sex, appearance, loadout, name_changed_at FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1 FOR UPDATE', [accountId]);
     const p = rows[0];
     if (!p) throw new HttpError(404, 'nao_encontrado');
     if (p.display_name === name) return;
-    if (p.name_changed_at && p.name_changed_at.getTime() + NAME_COOLDOWN_DAYS * DAY > Date.now()) {
+    if (!staffId && p.name_changed_at && p.name_changed_at.getTime() + NAME_COOLDOWN_DAYS * DAY > Date.now()) {
       throw new HttpError(429, 'cooldown_nome', { liberaEm: new Date(p.name_changed_at.getTime() + NAME_COOLDOWN_DAYS * DAY).toISOString() });
     }
     // Keeps the number when only the capitalization changes or the number is free under the new name.
@@ -322,7 +333,7 @@ export async function changeName(db: Db, accountId: string, name: string, info: 
     if (disc === null) throw new HttpError(409, 'nome_esgotado');
     await c.query('UPDATE player_profile SET display_name = $2, discriminator = $3, name_changed_at = now() WHERE id = $1', [p.id, name, disc]);
     await c.query('INSERT INTO display_name_history (profile_id, display_name, discriminator) VALUES ($1, $2, $3)', [p.id, name, disc]);
-    await audit(c, accountId, 'name_change', info, `${formatTag(p.display_name, p.discriminator)} -> ${formatTag(name, disc)}`);
+    await audit(c, accountId, 'name_change', info, `${formatTag(p.display_name, p.discriminator)} -> ${formatTag(name, disc)}`, staffId);
   });
 }
 
@@ -533,8 +544,8 @@ export const emptyDelta = (): ProgressDelta => ({
   album: { add: {}, max: {} },
 });
 
-export async function openParticipation(db: Db, profileId: string, sessionName: string): Promise<string> {
-  const { rows } = await db.query<{ id: string }>('INSERT INTO session_participation (profile_id, session_name) VALUES ($1, $2) RETURNING id', [profileId, sessionName]);
+export async function openParticipation(db: Db, profileId: string, sessionName: string, mapId: string | null = null): Promise<string> {
+  const { rows } = await db.query<{ id: string }>('INSERT INTO session_participation (profile_id, session_name, map_id) VALUES ($1, $2, $3) RETURNING id', [profileId, sessionName, mapId]);
   await db.query('UPDATE player_stats SET matches_played = matches_played + 1, updated_at = now() WHERE profile_id = $1', [profileId]);
   return rows[0].id;
 }

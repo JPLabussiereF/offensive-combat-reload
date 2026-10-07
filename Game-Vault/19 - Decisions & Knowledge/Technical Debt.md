@@ -29,7 +29,7 @@ tags:
   - game
   - decisions
   - technical-debt
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Dívida técnica
@@ -72,7 +72,7 @@ Lista consolidada da dívida técnica encontrada ao documentar o código (2026-1
 - A coluna `weapon_progress.equipped_level` não é mais escrita; só é lida para derivar a escolha do Arsenal de contas antigas (`legacyChoice`, [[Data Migrations]]).
 - Campos sem uso no esquema: `player_stats.mmr`, `avatar_url`, `bio`, o status `suspended`, as sanções `ranked_ban`/`shadow_ban`. Também `matches_played` conta entradas em sala, não partidas ([[Database]]).
 - `spawnsB` e os spawns de time não são lidos por nenhum modo ([[Spawn Design]], [[Team Deathmatch]]).
-- Os contadores de "segredos" da Vila não são lidos por ninguém. A máquina de refrigerante, o esqueleto do palco e os olhos dos retratos são promessas sem implementação (`client/world/halloween.ts`, `hauntedTown.ts`).
+- Os contadores de "segredos" da Vila não são lidos por ninguém. A máquina de refrigerante, o esqueleto do palco e os olhos dos retratos são promessas sem implementação (`client/world/halloween.ts`, `shared/data/mapas/halloween.json`).
 
 ## Comentários e documentação desatualizados
 
@@ -80,6 +80,7 @@ Lista consolidada da dívida técnica encontrada ao documentar o código (2026-1
 - ~~Comentários dizem que a granada nível 1 online "não é letal"~~ — resolvido: `ONLINE_GRENADE_LEVEL` e os comentários foram removidos; a explosão vem de `grenadeStats` ([[Problem - Comentários dizem que a granada nível 1 não é letal]]).
 - `taunt.ts` diz "G near a fresh corpse", mas a tecla é E. `localPlayer.ts` diz que corpos mais pesados têm mais vida. O comentário de `lanternas.ts` cita escopetas, que não existem. O comentário do placar diz "Tab, online", mas ele também aparece contra bots.
 - `docs/PERSONAGENS.md` diz 336 itens, e o código tem 306. A contagem de superfícies varia entre 12, 13 e 19 nos documentos, e o código tem 20. O README fala de 3 estilos de olho e 3 cabelos (o código tem 6 e 30).
+- ~~O editor de mapas não agendava o mapa de sombra do sol~~ — resolvido na PF-6 Revisions 01 ([[Problem - Editor sem mapa de sombra com aceleração de hardware]]).
 - `docs/MAPAS.md` promete uma checagem automática de vãos que não existe ([[Problem - Teste de estrutura de vãos ausente]]).
 
 ## Interface e produto
@@ -87,7 +88,7 @@ Lista consolidada da dívida técnica encontrada ao documentar o código (2026-1
 - `CorpseTimer` desenha o "E" e "OPRIMIDO!" fixos, sem keybind e sem i18n (`client/ui/corpseTimer.ts`).
 - `setLang` existe, mas não há seletor de idioma (`client/ui/strings.ts`). A mensagem `errOffline` é voltada ao desenvolvedor ("Rode bun run dev:online").
 - O painel de ajuste F6 fica disponível também em produção (`client/main.ts`). `?mapa=` vale também online, sem restrição de modo ([[Problem - Prévia glTF por URL sobrepõe o mapa da sessão]]).
-- Os tiros dos outros jogadores só desenham o traçante, sem decal nem partículas de impacto (`conn.on('shot')`).
+- ~~Os tiros dos outros jogadores só desenham o traçante, sem decal nem partículas de impacto (`conn.on('shot')`).~~ — resolvido na PF-5: marca, detritos, faíscas e som de impacto no mapa (ver [[Decals]]). Continuam só para quem atirou os furos de penetração e os efeitos de acerto em jogadores.
 - Google Fonts é uma dependência externa em tempo de execução (`index.html`).
 - Não há fim de partida ([[Problem - Partidas sem fim]]) e os bots só existem offline ([[Problem - Bots só existem offline]]).
 

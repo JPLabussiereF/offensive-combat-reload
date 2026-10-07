@@ -10,12 +10,13 @@ source_paths:
   - client/core/settings.ts
   - client/tests/spatial.test.ts
   - client/world/physics.ts
+  - client/world/pose.ts
 tags:
   - game
   - audio
   - spatial
   - occlusion
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Spatial Audio
@@ -64,7 +65,7 @@ flowchart LR
    - Com paredes (oclusão > 0,01, limitada a 2): ganho = `max(0,2; 1 − 0,42·oclusão)` e corte = `min(ar, max(450, 1700/oclusão))` Hz.
 3. **Oclusão por material** (`OCCLUSION_WEIGHT`): concreto, azulejo, metal e grama = 1 (parede sólida); madeira 0,7; vidro 0,35; papel 0,25.
 4. **Medição da oclusão** (em `main.ts`): um raio Rapier vai do ouvido até o som e outro volta do som até o ouvido. Se os dois batem no mesmo colisor, é **uma** parede; se batem em colisores diferentes, somam-se os pesos (duas paredes ou parede grossa). Só colisores do mundo (`WORLD_ONLY`), excluindo sensores.
-5. **Eco** (`Enclosure`): mede "quão fechado" é um ponto, de 0 (campo aberto) a 1 (sala pequena), lançando um raio para cima (teto pesa 60%) e seis raios horizontais (paredes pesam 40%; mais perto = mais fechado). Resultado em **cache por célula de 2 m** (limpo ao passar de 4000 entradas). Envio de sala = `room·fechamento·√distanceGain·0,7`; envio aberto = `open·(1−fechamento)·√distanceGain`.
+5. **Eco** (`Enclosure`): mede "quão fechado" é um ponto, de 0 (campo aberto) a 1 (sala pequena), lançando um raio para cima (teto pesa 60%) e seis raios horizontais (paredes pesam 40%; mais perto = mais fechado). Resultado em **cache por célula de 2 m** (limpo ao passar de 4000 entradas). Envio de sala = `room·fechamento·√distanceGain·0,7`; envio aberto = `open·(1−fechamento)·√distanceGain`. Antes dos raios valem as **salas marcadas** (`RoomVolumes`: peças `sala` e caixas `ROOM_` dos `.glb`; vale a mais fechada que contém o ponto). Uma sala girada (peça com pose no editor, `ROOM_` girado) guarda a caixa no seu referencial e testa o ponto lá (`RoomVolume.local`), sem virar a caixa alinhada em volta dela ([[ADR - Mapas como dados com catálogo de peças]]).
 6. **Respostas de impulso** são sintéticas (`impulse()` em `sfx.ts`): ruído que decai e escurece; a cauda aberta tem um "slap" (eco precoce de parede distante).
 
 ## Ouvinte e sons do próprio jogador

@@ -2,17 +2,17 @@
 // - lower body: locomotion with planted feet. Each foot has a target on the ground (stance: it stays put
 //   while the body moves over it; swing: it lifts and moves ahead), solved with two-bone IK, so the stride
 //   matches the speed in any direction (forward, back, strafe, diagonals: an 8-way blend for free), the
-//   crouch bends the knees with the feet on the ground, and the slide stretches the legs ahead. The lower
+//   crouch bends the knees with the feet on the ground, and the slide goes down on the knees. The lower
 //   body turns in place only after the torso has twisted 60° (turn in place);
 // - upper body: the view pitch spread over spine 30%, chest 40%, head 30% (aim offset, ±70°), the gun in
 //   both hands by IK (right hand on the grip, left under the handguard, or cupping a pistol's grip) for hip
-//   fire, ADS and sprint, and
+//   fire, ADS and sprint (PCD: in one hand, mirrored to the left when the right one is missing), and
 //   short additive layers on top: recoil on every shot, reload, knife, grenade, hit reaction, landing.
 // Also the unarmed idle and walk of the editor, the victory dance and the fall. Every "feel" number is in
 // ANIM. The hitbox skeleton (entities/rig.ts) runs the same animator on the simulation tick, and the visible
 // character takes its state (syncFrom) instead of keeping a clock of its own, so both play the same pose.
 import * as THREE from 'three';
-import { AssetRegistry } from './registry';
+import { AssetRegistry, mirrorGrip } from './registry';
 import { SOCKETS } from './rig';
 
 /**
@@ -25,6 +25,16 @@ export interface Posable {
   setGrip(left: number, right: number): void;
   /** Build of the body ('magro' | 'medio' | 'gordo'): a bigger belly and hips push the arms out. */
   readonly bodyBuild?: string;
+  /** PCD: the arm or hand that is missing (one hand holds the rifle; see rifleArms). */
+  readonly missing?: ArmsMissing;
+}
+
+/** PCD: which arm or hand is missing (a missing arm is a missing hand too). */
+export interface ArmsMissing {
+  armL: boolean;
+  armR: boolean;
+  handL: boolean;
+  handR: boolean;
 }
 
 export interface AvatarPose {
@@ -78,8 +88,13 @@ export interface ZombiePose {
 
 /** Every "feel" parameter of the animation, in one place (tunable live with F6). */
 export const ANIM = {
-  /** Hips height standing, crouched, sliding (m). */
-  hips: { stand: 0.925, crouch: 0.56, slide: 0.36, crouchBack: 0.07 },
+  /** Hips height standing, crouched, sliding on the knees (m). */
+  hips: { stand: 0.925, crouch: 0.56, slide: 0.5, crouchBack: 0.07 },
+  /**
+   * Knee slide: the ankles behind the hips (the shins flat on the ground, the knees on it just ahead of the
+   * hips, the left one a little further ahead), the feet stretched back on their tops, the hips' tilt (rad).
+   */
+  slide: { ankleL: [-0.13, 0.1, 0.25], ankleR: [0.13, 0.1, 0.3], foot: -2.9, hipTilt: -0.05 },
   /** Ankle height and stance width. */
   foot: { y: 0.08, x: 0.1 },
   /** Half stride (m) = min + perSpeed × speed, up to max. */
@@ -88,8 +103,8 @@ export const ANIM = {
   lift: { walk: 0.09, run: 0.17, crouch: 0.06 },
   /** Hips bob per step (m). */
   bob: 0.025,
-  /** Torso lean (rad): running forward, crouched forward, sliding back. */
-  lean: { run: -0.16, crouch: -0.3, slide: 0.38 },
+  /** Torso lean (rad): running forward, crouched forward, sliding a little back. */
+  lean: { run: -0.16, crouch: -0.3, slide: 0.12 },
   /** Aim offset: share of the pitch on spine, chest and head; limit. */
   pitch: { spine: 0.3, chest: 0.4, head: 0.3, limit: (70 * Math.PI) / 180 },
   /** The torso twists up to this much before the feet turn (rad), and the turn speed (rad/s). */
@@ -99,6 +114,18 @@ export const ANIM = {
     hip: { pos: [0.115, 0.09, -0.27], rot: [0, 0.06, 0] },
     ads: { pos: [0.035, 0.305, -0.29], rot: [0, 0, 0] },
     sprint: { pos: [0.06, 0.03, -0.24], rot: [-0.55, 0.75, 0.3] },
+  },
+  /**
+   * One hand (PCD, no right hand): the rifle in the left hand by the grip, on the left of the chest (the
+   * poses above mirrored); `reload`: resting against the body while the hand changes the magazine. Without
+   * the left hand the rifle keeps the two-hand poses (the stump under the handguard) and rests on the right
+   * to reload (`reload` mirrored).
+   */
+  rifleOneHand: {
+    hip: { pos: [-0.115, 0.09, -0.27], rot: [0, -0.06, 0] },
+    ads: { pos: [-0.035, 0.305, -0.29], rot: [0, 0, 0] },
+    sprint: { pos: [-0.06, 0.03, -0.24], rot: [-0.55, -0.75, -0.3] },
+    reload: { pos: [-0.07, -0.03, -0.22], rot: [-0.5, -0.25, -0.55] },
   },
   /** Where the left hand holds the gun, in its space: handguard, foregrip, cupping a pistol's grip. */
   leftGrip: {
@@ -125,17 +152,23 @@ const damp = (cur: number, target: number, rate: number, dt: number) => target +
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 const smooth = (x: number) => x * x * (3 - 2 * x);
 
-/** Rifle in the right hand: the hand → rifle transform (socket offset and the item's grip). */
-function rifleInHand(): THREE.Matrix4 {
+/**
+ * Rifle in a hand: the hand → rifle transform (socket offset and the item's grip). In the left hand (no right
+ * hand) the grip is mirrored, as Character.placeRigid puts it.
+ */
+export function rifleInHand(side: 'L' | 'R' = 'R'): THREE.Matrix4 {
   const item = AssetRegistry.get('rifle');
-  const s = SOCKETS.hand_R.pos;
+  const s = SOCKETS[side === 'L' ? 'hand_L' : 'hand_R'].pos;
   const gp = item?.grip?.position ?? [0, 0, 0];
-  const gr = item?.grip?.rotation ?? [0, 0, 0, 1];
+  const gr = new THREE.Quaternion(...(item?.grip?.rotation ?? [0, 0, 0, 1]));
+  const pos = new THREE.Vector3(side === 'L' ? -gp[0] : gp[0], gp[1], gp[2]);
   return new THREE.Matrix4()
     .makeTranslation(s[0], s[1], s[2])
-    .multiply(new THREE.Matrix4().compose(new THREE.Vector3(...gp), new THREE.Quaternion(...gr), new THREE.Vector3(1, 1, 1)));
+    .multiply(new THREE.Matrix4().compose(pos, side === 'L' ? mirrorGrip(gr) : gr, new THREE.Vector3(1, 1, 1)));
 }
-let handToRifleInv: THREE.Matrix4 | null = null;
+/** rifleInHand inverted, per hand (built once). */
+const handToRifleInv: Partial<Record<'L' | 'R', THREE.Matrix4>> = {};
+const rifleToHand = (side: 'L' | 'R') => (handToRifleInv[side] ??= rifleInHand(side).invert());
 
 // Scratch objects (the animator runs for many characters every frame).
 const mA = new THREE.Matrix4();
@@ -165,6 +198,7 @@ const limb = (kind: 'arm' | 'leg', side: 'L' | 'R'): Limb => {
     : { upper: `thigh_${side}`, lower: `shin_${side}`, end: `foot_${side}`, axis: new THREE.Vector3(0, -1, 0), hinge: new THREE.Vector3(-1, 0, 0) };
 };
 const LIMBS = { armL: limb('arm', 'L'), armR: limb('arm', 'R'), legL: limb('leg', 'L'), legR: limb('leg', 'R') };
+const armOf = (side: 'L' | 'R') => (side === 'L' ? LIMBS.armL : LIMBS.armR);
 
 export class CharacterAnimator {
   private rest = new Map<THREE.Bone, THREE.Quaternion>();
@@ -196,6 +230,14 @@ export class CharacterAnimator {
   private throwT: number | null = null;
   /** The grenade is in the hand (cooking, or a throw before the release). */
   grenadeInHand = false;
+  /** One hand (PCD) with a grenade: the rifle goes on the back meanwhile (Avatar). */
+  rifleAway = false;
+  /**
+   * One hand (PCD) reloading: the rifle rests against the body while its hand changes the magazine. The
+   * rifle's transform in its hand socket's space then (Avatar moves the rifle there); null: on the grip.
+   */
+  rifleOffset: THREE.Matrix4 | null = null;
+  private offsetM = new THREE.Matrix4();
   private time = 0;
   private lastIdleT: number | null = null;
 
@@ -217,7 +259,6 @@ export class CharacterAnimator {
       }
     }
     this.hipsY = c.bones.hips?.position.y ?? 0.95;
-    handToRifleInv ??= rifleInHand().invert();
   }
 
   /**
@@ -290,6 +331,12 @@ export class CharacterAnimator {
       fore.quaternion.copy(q.setFromEuler(e.set(0, s * elbow, 0))).multiply(this.hang.get(fore)!);
     }
     this.turn(`hand_${side}`, 0, 0, 0, 'hang');
+  }
+
+  /** PCD: the arm (or stump) of the missing hand hangs at the side, out of the way. */
+  private hangArm(side: 'L' | 'R') {
+    const out = 0.14 + this.spread;
+    this.arm(side, 0.05, 0, side === 'L' ? -out : out, 0.15);
   }
 
   /** Leg by rotations (dance, fall): thigh forward (x), knee bend (back, positive). */
@@ -415,14 +462,14 @@ export class CharacterAnimator {
     const mx = speed > 0.01 ? vx / speed : 0;
     const mz = speed > 0.01 ? vz / speed : -1;
 
-    // Hips: height (crouch, slide, bob, landing), sitting back when crouched, yaw of the lower body.
+    // Hips: height (crouch, knee slide, bob, landing), sitting back when crouched, yaw of the lower body.
     const bob = A.bob * Math.abs(Math.cos(this.phase * Math.PI * 2)) * this.gait;
     let hy = THREE.MathUtils.lerp(A.hips.stand, A.hips.crouch, this.crouchT) - bob - 0.03 * run * this.gait - A.land.depth * this.land;
     hy = THREE.MathUtils.lerp(hy, A.hips.slide, this.slideT);
     const hips = this.bone('hips');
     if (hips) {
       hips.position.set(0, hy, A.hips.crouchBack * this.crouchT);
-      hips.quaternion.setFromEuler(e.set(-0.18 * this.crouchT - 0.25 * this.slideT, this.legYaw, 0.04 * Math.sin(this.phase * Math.PI * 2) * this.gait));
+      hips.quaternion.setFromEuler(e.set(-0.18 * this.crouchT + A.slide.hipTilt * this.slideT, this.legYaw, 0.04 * Math.sin(this.phase * Math.PI * 2) * this.gait));
     }
 
     // Feet: planted (stance) or stepping (swing), in the lower body's frame, then IK.
@@ -446,15 +493,17 @@ export class CharacterAnimator {
       target.x += mx * off * this.gait;
       target.z += mz * off * this.gait;
       target.y += up * stepW + 0.26 * this.airT * (side === 'L' ? 1 : 0.7);
-      // Sliding: legs stretched ahead.
-      target.lerp(new THREE.Vector3(sx * 0.13, A.foot.y + 0.02, side === 'L' ? -0.62 : -0.44), this.slideT);
+      // Knee slide: the ankles go behind, so the knees (bending forward, toward the pole) land on the ground.
+      target.lerp(vA.fromArray(side === 'L' ? A.slide.ankleL : A.slide.ankleR), this.slideT);
       target.applyQuaternion(legQ);
       const pole = new THREE.Vector3(sx * 0.15, 0, -1).applyQuaternion(legQ);
-      // The foot stays flat (its toe lifts a little in the swing).
+      // The foot stays flat (its toe lifts a little in the swing); in the knee slide it lies on its top,
+      // stretched back along the shin.
       const footQ = legQ.clone().multiply(q.setFromEuler(e.set(ph >= 0.5 ? 0.25 * Math.sin(Math.PI * ((ph - 0.5) / 0.5)) * stepW : 0, 0, 0)));
+      if (this.slideT > 0.001) footQ.slerp(qB.setFromEuler(e.set(A.slide.foot, 0, 0)).premultiply(legQ), this.slideT);
       this.ik(side === 'L' ? LIMBS.legL : LIMBS.legR, target, pole, footQ);
     }
-    // Torso lean: forward running and crouched, back when sliding; the walk twists the spine a little.
+    // Torso lean: forward running and crouched, a little back in the knee slide; the walk twists the spine a little.
     return A.lean.run * run * this.gait * (0.5 + 0.5 * this.sprintT) + A.lean.crouch * this.crouchT + A.lean.slide * this.slideT;
   }
 
@@ -469,8 +518,8 @@ export class CharacterAnimator {
     const sway = 0.06 * Math.sin(this.phase * Math.PI * 2) * this.gait;
     const hx = this.hitX * A.hit.angle;
     const hz = this.hitZ * A.hit.angle;
-    // The hips are tilted forward when crouched/back when sliding: the spine takes the rest of the lean.
-    const hipTilt = -0.18 * this.crouchT - 0.25 * this.slideT;
+    // The hips are tilted when crouched and in the knee slide: the spine takes the rest of the lean.
+    const hipTilt = -0.18 * this.crouchT + ANIM.slide.hipTilt * this.slideT;
     this.turn('spine', p * A.pitch.spine + (lean - hipTilt) * 0.5 + hx * 0.6, twist * 0.5 + sway, hz * 0.6);
     this.turn('chest', p * A.pitch.chest + (lean - hipTilt) * 0.5 + hx * 0.4 + breathe - A.recoil.chest * this.recoil, twist * 0.5 - sway * 0.5, hz * 0.4);
     // The head keeps the eyes on the view: it takes back the lean.
@@ -481,8 +530,12 @@ export class CharacterAnimator {
   /**
    * Knife swing (the rifle is slung on the back meanwhile): the right hand winds up beside the head and
    * slashes across and forward, the left arm guards in front of the chest. Positions in the chest's space.
+   * PCD: without the right hand the left one swings (mirrored); with one hand the other arm hangs.
    */
   private knifeArms(dt: number, hold = false) {
+    const miss = this.c.missing;
+    const side: 'L' | 'R' = miss?.handR ? 'L' : 'R';
+    const sx = side === 'R' ? 1 : -1;
     // Holding it between swings (a blade-only loadout): the guard pose, where every swing starts.
     this.knifeSwing = hold ? null : (this.knifeSwing ?? 0) + dt;
     const u = hold ? 0 : Math.min(1, this.knifeSwing! / ANIM.knife.swing);
@@ -491,25 +544,47 @@ export class CharacterAnimator {
     const hit = new THREE.Vector3(-0.14, -0.02, -0.5);
     const end = new THREE.Vector3(-0.08, 0.02, -0.4);
     const k = (a: number, b: number) => smooth(THREE.MathUtils.clamp((u - a) / (b - a), 0, 1));
-    const right = guard.clone().lerp(up, k(0, 0.35)).lerp(hit, k(0.35, 0.6)).lerp(end, k(0.6, 1));
+    const swing = guard.clone().lerp(up, k(0, 0.35)).lerp(hit, k(0.35, 0.6)).lerp(end, k(0.6, 1));
+    swing.x *= sx;
     const chest = this.fk(this.bone('chest')!, new THREE.Matrix4());
-    this.ik(LIMBS.armR, right.applyMatrix4(chest), new THREE.Vector3(0.6, -0.7, 0.4));
-    this.ik(LIMBS.armL, new THREE.Vector3(-0.12, 0.04, -0.3).applyMatrix4(chest), new THREE.Vector3(-0.7, -0.6, 0.2));
-    this.c.setGrip(0.8, 1);
+    this.ik(armOf(side), swing.applyMatrix4(chest), new THREE.Vector3(0.6 * sx, -0.7, 0.4));
+    if (miss?.handL || miss?.handR) this.hangArm(side === 'R' ? 'L' : 'R');
+    else this.ik(LIMBS.armL, new THREE.Vector3(-0.12, 0.04, -0.3).applyMatrix4(chest), new THREE.Vector3(-0.7, -0.6, 0.2));
+    this.c.setGrip(side === 'R' ? 0.8 : 1, side === 'R' ? 1 : 0.8);
   }
 
-  /** Both hands on the rifle (IK): hip fire, ADS or sprint; recoil, reload, knife and grenade on top. */
+  /**
+   * Both hands on the rifle (IK): hip fire, ADS or sprint; recoil, reload, knife and grenade on top. PCD with
+   * one hand: it holds the rifle by the grip (the left one, in the mirrored poses of ANIM.rifleOneHand, when
+   * the right is missing; the right arm hangs), or the left stump stays under the handguard; it reloads with
+   * the rifle resting against the body, and throws a grenade with the rifle on the back (rifleAway).
+   */
   private rifleArms(dt: number, s: AvatarPose, pitch: number, lean: number) {
     const A = ANIM;
+    const miss = this.c.missing;
+    const oneHand = !!(miss?.handL || miss?.handR);
+    // The hand on the grip, and the side its poses are on (+1 right, -1 left).
+    const gripSide: 'L' | 'R' = miss?.handR ? 'L' : 'R';
+    const gs = gripSide === 'L' ? -1 : 1;
     this.adsT = damp(this.adsT, s.ads && !s.sprint ? 1 : 0, A.rate.ads, dt);
     this.reloadT = s.reload ? this.reloadT + dt : 0;
     this.knifeT = s.knife ? Math.min(1, this.knifeT + dt * 6) : damp(this.knifeT, 0, 10, dt);
     const lerp3 = (a: readonly number[], b: readonly number[], k: number) => a.map((x, i) => x + (b[i] - x) * k);
-    let pos = lerp3(A.rifle.hip.pos, A.rifle.ads.pos, this.adsT);
-    let rot = lerp3(A.rifle.hip.rot, A.rifle.ads.rot, this.adsT);
+    const P = gripSide === 'L' ? A.rifleOneHand : A.rifle;
+    let pos = lerp3(P.hip.pos, P.ads.pos, this.adsT);
+    let rot = lerp3(P.hip.rot, P.ads.rot, this.adsT);
     const sprint = this.sprintT * (1 - this.adsT);
-    pos = lerp3(pos, A.rifle.sprint.pos, sprint);
-    rot = lerp3(rot, A.rifle.sprint.rot, sprint);
+    pos = lerp3(pos, P.sprint.pos, sprint);
+    rot = lerp3(rot, P.sprint.rot, sprint);
+    // One hand reloading: the rifle goes to rest against the body (on the hand's side) and comes back.
+    const u = (this.reloadT % A.reload.cycle) / A.reload.cycle;
+    const oneReload = oneHand && s.reload;
+    if (oneReload) {
+      const R = A.rifleOneHand.reload;
+      const k = u < 0.15 ? smooth(u / 0.15) : u < 0.85 ? 1 : 1 - smooth((u - 0.85) / 0.15);
+      pos = lerp3(pos, [-gs * R.pos[0], R.pos[1], R.pos[2]], k);
+      rot = lerp3(rot, [R.rot[0], -gs * R.rot[1], -gs * R.rot[2]], k);
+    }
     // The chest carries 70% of the pitch and the torso's lean; the rifle takes back the lean and adds the
     // head's share, so it points along the view.
     const rest = pitch * A.pitch.head - lean;
@@ -520,18 +595,24 @@ export class CharacterAnimator {
         new THREE.Vector3(1, 1, 1),
       ),
     );
-    // Right hand: where the grip puts the rifle.
-    const hand = new THREE.Matrix4().multiplyMatrices(rifle, handToRifleInv!);
-    const handPos = new THREE.Vector3().setFromMatrixPosition(hand);
-    const handQ = new THREE.Quaternion().setFromRotationMatrix(hand);
-    this.ik(LIMBS.armR, handPos, new THREE.Vector3(0.7, -0.6, 0.35), handQ);
-    // Left hand: under the handguard, palm up; to the magazine and the pouch while reloading; up and back
-    // holding the grenade while cooking.
+    // The grip hand: where the grip puts the rifle. One hand reloading: grip → magazine → pouch → magazine →
+    // grip, while the rifle rests.
+    const hand = new THREE.Matrix4().multiplyMatrices(rifle, rifleToHand(gripSide));
+    const grip = new THREE.Vector3().setFromMatrixPosition(hand);
+    const gripQ = new THREE.Quaternion().setFromRotationMatrix(hand);
+    if (oneReload) {
+      const mag = new THREE.Vector3(0, -0.08, -0.1).applyMatrix4(rifle);
+      const pouch = new THREE.Vector3(gs * (0.16 + this.spread * 0.4), 0.95, -0.1);
+      const k = u < 0.15 ? 0 : u < 0.3 ? smooth((u - 0.15) / 0.15) : u < 0.7 ? 1 : u < 0.85 ? 1 - smooth((u - 0.7) / 0.15) : 0;
+      const out = u > 0.3 && u < 0.7 ? Math.sin(((u - 0.3) / 0.4) * Math.PI) : 0;
+      grip.lerp(mag, k).lerp(pouch, out);
+    }
+    // Left hand (or the left stump): under the handguard, palm up; with both hands, to the magazine and the
+    // pouch while reloading.
     const rifleQ = new THREE.Quaternion().setFromRotationMatrix(rifle);
     let left = new THREE.Vector3(...A.leftGrip[s.hold ?? 'longa']).applyMatrix4(rifle);
-    let leftQ = rifleQ.clone().multiply(q.setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI));
-    if (s.reload) {
-      const u = (this.reloadT % A.reload.cycle) / A.reload.cycle;
+    const leftQ = rifleQ.clone().multiply(q.setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI));
+    if (s.reload && !oneHand) {
       const mag = new THREE.Vector3(0, -0.08, -0.1).applyMatrix4(rifle);
       const pouch = new THREE.Vector3(-0.16 - this.spread * 0.4, 0.95, -0.1);
       // grip → magazine → pouch → magazine → grip.
@@ -539,30 +620,53 @@ export class CharacterAnimator {
       const out = u > 0.25 && u < 0.75 ? Math.sin(((u - 0.25) / 0.5) * Math.PI) : 0;
       left = left.lerp(mag, k).lerp(pouch, out);
     }
-    const cookPos = new THREE.Vector3(-0.26, 1.62 - 0.37 * this.crouchT, 0.12);
+    // The grenade's hand: the left one, or the only one there is (on the right: `ts` -1 mirrors it). Up and
+    // back holding the grenade while cooking.
+    const ts = oneHand ? -gs : 1;
+    let nade = oneHand ? grip : left;
+    let nadeQ = oneHand ? gripQ : leftQ;
+    const cookPos = new THREE.Vector3(-0.26 * ts, 1.62 - 0.37 * this.crouchT, 0.12);
     if (s.cook) {
-      left = cookPos.clone();
-      leftQ = q.setFromEuler(e.set(-0.6, 0, 0)).clone();
+      nade = cookPos.clone();
+      nadeQ = q.setFromEuler(e.set(-0.6, 0, 0)).clone();
     }
-    // Throw: from the cooking pose, over the shoulder and forward (release at RELEASE), then back down to the
-    // handguard.
+    // Throw: from the cooking pose, over the shoulder and forward (release at RELEASE), then back down to
+    // where that hand holds the rifle.
     if (this.throwT !== null) {
       this.throwT += dt;
       const T = A.throw;
-      const u = this.throwT / T.time;
-      if (u >= 1) this.throwT = null;
+      const tu = this.throwT / T.time;
+      if (tu >= 1) this.throwT = null;
       else {
-        const release = new THREE.Vector3(-0.14, 1.52 - 0.37 * this.crouchT, -0.5);
-        const k1 = smooth(THREE.MathUtils.clamp(u / T.release, 0, 1));
-        const k2 = smooth(THREE.MathUtils.clamp((u - T.release) / (1 - T.release), 0, 1));
-        left = cookPos.clone().lerp(release, k1).lerp(left, k2);
-        leftQ = q.setFromEuler(e.set(-0.6 + 1.4 * k1, 0, 0)).clone().slerp(leftQ, k2);
+        const release = new THREE.Vector3(-0.14 * ts, 1.52 - 0.37 * this.crouchT, -0.5);
+        const k1 = smooth(THREE.MathUtils.clamp(tu / T.release, 0, 1));
+        const k2 = smooth(THREE.MathUtils.clamp((tu - T.release) / (1 - T.release), 0, 1));
+        nade = cookPos.clone().lerp(release, k1).lerp(nade, k2);
+        nadeQ = q.setFromEuler(e.set(-0.6 + 1.4 * k1, 0, 0)).clone().slerp(nadeQ, k2);
       }
     }
     this.grenadeInHand = s.cook || (this.throwT !== null && this.throwT < A.throw.time * A.throw.release);
     // The support elbow points out and down (not in front of the chest, where a vest or the chest itself
     // would swallow the upper arm); more on a gordo body.
-    this.ik(LIMBS.armL, left, new THREE.Vector3(-0.9 - this.spread * 2, -0.5, 0.12), leftQ);
+    const leftPole = new THREE.Vector3(-0.9 - this.spread * 2, -0.5, 0.12);
+    if (!oneHand) {
+      this.ik(LIMBS.armR, grip, new THREE.Vector3(0.7, -0.6, 0.35), gripQ);
+      this.ik(LIMBS.armL, nade, leftPole, nadeQ);
+      return;
+    }
+    // One hand: it holds the rifle, or the grenade with the rifle on the back; the other arm hangs, or the
+    // left stump stays under the handguard.
+    this.rifleAway = s.cook || this.throwT !== null;
+    const pole = this.rifleAway ? new THREE.Vector3(ts * leftPole.x, leftPole.y, leftPole.z) : new THREE.Vector3(0.7 * gs, -0.6, 0.35);
+    this.ik(armOf(gripSide), this.rifleAway ? nade : grip, pole, this.rifleAway ? nadeQ : gripQ);
+    if (gripSide === 'L' || this.rifleAway) this.hangArm(gripSide === 'L' ? 'R' : 'L');
+    else this.ik(LIMBS.armL, left, leftPole, leftQ);
+    // While its hand is off the grip the rifle stays where it rests: its transform in the hand socket's space.
+    if (oneReload) {
+      const s0 = SOCKETS[gripSide === 'L' ? 'hand_L' : 'hand_R'].pos;
+      const handInv = this.fk(this.bone(`hand_${gripSide}`)!, mA).invert();
+      this.rifleOffset = this.offsetM.makeTranslation(-s0[0], -s0[1], -s0[2]).multiply(handInv).multiply(rifle);
+    }
   }
 
   /** How far the arms spread for the body's build (radians): hanging hands clear a gordo belly and hips. */
@@ -605,6 +709,8 @@ export class CharacterAnimator {
   pose(dt: number, s: AvatarPose) {
     this.reset();
     this.time += dt;
+    this.rifleAway = false;
+    this.rifleOffset = null;
     this.c.setGrip(s.reload ? 0.4 : 0.8, 0.9);
     const lean = this.lowerBody(dt, s);
     const p = this.torso(dt, s.pitch, lean, Math.sin(this.time * 2) * 0.008 * (1 - this.gait));

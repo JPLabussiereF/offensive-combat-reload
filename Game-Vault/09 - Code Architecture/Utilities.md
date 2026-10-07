@@ -25,7 +25,7 @@ source_paths:
 tags:
   - architecture
   - utilities
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Utilities
@@ -37,7 +37,8 @@ Não existe uma pasta `utils/` nem `helpers/`. Os utilitários ficam **no módul
 | Função | Arquivo | O que faz |
 | --- | --- | --- |
 | `json(status, body, extra)`, `redirect(to, extra)` | `server/http.ts` | Respostas com `cache-control: no-store`; `HeaderMap` aceita array para repetir cabeçalhos (vários `Set-Cookie`) |
-| `readJson(req)` | `server/http.ts` | Lê o corpo com limite de 16 KiB e exige objeto JSON |
+| `readJson(req, max?)` | `server/http.ts` | Lê o corpo com limite (16 KiB por padrão) e exige objeto JSON |
+| `readBinary(req, max)` | `server/http.ts` | Lê o corpo em bytes com limite (o GLB dos mapas) |
 | `readCookies(req)`, `cookie(req, name, value, maxAge, path)` | `server/http.ts` | Cookies `HttpOnly; SameSite=Lax`, `Secure` só sob HTTPS (via `X-Forwarded-Proto`) |
 | `clientIp(req)`, `setPeer(req, addr)` | `server/http.ts` | IP do jogador; confia em `X-Forwarded-For` só se a conexão veio de rede privada (proxy local) |
 | `originAllowed(req)`, `publicOrigin(req)`, `isHttps(req)`, `userAgent(req)` | `server/http.ts` | Proteção CSRF/CSWSH e dados da requisição |

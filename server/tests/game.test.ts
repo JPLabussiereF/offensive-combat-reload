@@ -4,12 +4,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { CLOSE, FLAG, NET, type SessionInfo } from '@shared/protocol';
 import { BISCUIT, CHERRY, HEALTH, KOI, POTION, RAT } from '@shared/constants';
 import { DEFAULT_LOADOUT, gunStats } from '@shared/arsenal';
-import { GAME_MODE_IDS } from '@shared/modes';
-import { MAP_IDS, PVP_MAPS } from '@shared/maps';
 import type { GameServer } from '../app';
 import { ticketKey } from '../api';
-import { ban, mute, unmute } from '../moderacao';
-import { Browser, Player, setWeaponXp, sleep, startTestServer } from './helpers';
+import { ban, mute, resolveTag, unmute } from '../moderacao';
+import { Browser, enterMap, Player, setWeaponXp, sleep, startTestServer } from './helpers';
 
 let game: GameServer;
 beforeAll(async () => {
@@ -31,8 +29,7 @@ async function joinMain(b: Browser, lobby: object[] = []) {
   p.send({ t: 'hello' });
   const welcome = await p.next('welcome');
   for (const m of lobby) p.send(m);
-  p.send({ t: 'join', session: 'principal' });
-  const joined = await p.next('joined');
+  const joined = await enterMap(p, 'rua');
   return { p, welcome, joined };
 }
 
@@ -103,7 +100,7 @@ describe('conexões da conta', () => {
   it('banimento encerra a partida e bloqueia o login', async () => {
     const b = await signedIn('Trapaceiro');
     const { p, welcome } = await joinMain(b);
-    await ban(game.deps, welcome.name, 'teste', '7d');
+    await ban(game.deps, await resolveTag(game.deps, welcome.name), 'teste', '7d');
     expect(await p.waitClose()).toBe(CLOSE.revoked);
     expect((await b.req('GET', '/api/me')).status).toBe(401);
   });
@@ -169,18 +166,14 @@ describe('progresso', () => {
 });
 
 describe('mapas', () => {
-  it('cada mapa tem uma sala fixa, e a sala criada leva o mapa escolhido', async () => {
+  it('não há salas fixas; a sala criada leva o mapa escolhido, com a versão e o nome dele', async () => {
     const b = await signedIn('Cartografo');
     const p = await Player.connect(game, await b.ticket());
     p.send({ t: 'hello' });
-    const welcome = await p.next('welcome');
-    // One per map and game mode; mata-mata keeps the ids from before the modes.
-    const fixed = welcome.sessions.filter((s) => s.permanent && s.mode === 'mata-mata');
-    expect(fixed.map((s) => [s.id, s.map]).sort()).toEqual([['halloween', 'halloween'], ['jardim', 'jardim'], ['principal', 'rua']]);
-    expect(welcome.sessions.filter((s) => s.permanent && s.mode === 'corrida-armada')).toHaveLength(3);
+    await p.next('welcome');
 
     p.send({ t: 'create', name: 'Chá das cinco', map: 'jardim' });
-    expect((await p.next('joined')).session).toMatchObject({ name: 'Chá das cinco', map: 'jardim', mode: 'mata-mata', permanent: false });
+    expect((await p.next('joined')).session).toMatchObject({ name: 'Chá das cinco', map: 'jardim', versao: 1, mapaNome: 'Jardim do Dragão', mode: 'mata-mata' });
     p.send({ t: 'create', name: 'Corrida do chá', map: 'jardim', mode: 'corrida-armada' });
     expect((await p.next('joined')).session).toMatchObject({ name: 'Corrida do chá', map: 'jardim', mode: 'corrida-armada' });
 
@@ -196,8 +189,7 @@ describe('cereja do jardim', () => {
     const p = await Player.connect(game, await b.ticket());
     p.send({ t: 'hello' });
     await p.next('welcome');
-    p.send({ t: 'join', session: 'jardim' });
-    return { p, joined: await p.next('joined') };
+    return { p, joined: await enterMap(p, 'jardim') };
   }
 
   it('só quem está perto pega; aumenta a vida máxima, some para todos e quem chega depois sabe quando volta', async () => {
@@ -265,8 +257,7 @@ describe('vila assombrada', () => {
     const p = await Player.connect(game, await b.ticket());
     p.send({ t: 'hello' });
     await p.next('welcome');
-    p.send({ t: 'join', session: 'halloween' });
-    return { p, joined: await p.next('joined') };
+    return { p, joined: await enterMap(p, 'halloween') };
   }
 
   it('o rato gigante dá uma humanidade (+vida máxima até morrer) a quem o derruba perto dele', async () => {
@@ -439,11 +430,12 @@ describe('chat da sala', () => {
   it('silenciar vale na partida em andamento, e dessilenciar devolve o chat', async () => {
     const a = await joinMain(await signedIn('Boquirroto'));
     const b = await joinMain(await signedIn('Paciente'));
-    await mute(game.deps, a.welcome.name, 'teste', '1h');
+    const id = await resolveTag(game.deps, a.welcome.name);
+    await mute(game.deps, id, 'teste', '1h');
     await sleep(200);
     a.p.send({ t: 'chat', text: 'xingamento' });
     expect((await a.p.next('chatRefused')).reason).toBe('muted');
-    await unmute(game.deps, a.welcome.name);
+    await unmute(game.deps, id);
     await sleep(200);
     a.p.send({ t: 'chat', text: 'desculpa' });
     expect((await b.p.next('chat', (m) => m.id === a.joined.you)).text).toBe('desculpa');
@@ -453,35 +445,38 @@ describe('chat da sala', () => {
   });
 });
 
-describe('vaga por mapa', () => {
+describe('sessões sob demanda', () => {
   const list = async () => (await (await fetch(`http://127.0.0.1:${game.port}/api/sessoes`)).json()) as SessionInfo[];
 
-  it('lista as sessões sem conexão de jogo, com o modo de cada uma', async () => {
-    const all = await list();
-    expect([...new Set(all.map((s) => s.map))].sort()).toEqual([...MAP_IDS].sort());
-    expect([...new Set(all.map((s) => s.mode))].sort()).toEqual([...GAME_MODE_IDS].sort());
-    // The zumbi mode's cemetery only ever has zumbi sessions; the versus modes get every other map.
-    expect(all.filter((s) => s.map === 'cemiterio').map((s) => s.mode)).toEqual(['zumbi']);
-    for (const s of all.filter((x) => x.mode !== 'zumbi')) expect(PVP_MAPS).toContain(s.map);
+  it('lista as sessões abertas sem conexão de jogo, com o mapa, a versão e o modo de cada uma', async () => {
+    const p = await Player.connect(game, await (await signedIn('Listado')).ticket());
+    p.send({ t: 'hello' });
+    await p.next('welcome');
+    const joined = await enterMap(p, 'halloween', 'corrida-armada');
+    await sleep(150);
+    expect((await list()).find((s) => s.id === joined.session.id)).toEqual({ id: joined.session.id, name: 'Vila Assombrada', map: 'halloween', versao: 1, mapaNome: 'Vila Assombrada', mode: 'corrida-armada', players: 1, max: NET.maxPlayers });
+    p.close();
+    // Empty: it closes.
+    await sleep(300);
+    expect((await list()).some((s) => s.id === joined.session.id)).toBe(false);
   });
 
-  it('abre outra sessão quando as do mapa lotam, e fecha quando sobra vaga', async () => {
+  it('abre outra sessão quando a do mapa lota, e cada uma fecha ao esvaziar', async () => {
     const players: Player[] = [];
-    for (let i = 0; i < NET.maxPlayers; i++) {
+    const ids = new Set<string>();
+    for (let i = 0; i <= NET.maxPlayers; i++) {
       const p = await Player.connect(game, await (await signedIn(`Lotador ${i}`)).ticket());
       p.send({ t: 'hello' });
       await p.next('welcome');
-      p.send({ t: 'join', session: 'halloween' });
-      await p.next('joined');
+      ids.add((await enterMap(p, 'halloween')).session.id);
       players.push(p);
     }
     await sleep(250);
-    // Only for that map and mode: the corrida armada room of the same map still has room.
-    const extra = (await list()).find((s) => s.map === 'halloween' && !s.permanent);
-    expect(extra).toMatchObject({ name: 'Vila Assombrada 2', mode: 'mata-mata', players: 0 });
-    players.pop()!.close();
-    await sleep(250);
-    expect((await list()).filter((s) => s.map === 'halloween' && s.mode === 'mata-mata')).toHaveLength(1);
+    const open = (await list()).filter((s) => s.map === 'halloween' && s.mode === 'mata-mata');
+    expect(ids.size).toBe(2);
+    expect(Object.fromEntries(open.map((s) => [s.name, s.players]))).toEqual({ 'Vila Assombrada': NET.maxPlayers, 'Vila Assombrada 2': 1 });
     for (const p of players) p.close();
+    await sleep(300);
+    expect((await list()).filter((s) => s.map === 'halloween')).toEqual([]);
   });
 });

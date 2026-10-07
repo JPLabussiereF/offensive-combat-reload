@@ -4,13 +4,16 @@ type: map
 status: documented
 area: world
 source_paths:
-  - client/world/cemetery.ts
+  - shared/data/mapas/cemiterio.json
+  - client/world/catalog/cemetery.ts
+  - client/world/conversao/cemiterio.ts
   - client/world/halloween.ts
   - client/world/furniture.ts
   - shared/maps.ts
   - shared/modes.ts
-  - shared/data/zumbi.json
+  - shared/zombies.ts
   - shared/barricades.ts
+  - shared/data/zumbi.json
   - shared/data/navmesh/cemiterio.json
   - tools/bake-navmesh.ts
   - client/zombies/barricades.ts
@@ -21,7 +24,7 @@ tags:
   - map
   - zombies
   - coop
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Map - Cemitério da Capela
@@ -30,9 +33,9 @@ O mapa **exclusivo do [[Zombie|modo zumbi]]**: um cemitério murado e compacto e
 
 | Campo | Valor |
 | --- | --- |
-| Id interno | `cemiterio` (`MAPS.cemiterio`, `exclusivo: 'zumbi'`) |
-| Sessão fixa | `zumbi-cemiterio` (só do modo zumbi) |
-| Construtor | `buildCemeteryMap` (`client/world/cemetery.ts`), peças de `halloween.ts` (lápides, árvores secas, sebe, arco do portão, lampiões, névoa rasteira, morcegos, céu) e `furniture.ts` (velas) |
+| Id interno | `cemiterio` (`exclusivo: 'zumbi'` nos dados) |
+| Sessão | sob demanda, só do modo zumbi (a sala fixa `zumbi-cemiterio` saiu na PF-6) |
+| Dados | `shared/data/mapas/cemiterio.json` (339 peças; montado por `client/world/mapLoader.ts`), com o muro e os pilares em `client/world/catalog/cemetery.ts` e peças de `halloween.ts` (lápides, árvores secas, sebe, arco do portão, lampiões, névoa rasteira, morcegos, céu) e `furniture.ts` (velas). Os dados do modo zumbi do mapa estão no campo `zumbi` do mesmo JSON. Até a PF-6 era construído em código por `buildCemeteryMap`; os comentários de design estão em `client/world/conversao/cemiterio.ts` |
 | Tamanho | **68 × 64 m** de chão (x −34..34, z −32..32); área jogável dentro da sebe: 64 × 60 m. O pátio murado tem **40 × 36 m**. Cerca de um terço da área da [[Map - Vila Assombrada]] (120 × 110 m) |
 | Atmosfera | noite de lua (luz esverdeada vinda de (38, 62, −30)), **névoa verde `#2c3a30` de 18 a 85 m** (afastada de propósito: as brechas e o campo além delas ficam legíveis de qualquer ponto do pátio), céu estrelado; 10 luzes reais distribuídas às lanternas/velas mais próximas da câmera ([[Lighting]]) |
 | Célula de lote | 34 m |
@@ -57,7 +60,7 @@ O mapa **exclusivo do [[Zombie|modo zumbi]]**: um cemitério murado e compacto e
 ```
 
 - **Muro** (linha central x = ±20, z = ±18; 0,5 m de espessura): **base de pedra de 0,6 m** (para tiros baixos e granadas) com **grades de ferro até 2,4 m** por cima (colisor de bloqueio: para jogadores e granadas, **não para balas**). Pilares a cada ~5 m e nos cantos. Ninguém pula; a horda só entra pelas brechas. A beirada da base (17 cm de cada lado das grades) deixava subir: as grades têm **espinhos** nos dois trilhos, e quem sobe sangra (ver "Zonas especiais").
-- **As cinco brechas** (`mapas.cemiterio.barricadas`, na ordem que a rede e a navmesh usam):
+- **As cinco brechas** (`zumbi.barricadas` em `cemiterio.json`, na ordem que a rede e a navmesh usam):
 
 | # | id | Nome no jogo | Muro | Centro | Largura livre |
 |---|---|---|---|---|---|
@@ -106,8 +109,8 @@ Parapeito do terraço (agachado), bancos da capela, lápides em arco (meia altur
 ## Spawn points
 
 - **Jogadores** (`spawnsFFA`, 16; `spawnsA`/`spawnsB` iguais, só para cumprir o contrato `GameMap`): na Alameda (z −3, 2, 10, 14), na Travessa (x ±8, ±14), no terraço, dentro da capela e nos dois pátios norte. O modo zumbi escolhe o que fica a 12 m dos zumbis e perto de um colega de pé ([[Spawn Design]], `pickSpawn` em `client/main.ts`).
-- **Zumbis** (`mapas.cemiterio.surgir`, 24, **todos fora do muro** — `zombieProblems` recusa um dentro): 6 no campo norte (z −24,3), 6 no campo sul (z 23,6–25,5), 4 a oeste e 4 a leste (x ±26), 4 nos cantos (±27, ±21). Os pontos diante das brechas laterais foram evitados. O sorteio usa os 6 mais próximos que estão a pelo menos 14 m de todo jogador de pé.
-- **Chefes** (`mapas.cemiterio.chefe`), todos fora do muro e em chão limpo (≥ 3,4 m livres em toda direção, conferido na navmesh): o **Coveiro** no campo norte, atrás da capela (0, −24,3); a **Noiva** no campo oeste (−26, −8); o **Prefeito** no anel sul (−11, 24,5), com o anel livre para leste para a **investida** (≥ 18 m). As covas do campo deixam 4 m em volta desses pontos e 2,2 m em volta dos de zumbi.
+- **Zumbis** (`zumbi.surgir`, 24, **todos fora do muro** — `zombieProblems` recusa um dentro): 6 no campo norte (z −24,3), 6 no campo sul (z 23,6–25,5), 4 a oeste e 4 a leste (x ±26), 4 nos cantos (±27, ±21). Os pontos diante das brechas laterais foram evitados. O sorteio usa os 6 mais próximos que estão a pelo menos 14 m de todo jogador de pé.
+- **Chefes** (`zumbi.chefe`), todos fora do muro e em chão limpo (≥ 3,4 m livres em toda direção, conferido na navmesh): o **Coveiro** no campo norte, atrás da capela (0, −24,3); a **Noiva** no campo oeste (−26, −8); o **Prefeito** no anel sul (−11, 24,5), com o anel livre para leste para a **investida** (≥ 18 m). As covas do campo deixam 4 m em volta desses pontos e 2,2 m em volta dos de zumbi.
 
 ## Objetivos
 
@@ -117,7 +120,10 @@ Os do [[Zombie|modo zumbi]]: sobreviver às ondas. Pontos de interesse: o caixã
 
 - **Faixas das brechas** (dentro da espessura do muro): na navmesh, cada uma é um polígono à parte com a sua flag ([[ADR - Barricadas como polígonos próprios na navmesh]]); uma barricada fechada tira esse polígono do mapa dos zumbis.
 - **Raio de trabalho** de uma brecha: 2,4 m do centro, dos dois lados (`barricadas.alcance`).
-- **Espinhos** (`thornsAt` em `shared/barricades.ts`, números em `espinhos`): a grade do muro (fora das brechas) e a **sebe** (`mapas.cemiterio.sebe`). Conta quem está com os pés a 0,3 m do chão ou mais e a até 0,5 m da linha do muro ou 0,8 m da linha da sebe: em pé no chão, o corpo do jogador (raio 0,35 m) nunca chega tão perto, então só quem sobe leva. Os espinhos desenhados (pontas claras nos trilhos e na face da sebe) são só visuais, sem colisão; a navmesh não muda. Regra em [[Zombie]].
+- **Espinhos** (`thornsAt` em `shared/barricades.ts`, números em `espinhos`): a grade do muro (fora das brechas) e a **sebe** (`zumbi.sebe` em `cemiterio.json`; na main era `mapas.cemiterio.sebe` em `shared/data/zumbi.json`). Conta quem está com os pés a 0,3 m do chão ou mais e a até 0,5 m da linha do muro ou 0,8 m da linha da sebe: em pé no chão, o corpo do jogador (raio 0,35 m) nunca chega tão perto, então só quem sobe leva. Os espinhos desenhados (pontas claras nos trilhos e na face da sebe) são só visuais, sem colisão; a navmesh não muda. Regra em [[Zombie]].
+
+> [!info] Espinhos depois do merge da main (07/10/2026)
+> Na main o cemitério ainda era construído em código; na sandbox ele é dado. O porte: a peça `muroCemiterio` desenha sempre os espinhos nos dois trilhos (`client/world/catalog/cemetery.ts`, `thorns`), e a peça `sebe` ganhou o parâmetro opcional `espinhos` (`hedgeThorns`), ligado nas quatro sebes de `shared/data/mapas/cemiterio.json`. A linha da sebe que o servidor confere fica em `zumbi.sebe` do mesmo JSON (`[-32, -30, 32, 30]`). Os espinhos não colidem: colisores e navmesh não mudaram; o golden do Cemitério foi regravado só pelos lotes estáticos (+11,6 mil triângulos). Um banco que já tinha a versão 1 do Cemitério antes disso guarda a versão antiga (sem `sebe` e sem espinhos na sebe) até a equipe salvar uma versão nova.
 
 ## Objetos interativos
 
@@ -143,12 +149,18 @@ Os do [[Zombie|modo zumbi]]: sobreviver às ondas. Pontos de interesse: o caixã
 
 ## Navmesh do servidor
 
-`shared/data/navmesh/cemiterio.json` (~116 KB, 781 polígonos), gerada deste código por `bun run navmesh` com as caixas das brechas marcadas (`gateAreas`). **Mudou o mapa, refaça a malha** (o teste do hash avisa). O jogo solo constrói a mesma malha no navegador. Ver [[Navigation]].
+`shared/data/navmesh/cemiterio.json` (~116 KB, 781 polígonos), gerada a partir de `shared/data/mapas/cemiterio.json` (montado sem tela pelo mesmo carregador do cliente) por `bun run navmesh` com as caixas das brechas marcadas (`gateAreas`). **Mudou o mapa, refaça a malha** (o teste do hash avisa). O jogo solo constrói a mesma malha no navegador. Ver [[Navigation]].
 
 ## Problemas conhecidos
 
 - O caixão e as tábuas têm colisão para os jogadores, mas não estão na navmesh: um zumbi pode encostar no caixão; nas brechas, as tábuas são regra do motor (o filtro), não geometria.
 - Um zumbi encostado no muro alcança um jogador colado nas grades do outro lado (alcance do arranhão 1,3 m sem checar linha de visão): "braço pela grade". Intencional, não testado com jogadores.
 - O topo do telhado da capela não foi pensado para jogo (alcançável só por depuração).
+
+## Código relacionado
+
+- `shared/data/mapas/cemiterio.json` — o mapa (peças, spawns, atmosfera, sons de corvo e uivo, 10 luzes reais) e, em `zumbi`, o muro (`dentro`), os surgimentos, o caixão, os chefes e as brechas (lidos por `shared/zombies.ts` como `ZOMBIE.mapas.cemiterio`, conferidos por `checkZombieMap`).
+- `client/world/catalog/cemetery.ts` — `muroCemiterio` (base de pedra, grades de bloqueio, pilares, cortado nas brechas), `pilarCemiterio`, `CemeterySfx`.
+- `client/world/conversao/cemiterio.ts` — o construtor antigo (`buildCemeteryMap`) gravado como peças, com os comentários de design.
 
 Relacionado: [[Maps Index]] · [[Zombie]] · [[World Structure]] · [[Map Design Rules]] · [[Navigation]] · [[Lighting]]

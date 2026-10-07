@@ -18,7 +18,7 @@ import { CONFETTI_COLORS, Effects } from '../../../render/effects';
 import { PALETTE, toonGradient } from '../../../render/materials';
 import { flashTexture } from '../../../render/viewmodel';
 import { gunParts, holdOf, knifeModel, type GunLookKey } from '../../../render/weaponModels';
-import type { MapFrame } from '../../../world/blockoutMap';
+import type { MapFrame } from '../../../world/gameMap';
 import { Debris, Glow, Puffs } from '../../../world/halloween';
 import { WaterDrops } from '../../../world/hydrant';
 import type { Ctx } from '../../../world/jardim/kit';

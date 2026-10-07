@@ -1,20 +1,27 @@
 // The game server as a function (index.ts starts it; tests start their own on a free port): one Bun.serve
-// with the account API, static files from dist/, and the WebSocket with the lobby and the game sessions (each
-// with its map and game mode).
+// with the API, static files from dist/, and the WebSocket with the lobby and the game sessions (each with one
+// saved version of its map and a game mode).
+//
+// Sessions open on demand (PF-6): 'play' joins a session of the map's current version with room or opens one,
+// 'create' opens a named one, and any session closes once nobody is in it. A session keeps the version it opened
+// with to the end; players who come after a save get the new one.
 import type { Server } from 'bun';
 import { join, normalize } from 'node:path';
 import { CLOSE, NET, sanitizeName, type ClientMsg, type ServerMsg } from '@shared/protocol';
-import { DEFAULT_MAP, isMapId, MAPS, type MapId } from '@shared/maps';
-import { DEFAULT_GAME_MODE, GAME_MODE_IDS, isGameModeId, modeMaps, type GameModeId } from '@shared/modes';
+import { isMapId } from '@shared/maps';
+import { DEFAULT_GAME_MODE, isGameModeId, type GameModeId } from '@shared/modes';
+import { PROG_WEAPONS } from '@shared/progression';
 import { activeBan, chatMutedUntil, emptyDelta, flushProgress, getAccount, loadGameProfile, openParticipation } from './accounts';
 import { handleApi, ticketKey } from './api';
 import type { Deps } from './auth/sessions';
+import { bootstrapAdmin, type AdminBootstrap } from './bootstrapAdmin';
 import { CONFIG } from './config';
 import { createDb, migrate } from './db';
 import { originAllowed, setPeer } from './http';
 import { scheduleJobs } from './jobs';
 import { countEntry, deltaIsEmpty, equip, liveAccount, mergeDelta, progressMsg, settle, type LiveAccount } from './progress';
-import { createRedis, MUTE_CHANNEL, REVOCATION_CHANNEL } from './redis';
+import { allows, defaultMapFor, mapBuilder, mapRow, MapStore, playable, seedOfficialMaps, type MapRow, type MapRuntime } from './maps';
+import { createRedis, MUTE_CHANNEL, PROFILE_CHANNEL, REVOCATION_CHANNEL } from './redis';
 import { Session, type Conn } from './session';
 
 // Resolves to <repo>/dist both from server/app.ts (dev) and from build/server.js (production).
@@ -24,12 +31,8 @@ const MAX_MSGS_PER_SEC = 150;
 const FLUSH_EVERY_MS = 60_000;
 const now = () => performance.now();
 
-/**
- * Id of the permanent session of a map and mode. Mata-mata keeps the ids from before the modes ("principal" from
- * when there was only the street); the other modes are "<mode>-<map>".
- */
-export const permanentSessionId = (mode: GameModeId, map: MapId) =>
-  mode === 'mata-mata' ? (map === 'rua' ? 'principal' : map) : `${mode}-${map}`;
+/** Why a 'play', 'create' or 'join' was refused, for the player. */
+class EnterError extends Error {}
 
 /** What Bun keeps on each game socket (ws.data), from the handshake on. */
 interface Peer {
@@ -40,6 +43,8 @@ interface Peer {
   /** Token bucket against message floods. */
   bucket: number;
   bucketAt: number;
+  /** A 'play', 'create' or 'join' is being answered (they need the database): others wait for it. */
+  entering: boolean;
 }
 
 export interface GameServer {
@@ -55,6 +60,8 @@ interface Options {
   redisUrl?: string;
   /** Housekeeping jobs (partitions, anonymization); off in tests. */
   jobs?: boolean;
+  /** The first admin while there is none (CONFIG.adminBootstrap by default); false skips it (tests). */
+  adminBootstrap?: AdminBootstrap | false;
 }
 
 export async function startServer(opts: Options): Promise<GameServer> {
@@ -63,6 +70,12 @@ export async function startServer(opts: Options): Promise<GameServer> {
   const sub = createRedis(opts.redisUrl ?? CONFIG.redisUrl);
   const deps: Deps = { db, redis };
   await migrate(db);
+  if (opts.adminBootstrap !== false) {
+    const admin = await bootstrapAdmin(db, opts.adminBootstrap);
+    if (admin) console.log(`[servidor] admin inicial: ${admin}`);
+  }
+  await seedOfficialMaps(db, mapBuilder);
+  const maps = new MapStore(db);
   const stopJobs = opts.jobs === false ? () => {} : scheduleJobs(db);
 
   // --- Lobby ----------------------------------------------------------------------------------------
@@ -70,12 +83,13 @@ export async function startServer(opts: Options): Promise<GameServer> {
   const conns = new Set<Conn>();
   /** One game connection per account: a new one replaces the old. */
   const byAccount = new Map<string, Conn>();
+  /** Sessions being opened, by "map@version|mode": players asking at the same moment get the same one. */
+  const opening = new Map<string, Promise<Session>>();
+  /** The accounts each session already counted as a play of its map (play_count goes up once per account and session). */
+  const counted = new WeakMap<Session, Set<string>>();
   let nextId = 1;
 
-  const sessionList = () =>
-    [...sessions.values()].map((s) => s.info).sort((a, b) => Number(b.permanent) - Number(a.permanent) || b.players - a.players);
-  /** Another session of the same map and mode with room (the one that keeps that pair playable). */
-  const otherRoom = (s: Session) => [...sessions.values()].some((o) => o !== s && o.map === s.map && o.mode.id === s.mode.id && !o.full);
+  const sessionList = () => [...sessions.values()].map((s) => s.info).sort((a, b) => b.players - a.players || a.name.localeCompare(b.name));
 
   let listDirty = false;
   function sessionsChanged() {
@@ -84,14 +98,12 @@ export async function startServer(opts: Options): Promise<GameServer> {
     listDirty = true;
     setTimeout(() => {
       listDirty = false;
+      // Every session closes once nobody is in it.
       for (const s of [...sessions.values()]) {
-        if (s.permanent || s.players.size > 0) continue;
-        // An empty session closes, unless it is the room its map and mode have left (see keepRoom).
-        if (!otherRoom(s)) continue;
+        if (s.players.size > 0) continue;
         s.dispose();
         sessions.delete(s.id);
       }
-      keepRoom();
       const list = sessionList();
       for (const c of conns) if (!c.session) c.send({ t: 'sessions', list });
     }, 100);
@@ -100,34 +112,87 @@ export async function startServer(opts: Options): Promise<GameServer> {
   // Sessions broadcast through Bun's pub/sub; the server exists by the time anyone has joined one.
   const publish = (topic: string, data: string) => void server.publish(topic, data);
 
-  function createSession(name: string, map: MapId, mode: GameModeId, permanentId?: string): Session {
+  function createSession(name: string, map: MapRuntime, mode: GameModeId): Session {
     let id: string;
     do id = Math.random().toString(36).slice(2, 8);
     while (sessions.has(id));
-    const s = new Session(permanentId ?? id, name, map, mode, permanentId !== undefined, now, sessionsChanged, publish);
+    const s = new Session(id, name, map, mode, now, sessionsChanged, publish);
     sessions.set(s.id, s);
     return s;
   }
 
-  /**
-   * Every map always has a session with room in every mode played there (modeMaps: zumbi only in its cemetery,
-   * which no other mode gets): when
-   * all of a map's sessions of a mode are full, another opens ("Nome 2", "Nome 3"…).
-   */
-  function keepRoom() {
-    for (const mode of GAME_MODE_IDS) {
-      for (const map of modeMaps(mode)) {
-        const same = [...sessions.values()].filter((s) => s.map === map && s.mode.id === mode);
-        if (same.some((s) => !s.full)) continue;
-        let n = 2;
-        while (same.some((s) => s.name === `${MAPS[map].nome} ${n}`)) n++;
-        createSession(`${MAPS[map].nome} ${n}`, map, mode);
-      }
-    }
+  /** The map's name for its first session of a mode, then "Name 2", "Name 3"... */
+  function nameFor(map: MapRuntime, mode: GameModeId) {
+    const taken = new Set([...sessions.values()].filter((s) => s.map === map.id && s.mode.id === mode).map((s) => s.name));
+    if (!taken.has(map.nome)) return map.nome;
+    let n = 2;
+    while (taken.has(`${map.nome} ${n}`)) n++;
+    return `${map.nome} ${n}`;
   }
 
-  // One permanent session per map and mode, named after the map (the list shows the mode beside it).
-  for (const mode of GAME_MODE_IDS) for (const map of modeMaps(mode)) createSession(MAPS[map].nome, map, mode, permanentSessionId(mode, map));
+  /** A session of the map's current version and the mode with room, opened if there is none. */
+  async function sessionFor(row: MapRow, mode: GameModeId): Promise<Session> {
+    for (let tries = 0; tries < 5; tries++) {
+      const room = [...sessions.values()].find((s) => s.map === row.id && s.mapa.versao === row.current_version && s.mode.id === mode && !s.full);
+      if (room) return room;
+      const key = `${row.id}@${row.current_version}|${mode}`;
+      let p = opening.get(key);
+      if (!p) {
+        p = maps.runtime(row.id, row.current_version).then((map) => createSession(nameFor(map, mode), map, mode));
+        opening.set(key, p);
+        const done = () => opening.delete(key);
+        p.then(done, done);
+      }
+      const s = await p;
+      if (!s.full && sessions.has(s.id)) return s;
+    }
+    throw new EnterError('Sessão lotada.');
+  }
+
+  /** Answers 'play', 'create' and 'join': finds or opens the session, then puts the player in it. */
+  async function enter(conn: Conn, msg: Extract<ClientMsg, { t: 'play' | 'create' | 'join' }>) {
+    const { profile } = conn.account;
+    let s: Session | undefined;
+    if (msg.t === 'join') {
+      s = sessions.get(String(msg.session));
+      if (!s) throw new EnterError('Essa sessão não existe mais.');
+    } else if (msg.t === 'play') {
+      const mode = isGameModeId(msg.mode) ? msg.mode : DEFAULT_GAME_MODE;
+      const row = isMapId(msg.map) ? await mapRow(db, msg.map) : null;
+      // Hidden or deleted maps open no new session (the ones already playing go on).
+      if (!playable(row)) throw new EnterError('Esse mapa não está disponível.');
+      if (!allows(row, mode)) throw new EnterError('Esse modo não é jogado nesse mapa.');
+      s = await sessionFor(row, mode);
+    } else {
+      const name = sanitizeName(msg.name, NET.sessionNameMax) || `Sala de ${profile.tag.split('#')[0]}`;
+      const mode = isGameModeId(msg.mode) ? msg.mode : DEFAULT_GAME_MODE;
+      // A map that isn't there, or where the mode isn't played, falls back to the mode's first official map.
+      let row = isMapId(msg.map) ? await mapRow(db, msg.map) : null;
+      if (!playable(row) || !allows(row, mode)) row = await defaultMapFor(db, mode);
+      if (!row) throw new EnterError('Nenhum mapa disponível para esse modo.');
+      s = createSession(name, await maps.runtime(row.id, row.current_version), mode);
+    }
+    // Gone while the database answered: an empty session it may have opened closes with the next check.
+    if (conn.ws.readyState !== WebSocket.OPEN) return sessionsChanged();
+    if (s.full) {
+      sessionsChanged();
+      throw new EnterError('Sessão lotada.');
+    }
+    void leaveSession(conn);
+    s.join(conn);
+    const account = conn.account;
+    countEntry(account);
+    account.participation = openParticipation(db, profile.profileId, s.name, s.map).catch((err) => {
+      console.error('[progresso] participação:', (err as Error).message);
+      return null;
+    });
+    let seen = counted.get(s);
+    if (!seen) counted.set(s, (seen = new Set()));
+    if (!seen.has(profile.accountId)) {
+      seen.add(profile.accountId);
+      db.query('UPDATE map SET play_count = play_count + 1 WHERE id = $1', [s.map]).catch((err) => console.error('[mapas] jogadas:', (err as Error).message));
+    }
+  }
 
   // --- Progress persistence ---------------------------------------------------------------------------
   async function flush(a: LiveAccount, close: boolean) {
@@ -157,8 +222,9 @@ export async function startServer(opts: Options): Promise<GameServer> {
   }
 
   // --- Revocation: logout, password reset, ban or deletion closes the account's game connection; a chat
-  // mute (or its removal) is reloaded on the live connection, so it takes effect in a running match ------
-  await sub.subscribe(REVOCATION_CHANNEL, MUTE_CHANNEL);
+  // mute (or its removal) is reloaded on the live connection, so it takes effect in a running match; a staff
+  // member's change of name, look or progress reloads the profile (progress at once, the rest next session) --
+  await sub.subscribe(REVOCATION_CHANNEL, MUTE_CHANNEL, PROFILE_CHANNEL);
   sub.on('message', (channel, accountId) => {
     const c = byAccount.get(accountId);
     if (!c) return;
@@ -167,6 +233,20 @@ export async function startServer(opts: Options): Promise<GameServer> {
       chatMutedUntil(db, accountId)
         .then((until) => (c.account.chatMutedUntil = until))
         .catch((err) => console.error('[chat] silêncio:', (err as Error).message));
+    else if (channel === PROFILE_CHANNEL)
+      loadGameProfile(db, accountId)
+        .then((fresh) => {
+          const a = c.account;
+          // What was earned here and not written yet is on top of what the database now says.
+          fresh.xp += a.delta.accountXp;
+          for (const w of PROG_WEAPONS) fresh.weapons[w].xp += a.delta.weaponXp[w];
+          fresh.arsenal = a.profile.arsenal;
+          a.profile = fresh;
+          if (c.name) c.name = fresh.tag;
+          c.sex = fresh.sex;
+          c.send(progressMsg(a));
+        })
+        .catch((err) => console.error('[perfil] recarga:', (err as Error).message));
   });
 
   // --- Static files from dist/ (production) -------------------------------------------------------------
@@ -205,7 +285,7 @@ export async function startServer(opts: Options): Promise<GameServer> {
     const account = await getAccount(db, accountId);
     if (!account || account.status !== 'active' || (await activeBan(db, accountId))) return refuse(403);
     const [profile, mutedUntil] = await Promise.all([loadGameProfile(db, accountId), chatMutedUntil(db, accountId)]);
-    const peer: Peer = { account: liveAccount(profile, mutedUntil), conn: null, bucket: MAX_MSGS_PER_SEC, bucketAt: now() };
+    const peer: Peer = { account: liveAccount(profile, mutedUntil), conn: null, bucket: MAX_MSGS_PER_SEC, bucketAt: now(), entering: false };
     return server.upgrade(req, { data: peer }) ? undefined : refuse(400);
   }
 
@@ -289,29 +369,18 @@ export async function startServer(opts: Options): Promise<GameServer> {
             if (conn.session) break;
             equip(account, msg.lo);
             return conn.send(progressMsg(account));
+          case 'play':
           case 'create':
           case 'join': {
             if (!conn.name) return conn.send({ t: 'error', message: 'Diga olá primeiro.' });
-            void leaveSession(conn);
-            let s: Session | undefined;
-            if (msg.t === 'create') {
-              const name = sanitizeName(msg.name, NET.sessionNameMax) || `Sala de ${profile.tag.split('#')[0]}`;
-              const mode = isGameModeId(msg.mode) ? msg.mode : DEFAULT_GAME_MODE;
-              // A map the mode isn't played on falls back to the first one it is (zumbi: its cemetery; the others: never the cemetery).
-              const maps = modeMaps(mode);
-              const map = isMapId(msg.map) ? msg.map : DEFAULT_MAP;
-              s = createSession(name, maps.includes(map) ? map : maps[0], mode);
-            } else {
-              s = sessions.get(String(msg.session));
-              if (!s) return conn.send({ t: 'error', message: 'Essa sessão não existe mais.' });
-              if (s.full) return conn.send({ t: 'error', message: 'Sessão lotada.' });
-            }
-            s.join(conn);
-            countEntry(account);
-            account.participation = openParticipation(db, profile.profileId, s.name).catch((err) => {
-              console.error('[progresso] participação:', (err as Error).message);
-              return null;
-            });
+            if (peer.entering) return;
+            peer.entering = true;
+            enter(conn, msg)
+              .catch((err) => {
+                if (!(err instanceof EnterError)) console.error('[sessões] entrada:', (err as Error).message);
+                conn.send({ t: 'error', message: err instanceof EnterError ? err.message : 'Não deu para entrar agora.' });
+              })
+              .finally(() => (peer.entering = false));
             return;
           }
           case 'leave':

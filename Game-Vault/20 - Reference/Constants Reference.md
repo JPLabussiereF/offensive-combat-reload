@@ -98,7 +98,7 @@ Tabela dos valores de gameplay como estão no código em 2026-10-05. **Fonte da 
 | `POTION` | `fastSpeed` / `slowSpeed` | 1,3 / 0,7 |
 | `POTION` | `drunkSpread` / `drunkRecoil` | 2,5 / 1,8 |
 
-Posições: `PICKUPS`, `WITCHES`, `RATS`, `FISH` em `shared/maps.ts` (ver [[Maps Index]]).
+Posições: `objetos` nos dados de cada mapa (`shared/mapData.ts`; ver [[Maps Index]]). Limites do editor: `MAP_BUDGET` (400 chamadas, 750 mil triângulos) em `shared/mapData.ts`; GLB em `GLB_LIMITS` (`server/glb.ts`).
 
 ## `SCORE` e `HUMILIATION` → [[Scoring]], [[Humiliation]]
 

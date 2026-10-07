@@ -17,7 +17,7 @@ tags:
   - game
   - index
   - architecture
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Visão geral da arquitetura
@@ -62,7 +62,7 @@ flowchart LR
 ## Fluxo de execução
 
 1. **Cliente:** `index.html` carrega `client/main.ts`, e o `boot()` cria a física, o contexto de render e o áudio. A tela inicial (`client/ui/home.ts`) devolve a escolha (`offline`, `bots` ou `online`). O mapa é construído em código ou a partir de glTF ([[World Structure]]), os sistemas viram variáveis locais da closure e `startLoop(step, render)` roda a simulação em passo fixo de 1/60 s com render interpolado ([[ADR - Simulação em passo fixo com render interpolado]], [[ADR - Bootstrap do cliente numa única closure]]).
-2. **Servidor:** `server/index.ts` chama `startServer()` (`server/app.ts`). O lobby tem 3 salas permanentes, uma por mapa, e cada `Session` (`server/session.ts`) roda a 20 Hz. Ela é autoritativa para vida, dano, abates, pontos, respawn, corpos e coletáveis, e valida cada relato do cliente com regras compartilhadas e tolerância de lag. O movimento é confiado ao cliente ([[ADR - Movimento confiado ao cliente]], [[ADR - Acertos informados pelo cliente com tolerância de lag]]).
+2. **Servidor:** `server/index.ts` chama `startServer()` (`server/app.ts`). As salas abrem sob demanda (`play`: uma sala da versão atual do mapa com vaga, ou uma nova) e fecham vazias, e cada `Session` (`server/session.ts`) roda a 20 Hz. Ela é autoritativa para vida, dano, abates, pontos, respawn, corpos e coletáveis, e valida cada relato do cliente com regras compartilhadas e tolerância de lag. O movimento é confiado ao cliente ([[ADR - Movimento confiado ao cliente]], [[ADR - Acertos informados pelo cliente com tolerância de lag]]).
 3. **Dados:** PostgreSQL guarda contas, perfis, progresso, sanções e auditoria; as migrations rodam na subida ([[Database]], [[Data Migrations]]). Redis guarda limites de taxa, tickets do WebSocket e os canais pub/sub de revogação e silêncio ([[Cache]]).
 4. **Deploy:** Docker Compose (nginx público, jogo, Postgres 18, Redis 8) ou nginx + systemd numa VPS ([[Infrastructure Overview]], [[Hosting]]).
 

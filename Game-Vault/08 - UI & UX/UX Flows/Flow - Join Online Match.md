@@ -4,6 +4,7 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - client/net/maps.ts
   - client/ui/home.ts
   - client/net/connection.ts
   - client/net/api.ts
@@ -39,8 +40,9 @@ sequenceDiagram
     opt JOGAR ONLINE
         H->>H: escolhe a sessão mais cheia não lotada dos mapas marcados
     end
-    H->>S: {t:'join', session} ou {t:'create', name, map}
-    S-->>H: joined (sessão, meu id, horário do servidor)
+    H->>S: {t:'play', map, mode}, {t:'join', session} ou {t:'create', name, map, mode}
+    S-->>H: joined (sessão com mapa e versão, meu id, horário do servidor)
+    H->>S: GET /api/mapas/:map/versoes/:v (se não estiver em cache)
     H->>H: conn.hold() — guarda mensagens
     H->>H: GET /api/perfil (aparência, progressão)
     H-->>G: HomeChoice {mode:'online', conn, joined, map}
@@ -55,9 +57,9 @@ sequenceDiagram
 1. Na aba **Jogar** (só logado), modo **Online** e os mapas desejados marcados. Conta marcada para exclusão: bloqueado com instrução para cancelar no Perfil.
 2. **Lista:** já aparece ao abrir a aba, vinda de `GET /api/sessoes` (6 por vez; **VER MAIS** quando há mais).
 3. **Conexão** (só ao escolher entrar): "Conectando ao servidor…" → abre o WebSocket, envia `hello`, espera `welcome`, mostra "Conectado como {nome}.".
-4. **Escolha:** **JOGAR ONLINE** entra direto na sessão mais cheia não lotada dos mapas marcados. Na lista, cada sessão mostra nome, mapa e jogadores/máximo (máx. 10); sessão cheia tem **LOTADA** desabilitado; também dá para criar uma nova (nome até 24 caracteres + mapa).
-5. **Entrada:** "Entrando…" → `join`/`create` → `joined`. A conexão passa a **segurar** as mensagens que chegam (`hold`) enquanto o mapa é construído, para que nada se perca antes de existirem os handlers.
-5. **Carregamento do mapa da sessão** (não o do seletor da tela inicial). O relógio local é sincronizado com o do servidor (`seed`).
+4. **Escolha:** **JOGAR ONLINE** manda `play` para o mapa da sessão mais cheia não lotada dos mapas marcados (ou para um dos marcados, se ninguém joga neles: o servidor abre a sala). Na lista, cada sessão mostra nome, mapa e jogadores/máximo (máx. 10); sessão cheia tem **LOTADA** desabilitado; também dá para criar uma nova (nome até 24 caracteres + mapa).
+5. **Entrada:** "Entrando…" → `play`/`join`/`create` → `joined` (uma recusa chega como `error` e aparece no status). A conexão passa a **segurar** as mensagens que chegam (`hold`) enquanto o mapa é construído, para que nada se perca antes de existirem os handlers.
+5. **Carregamento do mapa da sessão** (não o do seletor da tela inicial): os dados da versão da sala vêm de `GET /api/mapas/:id/versoes/:v` (`client/net/maps.ts`, guardados em memória e no IndexedDB). O relógio local é sincronizado com o do servidor (`seed`).
 6. **Cartão de início** (o trilho do menu de pausa com JOGAR, sem o aviso): chip do modo, mapa e "Sessão: {nome} · {N}/{máx} jogadores"; dá para abrir a aba do modo e as Configurações antes de jogar. A conexão libera as mensagens guardadas (`release`). O mundo online **já está rodando** mesmo antes de clicar JOGAR.
 7. **JOGAR:** captura do mouse, partida. Chat habilitado ([[Chat]]), placar com Tab ([[Scoreboard]]), avisos de entrada/saída no feed ([[Notifications]]).
 

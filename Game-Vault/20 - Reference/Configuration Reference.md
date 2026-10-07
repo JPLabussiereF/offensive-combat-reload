@@ -24,7 +24,7 @@ tags:
   - referencia
   - configuracao
   - env
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Configuration Reference
@@ -47,8 +47,10 @@ Todas as variáveis de ambiente encontradas no projeto. **Nenhum valor de segred
 | `SMTP_USUARIO` | Conta Gmail que envia | vazio (e-mail vai para o log) | não (dado pessoal) | `server/email.ts` |
 | `SMTP_SENHA_APP` | **Senha de app** do Google (não a senha da conta) | vazio | **sim** | `server/email.ts` |
 | `SMTP_REMETENTE` | Endereço "From" | `SMTP_USUARIO` | não | `server/email.ts` |
+| `ADMIN_BOOTSTRAP_EMAIL` | E-mail do admin inicial, criado ao subir enquanto nenhuma conta é admin | `admin@cadu.com` | não | `server/config.ts` → `server/bootstrapAdmin.ts` |
+| `ADMIN_BOOTSTRAP_PASSWORD` | Senha do admin inicial (só ao criar a conta) | `admin` (só desenvolvimento: trocar antes de expor) | **sim** | `server/config.ts` → `server/bootstrapAdmin.ts` |
 
-No compose, o serviço `jogo` recebe `DATABASE_URL` e `REDIS_URL` montados internamente (`banco:5432`, `redis:6379`) e repassa as demais do `.env` com default vazio.
+No compose, o serviço `jogo` recebe `DATABASE_URL` e `REDIS_URL` montados internamente (`banco:5432`, `redis:6379`) e repassa as demais do `.env` com default vazio (as do admin inicial com os mesmos padrões do código).
 
 ## Docker Compose (`docker-compose.yml`)
 
@@ -82,7 +84,8 @@ No compose, o serviço `jogo` recebe `DATABASE_URL` e `REDIS_URL` montados inter
 | `deploy/offensive-combat.service` | `NODE_ENV=production HOST=127.0.0.1 PORT=8787`, usuário `www-data` |
 | `Dockerfile` | `NODE_ENV=production HOST=0.0.0.0 PORT=8787` na imagem `server` |
 | `shared/protocol.ts` (`NET`), `shared/constants.ts`, `shared/data/*.json` (armas em `weapons/*.json`, melhorias em `progression.json`) | Parâmetros de jogo — ver [[Constants Reference]] e [[Configurable Content]] |
-| `shared/data/zumbi.json` | Todos os números do modo zumbi: tempos, ondas, tipos de zumbi, chefes, dinheiro, XP, o caixão (preço, raridades, armas, `danificada`: chances e penalidades), as barricadas (`barricadas`: tábuas, vida, preço, tempos, prêmio e teto, dano por tipo) e, por mapa (`mapas.cemiterio`), o muro (`dentro`), os pontos de surgimento, o lugar do caixão, os chefes e as brechas — ver [[Zombie]] |
+| `shared/data/zumbi.json` | Todos os números do modo zumbi: tempos, ondas, tipos de zumbi, chefes, dinheiro, XP, o caixão (preço, raridades, armas, `danificada`: chances e penalidades), as barricadas (`barricadas`: tábuas, vida, preço, tempos, prêmio e teto, dano por tipo); os dados de zumbi de cada mapa (o muro `dentro`, os pontos de surgimento, o lugar do caixão, os chefes e as brechas) ficam no campo `zumbi` do JSON do mapa (`shared/data/mapas/cemiterio.json`) — ver [[Zombie]] |
+| `shared/data/mapas/<id>.json` | Os mapas oficiais como dados (`MapData`, `shared/mapData.ts`): ambiente (céu, célula de lote, sombra, `killY`, sons), peças do catálogo (`shared/mapCatalog.ts`), arquivos, spawns, bonecos, objetos que o servidor acompanha e, no Cemitério, os dados de zumbi. Os `*.golden.json` ao lado são o retrato de cada mapa feito do código original antes da conversão (teste de fidelidade) — ver [[World Structure]] |
 | `shared/data/navmesh/<mapa>.json` | Navmesh **gerada** (não editar) para os zumbis do servidor: `bun run navmesh` (`tools/bake-navmesh.ts`) a refaz a partir do código do mapa; um teste falha se estiver desatualizada — ver [[Navigation]] |
 | `localStorage` do navegador | Preferências do jogador (inclusive as teclas de troca de arma `weapon1`/`weapon2`/`swapWeapon`) — ver [[Settings]]. A escolha do Arsenal **não** fica aqui: vai para a conta (`player_profile.loadout`, [[Player Data]]) |
 

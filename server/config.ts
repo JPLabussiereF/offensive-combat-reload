@@ -6,6 +6,9 @@ const list = (v: string | undefined) =>
     .map((s) => s.trim().replace(/\/+$/, ''))
     .filter(Boolean);
 
+/** Default first-admin credentials: for development only (the server warns when production starts with them). */
+export const ADMIN_BOOTSTRAP_DEFAULTS = { email: 'admin@cadu.com', password: 'admin' };
+
 export const CONFIG = {
   production: process.env.NODE_ENV === 'production',
   databaseUrl: process.env.DATABASE_URL ?? 'postgres://oc:oc@localhost:5442/oc',
@@ -15,6 +18,13 @@ export const CONFIG = {
    * by this server, by nginx or through Vite's proxy) are always allowed.
    */
   origins: list(process.env.ORIGENS_PERMITIDAS),
+  /** Where the GLB models uploaded for the maps are kept, one file per SHA-256 (a Docker volume in production). */
+  mapAssetsDir: process.env.MAPAS_DIR ?? './dados/mapas',
+  /** The first admin, made at start while no account is admin (server/bootstrapAdmin.ts). */
+  adminBootstrap: {
+    email: process.env.ADMIN_BOOTSTRAP_EMAIL ?? ADMIN_BOOTSTRAP_DEFAULTS.email,
+    password: process.env.ADMIN_BOOTSTRAP_PASSWORD ?? ADMIN_BOOTSTRAP_DEFAULTS.password,
+  },
   discord: {
     clientId: process.env.DISCORD_CLIENT_ID ?? '',
     clientSecret: process.env.DISCORD_CLIENT_SECRET ?? '',

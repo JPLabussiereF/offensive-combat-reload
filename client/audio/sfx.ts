@@ -3,11 +3,12 @@
 //
 // Spatial sound: the player's own sounds play "in the head"; everything else plays from where it happens via
 // `at(position, kind, play)`, through a panner (HRTF on headphones, plain stereo on speakers and phones), a
-// low-pass for air and walls in between (occlusion, a ray cast against the map), and echo sends: a short room
-// reverb in enclosed spots, a long open-air tail for gunshots and explosions outside.
+// low-pass for air and walls in between (occlusion, a ray cast against the map), a light low-pass and room
+// reverb in enclosed spots, and a short, bright open-air echo for gunshots and explosions outside. How enclosed
+// a spot is comes from the rooms marked on the map, or from rays where nothing is marked.
 import type { SurfaceMaterial } from '../world/physics';
 import type { GunId, KnifeId } from '@shared/progression';
-import { distanceGain, Enclosure, SPATIAL_KINDS, voiceParams, type CastFn, type SpatialKindName, type Vec } from './spatial';
+import { echoSends, Enclosure, enclosureCutoff, selfSends, SPATIAL_KINDS, voiceParams, type CastFn, type RoomVolume, type SpatialKindName, type Vec } from './spatial';
 import { shotVoiceOf } from './gunVoices';
 
 type Bus = 'sfx' | 'ui';
@@ -22,8 +23,11 @@ export type OcclusionFn = (from: Vec, to: Vec) => number;
 const MAX_VOICES = 36;
 const VOICE_LIFE = 1.2;
 
-/** A synthetic impulse response: decaying noise, darker as it fades; `slap` adds an early echo off far walls. */
-function impulse(ctx: AudioContext, seconds: number, decay: number, slap: number): AudioBuffer {
+/**
+ * A synthetic impulse response: decaying noise, darker as it fades (`darken`, a room) or as bright as it starts
+ * (the open air); `slap` adds an early echo off far walls.
+ */
+function impulse(ctx: AudioContext, seconds: number, decay: number, slap: number, darken = true): AudioBuffer {
   const len = Math.floor(ctx.sampleRate * seconds);
   const buf = ctx.createBuffer(2, len, ctx.sampleRate);
   for (let c = 0; c < 2; c++) {
@@ -31,8 +35,11 @@ function impulse(ctx: AudioContext, seconds: number, decay: number, slap: number
     let lp = 0;
     for (let i = 0; i < len; i++) {
       const t = i / len;
-      const k = 0.5 + 0.45 * t; // one-pole low-pass that closes over time
-      lp = lp * k + (Math.random() * 2 - 1) * (1 - k);
+      const n = Math.random() * 2 - 1;
+      if (darken) {
+        const k = 0.5 + 0.45 * t; // one-pole low-pass that closes over time
+        lp = lp * k + n * (1 - k);
+      } else lp = n;
       d[i] = lp * Math.pow(1 - t, decay) * 2.2;
     }
     if (slap > 0) {
@@ -49,6 +56,12 @@ export class Sfx {
   private buses!: Record<Bus, GainNode>;
   private noise!: AudioBuffer;
   private lowpass!: BiquadFilterNode;
+  /** The player's own gunshot skips the low-health muffling: its own volume stage straight to the output. */
+  private clear!: GainNode;
+  private shotIn!: GainNode;
+  /** Light muffling of the player's own sounds where they stand (enclosureCutoff). */
+  private selfAmb!: BiquadFilterNode;
+  private shotAmb!: BiquadFilterNode;
   private volume = 0.7;
   // Spatial.
   private mode: SpatialMode = 'hrtf';
@@ -66,9 +79,23 @@ export class Sfx {
   private occlusion: OcclusionFn | null = null;
   private enclosure: Enclosure | null = null;
   private earT = 0;
+  /** How enclosed the listener's spot is, and the spot of the sound being built (null: none). */
+  private selfEnc = 0;
+  private placeEnc: number | null = null;
+
+  /** For good: closes the audio context (the map editor's Play ends its game this way); nothing plays after it. */
+  dispose() {
+    this.closed = true;
+    const ctx = this.ctx;
+    this.ctx = null;
+    void ctx?.close().catch(() => {});
+  }
+
+  private closed = false;
 
   /** Browsers only allow audio after a user gesture: call from the first click. */
   unlock() {
+    if (this.closed) return;
     if (!this.ctx) {
       const ctx = new AudioContext();
       this.ctx = ctx;
@@ -80,18 +107,32 @@ export class Sfx {
       this.lowpass.frequency.value = 20000;
       this.master.connect(this.lowpass).connect(ctx.destination);
       this.buses = { sfx: ctx.createGain(), ui: ctx.createGain() };
-      this.buses.sfx.connect(this.master);
+      const ambience = () => {
+        const f = ctx.createBiquadFilter();
+        f.type = 'lowpass';
+        f.Q.value = 0.7;
+        f.frequency.value = enclosureCutoff(0);
+        return f;
+      };
+      this.selfAmb = ambience();
+      this.buses.sfx.connect(this.selfAmb).connect(this.master);
       this.buses.ui.connect(this.master);
+      this.clear = ctx.createGain();
+      this.clear.gain.value = this.volume;
+      this.clear.connect(ctx.destination);
+      this.shotIn = ctx.createGain();
+      this.shotAmb = ambience();
+      this.shotIn.connect(this.shotAmb).connect(this.clear);
       this.noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       const data = this.noise.getChannelData(0);
       for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-      // Echo: a short room and a long, dark open-air tail, fed by sends from each sound.
+      // Echo: a dark room reverb and a short, bright open-air tail, fed by sends from each sound.
       this.spatialBus = ctx.createGain();
       this.spatialBus.connect(this.master);
       const room = ctx.createConvolver();
       room.buffer = impulse(ctx, 0.9, 3.2, 0);
       const open = ctx.createConvolver();
-      open.buffer = impulse(ctx, 1.9, 2.4, 0.5);
+      open.buffer = impulse(ctx, 0.9, 2.4, 0.5, false);
       this.roomIn = ctx.createGain();
       this.openIn = ctx.createGain();
       this.roomIn.connect(room).connect(this.master);
@@ -101,13 +142,15 @@ export class Sfx {
       this.selfRoom.gain.value = this.selfOpen.gain.value = 0;
       this.buses.sfx.connect(this.selfRoom).connect(this.roomIn);
       this.buses.sfx.connect(this.selfOpen).connect(this.openIn);
+      this.shotIn.connect(this.selfRoom);
+      this.shotIn.connect(this.selfOpen);
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
   }
 
   setVolume(v: number) {
     this.volume = v;
-    if (this.ctx) this.master.gain.value = v;
+    if (this.ctx) this.master.gain.value = this.clear.gain.value = v;
   }
 
   setSpatialMode(mode: SpatialMode) {
@@ -115,9 +158,12 @@ export class Sfx {
     for (const l of this.loops) l.panner.panningModel = mode === 'hrtf' ? 'HRTF' : 'equalpower';
   }
 
-  /** The map's walls: `cast` for room echo, `occlusion` for sounds behind walls. Call again on a new map. */
-  setWorld(cast: CastFn | null, occlusion: OcclusionFn | null) {
-    this.enclosure = cast ? new Enclosure(cast) : null;
+  /**
+   * The map's walls: its marked `rooms` and `cast` (elsewhere) for how enclosed a spot is, `occlusion` for
+   * sounds behind walls. Call again on a new map.
+   */
+  setWorld(cast: CastFn | null, occlusion: OcclusionFn | null, rooms: readonly RoomVolume[] = []) {
+    this.enclosure = cast ? new Enclosure(cast, rooms) : null;
     this.occlusion = occlusion;
   }
 
@@ -150,8 +196,12 @@ export class Sfx {
     if (this.earT > 0) return;
     this.earT = 0.2;
     const enc = this.enclosure?.at(pos) ?? 0;
-    this.selfRoom.gain.setTargetAtTime(0.22 * enc, t, 0.15);
-    this.selfOpen.gain.setTargetAtTime(0.1 * (1 - enc), t, 0.15);
+    this.selfEnc = enc;
+    const sends = selfSends(enc);
+    this.selfRoom.gain.setTargetAtTime(sends.room, t, 0.15);
+    this.selfOpen.gain.setTargetAtTime(sends.open, t, 0.15);
+    this.selfAmb.frequency.setTargetAtTime(enclosureCutoff(enc), t, 0.15);
+    this.shotAmb.frequency.setTargetAtTime(enclosureCutoff(enc), t, 0.15);
     for (const l of this.loops) l.refresh();
   }
 
@@ -165,12 +215,25 @@ export class Sfx {
     const d = Math.hypot(pos.x - this.ear.x, pos.y - this.ear.y, pos.z - this.ear.z);
     if (d > k.max || !this.admit(k.priority)) return;
     const chain = this.chain(pos, kind, d);
+    this.routed(chain.input, chain.enc, play);
+  }
+
+  /** Plays one of the player's own sounds (their gunshot) clear of the low-health muffling. */
+  unmuffled(play: (s: this) => void) {
+    if (!this.ready) return;
+    this.routed(this.shotIn, this.selfEnc, play);
+  }
+
+  private routed(to: AudioNode, enc: number, play: (s: this) => void) {
     const prev = this.route;
-    this.route = chain.input;
+    const prevEnc = this.placeEnc;
+    this.route = to;
+    this.placeEnc = enc;
     try {
       play(this);
     } finally {
       this.route = prev;
+      this.placeEnc = prevEnc;
     }
   }
 
@@ -197,6 +260,10 @@ export class Sfx {
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.Q.value = 0.7;
+    // Light muffling inside (enclosureCutoff), after the air and walls in between.
+    const ambience = ctx.createBiquadFilter();
+    ambience.type = 'lowpass';
+    ambience.Q.value = 0.7;
     const panner = ctx.createPanner();
     panner.panningModel = this.mode === 'hrtf' ? 'HRTF' : 'equalpower';
     panner.distanceModel = 'inverse';
@@ -208,12 +275,12 @@ export class Sfx {
       panner.positionY.value = pos.y;
       panner.positionZ.value = pos.z;
     } else panner.setPosition(pos.x, pos.y, pos.z);
-    input.connect(filter).connect(panner).connect(this.spatialBus);
+    input.connect(filter).connect(ambience).connect(panner).connect(this.spatialBus);
     const room = ctx.createGain();
     const open = ctx.createGain();
-    filter.connect(room).connect(this.roomIn);
-    filter.connect(open).connect(this.openIn);
-    const chain = { input, filter, panner, room, open };
+    ambience.connect(room).connect(this.roomIn);
+    ambience.connect(open).connect(this.openIn);
+    const chain: SpatialChain = { input, filter, ambience, panner, room, open, enc: 0 };
     this.tune(chain, pos, kind, d, true);
     return chain;
   }
@@ -221,16 +288,17 @@ export class Sfx {
   /** @internal Occlusion, air and echo for the current listener position. */
   tune(c: SpatialChain, pos: Vec, kind: SpatialKindName, d: number, now: boolean) {
     const ctx = this.ctx!;
-    const k = SPATIAL_KINDS[kind];
     const occ = this.occlusion && d > 0.5 ? this.occlusion(this.ear, pos) : 0;
     const v = voiceParams(d, occ);
     const enc = this.enclosure?.at(pos) ?? 0;
-    const far = Math.sqrt(distanceGain(d, k));
+    const sends = echoSends(kind, enc, d);
     const set = (p: AudioParam, value: number) => (now ? (p.value = value) : p.setTargetAtTime(value, ctx.currentTime, 0.12));
     set(c.input.gain, v.gain);
     set(c.filter.frequency, v.cutoff);
-    set(c.room.gain, k.room * enc * far * 0.7);
-    set(c.open.gain, k.open * (1 - enc) * far);
+    set(c.ambience.frequency, enclosureCutoff(enc));
+    set(c.room.gain, sends.room);
+    set(c.open.gain, sends.open);
+    c.enc = enc;
   }
 
   /** @internal */
@@ -302,11 +370,11 @@ export class Sfx {
   }
 
   /**
-   * Three layers: crack, body, room tail; +-5% pitch variation so it never sounds identical. Each gun has its
-   * voice (SHOT_VOICES): the rifle's full bang, the pistol's sharper and shorter pop, the SMG's light, quick
-   * crack, and the newer secondaries' own extra layer; a silenced one is a muffled "pff" (other players hear it
-   * only up close). Other players' shots play through `at(muzzle, ...)`, which handles their distance and
-   * direction.
+   * Three layers: crack, body, room tail (only as much as the spot is enclosed: none in the open, where the
+   * open-air echo does that job); +-5% pitch variation so it never sounds identical. Each gun has its voice
+   * (SHOT_VOICES): the rifle's full bang, the pistol's sharper and shorter pop, the SMG's light, quick crack,
+   * and the newer secondaries' own extra layer; a silenced one is a muffled "pff" (other players hear it only
+   * up close). Other players' shots play through `at(muzzle, ...)`, which handles their distance and direction.
    */
   gunshot(volume = 1, voice: GunVoice = 'rifle') {
     if (!this.ready || volume < 0.02) return;
@@ -323,7 +391,8 @@ export class Sfx {
     this.noiseBurst(t, 0.05, 'highpass', 2500 * p * pitch, 0.7, 0.55 * v * v, 'sfx', p);
     this.noiseBurst(t, body, 'lowpass', 1400 * p * pitch, 0.9, 0.9 * v, 'sfx', p);
     this.tone(t, 'sine', 150 * p * pitch, 45, body * 0.85, low * v);
-    this.noiseBurst(t + 0.02, body * 2.5, 'bandpass', 700 * p * pitch, 0.6, 0.12 * Math.sqrt(v), 'sfx', p);
+    const enc = this.placeEnc ?? this.selfEnc;
+    if (enc > 0.02) this.noiseBurst(t + 0.02, body * 2.5, 'bandpass', 700 * p * pitch, 0.6, 0.12 * Math.sqrt(v) * enc, 'sfx', p);
     if (extra === 'grampo') {
       // Tec: a staple's metal clack, and the spring snapping back.
       this.noiseBurst(t, 0.03, 'bandpass', 4800 * p, 6, 0.35 * v, 'sfx', p);
@@ -1393,9 +1462,12 @@ export class Sfx {
 export interface SpatialChain {
   input: GainNode;
   filter: BiquadFilterNode;
+  ambience: BiquadFilterNode;
   panner: PannerNode;
   room: GainNode;
   open: GainNode;
+  /** How enclosed the sound's spot was at the last tune. */
+  enc: number;
 }
 
 /** A looping sound fixed at a point: walls and echo follow the listener a few times a second. */

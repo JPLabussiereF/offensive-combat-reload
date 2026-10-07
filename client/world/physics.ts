@@ -3,8 +3,13 @@ import { GROUP, groups } from '@shared/constants';
 
 export type SurfaceMaterial = 'grass' | 'concrete' | 'wood' | 'metal' | 'glass' | 'tile' | 'paper';
 
+/** What a collider is for sound occlusion: cars and tree trunks block less than a wall (audio/spatial.ts). */
+export type OccluderKind = 'solid' | 'vehicle' | 'trunk';
+
 export interface SurfaceInfo {
   material: SurfaceMaterial;
+  /** Sound occlusion kind; default 'solid'. */
+  occluder?: OccluderKind;
   /** Optional environmental gag triggered when shot (section 10). */
   onShot?: (point: RAPIER.Vector) => void;
 }

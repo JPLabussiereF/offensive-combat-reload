@@ -9,7 +9,7 @@ source_paths:
   - client/zombies/client.ts
   - client/zombies/link.ts
   - client/zombies/barricades.ts
-  - client/world/cemetery.ts
+  - shared/data/mapas/cemiterio.json
   - client/core/loop.ts
   - client/core/input.ts
   - client/core/settings.ts
@@ -18,7 +18,8 @@ source_paths:
   - client/net/connection.ts
   - client/net/remote.ts
   - client/world/physics.ts
-  - client/world/blockoutMap.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
   - client/ai/bots.ts
   - client/entities/dummy.ts
   - client/gameplay/targets.ts
@@ -67,7 +68,7 @@ Detalhes:
 
 - **Carregamento**: `createPhysics()` (`client/world/physics.ts`) inicializa o WASM do Rapier e cria um `World` com gravidade −22 e `timestep` 1/60. `createRenderContext` cria renderer, cena, câmera, sol e a cena separada do viewmodel.
 - **Home**: `showHome()` (`client/ui/home.ts`) resolve com um `HomeChoice` que é uma união discriminada por `mode`: `'offline'` (treino), `'bots'` (`count`, `skill`) ou `'online'` (`conn`, `joined`). Ver [[Menus]] e [[Flow - Join Online Match]].
-- **Mapa**: escolhido por `choice.map` (`rua` → `buildBlockoutMap`, `jardim` → `buildDragonGardenMap`, `halloween` → `buildHauntedTownMap`, `cemiterio` → `buildCemeteryMap`, só no modo zumbi) ou por `?mapa=/maps/x.glb` (`buildGltfMap`). Todos devolvem a interface `GameMap` (`client/world/blockoutMap.ts`): spawns, bonecos, `killY`, `props` (um `PropBus`), `update()`, `dog`, coletáveis, peixes, ratos, poção, recompensas e atmosfera. Ver [[World Structure]].
+- **Mapa**: `loadOfficialMap(choice.map)` carrega o JSON oficial (`shared/data/mapas/<id>.json`, que vai no pacote do cliente; o `cemiterio` só no modo zumbi) e `buildMapFromData` o monta peça por peça (`client/world/mapLoader.ts`, [[ADR - Mapas como dados com catálogo de peças]]); com `?mapa=/maps/x.glb`, `buildGltfMap`. Os coletáveis e os dados de zumbi vêm de `objetos` e `zumbi` do mapa. Todos devolvem a interface `GameMap` (`client/world/gameMap.ts`): spawns, bonecos, `killY`, `props` (um `PropBus`), `update()`, `dog`, coletáveis, peixes, ratos, poção, recompensas e atmosfera. Ver [[World Structure]].
 - **Criação de sistemas**: tudo é instanciado como `const` local dentro de `boot()` (ex.: `dummies`, `net`, `effects`, `viewmodel`, `progress`, `mines`, `player`, `avatar`, `melee`, `thrower`, `grenades`, `taunt`, `hud`, `scoreboard`, `input`, `chat`, `bots`).
 - **Retenção de mensagens**: a home chama `conn.hold()` logo depois do `'joined'`; o `boot()` só chama `conn.release()` quando todos os handlers existem, para não perder abates/corpos enviados durante a montagem do mapa (`client/net/connection.ts`).
 
@@ -136,5 +137,5 @@ Em `import.meta.env.DEV`, `window.__oc` expõe jogador, arma, rede, física, map
 - `client/core/loop.ts` (`startLoop`)
 - `client/ui/home.ts` (`showHome`, `HomeChoice`, `closeReason`)
 - `client/net/connection.ts` (`Connection.hold/release`)
-- `client/world/blockoutMap.ts` (`GameMap`)
+- `client/world/gameMap.ts` (`GameMap`), `client/world/mapLoader.ts` (`loadOfficialMap`, `buildMapFromData`)
 - `client/gameplay/targets.ts` (`Target`, `Humiliable`, `HitboxRegistry`)

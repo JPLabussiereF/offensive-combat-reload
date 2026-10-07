@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ensureShadowMap } from './shadows';
 
 export interface RenderContext {
   renderer: THREE.WebGLRenderer;
@@ -11,7 +12,8 @@ export interface RenderContext {
   /** The viewmodel's own lights (they follow the map's mood, see applyAtmosphere). */
   vmHemi: THREE.HemisphereLight;
   vmSun: THREE.DirectionalLight;
-  render(): void;
+  /** Draws a frame with the game's camera, or another (the map editor's orthographic view). */
+  render(view?: THREE.Camera): void;
 }
 
 /** A map's sky and light (the default is a sunny day): see applyAtmosphere. */
@@ -119,11 +121,12 @@ export function createRenderContext(container: HTMLElement): RenderContext {
     hemi,
     vmHemi,
     vmSun,
-    render() {
+    render(view: THREE.Camera = camera) {
       renderer.info.autoReset = false;
       renderer.info.reset();
+      ensureShadowMap(renderer, sun);
       renderer.clear();
-      renderer.render(scene, camera);
+      renderer.render(scene, view);
       renderer.clearDepth();
       renderer.render(vmScene, vmCamera);
     },

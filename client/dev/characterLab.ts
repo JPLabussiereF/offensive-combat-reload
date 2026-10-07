@@ -1,8 +1,9 @@
 // Character lab (dev only, tools/lab-personagens.html): a line-up of looks under the editor's lighting, for
 // screenshots and side-by-side checks against the references. Query: ?view=full|head|hands|back, ?bake=0,
-// ?anim=idle|aim|walk, ?yaw=<radians>.
+// ?anim=idle|aim|walk, ?yaw=<radians>, ?pcd=maoDir|bracoDir|maoEsq|bracoEsq (a missing hand or arm, on every
+// look, in third and first person).
 import * as THREE from 'three';
-import { BROW_STYLES, choice, defaultAppearance, EAR_STYLES, EYE_STYLES, FACE_MARKS, FACE_SHAPES, MOUTH_STYLES, NOSE_STYLES, sanitizeFace, wear, type Appearance } from '@shared/appearance';
+import { ARM_LOSSES, BROW_STYLES, choice, defaultAppearance, EAR_STYLES, EYE_STYLES, FACE_MARKS, FACE_SHAPES, MOUTH_STYLES, NOSE_STYLES, sanitizeFace, wear, type Appearance } from '@shared/appearance';
 import { catalogItem, catalogOf, type Category, type Slot } from '@shared/catalog';
 import type { Sex } from '@shared/protocol';
 import RAPIER from '@dimforge/rapier3d-compat';
@@ -25,6 +26,8 @@ const view = q.get('view') ?? 'full';
 const bake = q.get('bake') !== '0';
 const anim = q.get('anim') ?? 'idle';
 const yaw = Number(q.get('yaw') ?? 0.35);
+/** &pcd=…: the missing hand or arm (PCD) of every look. */
+const pcd = ARM_LOSSES.find((v) => v && v === q.get('pcd')) ?? null;
 
 /** Puts an item on with its primary color (the others keep the item's defaults). */
 function put(a: Appearance, slot: Slot, id: string, primary: string) {
@@ -228,6 +231,7 @@ if (view === 'fp') {
   const look = LOOKS.find((l) => l.name === (q.get('only') ?? 'soldado')) ?? LOOKS[0];
   const a = defaultAppearance(look.sex);
   look.set(a);
+  if (pcd) a.pcd.braco = pcd;
   vm.setBody(a, look.sex);
   for (let f = 0; f < 60; f++) {
     vm.update(1 / 60, {
@@ -296,6 +300,7 @@ function lookOptions(a: Appearance, sex: Sex) {
   if (beard !== null) a.barba = beard;
   const hat = q.get('hat');
   if (hat) wear(a, 'cabeca', hat, sex);
+  if (pcd) a.pcd.braco = pcd;
   for (const pair of q.get('with')?.split(',') ?? []) {
     const [ws, wid] = pair.split(':');
     if (ws && wid) wear(a, ws as Slot, wid, sex);

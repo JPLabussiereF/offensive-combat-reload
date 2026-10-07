@@ -4,7 +4,11 @@ type: map
 status: documented
 area: world
 source_paths:
-  - client/world/blockoutMap.ts
+  - shared/data/mapas/rua.json
+  - client/world/catalog/street.ts
+  - client/world/catalog/objects.ts
+  - client/world/catalog/glb.ts
+  - client/world/conversao/rua.ts
   - client/world/vehicles.ts
   - client/world/hydrant.ts
   - client/world/dog.ts
@@ -19,7 +23,7 @@ tags:
   - world
   - map
   - rua
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Map - Rua dos Vizinhos
@@ -28,15 +32,15 @@ updated: 2026-10-05
 | --- | --- |
 | Id interno | `rua` (mapa padrão, `DEFAULT_MAP`) |
 | Sessão fixa | id `principal`, nome "Rua dos Vizinhos" |
-| Construtor | `buildBlockoutMap` (`client/world/blockoutMap.ts`) |
+| Dados | `shared/data/mapas/rua.json` (120 peças; montado por `client/world/mapLoader.ts`). Até a PF-6 era construído em código por `buildBlockoutMap`; os comentários de design estão em `client/world/conversao/rua.ts` |
 | Tamanho | 80 × 60 m (x −40..40, z −30..30) |
-| Atmosfera | dia ensolarado padrão (sem `atmosphere` próprio), nuvens e passarinhos |
+| Atmosfera | dia ensolarado padrão (sem `atmosfera` própria), cúpula de nuvens e passarinhos (`ambiente.sons`) |
 | Célula de lote | 40 m (padrão) |
 | `killY` | −20 |
 
 ## Visão geral
 
-Bairro residencial em estilo cartunesco, o primeiro mapa do projeto e o mapa de **blockout** feito em código. Organizado em **três faixas leste-oeste**: casas de dois andares ao norte, a rua com carros no centro e quintais cercados ao sul. É também o único mapa com um **perigo letal** (a cachorra Amora) e o exemplo de prop carregado de glTF (a casinha dela). Visual: [[Environment Pieces]], [[Props Catalog]], [[Procedural Textures]].
+Bairro residencial em estilo cartunesco, o primeiro mapa do projeto, nascido como **blockout** feito em código (hoje em dados, como os outros). Organizado em **três faixas leste-oeste**: casas de dois andares ao norte, a rua com carros no centro e quintais cercados ao sul. É também o único mapa com um **perigo letal** (a cachorra Amora) e o exemplo de prop carregado de glTF (a casinha dela). Visual: [[Environment Pieces]], [[Props Catalog]], [[Procedural Textures]].
 
 ## Layout
 
@@ -82,7 +86,7 @@ Pontos de referência (coordenadas x, z):
 
 ## Rotas alternativas
 
-- **Fileira de casas**: cada casa tem porta da frente, porta dos fundos e **duas portas laterais** (z −17,5), de modo que a fileira pode ser **atravessada de ponta a ponta por dentro** (comentário de `buildHouse`). Janelas do térreo (peitoril 0,9 m, topo 2,3 m) dão para atravessar pulando agachado.
+- **Fileira de casas**: cada casa tem porta da frente, porta dos fundos e **duas portas laterais** (z −17,5), de modo que a fileira pode ser **atravessada de ponta a ponta por dentro** (comentário de `buildHouse`, hoje em `client/world/catalog/street.ts`, montado pela peça `casaRua`). Janelas do térreo (peitoril 0,9 m, topo 2,3 m) dão para atravessar pulando agachado.
 - **Faixa dos fundos** (z −30..−23,5): corredor atrás das casas.
 - **Quintais**: atravessados pelos portões das cercas; a piscina é um corredor rebaixado (−2 m) com rampa e escada.
 
@@ -141,11 +145,13 @@ Caminhão de sorvete (jingle), 3 hidrantes (jato e arremesso), 4 flamingos (gira
 
 - Os spawns **B** não são usados por nenhum modo atual (só A no treino e FFA nos outros). Ver [[Spawn Design]].
 - Os comentários citam "section 10" de um documento de design que não está no repositório.
-- A casinha da Amora vem de um `.glb`; se o arquivo falhar ao carregar, o mapa segue **sem a casinha e sem a Amora** (`try/catch` com aviso no console).
+- A casinha da Amora vem de um `.glb` (peça `glb` com `arquivo: casinha_cachorro`, listado em `arquivos` do JSON); se o arquivo falhar ao carregar, o mapa segue **sem a casinha e sem a Amora** (`try/catch` com aviso no console, `client/world/catalog/glb.ts`).
 
 ## Código relacionado
 
-- `client/world/blockoutMap.ts` — `buildBlockoutMap`, `buildHouse`.
+- `shared/data/mapas/rua.json` — o mapa (peças, spawns, bonecos, ambiente).
+- `client/world/catalog/street.ts` — `casaRua` (a casa de dois andares, `buildHouse`), árvores e arbustos, postes, placas; `catalog/objects.ts` — hidrantes, flamingos, Amora; `catalog/vehicles.ts` — carros, van, caminhão de sorvete.
+- `client/world/conversao/rua.ts` — o construtor antigo gravado como peças (só documenta e reproduz a conversão).
 - `client/world/vehicles.ts` — `buildCar`, `buildVan`, `buildIceCreamTruck`.
 - `client/world/hydrant.ts` — `Hydrant`, `WaterDrops`.
 - `client/world/dog.ts` — `ChowChow`, `namePlate`.

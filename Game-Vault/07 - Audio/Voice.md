@@ -5,14 +5,14 @@ status: documented
 area: audio
 source_paths:
   - client/audio/sfx.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/world/halloween.ts
   - client/ui/chat.ts
 tags:
   - game
   - audio
   - voice
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Voice
@@ -40,7 +40,7 @@ Todos tocam posicionados no mundo (`sfx.at`, ver [[Spatial Audio]]). O texto dos
 ## Código relacionado
 
 - `client/audio/sfx.ts` — `grumble`, `ghostMoan`, `evilLaugh`.
-- `client/world/hauntedTown.ts` — ligações das falas da bruxa, fantasma, capela e buzina.
+- `client/world/catalog/objects.ts` e `client/world/catalog/vehicles.ts` — ligações das falas da bruxa, fantasma, sino da capela e buzina.
 - `client/world/halloween.ts` — classes dos personagens (bruxa, fantasma) que chamam `talk`/`moan`/`scold`/`cackle`.
 - `client/ui/chat.ts` — o canal de comunicação real entre jogadores (texto).
 

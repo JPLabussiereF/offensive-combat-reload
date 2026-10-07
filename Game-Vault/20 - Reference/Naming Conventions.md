@@ -47,7 +47,7 @@ Convenções **observadas** no código (não há guia de estilo escrito nem lint
 | Classes, funções, variáveis, tipos | Inglês | `BotManager`, `GrenadeThrower`, `PropBus`, `startServer`, `computeDamage`, `pickSafeSpawn` |
 | Comentários de código | Inglês, frases completas, explicam o "porquê" | "Coalesce bursts of joins/leaves into one lobby update." |
 | Valores de domínio (uniões de string) | **Português**, sem acento | Regiões `'cabeca' \| 'pescoco' \| 'virilha'`; poções `'pato' \| 'veloz' \| 'lerdo' \| 'critico' \| 'bebado'`; dificuldade `'facil' \| 'normal' \| 'dificil'`; qualidade `'auto' \| 'baixa' \| 'media' \| 'alta'`; coletáveis `'cereja' \| 'biscoito'`; armas de progressão `'rifle' \| 'pistola' \| 'smg' \| 'faca' \| 'granada'` (`smg` é a exceção em inglês); espaços `'primaria' \| 'secundaria'`; ids de melhoria em camelCase pt (`'pontoVermelho' \| 'luneta' \| 'silenciador' \| 'frango' \| 'sabre' \| 'mina'`…); formas da faca `'faca' \| 'frango' \| 'sabre'`; altura `'pequeno' \| 'medio' \| 'alto'` |
-| Ids de mapa | Português/curto | `rua`, `jardim`, `halloween` (nome exibido em `MAPS[id].nome`) |
+| Ids de mapa | Oficiais: português/curto (`rua`, `jardim`, `halloween`, `cemiterio`); comunidade: 10 letras e dígitos aleatórios | nome exibido em `nome` dos dados do mapa |
 | Chaves de superfície | Português | `grama`, `asfalto`, `calcada`, `tijolo`, `reboco`, `madeira`, `telhado`, `vidro`, `papel`, `lataria`... (`client/world/surfaces.ts`) |
 | Ids de gags (`PropBus`) | Português, minúsculas, `nome[:n]` | `hidrante:1`, `fantasma`, `bruxa`, `espantalho:2`, `caldeirao` (o servidor exige `^[a-z]{1,16}(:\d{1,3})?$`) |
 | Ações de input | Inglês | `fire`, `ads`, `reload`, `melee`, `grenade`, `weapon1`, `weapon2`, `swapWeapon`, `taunt`, `scoreboard`, `chat` (`client/core/keybinds.ts`) |
@@ -88,7 +88,7 @@ Convenções **observadas** no código (não há guia de estilo escrito nem lint
 ## Arquivos e pastas
 
 - Pastas do cliente em inglês minúsculo (`core`, `render`, `world`, `entities`, `weapons`, `gameplay`, `ai`, `net`, `ui`).
-- Arquivos TypeScript em **camelCase inglês** (`blockoutMap.ts`, `hauntedTown.ts`, `spawnPicker.ts`), **exceto** o domínio do Jardim do Dragão, em português (`client/world/jardim/bambu.ts`, `cerejeira.ts`, `peixes.ts`, `santuario.ts`), e `server/moderacao.ts`.
+- Arquivos TypeScript em **camelCase inglês** (`mapLoader.ts`, `gameMap.ts`, `spawnPicker.ts`), **exceto** o domínio do Jardim do Dragão, em português (`client/world/jardim/lanternas.ts`, `cerejeira.ts`, `peixes.ts`, `santuario.ts`), e `server/moderacao.ts`.
 - Ferramentas em pt kebab-case: `tools/gerar-props-exemplo.mjs`, `tools/lab-personagens.html`; `tools/admin.ts`, `tools/offensive.ts` em inglês.
 - Documentação humana em MAIÚSCULAS pt: `docs/MAPAS.md`, `docs/PERSONAGENS.md`, `docs/DEPLOY.md`.
 - Nomes no Blender/glTF por prefixo: `COL_`, `SPAWN_`, `MAT_`, `DUMMY_`, `GAG_`, `KILLVOLUME` (`client/world/gltfMap.ts`, `docs/MAPAS.md`). Ver [[Asset Pipeline]].
@@ -106,7 +106,7 @@ Convenções **observadas** no código (não há guia de estilo escrito nem lint
 
 ## Referências internas a documento de design
 
-Comentários citam "section N" (ex.: "section 14", "section 6") e "style guide" — referências a um documento de design e a um guia de estilo de personagens que **não estão no repositório** (ver [[Documentation Status]]). `client/world/hauntedTown.ts` cita `README_Halloween.md`, também ausente.
+Comentários citam "section N" (ex.: "section 14", "section 6") e "style guide" — referências a um documento de design e a um guia de estilo de personagens que **não estão no repositório** (ver [[Documentation Status]]). `client/world/conversao/halloween.ts` (antes `hauntedTown.ts`) cita `README_Halloween.md`, também ausente.
 
 ## Commits e branches
 

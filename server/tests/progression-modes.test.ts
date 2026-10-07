@@ -18,7 +18,7 @@ import { defaultAppearance } from '@shared/appearance';
 import { grenadeStats, gunStats, knifeOf, loadoutKnife, resolveLoadout, sanitizeLoadout, slotStats, type GunStats, type Loadout } from '@shared/arsenal';
 import { SCORE } from '@shared/constants';
 import { LADDER, ladderLoadout } from '@shared/gunGame';
-import { GAME_MODE_IDS, MODE_RULES, modeMaps, type GameModeId } from '@shared/modes';
+import { GAME_MODE_IDS, MODE_RULES, type GameModeId } from '@shared/modes';
 import {
   DEFAULT_CHOICE,
   DEFAULT_KNIFE,
@@ -51,7 +51,12 @@ import { computeDamage, explosionDamage, HIT_REGIONS, idealTtk } from '@shared/w
 import { BOX_ITEMS, flawAmmo, itemOf, itemSlot, startItems, Z_FLAWS, ZOMBIE, zombieGunData, zombieLoadout, type ZFlaw, type ZItems, type ZSlot } from '@shared/zombies';
 import { equip, levelsOf, liveAccount, loadoutOf, xpOf, type LiveAccount } from '../progress';
 import { emptyTotals } from '../accounts';
+import { officialRuntime } from '../maps';
 import { Session, type Conn } from '../session';
+
+/** The official maps the sessions here play (their shipped data, as version 1). */
+const STREET = await officialRuntime('rua');
+const CEMETERY = await officialRuntime('cemiterio');
 
 // --- Accounts: every gun at every level, with its optional upgrades off, each one on, all on ---------------------
 
@@ -130,7 +135,7 @@ class Room {
   readonly session: Session;
 
   constructor(readonly mode: GameModeId) {
-    this.session = new Session(`matriz-${mode}`, 'Matriz', modeMaps(mode)[0], mode, false, () => this.t, () => {}, (_topic, data) => this.deliver(data));
+    this.session = new Session(`matriz-${mode}`, 'Matriz', mode === 'zumbi' ? CEMETERY : STREET, mode, () => this.t, () => {}, (_topic, data) => this.deliver(data));
   }
 
   /** What Bun's pub/sub does: to every socket of the session (but the sender's own, for ws.publish). */
@@ -267,7 +272,6 @@ describe('matriz progressão × modos', () => {
       // (a ladder, a coffin) never level up the account's.
       if (r.weapons === 'mode') expect({ m, weaponXp: r.weaponXp }).toEqual({ m, weaponXp: false });
       if (r.weapons === 'mode') expect({ m, registered: !!MODE_LOADOUTS[m] }).toEqual({ m, registered: true });
-      expect(modeMaps(m).length).toBeGreaterThan(0);
     }
   });
 

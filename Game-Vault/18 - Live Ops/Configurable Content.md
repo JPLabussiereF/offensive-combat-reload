@@ -34,7 +34,7 @@ Conteúdo que pode ser ajustado **sem mexer na lógica**, editando arquivos de d
 | Melhorias das armas | `shared/data/progression.json` | Por arma: a melhoria de cada nível, os pontos para liberá-la, se é opcional, o grupo e os efeitos (multiplicadores, somas, mira, forma, tipo) | [[Progression]] |
 | Nomes e descrições de armas e melhorias | `client/ui/strings.ts` (`arma_*`, `armaDesc_*`, `upg_<arma>_<id>`, `upgDesc_*`, `fx_*`) | Textos em pt-BR e en; `client/tests/arsenalText.test.ts` acusa um texto faltando | [[Inventory UI]] |
 | Nível da conta | `shared/data/nivel_conta.json` | Curva de XP da conta | [[Progression]] |
-| Mapas e objetos sincronizados | `shared/maps.ts` | Lista de mapas (`MAPS`), mapa padrão, pickups, peixes, ratos, bruxas por mapa | [[Maps Index]] |
+| Mapas e objetos sincronizados | Banco (`map`, `map_version`, pela API `/api/mapas`) e `shared/data/mapas/*.json` (oficiais) | Mapas oficiais e da comunidade com versões; coletáveis, peixes, ratos e bruxa nos dados de cada mapa. Mudar um mapa não exige build (as salas novas usam a versão nova) | [[Maps Index]] |
 | Constantes de jogo | `shared/constants.ts` | Vida, regeneração, pontuação, opressão, cereja, poções, etc. | [[Constants Reference]] |
 | Catálogo de personagem | `shared/catalog.ts` | Itens de roupa/acessórios, categorias, canais de cor | [[Character Customization]] |
 | Texturas de superfície | `public/textures/manifest.json` | Troca as texturas procedurais por arquivos (`arquivo`, `metros`, `tingir`) — hoje só contém o leia-me | [[Texture System]] |

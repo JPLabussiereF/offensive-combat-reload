@@ -4,13 +4,15 @@ type: system
 status: documented
 area: rendering
 source_paths:
+  - client/editor/editor.ts
+  - client/render/shadows.ts
   - client/render/renderer.ts
   - client/render/quality.ts
   - client/render/effects.ts
   - client/world/halloween.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/world/jardim/luzes.ts
-  - client/world/dragonGarden.ts
+  - shared/data/mapas/jardim.json
   - client/world/mapBuilder.ts
   - client/main.ts
   - client/ui/customize.ts
@@ -20,7 +22,7 @@ tags:
   - rendering
   - lighting
   - shadows
-updated: 2026-10-05
+updated: 2026-10-07
 ---
 
 # Lighting
@@ -66,7 +68,7 @@ As luzes do viewmodel seguem o clima do mapa (campo `viewmodel` da `Atmosphere`)
 - Tipo `PCFShadowMap`; só o sol projeta. Mapa de sombras de 2048² na criação, depois definido pelo preset de qualidade (512 / 1024 / 2048).
 - Câmera de sombra ortográfica padrão: ±48 m em X, ±40 m em Y, near 5, far 120; `bias −0.0006`, `normalBias 0.05`.
 - Mapas grandes informam `shadowExtent`; `main.ts` então usa ±`shadowExtent` e far 150: Jardim do Dragão **57 m** (`W + 12`, com `W = 45`), Vila Assombrada **84 m** (`max(60, 55) + 24`).
-- O mapa de sombras **não** é atualizado automaticamente (`shadowMap.autoUpdate = false`): `QualityManager.beforeRender()` marca `needsUpdate` a cada `shadowEvery` quadros (1 na Alta, 2 na Média, 4 na Baixa; 3 no celular), ou imediatamente quando ainda não existe. Motivo no código: "o mapa é estático; só personagens se movem". Ver [[ADR - Qualidade automática com resolução dinâmica]].
+- O mapa de sombras **não** é atualizado automaticamente (`shadowMap.autoUpdate = false`): `QualityManager.beforeRender()` marca `needsUpdate` a cada `shadowEvery` quadros (1 na Alta, 2 na Média, 4 na Baixa; 3 no celular); chamam o laço da partida e o do editor de mapas. Quando o mapa ainda não existe (primeiro quadro, redimensionamento), `RenderContext.render` o pede antes de desenhar (`ensureShadowMap`, `client/render/shadows.ts`): amostrar um mapa não alocado é erro de GL na GPU e apaga todo material iluminado ([[Problem - Editor sem mapa de sombra com aceleração de hardware]]). Motivo no código: "o mapa é estático; só personagens se movem". Ver [[ADR - Qualidade automática com resolução dinâmica]].
 - Lotes estáticos recebem sombra; peças marcadas `castShadow: false` (molduras de portas, por exemplo) não projetam. Personagens, armas na mão, granadas e minas projetam.
 - Faces de costas para o sol não testam sombra (patch no shader). Ver [[ADR - Sombras ignoradas em faces de costas para o sol]].
 
@@ -108,6 +110,8 @@ O palco do editor (`client/ui/customize.ts`) tem renderizador próprio, com hemi
 
 - `client/render/renderer.ts` (`createRenderContext`, `applyAtmosphere`, `Atmosphere`)
 - `client/render/quality.ts` (`beforeRender`, `applyShadows`)
+- `client/render/shadows.ts` (`ensureShadowMap`)
+- `client/editor/editor.ts` (o laço do editor chama `beforeRender`)
 - `client/render/effects.ts` (`muzzleLight`, `boomLight`)
 - `client/world/halloween.ts` (`LightSpot`, `LightPool`)
 - `client/world/jardim/luzes.ts` (`NIGHT`, `LanternLights`)

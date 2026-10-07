@@ -8,6 +8,7 @@ source_paths:
   - client/render/viewmodel.ts
   - client/render/weaponModels.ts
   - client/main.ts
+  - client/weapons/remoteImpact.ts
   - client/world/halloween.ts
   - client/world/jardim/luzes.ts
   - client/world/decor.ts
@@ -16,7 +17,7 @@ source_paths:
   - client/zombies/view.ts
   - client/zombies/barricades.ts
   - client/zombies/coffin.ts
-  - client/world/cemetery.ts
+  - shared/data/mapas/cemiterio.json
   - shared/data/weapons/rifle_padrao.json
   - shared/data/weapons/pistola.json
   - shared/data/weapons/smg.json
@@ -46,7 +47,7 @@ Efeitos de combate ficam em `client/render/effects.ts` (classe `Effects`, criada
 
 ### Impacto
 
-Furo (decal) + detritos + faíscas no mapa; confete ou estrelas em personagens. Ver [[Decals]] e [[Particles]].
+Furo (decal) + detritos + faíscas no mapa; confete ou estrelas em personagens. Ver [[Decals]] e [[Particles]]. Online, os tiros dos outros jogadores também deixam furo, detritos e faíscas no mapa (raycast curto em volta do ponto final, `client/weapons/remoteImpact.ts`); acertos neles continuam sem efeito para terceiros.
 
 ### Explosão de granada (`Effects.explosion`)
 
@@ -95,7 +96,7 @@ O comportamento de jogo desses objetos (o que acontece ao atirar, sincronizaçã
 - `client/main.ts` (`explosionFx`, `killFx`, `groinFx`, `humiliationFx`, `weapon.shoot`)
 - `client/world/halloween.ts`, `client/world/jardim/luzes.ts`, `client/world/decor.ts`, `client/world/oriental.ts`, `client/world/hydrant.ts`
 - `client/weapons/mines.ts`
-- `client/zombies/view.ts` (telegrafias do modo zumbi), `client/zombies/barricades.ts`, `client/zombies/coffin.ts`, `client/world/cemetery.ts`
+- `client/zombies/view.ts` (telegrafias do modo zumbi), `client/zombies/barricades.ts`, `client/zombies/coffin.ts`, `shared/data/mapas/cemiterio.json`
 
 ## Ver também
 

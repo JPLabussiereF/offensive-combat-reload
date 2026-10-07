@@ -6,8 +6,6 @@
 //
 // Adding a mode: an id here with its rules, its server side in server/modes.ts (createMode), its strings
 // (gameMode_<id>, gameModeDesc_<id>) and, if it hands out weapons, a module like shared/gunGame.ts.
-import { PVP_MAPS, type MapId } from './maps';
-
 export type GameModeId = 'mata-mata' | 'corrida-armada' | 'zumbi';
 export const GAME_MODE_IDS: GameModeId[] = ['mata-mata', 'corrida-armada', 'zumbi'];
 export const DEFAULT_GAME_MODE: GameModeId = 'mata-mata';
@@ -35,10 +33,10 @@ export interface ModeRules {
    */
   coop?: boolean;
   /**
-   * The maps it can be played on (when absent: every map not exclusive to one mode, PVP_MAPS): sessions and the
-   * home only offer these. A map exclusive to a mode (shared/maps.ts) is listed only by that mode.
+   * Played only on maps made for it (their data's `exclusivo` names the mode): zumbi needs a map with its wall,
+   * gaps and coffin. Without it, a mode is played on every open map (none made for a single mode).
    */
-  maps?: readonly MapId[];
+  ownMaps?: boolean;
 }
 
 export const MODE_RULES: Record<GameModeId, ModeRules> = {
@@ -49,8 +47,11 @@ export const MODE_RULES: Record<GameModeId, ModeRules> = {
   // Zombie waves (shared/zombies.ts): co-op survival in its own walled cemetery (a map no other mode plays);
   // weapons come from the mystery coffin, bought with the match's money; zombie kills give account XP only (the
   // weapons aren't the player's Arsenal).
-  zumbi: { weapons: 'mode', lockedLoadout: true, grenades: true, weaponXp: false, rounds: true, bots: true, coop: true, maps: ['cemiterio'] },
+  zumbi: { weapons: 'mode', lockedLoadout: true, grenades: true, weaponXp: false, rounds: true, bots: true, coop: true, ownMaps: true },
 };
 
-/** The maps a mode can be played on: its own list, or every map not made for a single mode. */
-export const modeMaps = (m: GameModeId): readonly MapId[] => MODE_RULES[m].maps ?? PVP_MAPS;
+/**
+ * Whether mode `m` can be played on a map made for `exclusivo` (its data's field; absent or null: an open map).
+ * A map made for a mode is played in that mode only, and a mode with maps of its own only on those.
+ */
+export const modeAllowsMap = (m: GameModeId, exclusivo: GameModeId | null | undefined): boolean => (exclusivo ? exclusivo === m : !MODE_RULES[m].ownMaps);

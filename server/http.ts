@@ -2,7 +2,8 @@
 // Requests and responses are the web-standard ones that Bun.serve works with.
 import { CONFIG } from './config';
 
-const MAX_BODY = 16 * 1024;
+/** Default limit of a JSON body (the account forms); routes that take more (a map) pass their own. */
+export const MAX_BODY = 16 * 1024;
 
 export class HttpError extends Error {
   constructor(
@@ -22,20 +23,27 @@ export const randomToken = () => Buffer.from(crypto.getRandomValues(new Uint8Arr
 export const sha256 = (s: string) => Bun.CryptoHasher.hash('sha256', s);
 export const sha256hex = (s: string) => Bun.CryptoHasher.hash('sha256', s, 'hex');
 
-export async function readJson(req: Request): Promise<Record<string, unknown>> {
-  if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY) throw new HttpError(413, 'corpo_grande_demais');
+/** The whole body as bytes, refused (413) once it passes `max` bytes, before or while it arrives. */
+export async function readBinary(req: Request, max: number): Promise<Uint8Array> {
+  if (Number(req.headers.get('content-length') ?? 0) > max) throw new HttpError(413, 'corpo_grande_demais');
   const chunks: Uint8Array[] = [];
   let size = 0;
   if (req.body) {
     for await (const c of req.body) {
       size += c.byteLength;
-      if (size > MAX_BODY) throw new HttpError(413, 'corpo_grande_demais');
+      if (size > max) throw new HttpError(413, 'corpo_grande_demais');
       chunks.push(c);
     }
   }
-  if (!size) return {};
+  return new Uint8Array(Buffer.concat(chunks));
+}
+
+/** A JSON object body of at most `max` bytes (an empty body is {}). */
+export async function readJson(req: Request, max = MAX_BODY): Promise<Record<string, unknown>> {
+  const body = await readBinary(req, max);
+  if (!body.length) return {};
   try {
-    const v = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    const v = JSON.parse(Buffer.from(body).toString('utf8'));
     if (v && typeof v === 'object' && !Array.isArray(v)) return v;
   } catch {
     /* fall through */
@@ -45,7 +53,11 @@ export async function readJson(req: Request): Promise<Record<string, unknown>> {
 
 function headers(base: Record<string, string>, extra: HeaderMap): Headers {
   const h = new Headers(base);
-  for (const [name, value] of Object.entries(extra)) for (const v of [value].flat()) h.append(name, v);
+  // Set-Cookie repeats; any other header given replaces the default one (a route's own Cache-Control).
+  for (const [name, value] of Object.entries(extra)) {
+    if (name.toLowerCase() !== 'set-cookie') h.delete(name);
+    for (const v of [value].flat()) h.append(name, v);
+  }
   return h;
 }
 

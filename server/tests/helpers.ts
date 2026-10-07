@@ -1,13 +1,17 @@
 // Test helpers: a real game server on a free port, and a tiny browser (cookie jar + Origin header +
 // its own IP through X-Forwarded-For, so per-IP limits don't leak between tests).
+import { MAP_FORMAT, type MapData } from '@shared/mapData';
+import type { GameModeId } from '@shared/modes';
 import type { ProgWeapon } from '@shared/progression';
 import type { ServerMsg } from '@shared/protocol';
+import type { Papel } from '@shared/roles';
+import { accountByTag } from '../accounts';
 import { startServer, type GameServer } from '../app';
 import { TEST_DATABASE_URL, TEST_REDIS_URL } from './env';
 
 const wsUrl = (game: GameServer, ticket: string) => `ws://127.0.0.1:${game.port}/ws?ticket=${encodeURIComponent(ticket)}`;
 
-export const startTestServer = () => startServer({ port: 0, host: '127.0.0.1', databaseUrl: TEST_DATABASE_URL, redisUrl: TEST_REDIS_URL, jobs: false });
+export const startTestServer = () => startServer({ port: 0, host: '127.0.0.1', databaseUrl: TEST_DATABASE_URL, redisUrl: TEST_REDIS_URL, jobs: false, adminBootstrap: false });
 
 let ipCounter = 1;
 let emailCounter = 1;
@@ -177,4 +181,42 @@ export async function setWeaponXp(b: Browser, xp: Partial<Record<ProgWeapon, num
       [name, Number(disc), points, weapon],
     );
   }
+}
+
+/**
+ * Plays `map` in `mode` (sessions open on demand: a session of the map with room, or a new one) and waits until
+ * the player is in.
+ */
+export async function enterMap(p: Player, map: string, mode: GameModeId = 'mata-mata') {
+  p.send({ t: 'play', map, mode });
+  return p.next('joined');
+}
+
+/** The account id behind a signed-in browser. */
+export async function accountOf(b: Browser): Promise<string> {
+  const tag = (await b.req('GET', '/api/perfil')).body.tag as string;
+  return (await accountByTag(b.game.deps.db, tag))!;
+}
+
+/** Gives a signed-in account a staff role straight in the database (as the console would: the first admin comes from there). */
+export async function promote(b: Browser, papel: Papel) {
+  await b.game.deps.db.query('INSERT INTO account_role (account_id, role) VALUES ($1, $2) ON CONFLICT DO NOTHING', [await accountOf(b), papel]);
+}
+
+/** A small valid map (a floor and a car, the three spawn lists) for the map tests to change. */
+export function tinyMap(nome = 'Mapa de teste'): MapData {
+  return {
+    formato: MAP_FORMAT,
+    nome,
+    cartao: { emoji: '🧪', cor: '#aabbcc' },
+    ambiente: { ceu: {}, celula: 40, killY: -20 },
+    pecas: [
+      { id: 'chao', tipo: 'caixa', p: [0, -0.5, 0], params: { tamanho: [40, 1, 40], superficie: 'grama' } },
+      { id: 'carro', tipo: 'carro', p: [2, 0, 3], yaw: 0.5, params: { cor: 0xd8342a } },
+    ],
+    arquivos: [],
+    spawns: { a: [{ p: [-10, 0.2, 0], yaw: 0 }], b: [{ p: [10, 0.2, 0], yaw: 0 }], ffa: [{ p: [0, 0.2, 10], yaw: 0 }] },
+    bonecos: [],
+    objetos: { coletaveis: [], bruxa: null, ratos: [], peixes: [] },
+  };
 }

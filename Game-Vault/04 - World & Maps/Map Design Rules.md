@@ -6,11 +6,12 @@ area: world
 source_paths:
   - docs/MAPAS.md
   - client/world/mapBuilder.ts
-  - client/world/blockoutMap.ts
-  - client/world/dragonGarden.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
+  - shared/data/mapas/jardim.json
   - client/world/jardim/kit.ts
   - client/world/jardim/casa.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/world/halloween.ts
   - client/world/oriental.ts
   - shared/constants.ts
@@ -62,7 +63,7 @@ Regras que os mapas atuais seguem e que valem para quem for mexer neles ou criar
 
 ## 4. Linhas de visão e muros
 
-Regras explícitas do [[Map - Jardim do Dragão]] (`docs/MAPAS.md` e comentários de `dragonGarden.ts`/`jardim/kit.ts`), pensadas para que "ninguém leve tiro de longe enquanto oprime um corpo" (ver [[Humiliation]]):
+Regras explícitas do [[Map - Jardim do Dragão]] (`docs/MAPAS.md` e comentários de `client/world/conversao/jardim.ts`/`jardim/kit.ts`), pensadas para que "ninguém leve tiro de longe enquanto oprime um corpo" (ver [[Humiliation]]):
 
 - **Muros entre setores com 4 m** (`WALL_H`). Nenhum lugar onde se fica de pé pode ter o olho (piso + 1,65 m) acima disso perto de um muro — por isso a Plataforma do Mestre tem piso a 2 m.
 - **Portões nunca alinhados** com o portão do outro lado de um pátio.
@@ -71,9 +72,9 @@ Regras explícitas do [[Map - Jardim do Dragão]] (`docs/MAPAS.md` e comentário
 
 Aplicações equivalentes nos outros mapas:
 
-- Rua: o **caminhão de sorvete** fica no meio da rua para quebrar a linha de visão longa (comentário em `blockoutMap.ts`); caixotes altos (2 m) nas pontas.
+- Rua: o **caminhão de sorvete** fica no meio da rua para quebrar a linha de visão longa (comentário em `client/world/conversao/rua.ts`); caixotes altos (2 m) nas pontas.
 - Vila: cercas vivas (`hedge`, 2,6 m) "bloqueiam movimento e visão"; a Praça da Lua Cheia é a única arena deliberadamente aberta.
-- Mausoléu da Vila: não há caixão na sala noroeste porque a porta externa dela se alinha com o corredor (comentário em `hauntedTown.ts`).
+- Mausoléu da Vila: não há caixão na sala noroeste porque a porta externa dela se alinha com o corredor (comentário em `client/world/conversao/halloween.ts`).
 
 Detalhe em [[ADR - Linhas de visão curtas no Jardim do Dragão]].
 

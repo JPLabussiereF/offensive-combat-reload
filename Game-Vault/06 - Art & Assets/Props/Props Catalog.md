@@ -16,7 +16,8 @@ source_paths:
   - client/world/jardim/frutas.ts
   - client/world/jardim/peixes.ts
   - client/world/jardim/cereja.ts
-  - client/world/blockoutMap.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
   - client/entities/dummy.ts
   - public/models/casinha_cachorro.glb
   - docs/MAPAS.md
@@ -25,7 +26,7 @@ tags:
   - art
   - props
   - assets
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Props Catalog

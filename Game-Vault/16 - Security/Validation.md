@@ -35,7 +35,7 @@ Validação de entrada em cada camada. As regras ficam, sempre que possível, em
 |---|---|---|
 | Rota | Só `MÉTODO caminho` cadastrados; resto → `404 nao_encontrado` | `server/api.ts` |
 | Origem | POST/PATCH/PUT/DELETE exigem `Origin` igual ao `Host` ou em `ORIGENS_PERMITIDAS`; sem `Origin` → recusa (`403 origem_invalida`) | `originAllowed` |
-| Corpo | ≤ **16 KiB** (`Content-Length` e contagem real em *stream*) → `413 corpo_grande_demais`; precisa ser **objeto JSON** → `400 json_invalido` | `readJson` |
+| Corpo | ≤ **16 KiB** por padrão, 2 MiB nos dados de mapa e 10 MB no GLB (`Content-Length` e contagem real em *stream*) → `413 corpo_grande_demais` / `arquivo_grande_demais`; precisa ser **objeto JSON** → `400 json_invalido` (o GLB passa por `server/glb.ts`; os dados de mapa por `validateMapData` e pela montagem com orçamento) | `readJson` |
 | Cookie de sessão | ≤ 100 caracteres; hash SHA-256 casado no banco, não revogado, não vencido, conta não `deleted` | `authenticate` |
 | E-mail | minúsculo, ≤ 254, formato `x@y.z` | `validEmail` |
 | Senha | 8–128 caracteres; no login, só os primeiros 1024 são verificados | `validPassword`, `login` |

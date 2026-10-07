@@ -7,7 +7,8 @@ source_paths:
   - client/ai/bot.ts
   - client/ai/bots.ts
   - client/entities/dummy.ts
-  - client/world/blockoutMap.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
   - client/world/dog.ts
   - client/world/jardim/panda.ts
   - client/world/jardim/peixes.ts
@@ -15,7 +16,7 @@ source_paths:
   - shared/zombieMatch.ts
   - shared/barricades.ts
   - client/zombies/view.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/main.ts
   - shared/constants.ts
   - shared/maps.ts
@@ -56,7 +57,7 @@ O jogador local entra no `BotManager` como mais um `Combatant` (`playerTarget` e
 ## 2. Bonecos de treino (`client/entities/dummy.ts`)
 
 - Personagens padrão com aparência variada e a arma da vida na mão (com uma secundária na mão, o rifle aparece nas costas; a pose da mão de apoio segue `holdOf`), com as **mesmas hitboxes** dos jogadores (`CharacterRig`).
-- Alguns **patrulham**: deslocamento senoidal ao longo de um eixo (`patrol: { axis, amplitude, speed }` nos `DummySpot` de cada mapa, ex.: `client/world/blockoutMap.ts`). Não atiram nem perseguem.
+- Alguns **patrulham**: deslocamento senoidal ao longo de um eixo (`patrol: { axis, amplitude, speed }` nos bonecos de cada mapa, `bonecos[].patrulha` no JSON, ex.: `shared/data/mapas/rua.json`). Não atiram nem perseguem.
 - Mostram vida numa placa; regeneram 4 s depois do último dano (`HEALTH.regenDelay`, `regenPerSecond`).
 - Ao morrer, caem (`back`/`forward`), mostram o temporizador de opressão (`CorpseTimer`), podem ser oprimidos uma vez, afundam e renascem — **só quando o lugar está livre** (`occupied`), para não nascer dentro do jogador.
 - Nomes de 12 opções (`NAMES`: "Sr. Alvo", "Zé Palha", "Cara do Tutorial"...).
@@ -76,7 +77,7 @@ Puramente decorativo, sem reação a jogadores. Ciclo de 4,5 s: levanta o bambu 
 
 ## 5. Carpas (`client/world/jardim/peixes.ts`) — Jardim do Dragão
 
-Nadam em laços (`FISH` em `shared/maps.ts`: centro, raio, profundidade) cronometrados pelo **relógio do jogo** (online, o do servidor), para todos verem os peixes no mesmo lugar. Tiro ou faca mata: o peixe vira de barriga, boia e some; volta depois (25–45 s), às vezes dourado (5%). Quem decide a recompensa é o jogo (offline) ou o servidor (`Session.onFish`).
+Nadam em laços (`objetos.peixes` nos dados do mapa: centro, raio, profundidade) cronometrados pelo **relógio do jogo** (online, o do servidor), para todos verem os peixes no mesmo lugar. Tiro ou faca mata: o peixe vira de barriga, boia e some; volta depois (25–45 s), às vezes dourado (5%). Quem decide a recompensa é o jogo (offline) ou o servidor (`Session.onFish`).
 
 ## 6. Fantasma da cova (`GraveGhost`, `client/world/halloween.ts`) — Vila Assombrada
 
@@ -90,11 +91,11 @@ Nadam em laços (`FISH` em `shared/maps.ts`: centro, raio, profundidade) cronome
 - Vira a cabeça para a **câmera local** se ela estiver a menos de 8 m (e até 3 m de desnível); senão olha para o caldeirão.
 - Perto dela, a tecla de opressão vira "Beber Poção"; a cada poção ela gargalha com uma fala por efeito (`WITCH_LINES`).
 - Levar tiro: dá bronca ("Quer virar sapo?") — gag `'bruxa'`.
-- Posição em `WITCHES.halloween`; o servidor confere a distância antes de sortear a poção (`Session.onPotion`).
+- Posição em `objetos.bruxa` (dados da Vila Assombrada); o servidor confere a distância antes de sortear a poção (`Session.onPotion`).
 
 ## 8. Rato gigante (`GiantRat`, `client/world/halloween.ts`) — Vila Assombrada
 
-- Fica no fim do beco sem saída do esgoto (`RATS.halloween`). Respira, **vira para a câmera local** se ela estiver a menos de 18 m (e até 4 m de desnível), guincha a cada 4–9 s.
+- Fica no fim do beco sem saída do esgoto (`objetos.ratos` da Vila Assombrada). Respira, **vira para a câmera local** se ela estiver a menos de 18 m (e até 4 m de desnível), guincha a cada 4–9 s.
 - Tem `RAT.hits = 14` de vida em balas (facada vale `RAT.stab = 4`); se encolhe ao ser atingido.
 - O golpe final chama `onDown(id)`; o jogo decide (offline na hora, online pelo servidor, que confere distância ≤ `RAT.range`) e então `kill(ready)`: rola, afunda e solta uma "alma". Volta em `RAT.respawn = 120` s, crescendo de novo.
 
@@ -121,6 +122,6 @@ A horda do [[Zombie|modo zumbi]]. Online o **servidor** a simula (`ZombieMode` e
 - `client/entities/dummy.ts` (`Dummy`, `DummyManager`)
 - `client/world/dog.ts` (`ChowChow`), `client/main.ts` (`dogTick`, `biteOnce`)
 - `client/world/jardim/panda.ts`, `client/world/jardim/peixes.ts` (`KoiSchool`)
-- `client/world/halloween.ts` (`GraveGhost`, `Witch`, `GiantRat`, `Cauldron`, `Scarecrows`, `Bats`), `client/world/hauntedTown.ts`
+- `client/world/halloween.ts` (`GraveGhost`, `Witch`, `GiantRat`, `Cauldron`, `Scarecrows`, `Bats`), `client/world/catalog/objects.ts`, `shared/data/mapas/halloween.json`
 
 Ver também: [[Map - Rua dos Vizinhos]], [[Map - Jardim do Dragão]], [[Map - Vila Assombrada]], [[Humiliation]], [[Respawn]].

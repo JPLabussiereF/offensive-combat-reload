@@ -16,7 +16,7 @@ source_paths:
 tags:
   - performance
   - memoria
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Memory
@@ -53,13 +53,13 @@ Construtores de mapa (`mapBuilder.ts`, `halloween.ts`, `oriental.ts`, `furniture
 | Limite | Valor | Onde |
 | --- | --- | --- |
 | Pool Postgres | 10 conexões | `server/db.ts` |
-| Corpo HTTP | 16 KiB | `server/http.ts` |
+| Corpo HTTP | 16 KiB (2 MiB nos dados de mapa, 10 MB no GLB) | `server/http.ts`, `server/mapRoutes.ts` |
 | Mensagem WebSocket | 16 KiB | `server/app.ts` |
 | `outbox` de e-mails sem SMTP | 50 mensagens | `server/email.ts` |
 | Jogadores por sala | 10 | `NET.maxPlayers` |
 | Corpos | removidos ~2 s após a janela de opressão se não reclamados | `server/session.ts` |
 
-Salas não permanentes vazias são descartadas (`dispose` limpa o timer). O estado de todas as partidas fica em memória do processo.
+Salas vazias são descartadas (`dispose` limpa o timer). As versões de mapa em uso ficam num cache do processo (`MapStore`, por `mapa@versão`) e as navmesh por versão (`server/navmesh.ts`), sem expirar. O estado de todas as partidas fica em memória do processo.
 
 ## Infraestrutura
 

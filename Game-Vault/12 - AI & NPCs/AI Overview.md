@@ -11,7 +11,7 @@ source_paths:
   - client/entities/dummy.ts
   - client/world/dog.ts
   - client/world/halloween.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/world/jardim/panda.ts
   - client/world/jardim/peixes.ts
   - README.md

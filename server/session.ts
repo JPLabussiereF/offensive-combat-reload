@@ -14,12 +14,13 @@ import { BISCUIT, CHERRY, HEALTH, HUMILIATION, KOI, POTION, RAT, SCORE, type Pot
 import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, HIT_REGIONS, hitsPerSecond, LETHAL_DAMAGE, minPenetrationKeep, type GrenadeLevel, type HitRegion, type WeaponData } from '@shared/weapons';
 import { ACCOUNT_XP } from '@shared/accountLevel';
 import { bodyStats } from '@shared/appearance';
-import { CHECKED_PROPS, FISH, PICKUPS, PROP_RANGE, PROPS, RATS, WITCHES, type MapId, type PickupKind } from '@shared/maps';
+import { checkedPropsOf, CHECKED_PROPS, PROP_RANGE, type PickupKind } from '@shared/maps';
 import { isGun, weaponOfKill, type GunId, type WeaponId } from '@shared/progression';
 import { DEFAULT_LOADOUT, grenadeStats, knifePassive, loadoutKnife, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import type { GameModeId } from '@shared/modes';
 import { accountLevelOf, addAccountXp, addTime, addWeaponXp, equip, loadoutOf, progressMsg, stickerAdd, stickerMax, stickerUps, type LevelUp, type LiveAccount } from './progress';
 import { createMode, type SessionMode } from './modes';
+import type { MapRuntime } from './maps';
 import { FLAG, NET, sanitizeChat, type Award, type ClientMsg, type CorpseInfo, type KillKind, type NetState, type PlayerInfo, type ServerMsg, type Sex, type SessionInfo, type Vec3 } from '@shared/protocol';
 
 /** Eye and chest height: the same for every body (height is only a look). */
@@ -166,9 +167,9 @@ export class Session {
   constructor(
     readonly id: string,
     readonly name: string,
-    readonly map: MapId,
+    /** The map's version this session plays, to the end (a newer one saved meanwhile is for new sessions). */
+    readonly mapa: MapRuntime,
     modeId: GameModeId,
-    readonly permanent: boolean,
     private now: () => number,
     private onChange: () => void,
     /** server.publish: sends to every socket subscribed to the topic. */
@@ -183,7 +184,7 @@ export class Session {
       info: (p) => this.playerInfo(p),
       giveAccountXp: (p, xp) => this.progress(p, [addAccountXp(p.conn.account, xp)]),
       resetForRound: (p) => this.resetForRound(p),
-      map,
+      map: mapa,
       damage: (p, amount, kind, from) => this.damage(p, null, amount, kind, from, [], null),
       kill: (p, kind) => {
         if (p.alive) this.kill(p, null, kind, [], null);
@@ -191,14 +192,21 @@ export class Session {
       firedGun: (p, w, now) => this.firedGun(p, w, now),
       fireRate: (p, gun, now) => this.fireRate(p, gun, now),
     });
-    for (const k of PICKUPS[map] ?? []) this.pickups.set(k.id, { kind: k.kind, p: k.p, ready: 0 });
-    for (const r of RATS[map] ?? []) this.rats.set(r.id, { p: r.p, ready: 0 });
-    for (const f of FISH[map] ?? []) this.fish.set(f.id, { loop: f.loop, ready: 0, golden: false });
+    // What the server tracks on the map, from its saved data.
+    const objs = mapa.data.objetos;
+    for (const k of objs.coletaveis) this.pickups.set(k.id, { kind: k.tipo, p: k.p, ready: 0 });
+    for (const r of objs.ratos) this.rats.set(r.id, { p: r.p, ready: 0 });
+    for (const f of objs.peixes) this.fish.set(f.id, { loop: f.volta, ready: 0, golden: false });
     this.timer = setInterval(() => this.tick(), 1000 / NET.tickRate);
   }
 
+  /** The map's id. */
+  get map() {
+    return this.mapa.id;
+  }
+
   get info(): SessionInfo {
-    return { id: this.id, name: this.name, map: this.map, mode: this.mode.id, players: this.players.size, max: NET.maxPlayers, permanent: this.permanent };
+    return { id: this.id, name: this.name, map: this.mapa.id, versao: this.mapa.versao, mapaNome: this.mapa.nome, mode: this.mode.id, players: this.players.size, max: NET.maxPlayers };
   }
 
   get full() {
@@ -375,7 +383,7 @@ export class Session {
         // ones the album counts (PROPS) are checked: on this map, alive, within reach.
         if (typeof msg.id !== 'string' || !/^[a-z]{1,16}(:\d{1,3})?$/.test(msg.id) || now - p.lastProp < 150) return;
         if (CHECKED_PROPS.has(msg.id)) {
-          const spot = PROPS[this.map].find((s) => s.id === msg.id);
+          const spot = checkedPropsOf(this.map).find((s) => s.id === msg.id);
           if (!spot || !p.alive || dist3(p.state.p, spot.p) > PROP_RANGE) return;
           this.albumProp(p, msg.id, now);
         }
@@ -500,7 +508,7 @@ export class Session {
 
   /** The witch's potion: near her and not too soon after the last one; the effect is drawn here. */
   private onPotion(p: SPlayer, now: number) {
-    const witch = WITCHES[this.map];
+    const witch = this.mapa.data.objetos.bruxa;
     if (!witch || !p.alive || now < p.potionReady) return;
     if (Math.hypot(p.state.p[0] - witch[0], p.state.p[2] - witch[2]) > POTION.radius + PICKUP_SLACK || Math.abs(p.state.p[1] - witch[1]) > 2) return;
     const kind = POTION.kinds[Math.floor(Math.random() * POTION.kinds.length)];
@@ -849,7 +857,7 @@ export class Session {
     const within = (ms: number, test: (id: string) => boolean) => recent.filter((e) => now - e.at <= ms && test(e.id));
     const forget = (test: (id: string) => boolean) => (p.propLog = recent.filter((e) => !test(e.id)));
     if (id === 'caminhao') {
-      // The jingle plays at most every 4 s (client/world/blockoutMap.ts): one count per jingle.
+      // The jingle plays at most every 4 s (the ice-cream truck, client/world/catalog/vehicles.ts): one count per jingle.
       if (now - p.truckAt >= 4000) {
         p.truckAt = now;
         stickerAdd(acct, 'sorveteiro-fantasma');

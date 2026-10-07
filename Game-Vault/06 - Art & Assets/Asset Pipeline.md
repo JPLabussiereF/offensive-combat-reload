@@ -7,7 +7,8 @@ source_paths:
   - client/world/gltfMap.ts
   - client/world/surfaces.ts
   - client/world/textures.ts
-  - client/world/blockoutMap.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
   - client/character/registry.ts
   - client/character/character.ts
   - client/dev/characterLab.ts
@@ -30,7 +31,7 @@ tags:
   - assets
   - pipeline
   - gltf
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Asset Pipeline
@@ -96,7 +97,7 @@ Referência completa: `docs/MAPAS.md`, seção 2. Resumo do que o código (`gltf
 - Sem nenhum `COL_` no arquivo, **toda** malha visível ganha colisão por triângulos (bom para blockout).
 - Malhas com vários materiais são divididas por grupo para cada parte ir ao lote certo.
 - **Mapa inteiro:** abrir o jogo com `?mapa=/maps/arquivo.glb` (exige um `SPAWN_A_*` ou `SPAWN_FFA_*`).
-- **Prop num mapa de código:** `addGltfToMap(gltf, builder, { position, yaw, scale })`. Exemplo real: `casinha_cachorro.glb` em `blockoutMap.ts`.
+- **Prop num mapa de dados:** a peça `glb` (`client/world/catalog/glb.ts`) chama `addGltfToMap(gltf, builder, { position, yaw, scale })` com um arquivo listado em `arquivos` do JSON do mapa. Exemplo real: `casinha_cachorro.glb` em `shared/data/mapas/rua.json`.
 - Escala: 1 unidade = 1 m; +Y Up na exportação; frente dos objetos = +Y do Blender.
 - Otimização recomendada (doc): `bunx @gltf-transform/cli optimize ... --compress meshopt --texture-compress ktx2`.
 

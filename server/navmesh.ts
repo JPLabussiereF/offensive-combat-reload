@@ -1,33 +1,28 @@
-// The walkable area of the maps where the server simulates enemies (the zumbi mode's cemetery), baked from the
-// client's map code by tools/bake-navmesh.ts into shared/data/navmesh/<map>.json and bundled with the server.
-// Each gap of the cemetery wall is baked as polygons of their own with a flag per gap (shared/barricades.ts), so a
-// match can shut a gap for its zombies with a query filter. Loaded once per process (Recast's WebAssembly starts
-// on the first one) and shared by every session of the map: each session's crowd only reads it (the filters
-// that shut gaps belong to the session's crowd and queries, never to the navmesh).
+// The walkable area of the maps where the server simulates enemies (the zumbi mode's maps). Each saved version of
+// such a map carries its navmesh, baked when it was saved (server/mapWorker.ts; the official cemetery's comes
+// from shared/data/navmesh/cemiterio.json, baked by tools/bake-navmesh.ts from the same data). Each gap of the
+// wall is baked as polygons of their own with a flag per gap (shared/barricades.ts), so a match can shut a gap
+// for its zombies with a query filter. Loaded once per process and version (Recast's WebAssembly starts on the
+// first one) and shared by every session of that version: each session's crowd only reads it (the filters that
+// shut gaps belong to the session's crowd and queries, never to the navmesh).
 import { importNavMesh, init, type NavMesh } from 'recast-navigation';
-import type { MapId } from '@shared/maps';
-import cemiterio from '@shared/data/navmesh/cemiterio.json';
-
-const BAKED: Partial<Record<MapId, { dados: string }>> = { cemiterio };
+import type { MapRuntime } from './maps';
 
 let ready: Promise<void> | null = null;
-const loaded = new Map<MapId, Promise<NavMesh>>();
+const loaded = new Map<string, Promise<NavMesh>>();
 
-/** Whether a map has a baked navmesh. */
-export const hasNavmesh = (map: MapId) => !!BAKED[map];
-
-export function loadNavmesh(map: MapId): Promise<NavMesh> {
-  let p = loaded.get(map);
+export function loadNavmesh(map: MapRuntime): Promise<NavMesh> {
+  const key = `${map.id}@${map.versao}`;
+  let p = loaded.get(key);
   if (p) return p;
   p = (async () => {
-    const baked = BAKED[map];
-    if (!baked) throw new Error(`sem malha de navegação para o mapa ${map} (rode bun run navmesh)`);
+    if (!map.navmesh) throw new Error(`o mapa ${key} não tem malha de navegação`);
     ready ??= init();
     await ready;
-    const { navMesh } = importNavMesh(new Uint8Array(Buffer.from(baked.dados, 'base64')));
-    if (!navMesh) throw new Error(`malha de navegação de ${map} inválida`);
+    const { navMesh } = importNavMesh(map.navmesh);
+    if (!navMesh) throw new Error(`malha de navegação de ${key} inválida`);
     return navMesh;
   })();
-  loaded.set(map, p);
+  loaded.set(key, p);
   return p;
 }

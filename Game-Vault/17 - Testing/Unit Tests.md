@@ -21,6 +21,35 @@ source_paths:
   - client/zombies/local.ts
   - client/zombies/link.ts
   - server/tests/progression-modes.test.ts
+  - client/tests/remoteImpact.test.ts
+  - client/weapons/remoteImpact.ts
+  - client/tests/oneHandGrip.test.ts
+  - client/tests/viewmodelOneHand.test.ts
+  - client/tests/mapConversion.test.ts
+  - client/tests/mapData.test.ts
+  - client/tests/budget.test.ts
+  - client/tests/seeded.test.ts
+  - client/tests/mapPose.test.ts
+  - client/tests/editorHistory.test.ts
+  - client/tests/editorRecovery.test.ts
+  - client/tests/shadowMap.test.ts
+  - client/tests/mapsScreen.test.ts
+  - client/tests/mapGroups.test.ts
+  - client/tests/editorGroups.test.ts
+  - client/tests/editorLayout.test.ts
+  - client/tests/editorBatches.test.ts
+  - client/tests/editorCamera.test.ts
+  - client/tests/editorTools.test.ts
+  - client/tests/editorBoxSelect.test.ts
+  - client/tests/editorClipboard.test.ts
+  - client/tests/editorShortcuts.test.ts
+  - client/tests/editorRect.test.ts
+  - client/tests/editorThumbs.test.ts
+  - client/tests/editorDrop.test.ts
+  - client/tests/editorPlay.test.ts
+  - client/tests/editorDefaults.test.ts
+  - tools/snapshot-mapas.ts
+  - tools/headless.ts
   - client/tests/arsenalTree.test.ts
   - client/tests/arsenalCanvasLayout.test.ts
   - client/tests/pauseMenu.test.ts
@@ -111,6 +140,17 @@ Os números de dano flutuantes (`client/ui/damageNumbers.ts`), 12 casos: a **cor
 
 Usa um `CastFn` falso para simular paredes, sem física real.
 
+## `client/tests/remoteImpact.test.ts` → [[Decals]]
+
+Onde o tiro de outro jogador bateu no mapa (`remoteImpact`), 6 casos num mundo Rapier real com o mesmo filtro (`WORLD_ONLY`) e a mesma consulta do `main.ts`:
+
+- Tiro que terminou numa parede de concreto: ponto, normal e material.
+- Tiro inclinado numa parede de madeira: ponto na face e material `wood`.
+- Tiro para o céu: nada.
+- Tiro que terminou num jogador encostado na parede (peito a 60 cm, cotovelo a 6 cm da parede): nada (a hitbox é ignorada e a janela vai só 5 cm além do ponto).
+- Tiro que terminou a menos de 5 cm da parede ainda marca a parede.
+- Tiro sem comprimento: nada.
+
 ## `server/tests/appearance.test.ts` — bloco "regras da aparência" → [[Character Customization]]
 
 Testa funções de `shared/appearance.ts` (puras):
@@ -154,9 +194,49 @@ O que o jogo offline usa da progressão, sem navegador:
 
 Não rodam aqui (precisam do navegador): `BotManager` e `Bot` (malhas, física Rapier e placas de nome em canvas) e a escolha do equipamento inicial em `client/main.ts` (dentro da closure com DOM); o teste cobre as funções puras que eles chamam. Para rodar o jogo solo sem DOM, a interface `ZombieLink` foi para `client/zombies/link.ts` (antes em `client.ts`, que depende do navegador).
 
+## `client/tests/oneHandGrip.test.ts` → [[Animation]], [[Character Customization]]
+
+O personagem completo (`Character`, sem WebGL) e o `CharacterAnimator` com o modo PCD de uma mão: `LEFT_GRIP` é o espelho de `RIFLE_GRIP`; para `maoDir`, `bracoDir`, `maoEsq`, `bracoEsq` e sem PCD, o rifle aponta para a frente do peito no quadril e na mira (produto escalar > 0,95), segue a pose de corrida, fica do lado da mão que o segura, o braço direito fica pendurado sem o lado direito e a mão ou o coto esquerdo fica sob o guarda-mão nos outros casos; a recarga de uma mão deixa o rifle perto do peito enquanto a mão sai da empunhadura; a granada põe o rifle nas costas só com uma mão; a faca vai na esquerda sem a direita; e o esqueleto das hitboxes (o mesmo de `entities/rig.ts`) faz a mesma pose de uma mão que o personagem visível (mãos e antebraços a menos de 1 cm).
+
+## `client/tests/viewmodelOneHand.test.ts` → [[Animation]]
+
+O `Viewmodel` de verdade com um `document` mínimo (só o canvas do clarão do tiro): mirando, o ponto da mira fica no centro (x ≈ 0, y ≈ 0) com e sem a mão direita; sem a mão direita, a arma fica do lado esquerdo da tela. O arquivo carrega `viewmodel.ts` por caminho, porque a checagem de tipos do servidor (que cobre `client/tests`) não tem os tipos do DOM.
+
 ## `server/tests/progression-modes.test.ts` → [[Weapons]], [[Progression]], [[Game Modes Index]]
 
 A matriz progressão × modos (descrita em [[Integration Tests]]) também é, em parte, unitária: toda combinação de melhorias de toda arma de fogo (os sete rifles com as melhorias do rifle), de cada uma das sete facas e da granada dá atributos finitos e positivos, e todo equipamento que um modo entrega no meio da partida (degraus da escada, combinações de itens do caixão) é válido.
+
+## Mapas como dados (PF-6) → [[World Structure]], [[ADR - Mapas como dados com catálogo de peças]]
+
+Os mapas são montados **sem tela** no Bun (`tools/headless.ts`: canvas falso, `.glb` lidos de `public/` no disco, `Math.random` fixo durante a montagem; os módulos do cliente entram por caminho variável, para o typecheck do servidor não segui-los).
+
+- `client/tests/mapConversion.test.ts`: cada um dos 4 mapas oficiais, montado a partir do JSON pelo carregador, é igual ao seu golden (`shared/data/mapas/<id>.golden.json`, gravado do código original antes da conversão), com tolerância de 1e-6: colisores (forma, posição, giro, tamanho, material, oclusor, `onShot`), ids do `PropBus`, vãos, salas, spawns, bonecos, `killY`, sombra, céu, luzes, lotes e objetos da cena (hash dos triângulos, independente da ordem). E o modo editor: uma peça por grupo, os colisores repartidos entre as peças, nenhum lote fora delas.
+- `client/tests/mapData.test.ts`: `validateMapData` (os oficiais passam; mapas quebrados são recusados com o motivo: tipo desconhecido, parâmetro fora do esquema, id repetido, id do `PropBus` inválido ou repetido, limite por mapa, bruxa sem posição, coletável, rato e arquivo sem par, mapa zumbi sem dados), o esquema do catálogo, um adaptador para cada tipo, as superfícies iguais às do cliente, as peças da bruxa, do rato e do armário batendo com `objetos`, os dados de zumbi do cemitério iguais aos do modo, e o nome, o cartão e o `exclusivo` dos oficiais iguais a `OFFICIAL_INFO` (os seletores da tela inicial).
+- `client/tests/roles.test.ts`: as regras de `shared/roles.ts` (agir sobre, punir, conceder, promover, rebaixar; o último admin fica; ninguém se pune).
+- `client/tests/budget.test.ts`: contagem de chamadas e triângulos (câmera, sombra, grupos de material, instâncias) e os 4 oficiais dentro de 400 chamadas e 750 mil triângulos (o teste imprime os números).
+- `client/tests/seeded.test.ts`: `seeded()` dá os mesmos números de antes e `seeded(r.state)` continua a sequência de `r`.
+- `client/tests/mapPose.test.ts` (P32, [[ADR - Editor de mapas no jogo]]): a pose vira matriz e volta igual; `validateMapData` aceita a pose e recusa uma quebrada; peça sem pose (ou com pose nula) monta idêntica; uma parede girada em ângulo livre nos três eixos tem cada colisor no lugar da pose, os lotes levados, o vão com o centro certo e a porta continua passagem (raio pela porta não bate, a 2 m dela bate); uma sala girada acha o ponto dentro da caixa girada e não o canto da caixa alinhada em volta; `ROOM_` girado guarda o referencial (sem giro, a caixa de sempre); o biscoito de um armário girado fica onde o servidor espera; a luz de uma lanterna de papel girada sai de onde a pose a leva e o recorte de um lago girado vai com a pose (P42); no modo editor, tirar a peça leva colisores, sala e vão, e ela monta de novo igual.
+- `client/tests/shadowMap.test.ts` (`client/render/shadows.ts`, PF-6 Revisions 01): o mapa de sombra do sol é pedido quando ainda não existe (o primeiro quadro, ou um laço que não o agenda, como era o do editor de mapas), um laço só de render fica com ele depois do primeiro quadro, e nada é forçado quando ele já existe, com as sombras desligadas ou sem sol que projete sombra ([[Problem - Editor sem mapa de sombra com aceleração de hardware]]).
+- `client/tests/editorRecovery.test.ts` (`client/editor/recovery.ts`): o rascunho guardado (registro com data e versão de origem, ou um mapa antigo sem data) e quando ele é oferecido (mais novo que a versão atual; num mapa novo, sempre), a versão sobre a qual o rascunho recuperado salva (P40); "salvar como nova versão mesmo assim" com a versão do 409 (P39); o Play (antes o Testar) abre o zumbi num mapa exclusivo e o treino nos outros (P41).
+- `client/tests/mapsScreen.test.ts` (`client/ui/mapsRules.ts`, `client/ui/managementRules.ts`): os botões de cada cartão da aba Mapas para o dono, outro jogador, admin, moderador e sem conta (oficial, comunidade, oculto); sem Excluir e Ocultar nos 4 oficiais originais (P44, P45); Contra bots e Campo de tiro só nos mapas abertos e o tipo de partida dos bots (P43); os modos de um mapa aberto e de um exclusivo do zumbi; o endereço da lista (busca por nome ou autor, ordem, página, ocultos só para a equipe); os mapas da tela inicial (oficiais do servidor, mapas das sessões, cartão pedido uma vez); o painel do Gerenciamento pelas permissões (moderador diante de jogador e de admin, a própria conta), a sanção (motivo e duração) e o progresso (só o que mudou, números válidos).
+- `client/tests/editorHistory.test.ts` (cada tipo vira uma peça nova válida com os padrões do catálogo, P53): desfazer e refazer de peças adicionadas, mudadas, apagadas (várias de uma vez, no lugar certo da lista) e do resto do mapa; o que cada edição manda reconstruir; o limite do histórico; "não salvo"; as teclas (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z); o gizmo (peça livre continua com `p` e `yaw`, inclinada ganha pose e perde ao ficar em pé, peça linear ou fixa só muda a pose, a bruxa leva o seu lugar junto); cada tipo do catálogo vira uma peça nova válida; ids, ids de piada e de objetos sem repetir; rato e bruxa novos e apagados com os seus `objetos`; duplicar; marcadores (pôr, mover, girar, tirar; modelo do zumbi válido, brecha presa ao muro, canto leva as brechas); pontas e vãos de paredes e cercas.
+
+- `client/tests/mapGroups.test.ts` (grupos, PF-6 Revisions 01): `validateMapData` aceita peças em grupos e grupos em grupos com nome, e recusa pai inexistente, que não é grupo, a própria peça, ciclo, mais de 16 níveis e nome vazio; a pose do grupo compõe com a da peça (colisores e vão iguais aos da peça com a pose composta), grupos aninhados de fora para dentro, peça livre levada pelo grupo; grupo que não move nada deixa tudo igual a sem grupo, e no jogo um grupo não monta nada; no editor o grupo tem o seu grupo na cena e o filho vai para onde ele leva. No servidor, `server/tests/maps.test.ts` salva um mapa com grupo (os colisores contados pelo construtor batem com os do cliente) e recusa `pai` que não é grupo.
+- `client/tests/editorGroups.test.ts` (`client/editor/groups.ts`): agrupar a seleção (o grupo no meio dela, no lugar da primeira peça, as peças sem sair do lugar; desfazer e refazer); mover e girar o grupo leva os filhos e o lugar da bruxa, numa edição que só nomeia o grupo; pôr dentro de um grupo girado, tirar e reordenar mantêm o lugar no mundo, e reordenar não remonta nada; um grupo não entra nele mesmo nem num de dentro; escalar o grupo espalha os filhos e aumenta o que tem `escala`; duplicar copia os filhos para o grupo novo e apagar leva os filhos; a lista nova vira um patch com só o que saiu de ordem.
+- `client/tests/editorLayout.test.ts` (`client/editor/dockLayout.ts`, `client/editor/transformFields.ts`): o layout padrão do Unity; serializar e restaurar, e layout quebrado voltando ao padrão; aba no meio de uma pilha empilha, na borda divide, pilha vazia some, divisões do mesmo sentido se juntam; arrastar a borda (com mínimo); a zona sob o ponteiro; graus e radianos do Transform, o valor digitado mantido (200°), os campos em comum de uma seleção múltipla e a edição digitada ou arrastada.
+- `client/tests/editorBatches.test.ts` (P46, `client/editor/batches.ts`): no Jardim, o editor com lotes desenha em chamadas próximas às do jogo (o teste imprime: jogo 233, editor sem lotes 1.682, com lotes 142, sem recorte); a peça selecionada sai do lote e volta; as cópias seguem a malha que se move e o raio da seleção acerta a malha da peça, nunca o lote; materiais iguais de peças diferentes dividem um lote e o material que muda sai dele; peça remontada ou apagada troca ou leva as cópias.
+- `client/tests/editorCamera.test.ts` (`client/editor/cameraMath.ts`, etapa 3): frente, direita e cima batem com a câmera do three; olhar para um ponto; olhar em volta e voar; órbita em volta do pivô (a distância fica e ele continua no centro) e em volta do meio da seleção fora do centro (ele fica no mesmo lugar da tela), parando no topo; arrastar leva o ponto do pivô pixel por pixel; a roda aproxima do pivô no meio da tela, vai na direção do cursor fora dele e, na ortográfica, deixa parado o ponto sob o cursor; F põe a caixa inteira na tela; as vistas pelos eixos; a transição gira pelo lado curto.
+- `client/tests/editorTools.test.ts` (`client/editor/tools.ts`): encaixe livre, com Ctrl, com o botão de grade e com passos escolhidos (vírgula aceita, faixas); as escolhas voltam do navegador e o que estiver quebrado volta ao padrão (Pivô, Global); Pivô e Centro (posição, giro e escala do gizmo); eixos Local e Global; girar com o Centro gira em volta do meio da seleção e com o Pivô em volta da ativa; escalar com o Centro espalha e aumenta o que tem escala.
+- `client/tests/editorBoxSelect.test.ts` (`client/editor/boxSelect.ts`): o retângulo em pixels vira coordenadas da vista; polígono por dentro, por cima, cruzando e a lasca que só tem a caixa por perto; recorte no plano de perto; numa cena com caixotes, chão, uma peça atrás da câmera, uma oculta e uma malha instanciada: o que encosta entra (o chão também), atrás da câmera e oculto não, em perspectiva e na ortográfica de cima; Shift soma, Ctrl alterna.
+- `client/tests/editorClipboard.test.ts` (`client/editor/clipboard.ts`): colar um grupo dá ids novos, os filhos penduram no grupo novo, tudo deslocado, e um desfazer tira tudo; a peça de dentro de um grupo volta para ele ou, com ele apagado, para o topo no mesmo lugar do mundo; a cópia não muda com edições depois; colar duas vezes não repete id nem id de piada, cada rato ganha o seu lugar, a bruxa (uma só) fica de fora; o ponto de colar.
+- `client/tests/editorShortcuts.test.ts` (`client/editor/shortcuts.ts`): Q W E R T, F, F2, Delete, Backspace, Esc; Ctrl (ou Cmd) com Z, Y, Shift+Z, D, C, V, A, G e o que fica para o navegador; nada com um campo de texto em foco; as letras são da câmera com o botão direito; Shift e Alt não trocam ferramenta; o que conta como campo de texto.
+- `client/tests/editorRect.test.ts` (`client/editor/rectTool.ts`): o retângulo na face mais virada para a câmera (também numa caixa girada); mover por dentro, livre e em passos; a borda estica só o seu lado, com tamanho mínimo; o canto escala por igual a partir do canto oposto (em décimos ao encaixar); esticar uma caixa girada muda tamanho e lugar com a face oposta parada; o colisor pela meia medida; o que não estica.
+- `client/tests/editorThumbs.test.ts` (`client/editor/thumbCache.ts`, `client/editor/thumbQueue.ts`, etapa 4): a chave da miniatura (tipo, GLB pelo hash, marcador); a assinatura não depende da ordem das chaves e muda com a entrada do catálogo, os parâmetros da peça nova, a versão do jogo e o formato do desenho; a guardada com outra assinatura conta como ausente e é trocada; tipos que saíram do catálogo são esquecidos (GLB fica); a fila desenha uma de cada vez num momento livre, a mesma pedida duas vezes uma vez, a pasta na tela primeiro (e trocar de pasta baixa as outras), uma falha não para a fila, o pedido de novo depois de mudar o asset, e segura durante o Play.
+- `client/tests/editorDrop.test.ts` (`client/editor/dropPiece.ts`): na Cena, o ponto na grade do passo de mover (a altura como está); a peça livre no ponto e a de pose com o meio da base nele, no fim da lista; a prévia fantasma; na Hierarchy, dentro do grupo da linha (ou dela mesma), na origem dele (um grupo girado dentro de outro), no fim dos filhos, e no topo abaixo das linhas; a peça de pose medida sozinha; o rato leva o lugar do servidor no ponto do mundo, a bruxa no limite não entra; o modelo GLB com o arquivo; e a peça com o lugar do rato numa edição só, desfeita e refeita de uma vez.
+- `client/tests/editorPlay.test.ts` (`client/editor/playMode.ts`): os botões ▶ ❚❚ ■ em cada estado (editando → jogando → pausado → jogando → parado); jogando, sem atalhos, câmera nem edição; pausado, câmera, seleção e F, Esc, Ctrl+C, Ctrl+A (Ctrl+Z e Delete não); a sessão chama pausa, continuação e fim no jogo; o ■ devolve seleção e câmera de antes do ▶ e as edições tentadas no Play (painel, tecla, desfazer) não entram no documento; seis Play/Stop seguidos soltam cada jogo uma vez e as geometrias e texturas contadas voltam a zero; ■ durante o carregamento aborta e solta o jogo que fica pronto depois, ❚❚ durante o carregamento começa pausado; o jogo que não sobe volta a editar e o Sair do jogo é um ■; P52: o jogo começa direto só com o clique do ▶ ainda valendo (sem ele, ou sem a API, fica o cartão).
+- `client/tests/editorDefaults.test.ts` (P53, `shared/mapCatalog.ts`, `client/editor/create.ts`): cada tipo do catálogo, montado sozinho só com os padrões (o carregador do jogo, sem tela), monta sem erro, é válido e desenha algo entre 9 cm e 20 m (sala, colisor, luz e brasas não desenham nada por natureza); o cilindro novo tem 1 m; os padrões de listas e de JSON montam e vêm copiados; arrastar do Project cria com os padrões.
+
+O hash da navmesh do Cemitério (`server/tests/zombies.test.ts`) é refeito a partir do JSON e continua igual.
 
 ## Typecheck
 

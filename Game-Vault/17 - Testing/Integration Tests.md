@@ -4,6 +4,9 @@ type: system
 status: documented
 area: testing
 source_paths:
+  - server/tests/sessions.test.ts
+  - server/tests/management.test.ts
+  - server/tests/maps.test.ts
   - server/tests/helpers.ts
   - server/tests/preload.ts
   - server/tests/env.ts
@@ -62,17 +65,48 @@ Como o servidor confia em `X-Forwarded-For` só vindo de endereço privado, e os
 
 - Ticket do WebSocket — ver [[Scenario - Ticket do WebSocket]].
 - Conexão nova derruba a antiga (`4002`); sair da conta encerra a partida (`4001`); banimento encerra a partida e bloqueia a API.
-- Mapas: cada mapa tem uma sala fixa (`principal`/`rua`, `jardim`, `halloween`); sala criada leva o mapa; mapa desconhecido cai em `rua`.
+- Mapas: sala criada leva o mapa, a versão e o nome dele; mapa desconhecido cai em `rua`.
 - Chat: chega a todos já limpo; quem manda rápido demais é segurado; silenciar/dessilenciar vale na partida em andamento.
-- Vaga por mapa: `GET /api/sessoes` lista as salas dos três mapas (e de todos os modos, `GAME_MODE_IDS`) sem conexão de jogo; com 10 jogadores na `halloween`, abre "Vila Assombrada 2" vazia, que fecha quando um sai.
+- Sessões sob demanda: `GET /api/sessoes` lista a sala aberta por `play` (mapa, `versao`, `mapaNome`, modo) sem conexão de jogo, e ela some quando esvazia; com 11 jogadores na `halloween`, a primeira sala lota e a segunda ("Vila Assombrada 2") recebe o 11º, e as duas fecham quando todos saem.
+- Os helpers `enterMap(player, mapa, modo)` (manda `play` e espera o `joined`), `promote(browser, papel)` e `tinyMap()` (um mapa pequeno válido) ficam em `server/tests/helpers.ts`. Os modelos enviados nos testes vão para uma pasta temporária (`MAPAS_DIR`, criada pelo `preload.ts`).
 - Regras de partida — ver [[Gameplay Tests]].
+
+### `maps.test.ts` — API de mapas (PF-6)
+
+- Criar, salvar versões, `409 versao_desatualizada` com a versão base velha, restaurar (a próxima versão vem depois da mais nova) e listar as versões; a versão antiga com cache `immutable`.
+- Outros não editam, apagam, restauram nem ocultam, mas duplicam (cópia da comunidade com `copiaDe`, chamada "Nome (cópia)" no registro e nos dados; `copyName` corta para caber em 60 caracteres); o dono apaga (some da lista).
+- Busca por nome e por autor (nome e tag) e ordem por mais jogados (jogadas offline contadas uma vez por conta por hora) ou mais recentes; a lista é pública.
+- Mapa oculto pelo moderador some da lista, dá `mapa_oculto` a outros e `play` é recusado; com `?ocultos=1` a equipe o acha na lista, e para quem não é equipe (o autor, outro jogador, sem conta) o parâmetro não muda nada; o autor ainda o vê; mostrar de novo devolve; a equipe apaga qualquer mapa.
+- User recebe `sem_permissao` ao salvar oficial; admin cria oficial.
+- Os 4 oficiais originais: admin e moderador recebem `403 mapa_protegido` ao apagar e ao ocultar cada um (`pode.apagar` e `pode.ocultar` falsos), e eles continuam editáveis (versão nova) e restauráveis; um oficial criado depois é ocultado e apagado pela equipe (P44, P45).
+- `mapa_invalido` (tipo de peça desconhecido, modelo de fora do jogo, modelo nunca enviado) e `orcamento_excedido` (uma esfera de 1 milhão de triângulos, com os números e o limite).
+- GLB: envio guardado uma vez pelo SHA-256, download com `model/gltf-binary` e `nosniff`, mapa que o usa salvo (`map_version_asset`); recusa acima de 10 MB (`arquivo_grande_demais`), lixo, URI externa, Draco e o tipo errado (`glb_invalido`).
+- Os 4 oficiais semeados: montados headless a partir do que `GET /api/mapas/:id/versoes/1` entrega (o JSON passou pelo `jsonb`) e comparados ao golden (tolerância 1e-6); a navmesh do Cemitério guardada com o tamanho do arquivo pré-gerado; `map_version` recusa `UPDATE`.
+
+### `management.test.ts` — Gerenciamento (PF-6)
+
+- Só admin e moderador entram (`401`/`403 sem_permissao`); `GET /api/me` traz `papeis`; um papel tirado vale no pedido seguinte.
+- Busca por nome e por tag; o moderador vê a conta de um admin com `permissoes` todas falsas.
+- Matriz: o moderador silencia, tira o silêncio, renomeia, promove a moderador e rebaixa um user; nunca promove a admin nem mexe num admin (editar, banir, tirar papel, dar papel); ninguém se pune; user não é equipe; pedidos inválidos não mudam nada.
+- O admin concede e tira admin; o último admin não sai (`motivo: ultimo_admin`).
+- O nome trocado pela equipe não espera o tempo de espera, e a espera do jogador recomeça a partir da troca (7 dias, mesmo para quem não tinha usado a troca grátis).
+- Na partida em andamento: o banimento derruba a conexão (`4001`) e grava o moderador como `actor_id` e `por`; o silêncio vale na hora; `xp` e `armas` novos chegam numa mensagem `progresso` e continuam no banco depois de sair.
+
+### `sessions.test.ts` — sessões sob demanda (PF-6)
+
+- `play` abre a sala quando não há uma com vaga (dois jogadores na mesma), e ela fecha vazia.
+- Quem está na v1 continua na v1 depois de salvar a v2; quem chega vai para a v2; `join` pelo id ainda entra na sala da v1; os dados de cada versão são os salvos.
+- O admin edita a Rua (um carro mudado de lugar): salas novas na versão nova, a em andamento na antiga; restaurar volta (a sala antiga recebe os novos).
+- Jogadas: uma por conta e por sala (sair e voltar à mesma sala não conta de novo).
+- Mapa da comunidade online: coletável, poção da bruxa, rato e peixe valem só perto das posições salvas nos dados, e ids de outros mapas são ignorados.
+- Uma cópia do cemitério (duplicada) é jogável no modo zumbi, e só nele, com a navmesh copiada.
 
 ### `zombies.test.ts` — modo zumbi
 
-- **Regras puras** (`shared/zombies.ts`): dados consistentes com as armas e o mapa (`zombieProblems`); começo com o rifle sem melhorias; ondas crescendo, escalando com os jogadores e com chefes nas ondas 4, 8 e 12; o caixão nunca repete a arma da mão e respeita os pesos das raridades (4.000 sorteios com semente); virilha mata zumbi comum e dobra no chefe; dinheiro por abate. `modeMaps('zumbi')` é só o cemitério.
+- **Regras puras** (`shared/zombies.ts`): dados consistentes com as armas e o mapa (`zombieProblems`); começo com o rifle sem melhorias; ondas crescendo, escalando com os jogadores e com chefes nas ondas 4, 8 e 12; o caixão nunca repete a arma da mão e respeita os pesos das raridades (4.000 sorteios com semente); virilha mata zumbi comum e dobra no chefe; dinheiro por abate; o zumbi só em mapas feitos para ele (`modeAllowsMap`).
 - **Navmesh pré-gerada em dia**: refaz a malha do Cemitério da Capela headless (`tools/bake-navmesh.ts`, com as caixas das brechas) e compara o hash com `shared/data/navmesh/cemiterio.json`.
 - **Motor com relógio falso** (`ZombieMatch` sobre a navmesh real, sem servidor): contagem → onda → dinheiro e XP por abate → intervalo → próxima onda; zumbis andam até o jogador e o derrubam, sozinho cair é perder, resumo e nova partida; em dupla, reanimar (dinheiro do reanimador) e sangrar (volta no intervalo com o rifle inicial); vencer as 12 ondas com os três chefes (XP de vitória); o caixão (sem dinheiro não gira, longe não gira, gira → oferta → arma no slot certo; 12 rodadas seguidas com a oferta expirando: nunca sai do lugar, nunca pato, sempre cobra); o tio que explode leva os outros com o crédito de quem o matou; sair libera; snapshot com tipo e flags.
-- **No servidor real**: sala fixa só no Cemitério da Capela, e o cemitério só com salas zumbi em `GET /api/sessoes`; criar zumbi noutro mapa cai lá; criar mata-mata ou corrida armada no cemitério cai num mapa aberto; começa com o rifle sem melhorias mesmo com outra escolha no Arsenal; acerto com distância errada ou arma que não tem é recusado; acerto válido mata, paga e dá XP de conta (`progresso`); troca de Arsenal recusada; o caixão gira no servidor e entrega a arma no slot dela (`playerLoadout`, com o defeito se ela veio danificada); zumbis do servidor machucam quem está de pé; sem fogo amigo; queda mortal numa onda derruba (sem `kill`), o colega reanima (`zrevive` → `zup` com o dinheiro), os dois caídos → `zend` (derrota, com as quedas e reanimações) → `roundStart`.
+- **No servidor real**: `play` do zumbi num mapa aberto, ou de outro modo no cemitério, é recusado; criar zumbi noutro mapa cai lá; criar mata-mata ou corrida armada no cemitério cai num mapa aberto; começa com o rifle sem melhorias mesmo com outra escolha no Arsenal; acerto com distância errada ou arma que não tem é recusado; acerto válido mata, paga e dá XP de conta (`progresso`); troca de Arsenal recusada; o caixão gira no servidor e entrega a arma no slot dela (`playerLoadout`, com o defeito se ela veio danificada); zumbis do servidor machucam quem está de pé; sem fogo amigo; queda mortal numa onda derruba (sem `kill`), o colega reanima (`zrevive` → `zup` com o dinheiro), os dois caídos → `zend` (derrota, com as quedas e reanimações) → `roundStart`.
 - **Progressão de armas no modo** (conta veterana com tudo liberado e as opcionais ligadas): entra com o rifle simples; o dano no chefe (lido na barra do chefe do `zsnap`) é o do rifle sem melhorias e o da faca comum (não o silenciador nem o sabre da conta); a arma do caixão chega com as melhorias fixas dela, granada sem melhorias, e o dano no chefe é o dessa arma × a raridade.
 - **Chefes contra vários jogadores** (duas sessões ao mesmo tempo): o grito da Noiva fere e manda `zhitfx` com a lentidão (55% por 3 s) a quem está no raio, e não a quem está longe; a investida do Prefeito acerta e arremessa (`zhitfx` com o empurrão no sentido da investida) os dois jogadores na linha. O Prefeito sai do ponto dele, no anel sul (antes o teste precisava trocar o ponto, que ficava num banco da praça da Vila Assombrada).
 - **Arma danificada no servidor**: com o defeito forçado (`dano`, `municao`, `ambos`), três compras seguidas; o `playerLoadout` traz o defeito da arma (`danificadas`; o sabre só perde dano) e o dano no chefe é o da arma × a raridade × 0,75 em `dano`/`ambos` e sem penalidade em `municao`.
@@ -85,7 +119,7 @@ Como o servidor confia em `X-Forwarded-For` só vindo de endereço privado, e os
 
 Motor com relógio falso (`ZombieMatch` sobre a navmesh assada do cemitério), sem servidor:
 
-- **Mapa exclusivo**: `MAPS.cemiterio.exclusivo`, `PVP_MAPS` sem o cemitério, `modeMaps` de todo modo (o zumbi só o cemitério; os outros só os abertos), um mapa exclusivo listado só pelo modo dele, dados do modo só para o cemitério.
+- **Mapa exclusivo**: o cemitério com `exclusivo: 'zumbi'` nos dados; `modeAllowsMap` de todo modo nos 4 oficiais (o zumbi só o cemitério; os outros só os abertos); dados do modo só no cemitério.
 - **Chão do mapa**: os 24 pontos de surgimento fora do muro e sobre a malha; cada chefe em chão limpo (≥ 3 m em 8 direções) e o Prefeito com a linha da investida livre para leste; o caixão dentro do muro.
 - **Brechas na navmesh**: todo polígono tem `WALK_FLAG`; cada brecha tem polígonos com a sua flag e não há outras flags; com a flag excluída, o caminho do campo norte desvia da brecha; com todas excluídas, não chega; só o portão aberto, passa por ele.
 - **Erguer**: índice inválido ou longe, nada; segurar dá `zbarwork` e, depois de `erguerSegundos`, `zbar` `build` com 5 tábuas, cobrando $300; inteira, nada; sem dinheiro, nada; soltar ou afastar-se para; com alguém no vão, espera até o vão ficar livre.
@@ -100,7 +134,7 @@ Motor com relógio falso (`ZombieMatch` sobre a navmesh assada do cemitério), s
 - **Regras puras**: a escada da corrida armada (`ladderProblems`, sobe com 3 abates da arma do degrau ou da faca — a facada conta como um abate em todo degrau e, no penúltimo, leva ao sabre sem vencer —, a facada tira um abate da vítima e só volta de arma sem abates no degrau, só o sabre vence) e `MODE_RULES` de todo modo.
 - **Mata-mata**: o Arsenal escolhido no saguão vale e a troca no meio é recusada; subir de nível não muda a arma na mão (vale na próxima sessão). Com uma **conta veterana**: o dano do rifle é o dele com o silenciador ligado (mais fraco a 30 m que o simples), a cadência aceita é a da pistola com o gatilho (11 acertos por segundo em vez de 9), G planta mina (a melhoria ligada) e o abate de pistola dá os pontos à pistola e 25 XP à conta. Um **cliente ganancioso** (secundária inexistente, opcionais não liberadas, um `Loadout` inteiro com o sabre) fica com a escolha limpa; acertos de armas fora do loadout são ignorados e a mina sem a melhoria vira granada comum.
 - **Rifles e facas antigos no mata-mata**: o servidor valida o acerto com os atributos do rifle escolhido (o da Tia tira 28 no peito a 10 m; um acerto "do Rifle Padrão" que não está na mão é ignorado), os outros recebem `primaria` e `faca` no loadout, o kill feed traz `rifleTia` e os pontos vão para o rifle; a facada vale até o alcance da investida da faca de cada um (a 5 m, com o Tênis: a baguete alcança, o macarrão não).
-- **Corrida armada**: sala fixa por mapa, primeiro degrau para todos, sem granadas, subir/descer (a facada derruba a vítima um abate e dá um ao atacante), três facadas sobem um degrau com a arma nova na hora, vitória com o sabre e nova rodada. Com uma **conta no máximo** (silenciador, sabre e mina ligados): entra no primeiro degrau; o dano é o da arma do degrau com as melhorias do degrau; ao subir, tiros da arma anterior valem por 1 s com os atributos dela e a arma nova vale com os dela; nenhuma arma ganha pontos (nem no banco depois de sair) e a conta ganha 25 XP por abate.
+- **Corrida armada**: primeiro degrau para todos, sem granadas, subir/descer (a facada derruba a vítima um abate e dá um ao atacante), três facadas sobem um degrau com a arma nova na hora, vitória com o sabre e nova rodada. Com uma **conta no máximo** (silenciador, sabre e mina ligados): entra no primeiro degrau; o dano é o da arma do degrau com as melhorias do degrau; ao subir, tiros da arma anterior valem por 1 s com os atributos dela e a arma nova vale com os dela; nenhuma arma ganha pontos (nem no banco depois de sair) e a conta ganha 25 XP por abate.
 
 ### `secondaries.test.ts` — o limite de bagos da garrucha
 
@@ -137,6 +171,6 @@ Sem rede nem banco: uma `Session` real (com os ganchos reais de `server/modes.ts
 ## Código relacionado
 
 - `server/tests/helpers.ts`, `server/tests/preload.ts`, `server/tests/env.ts`
-- `server/tests/auth.test.ts`, `server/tests/game.test.ts`, `server/tests/appearance.test.ts`, `server/tests/modes.test.ts`, `server/tests/zombies.test.ts`, `server/tests/progression-modes.test.ts`, `server/tests/secondaries.test.ts`, `server/tests/knifePassives.test.ts`
+- `server/tests/auth.test.ts`, `server/tests/game.test.ts`, `server/tests/appearance.test.ts`, `server/tests/modes.test.ts`, `server/tests/zombies.test.ts`, `server/tests/progression-modes.test.ts`, `server/tests/secondaries.test.ts`, `server/tests/knifePassives.test.ts`, `server/tests/zombieBarricades.test.ts`, `server/tests/maps.test.ts`, `server/tests/management.test.ts`, `server/tests/sessions.test.ts`
 
 Ver também: [[Testing Overview]], [[Authentication]], [[APIs]].

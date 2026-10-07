@@ -5,10 +5,11 @@ status: documented
 area: gameplay
 source_paths:
   - client/world/props.ts
-  - client/world/blockoutMap.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
   - client/world/hydrant.ts
   - client/world/dog.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/world/halloween.ts
   - client/world/oriental.ts
   - client/world/jardim/frutas.ts
@@ -23,7 +24,7 @@ tags:
   - gameplay
   - gags
   - props
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Map Gags
@@ -43,7 +44,7 @@ Recompensar a curiosidade e dar humor: quase tudo de destaque no cenário **reag
 2. Um tiro (ou a faca, quando o objeto aceita `stab`) dispara o handler **localmente** e chama `onLocal(id)`.
 3. Online, o cliente envia `prop {id}`; o servidor só valida o formato (`/^[a-z]{1,16}(:\d{1,3})?$/`) e limita a **uma a cada 150 ms por jogador**, e retransmite `prop {id, by}` para os outros, que executam a mesma piada (com a posição de quem disparou, quando conhecida — o fantasma se vira para o atirador).
 4. O servidor **não conhece o estado** das piadas: elas são cosméticas e não são reenviadas a quem entra depois.
-5. **Exceção (desde 2026-10-06):** as piadas que contam figurinha do álbum ([[Achievements]], página Mapas) estão em `PROPS` (`shared/maps.ts`) com a posição: caminhão (Rua), dragão, gongo, 4 tambores e o carrilhão (Jardim), sino da capela, buzina, fantasma, caldeirão e os 7 alvos (Vila). O servidor só aceita (e só repassa) um toque desses no mapa certo, de quem está vivo e a até `PROP_RANGE` (80 m) do objeto. As outras continuam só repassadas.
+5. **Exceção (desde 2026-10-06):** as piadas que contam figurinha do álbum ([[Achievements]], página Mapas) estão em `PROPS` (`shared/maps.ts`) com a posição: caminhão (Rua), dragão, gongo, 4 tambores e o carrilhão (Jardim), sino da capela, buzina, fantasma, caldeirão e os 7 alvos (Vila). O servidor só aceita (e só repassa) um toque desses no mapa certo, de quem está vivo e a até `PROP_RANGE` (80 m) do objeto. As outras continuam só repassadas. Com os mapas como dados (PF-6), `PROPS` vale só para os quatro oficiais, pelas posições da versão 1 (`checkedPropsOf`): num mapa da comunidade (inclusive a cópia de um oficial) esses objetos não contam figurinha e o toque é recusado; se a equipe mover um deles numa versão nova do oficial, `PROPS` precisa acompanhar.
 
 ## Catálogo por mapa
 
@@ -109,9 +110,9 @@ As cercas de ferro param jogadores e granadas mas deixam as balas passarem (`blo
 ## Código relacionado
 
 - `client/world/props.ts` — `PropBus.register`, `remote`, `onLocal`, `shooter`.
-- `client/world/blockoutMap.ts`, `hydrant.ts`, `dog.ts` — Rua dos Vizinhos.
+- `client/world/catalog/objects.ts` (hidrantes, flamingos, Amora), `catalog/vehicles.ts` (caminhão), `hydrant.ts`, `dog.ts` — Rua dos Vizinhos.
 - `client/world/oriental.ts` (`Lanterns`, `Gong`, `Bell`), `client/world/jardim/*` (`struck`, `FruitTree`/frutas, fonte do dragão) — Jardim do Dragão.
-- `client/world/halloween.ts` (`GraveGhost`, `Bell`, `Pumpkins`, `LampPosts`, `Cauldron`, `Scarecrows`, `TargetRow`, `GiantPumpkin`, `GrandfatherClock`, `GlowShrooms`, `KitchenCabinet`, `Witch`, `GiantRat`), `client/world/hauntedTown.ts` — Vila Assombrada.
+- `client/world/halloween.ts` (`GraveGhost`, `Bell`, `Pumpkins`, `LampPosts`, `Cauldron`, `Scarecrows`, `TargetRow`, `GiantPumpkin`, `GrandfatherClock`, `GlowShrooms`, `KitchenCabinet`, `Witch`, `GiantRat`), `client/world/catalog/objects.ts` — Vila Assombrada. Cada gag guarda o seu id do `PropBus` na peça do mapa (`Peca.prop`).
 - `client/main.ts` — `map.props.onLocal`, `map.props.shooter`, handler `prop`, `dogTick`.
 - `server/session.ts` — case `prop`.
 

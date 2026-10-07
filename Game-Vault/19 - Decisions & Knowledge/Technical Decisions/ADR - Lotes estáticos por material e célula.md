@@ -5,13 +5,13 @@ status: documented
 area: performance
 source_paths:
   - client/world/mapBuilder.ts
-  - client/world/dragonGarden.ts
+  - shared/data/mapas/jardim.json
   - client/world/gltfMap.ts
 tags:
   - adr
   - performance
   - mapas
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # ADR - Lotes estáticos por material e célula
@@ -34,7 +34,7 @@ Um lote por material para o mapa todo (sem culling) vs. lotes por célula. O com
 
 ## Motivo
 
-`mapBuilder.ts`: "few draw calls, and cells outside the camera are frustum-culled instead of drawing the whole map every frame". `dragonGarden.ts`: 40 m cortava a propriedade em 16 pedaços, "doubling the draw calls".
+`mapBuilder.ts`: "few draw calls, and cells outside the camera are frustum-culled instead of drawing the whole map every frame". O antigo `dragonGarden.ts` (comentário hoje em `client/world/conversao/jardim.ts`; a célula é `ambiente.celula` no JSON do mapa): 40 m cortava a propriedade em 16 pedaços, "doubling the draw calls".
 
 ## Consequências
 

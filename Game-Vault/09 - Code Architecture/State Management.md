@@ -46,7 +46,7 @@ Não há biblioteca de estado (Redux, signals, store). O estado vive **em variá
 | Preferências do modo bots | `localStorage['oc.bots']` (`skill`, `count`, `map`) | `client/ui/home.ts` | persistente no navegador |
 | Sessão de login | cookie `oc_sessao` HttpOnly (o JS não lê) + tabela `session` (só o SHA-256) | `server/auth/sessions.ts` | 30 dias, renovado no uso |
 | Dados efêmeros compartilhados | Redis: `ws:ticket:*` (30 s), `rl:*` (limites e bloqueios) | `server/api.ts`, `server/auth/password.ts` | segundos a minutos |
-| Dados persistentes | PostgreSQL (`account`, `player_profile`, `player_stats`, `weapon_progress`, `session_participation`, `sanction`, `auth_event`...) | `server/accounts.ts` | permanente |
+| Dados persistentes | PostgreSQL (`account`, `player_profile`, `player_stats`, `weapon_progress`, `session_participation`, `sanction`, `auth_event`, `map`, `map_version`...) | `server/accounts.ts` | permanente |
 
 ## Cliente: a closure do `boot()`
 
@@ -66,7 +66,7 @@ O cliente **sobrescreve** sua vida com a do servidor a cada `snap` (`if (!player
 
 - `Session` guarda tudo da partida em memória; nada da partida (kills da sessão, corpos) vai para o banco, só o **delta do progresso da conta** (`ProgressDelta`) e a participação (`session_participation`).
 - O `delta` é zerado ao gravar; em falha, `mergeDelta` o devolve para a próxima tentativa (`server/app.ts`).
-- Reiniciar o processo perde as sessões (as permanentes são recriadas vazias no próximo `startServer`).
+- Reiniciar o processo perde as sessões (elas abrem de novo sob demanda); os mapas e as versões ficam no banco.
 
 ## Settings (`localStorage`)
 
