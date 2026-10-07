@@ -312,12 +312,15 @@ export class Viewmodel {
     this.grenadeArm.add(item);
   }
 
-  /** A shot: visual kick back, up and a little sideways (the aim recoil is the weapon's, apart). */
-  kick() {
+  /**
+   * A shot: visual kick back, up and a little sideways (the aim recoil is the weapon's, apart). `mul` is the gun's
+   * on-screen kick (`coiceVisual`: the revolver, the garrucha and the hand cannon jump more).
+   */
+  kick(mul = 1) {
     const R = VM_FEEL.recoil;
-    if (this.kickBack.value < R.maxBack) this.kickBack.impulse(impulseFor(this.kickBack, R.back));
-    if (this.kickUp.value < R.maxUp) this.kickUp.impulse(impulseFor(this.kickUp, R.up));
-    this.kickSide.impulse(impulseFor(this.kickSide, (Math.random() * 2 - 1) * R.side));
+    if (this.kickBack.value < R.maxBack * mul) this.kickBack.impulse(impulseFor(this.kickBack, R.back * mul));
+    if (this.kickUp.value < R.maxUp * mul) this.kickUp.impulse(impulseFor(this.kickUp, R.up * mul));
+    this.kickSide.impulse(impulseFor(this.kickSide, (Math.random() * 2 - 1) * R.side * mul));
   }
 
   flash() {
