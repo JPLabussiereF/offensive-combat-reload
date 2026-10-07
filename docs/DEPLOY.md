@@ -129,6 +129,10 @@ PG_SENHA=troque-isto
 # Outros endereços que podem chamar a API, além do próprio site (separados por vírgula)
 ORIGENS_PERMITIDAS=
 
+# Admin inicial: criado ao subir enquanto nenhuma conta é admin (padrão admin@cadu.com / admin: troque a senha)
+ADMIN_BOOTSTRAP_EMAIL=admin@cadu.com
+ADMIN_BOOTSTRAP_PASSWORD=troque-isto
+
 # Gmail: e-mail de recuperação de senha
 SMTP_USUARIO=seu.email@gmail.com
 SMTP_SENHA_APP=abcdabcdabcdabcd
@@ -151,9 +155,17 @@ docker compose exec banco pg_dump -U oc oc > backup-oc.sql            # salvar
 docker compose exec -T banco psql -U oc oc < backup-oc.sql            # restaurar num banco vazio
 ```
 
-`docker compose down` mantém o volume; `docker compose down -v` **apaga todas as contas**.
+Os modelos `.glb` enviados para os mapas da comunidade ficam no volume `oc-mapas` (`MAPAS_DIR=/app/dados/mapas` no serviço `jogo`); os mapas e as versões ficam no banco. Para guardar os modelos também:
 
-**Moderação.** Banimentos, silêncios no chat e papéis de staff são feitos pelo console do servidor. O banimento derruba o jogador da partida na hora; o silêncio só cala o chat da sala (a pessoa continua jogando) e também vale na partida em andamento:
+```bash
+docker compose cp jogo:/app/dados/mapas ./backup-mapas                # salvar
+```
+
+`docker compose down` mantém os volumes; `docker compose down -v` **apaga todas as contas e mapas**.
+
+Sem Docker, os modelos ficam em `MAPAS_DIR` (padrão `./dados/mapas`, relativo à pasta de onde o servidor roda). O servidor monta os mapas ao salvar numa thread que roda do código-fonte (`server/mapWorker.ts` com `client/`, `shared/` e `tools/headless.ts`): no deploy sem Docker, mantenha a pasta do projeto inteira ao lado do `build/`.
+
+**Moderação.** Banimentos, silêncios no chat, troca de nome, aparência e progresso e papéis de staff podem ser feitos pela aba **Gerenciamento** da tela inicial (admins e moderadores; usa a API `/api/gestao`) ou pelo console do servidor. O primeiro admin sempre vem do console (`papel "Nome#1234" admin`). O banimento derruba o jogador da partida na hora; o silêncio só cala o chat da sala (a pessoa continua jogando) e também vale na partida em andamento:
 
 ```bash
 docker compose exec jogo bun build/admin.js banir "Nome#1234" "motivo" 7d     # 7d, 12h, 30m ou permanente

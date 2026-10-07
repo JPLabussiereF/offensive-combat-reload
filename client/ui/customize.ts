@@ -491,6 +491,11 @@ interface Options {
   setStatus(msg: string, error?: boolean): void;
   /** Closed (saved or not): back to the profile. */
   onClose(saved: boolean): void;
+  /**
+   * Saves the look somewhere else than the player's own account (the Gerenciamento tab: another account's,
+   * PATCH /api/gestao/contas/:id). Absent: the player's own (PATCH /api/perfil).
+   */
+  onSave?(look: Appearance): Promise<void>;
 }
 
 export function showCustomizer(root: HTMLElement, o: Options) {
@@ -819,7 +824,8 @@ export function showCustomizer(root: HTMLElement, o: Options) {
   save.onclick = async () => {
     save.disabled = true;
     try {
-      await api('PATCH', '/api/perfil', { aparencia: look });
+      if (o.onSave) await o.onSave(look);
+      else await api('PATCH', '/api/perfil', { aparencia: look });
       o.setStatus(l('saved'));
       close(true);
     } catch (err) {

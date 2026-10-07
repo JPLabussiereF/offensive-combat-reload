@@ -64,7 +64,7 @@ Quem move os zumbis online, e sobre o quê, de um jeito que o servidor continue 
 
 ## Consequências
 
-- **A navmesh precisa ser refeita quando o mapa muda** (`bun run navmesh`; o teste avisa). Mapas novos no modo precisam entrar em `BUILDERS` (ferramenta) e `BAKED` (servidor).
+- **A navmesh precisa ser refeita quando o mapa muda** (`bun run navmesh`; o teste avisa). Desde a PF-6 (fase 2) ela é guardada com cada versão salva do mapa (`map_version.navmesh`) e gerada pelo servidor ao salvar um mapa zumbi (`server/mapWorker.ts`); o arquivo de `shared/data/navmesh` só semeia a versão 1 do cemitério.
 - O servidor não conhece colisões finas (carros, caixas, o caixão, portas): zumbis seguem a navmesh, que já desconta os colisores estáticos do mapa; um jogador num lugar fora da malha (em cima de um carro) fica fora do alcance dos arranhões ([[Navigation]]).
 - A altura dos zumbis vem da malha (~8 cm acima do chão; o cliente desconta).
 - A primeira sessão do processo espera o WebAssembly do Recast (~0,4 s) antes de começar a contagem.

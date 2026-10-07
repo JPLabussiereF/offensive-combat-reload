@@ -8,7 +8,6 @@ import type RAPIER from '@dimforge/rapier3d-compat';
 import type { PlayerInfo, ServerMsg, Vec3, ZBarricade, ZombieSync, ZPhase } from '@shared/protocol';
 import type { GunStats } from '@shared/arsenal';
 import { critRegion, type HitRegion } from '@shared/weapons';
-import type { MapId } from '@shared/maps';
 import { emptyBarricade, inGap, inReach, insideWall, needsWork } from '@shared/barricades';
 import { gunDamageToZombie, isBoss, itemOf, startItems, waveSpec, WAVES, weaponMul, withItem, zombieHp, ZF, ZOMBIE, type BossId, type KillHow, type ZFlaw, type ZItems, type ZombieMapData } from '@shared/zombies';
 import type { Hud } from '../ui/hud';
@@ -107,10 +106,11 @@ export class ZombieClient {
   constructor(
     readonly link: ZombieLink,
     private game: ZombieGame,
-    map: MapId,
+    /** The map's zumbi layout (its data's `zumbi`). */
+    map: ZombieMapData,
     sync?: ZombieSync,
   ) {
-    this.map = ZOMBIE.mapas[map] ?? ZOMBIE.mapas.cemiterio!;
+    this.map = map;
     this.view = new ZombieView(game.world, game.scene, game.registry, game.sfx, game.effects, { ear: () => game.feet() });
     this.coffin = new Coffin(game.scene, game.physics, this.map.caixa, game.sfx);
     this.barricades = new BarricadeView(game.scene, game.physics, this.map.barricadas, game.sfx, game.effects);

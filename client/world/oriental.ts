@@ -30,15 +30,25 @@ export const ORIENTAL = {
 export type Rect = { x0: number; z0: number; x1: number; z1: number };
 export type Side = 'n' | 's' | 'e' | 'w';
 
-/** Deterministic PRNG: rocks and trees must collide the same way on every client. */
-export function seeded(seed: number) {
-  return () => {
+/** A seeded PRNG and where it stands: seeded(r.state) goes on with the very numbers r would give next. */
+export interface Seeded {
+  (): number;
+  readonly state: number;
+}
+
+/**
+ * Deterministic PRNG: rocks and trees must collide the same way on every client. Its `state` is what the map
+ * data keeps per piece (Peca.semente), so each piece draws the same numbers wherever it is built.
+ */
+export function seeded(seed: number): Seeded {
+  const next = () => {
     seed |= 0;
     seed = (seed + 0x6d2b79f5) | 0;
     let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+  return Object.defineProperty(next, 'state', { get: () => seed | 0, enumerable: true }) as Seeded;
 }
 
 const corners = (r: Rect): [number, number][] => [
@@ -470,6 +480,8 @@ export function pavilion(b: MapBuilder, spec: PavilionSpec): Pavilion {
         ext[sd] = Math.max(outerExt(st, sd) + balcony, outerExt(prev, sd));
       }
       const r: Rect = { x0: cx - ext.w, x1: cx + ext.e, z0: cz - ext.n, z1: cz + ext.s };
+      // For the sound, a balcony is a porch (roofed, open on three sides); the room inside wins where they overlap.
+      if (SIDES.some((sd) => ext[sd] - outerExt(st, sd) >= 0.3)) b.room({ x: r.x0, y, z: r.z0 }, { x: r.x1, y: y + st.h, z: r.z1 }, 0.4);
       const wells = (prev.stairs ?? []).map((s) => stairRect(prev, s));
       slabWithHoles(r, wells, y - SLAB, y);
       // Railings around every edge that reaches out past this story's walls.
@@ -488,7 +500,8 @@ export function pavilion(b: MapBuilder, spec: PavilionSpec): Pavilion {
         railing(b, 'x', zEdge, Math.min(w.start, stop), Math.max(w.start, stop), y);
         railing(b, 'z', w.start - s.dir * 0.05, w.z0, w.z1, y);
       }
-      // Balcony over the ground: columns along its edge.
+      // Balcony over the ground: columns along its edge, and the porch under it.
+      if (i === 1 && SIDES.some((sd) => ext[sd] - outerExt(prev, sd) >= 0.9)) b.room({ x: r.x0, y: 0, z: r.z0 }, { x: r.x1, y: y - SLAB, z: r.z1 }, 0.4);
       if (i === 1) {
         const placed = new Set<string>();
         for (const sd of SIDES) {
@@ -514,6 +527,8 @@ export function pavilion(b: MapBuilder, spec: PavilionSpec): Pavilion {
       }
     }
     walls(st, y, top ? st.h : st.h - SLAB);
+    // Each story is a closed room for the sound.
+    b.room({ x: cx - outerExt(st, 'w'), y, z: cz - outerExt(st, 'n') }, { x: cx + outerExt(st, 'e'), y: y + st.h - (top ? 0.2 : SLAB), z: cz + outerExt(st, 's') }, 1);
     for (const s of st.stairs ?? []) {
       const w = stairRect(st, s);
       b.stairs('x', s.dir, w.start, w.z0, w.z1, y, st.h, 'madeira', { tint: C.wood });
@@ -828,7 +843,7 @@ export function pine(b: MapBuilder, x: number, y: number, z: number, scale: numb
   // Each crown starts on another of the greens, so neighbors differ. Pinks are blossom.
   const blossom = ((greens[0] >> 16) & 255) > ((greens[0] >> 8) & 255) + 30;
   pads.forEach(([p, r], i) => foliageCrown(b, p, r * s, [...greens.slice(i % greens.length), ...greens.slice(0, i % greens.length)], { flat: 0.46, y0, y1, blossom }));
-  if (o.collide !== false) b.cuboidCollider(new THREE.Vector3(x, y + s, z), new THREE.Vector3(0.22 * s, s, 0.22 * s), new THREE.Quaternion(), 'wood');
+  if (o.collide !== false) b.cuboidCollider(new THREE.Vector3(x, y + s, z), new THREE.Vector3(0.22 * s, s, 0.22 * s), new THREE.Quaternion(), 'wood', undefined, 'trunk');
   // Where the crowns are (center, horizontal radius): for fruit or lanterns.
   return pads.map(([p, r]) => ({ p, r: r * s * 1.15 }));
 }
@@ -1018,7 +1033,7 @@ export function dragonMaterial() {
  * sway in the breeze and swing hard when shot (synchronized online as "lanterna:N").
  */
 export class Lanterns {
-  private specs: { hook: THREE.Vector3; drop: number }[] = [];
+  private specs: { hook: THREE.Vector3; drop: number; id?: string }[] = [];
   private bodies!: THREE.InstancedMesh;
   private strings!: THREE.InstancedMesh;
   private ang = new Float32Array(0);
@@ -1032,9 +1047,9 @@ export class Lanterns {
   /** Where each lantern's body is right now (x, y, z per lantern; they swing): for their glow and light. */
   at = new Float32Array(0);
 
-  /** Hangs a lantern from `hook`, its body `drop` meters below. */
-  hang(hook: THREE.Vector3, drop = 0.85) {
-    this.specs.push({ hook: hook.clone(), drop });
+  /** Hangs a lantern from `hook`, its body `drop` meters below; `id`: its PropBus id (default "lanterna:N", N its order here). */
+  hang(hook: THREE.Vector3, drop = 0.85, id?: string) {
+    this.specs.push({ hook: hook.clone(), drop, id });
   }
 
   get count() {
@@ -1061,9 +1076,9 @@ export class Lanterns {
     this.bodies.count = this.strings.count = n;
     this.bodies.frustumCulled = this.strings.frustumCulled = false;
     scene.add(this.bodies, this.strings);
-    this.specs.forEach(({ hook, drop }, i) => {
+    this.specs.forEach(({ hook, drop, id }, i) => {
       const at = new THREE.Vector3(hook.x, hook.y - drop, hook.z);
-      const onShot = props.register(`lanterna:${i}`, () => {
+      const onShot = props.register(id ?? `lanterna:${i}`, () => {
         const a = Math.random() * Math.PI * 2;
         this.vel[i * 2] += Math.cos(a) * 2.6;
         this.vel[i * 2 + 1] += Math.sin(a) * 2.6;

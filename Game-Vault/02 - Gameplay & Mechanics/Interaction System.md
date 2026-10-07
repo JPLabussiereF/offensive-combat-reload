@@ -95,4 +95,4 @@ Entrada: ação `taunt`, posição dos pés. Saída: `hud.setPrompt(...)`, mensa
 
 ## Configurações relacionadas
 
-`HUMILIATION.radius`, `POTION.radius`, `CHERRY.radius`, `BISCUIT.radius`; `WITCHES`/`PICKUPS` em `shared/maps.ts`. Ver [[Constants Reference]].
+`HUMILIATION.radius`, `POTION.radius`, `CHERRY.radius`, `BISCUIT.radius`; a bruxa e os coletáveis em `objetos` dos dados do mapa (`shared/mapData.ts`; online, da versão da sala). Ver [[Constants Reference]].

@@ -3,7 +3,7 @@
 // bounces and settles. Who takes it (and what it does) is the game's business: see main.ts and CHERRY.
 import * as THREE from 'three';
 import { mergeColoredParts, toonGradient, type ColoredPart } from '../../render/materials';
-import type { MapPickup } from '../blockoutMap';
+import type { MapPickup } from '../gameMap';
 
 const HOVER = 0.55;
 

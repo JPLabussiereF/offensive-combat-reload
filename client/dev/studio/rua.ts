@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import type { Avatar } from '../../entities/avatar';
 import { PALETTE, toonGradient } from '../../render/materials';
-import { buildHouse } from '../../world/blockoutMap';
+import { buildHouse } from '../../world/catalog/street';
 import { flamingoGeometry, iceCreamTopper } from '../../world/decor';
 import { ChowChow, namePlate } from '../../world/dog';
 import { crate } from '../../world/furniture';

@@ -23,6 +23,10 @@ source_paths:
   - server/tests/zombieBarricades.test.ts
   - server/tests/progression-modes.test.ts
   - client/tests/offlineModes.test.ts
+  - client/tests/mapConversion.test.ts
+  - client/tests/mapData.test.ts
+  - client/tests/budget.test.ts
+  - client/tests/seeded.test.ts
   - client/tests/arsenalTree.test.ts
   - client/tests/arsenalCanvasLayout.test.ts
   - client/tests/damageNumbers.test.ts
@@ -60,9 +64,23 @@ Os testes usam o executor nativo **`bun test`** (`bun:test`: `describe`, `it`, `
 | `client/tests/offlineModes.test.ts` | Unitário | 10 | treino e bots com o Arsenal da conta (`Progress`: travas, rifle e faca antigos, comuns desligadas, fila de salvamento e falha desfeita), sorteio da arma dos bots (60% rifle, 40% secundárias por igual), armas dos bots e da escada, zumbi sozinho (`LocalZombies`) |
 | `client/tests/damageNumbers.test.ts` | Unitário (DOM falso) | 12 | números de dano: cor por região e com a poção do crítico, um número por alvo por disparo com teto na vida, animação, camada (projeção, duração, atrás da câmera, limite de 24) |
 | `client/tests/spatial.test.ts` | Unitário | 6 | som espacial |
+| `client/tests/mapConversion.test.ts` | Unitário (monta os mapas sem tela) | 5 | os 4 mapas oficiais a partir do JSON iguais ao golden (1e-6) e o modo editor ([[ADR - Mapas como dados com catálogo de peças]]) |
+| `client/tests/mapData.test.ts` | Unitário | 18 | formato dos mapas (`validateMapData`), esquema e adaptadores das peças, coerência com as tabelas do servidor |
+| `client/tests/budget.test.ts` | Unitário (monta os mapas sem tela) | 5 | orçamento de desenho (400 chamadas, 750 mil triângulos) e os números dos oficiais |
+| `client/tests/seeded.test.ts` | Unitário | 4 | `seeded()` e o estado exposto (`Peca.semente`) |
+| `server/tests/maps.test.ts` | Integração (HTTP) | 13 | API de mapas: criar, versões, 409, restaurar, ocultar, apagar, duplicar, busca, orçamento, GLB, os 4 originais protegidos (P44, P45) |
+| `server/tests/management.test.ts` | Integração (HTTP + WebSocket) | 8 | Gerenciamento: matriz de papéis, banimento derruba, silêncio e progresso na partida |
+| `server/tests/sessions.test.ts` | Integração (WebSocket) | 6 | sessões sob demanda, versões por sala, mapa da comunidade online |
+| `client/tests/roles.test.ts` | Unitário | 6 | regras dos papéis (`shared/roles.ts`) |
+| `client/tests/mapPose.test.ts` | Unitário (monta peças sem tela) | 10 | pose das peças (P32) e lanternas e recortes de lago levados pela pose (P42) |
+| `client/tests/editorHistory.test.ts` | Unitário | 20 | editor sem tela: desfazer e refazer, gizmo, peças novas, marcadores, pontas e vãos |
+| `client/tests/editorRecovery.test.ts` | Unitário | 5 | rascunho automático (P40), salvar sobre a versão atual após o 409 (P39), o que Testar abre (P41) |
+| `client/tests/mapsScreen.test.ts` | Unitário | 15 | abas Mapas (botões por papel e dono, originais sem Excluir e Ocultar, contra bots e campo de tiro, modos, busca e ordem, ocultos, mapas da tela inicial) e Gerenciamento (painel pelas permissões, sanção, progresso) |
 | `client/tests/weapon.test.ts` | Unitário | 11 | arma do cliente: rajada do grampeador (3 por clique, pausa, sem repetir segurando), bagos da garrucha no cone, modelo, mão e voz próprios de cada secundária, coice na tela |
 
-(Contagem dos casos em 2026-10-07; `bun test` roda 271 casos em 19 arquivos em ~111 s, dos quais ~25 s são esperas reais dos testes do modo zumbi e da corrida armada. Os testes de motor com relógio falso, como os de barricada, simulam minutos de jogo em poucos décimos de segundo.)
+(Contagem dos casos em 2026-10-07, antes do merge. Na sandbox-gregory, depois da fase 4 da PF-6, `bun test` rodava 300 testes em 25 arquivos em ~107 s (na fase 1 eram 218 em 17); na main, depois da PF-11, 271 casos em 19 arquivos em ~111 s. As duas partiram de 178 casos em 13 arquivos em ~95 s; somando o que cada uma acrescentou, o merge deve ficar perto de 393 casos em ~31 arquivos. Em todos os casos ~25 s são esperas reais dos testes do modo zumbi e da corrida armada. Os testes de motor com relógio falso, como os de barricada, simulam minutos de jogo em poucos décimos de segundo.)
+
+> [!info] Depois do merge da main na sandbox-gregory (07/10/2026), com a PF-2 a PF-11, o admin inicial e o deslize de joelhos: `bun test` roda **622 testes em 57 arquivos**, todos passando, e `bun run typecheck` sem erros. As contagens por arquivo acima são as de cada branch antes do merge.
 
 ## Configuração (`bunfig.toml`)
 

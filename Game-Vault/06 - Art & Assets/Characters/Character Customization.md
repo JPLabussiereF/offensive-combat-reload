@@ -61,8 +61,8 @@ Cosméticos nunca mudam o jogo (comentário de `shared/catalog.ts`). Altura e bi
 
 ## Reflexos visuais da customização
 
-- **Terceira pessoa:** o personagem inteiro, bakeado; online, cada jogador e o corpo caído aparecem como se personalizaram (README).
-- **Primeira pessoa:** os braços do viewmodel são do próprio personagem: tom de pele, manga longa da peça de cima (cobre o antebraço com punho) ou braço nu, luvas (as cheias substituem a mão, as sem dedo deixam a pele), e PCD (sem mão fica o antebraço; sem braço, nada; a faca passa para a mão esquerda e a granada para a direita por espelhamento). Ver [[Weapon Models]].
+- **Terceira pessoa:** o personagem inteiro, bakeado; online, cada jogador e o corpo caído aparecem como se personalizaram (README). Com uma mão só (PCD), o rifle fica numa mão: sem a direita, reto do lado esquerdo do peito, seguro pela mão esquerda, com o braço ou coto direito pendurado; sem a esquerda, o coto apoia o guarda-mão. Recarga com o rifle apoiado no corpo; granada e faca com o braço que sobra e o rifle nas costas (ver [[Animation]]).
+- **Primeira pessoa:** os braços do viewmodel são do próprio personagem: tom de pele, manga longa da peça de cima (cobre o antebraço com punho) ou braço nu, luvas (as cheias substituem a mão, as sem dedo deixam a pele), e PCD (sem mão fica o antebraço; sem braço, nada; a faca passa para a mão esquerda e a granada para a direita por espelhamento; sem a mão direita, a arma fica espelhada do lado esquerdo da tela, com o ponto da mira no centro). Ver [[Weapon Models]].
 - **Bots:** recebem um visual aleatório (`randomAppearance`).
 
 ## Editor (aspecto visual)

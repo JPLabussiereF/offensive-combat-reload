@@ -14,7 +14,7 @@ tags:
   - world
   - maps
   - flow
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Level Flow
@@ -31,7 +31,7 @@ Como um mapa é escolhido, montado e entra em jogo, e o que acontece com o mapa 
 | Criar sessão online | seletor de mapa da criação de sessão | mensagem `create` com `map`; o servidor aceita só ids válidos (`isMapId`), senão usa `rua` |
 | Prévia de mapa Blender | parâmetro de URL `?mapa=/maps/arquivo.glb` | **sobrepõe** qualquer escolha acima (ver abaixo) |
 
-O servidor cria **uma sessão permanente por mapa** ao iniciar (`principal` → Rua dos Vizinhos, `jardim`, `halloween`). Não há rotação de mapas, votação nem fim de partida: o README do projeto lista "fim de partida (limite de abates e tempo) e votação de mapa" como ainda não feitos. Ver [[Sessions]] e [[Matchmaking]].
+As salas online abrem sob demanda (`play {map, mode}`), cada uma presa à versão do mapa com que abriu; o cliente baixa os dados dessa versão antes de montar o mapa. Não há rotação de mapas, votação nem fim de partida: o README do projeto lista "fim de partida (limite de abates e tempo) e votação de mapa" como ainda não feitos. Ver [[Sessions]] e [[Matchmaking]].
 
 ## Montagem (carregamento)
 
@@ -44,7 +44,7 @@ sequenceDiagram
     participant Server as Servidor (online)
     Home->>Main: escolha (modo, mapa, conexão)
     Note over Main: o mapa só é montado depois da escolha
-    Main->>Builder: buildBlockoutMap / buildDragonGardenMap / buildHauntedTownMap / buildGltfMap
+    Main->>Builder: loadOfficialMap + buildMapFromData / buildGltfMap
     Main->>Main: loadTextureOverrides (em paralelo)
     Builder-->>Main: GameMap (geometria, colisores, spawns, props)
     Main->>Render: applyAtmosphere (se o mapa tiver) e área de sombra (shadowExtent)
@@ -55,7 +55,7 @@ sequenceDiagram
 ```
 
 1. A tela de carregamento aparece, a física e o renderizador são criados e a home é mostrada.
-2. Depois da escolha, `client/main.ts` decide o construtor pelo id (`jardim` → `buildDragonGardenMap`; `halloween` → `buildHauntedTownMap`; qualquer outro → `buildBlockoutMap`). Com `?mapa=`, usa `buildGltfMap`.
+2. Depois da escolha, `client/main.ts` carrega os dados do mapa pelo id (`loadOfficialMap`: `shared/data/mapas/<id>.json`, no pacote do cliente) e os monta com `buildMapFromData` (`client/world/mapLoader.ts`). Com `?mapa=`, usa `buildGltfMap`.
 3. As texturas reais de `public/textures/manifest.json` são carregadas em paralelo (ver [[Texture System]]).
 4. Se o mapa define `atmosphere`, o céu, a névoa e as luzes são trocados (Jardim e Vila são noturnos). Se define `shadowExtent`, a câmera de sombra do sol é ampliada (profundidade 150 m). Ver [[Lighting]].
 5. Bonecos de treino (`dummies`) só são criados no modo offline. No modo bots, a malha de navegação é gerada a partir dos colisores do mapa, excluindo a zona de mordida da Amora ampliada em 0,3 m (ver [[Navigation]]).
@@ -79,6 +79,6 @@ Tempos de construção medidos (de `docs/MAPAS.md`, não reverificados): Rua ~50
 
 - `client/main.ts` — trecho "Map: the session's (online) or the one picked on the home screen".
 - `client/ui/home.ts` — `mapSel`, `newMapSel`, `pickedMap`, `BOTS_KEY`, `join`.
-- `server/app.ts` — `createSession`, sessões permanentes por mapa.
-- `shared/maps.ts` — `MAPS`, `DEFAULT_MAP`, `isMapId`.
+- `server/app.ts` — `createSession`, salas sob demanda (`sessionFor`).
+- `shared/maps.ts` — `OFFICIAL_MAPS`, `DEFAULT_MAP`, `isMapId`; `client/net/maps.ts` — `fetchMapVersion`.
 - Fluxos de UI relacionados: [[Flow - First Access]], [[Flow - Join Online Match]], [[Menus]].

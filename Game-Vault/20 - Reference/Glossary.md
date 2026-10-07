@@ -20,6 +20,8 @@ source_paths:
   - shared/arsenal.ts
   - client/ui/arsenal.ts
   - shared/data/progression.json
+  - shared/mapData.ts
+  - client/editor/batches.ts
 tags:
   - game
   - reference
@@ -59,7 +61,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Onda / intervalo | `ZPhase` (`countdown`, `wave`, `break`, `over`), `zwave` | Uma leva de zumbis do modo zumbi; o intervalo de 20–25 s entre ondas (munição e granadas cheias, caídos levantam, mortos voltam) | [[Zombie]] |
 | Caixão Misterioso (en: Mystery Coffin) | `box`, `zbox`, `rollBox`, `client/zombies/coffin.ts` | A "caixa" do modo zumbi, num lugar fixo: $950 sorteiam uma arma (arma + melhorias fixas) de uma raridade, que às vezes vem **danificada** (o pato de borracha e a mudança de lugar de antes saíram) | [[Zombie]] |
 | Arma danificada (en: Damaged) | `ZFlaw`/`WeaponFlaw` (`municao`, `dano`, `ambos`), `ZItems.danificadas`, `Loadout.danificadas`, `rollFlaw`, `zDamaged` | Prêmio do caixão com defeito: menos munição (60% do pente, 50% da reserva), menos dano (×0,75) ou os dois; chance de 25% (comum) a 6% (lendária); sem conserto | [[Zombie]] · [[ADR - Caixão fixo com armas danificadas]] |
-| Barricada / brecha (en: Barricade / gap) | `barricade`, `zbar`, `zbarwork`, `ZBarricade`, `shared/barricades.ts`, `mapas.cemiterio.barricadas`, `zgap_<id>` | As 5 aberturas do muro do cemitério (Portão Principal, Brechas Oeste, Leste, Noroeste e Nordeste) e as tábuas que o time prega nelas ($300 para erguer, repregar de graça) para desviar a horda | [[Zombie]] · [[Map - Cemitério da Capela]] |
+| Barricada / brecha (en: Barricade / gap) | `barricade`, `zbar`, `zbarwork`, `ZBarricade`, `shared/barricades.ts`, `zumbi.barricadas` (em `shared/data/mapas/cemiterio.json`), `zgap_<id>` | As 5 aberturas do muro do cemitério (Portão Principal, Brechas Oeste, Leste, Noroeste e Nordeste) e as tábuas que o time prega nelas ($300 para erguer, repregar de graça) para desviar a horda | [[Zombie]] · [[Map - Cemitério da Capela]] |
 | Telegrafia de surgimento | `zfx 'rise'`, `RISE_TELL_MS` | O aviso 0,9 s antes de um zumbi sair do chão: mãos saindo da terra, brilho e feixe verdes, gemido | [[Zombie]] |
 | Filtro de contornar / de atravessar | `FILTER_AROUND`, `FILTER_THROUGH`, `gateFlag` | Os dois filtros de navegação da horda: um tira as brechas barricadas do caminho, o outro não (Seguranças, chefes, e todos quando tudo está fechado) | [[Navigation]] · [[ADR - Barricadas como polígonos próprios na navmesh]] |
 | Raridade | `Rarity` (`inicial`, `comum`, `raro`, `epico`, `lendario`), `rar_<id>` | Cor e força de uma arma do caixão: multiplica o dano contra zumbis (×1 a ×3,5) | [[Zombie]] · [[Weapons]] |
@@ -84,7 +86,9 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Progressão (de uma arma) | `ProgWeapon`, `progOf` | Onde ficam os pontos, o nível e as melhorias: `rifle` (os sete rifles), `pistola` (pistola, grampeador, revólver, garrucha, pistolão), `smg` (submetralhadora, furadeira), `faca` (as sete facas), `granada` | [[Progression]] |
 | Trava | `libera: { arma, pontos }`, `weaponUnlocked` | No JSON de uma arma: os pontos de uma progressão que a liberam (ex.: Sabre com 9.000 de faca) | [[Progression]] |
 | Pintura | `visual`, `GunLook`, `LOOKS` | As cores e enfeites de um rifle (`padrao`, `fita`, `tia`, `natal`, `chamas`, `vovo`, `ouro`); vem do JSON do rifle | [[Weapon Models]] |
-| Sala permanente | ids `principal` (rua), `jardim`, `halloween` (mata-mata), `corrida-armada-<mapa>` e `zumbi-cemiterio` | Uma sala fixa por mapa e por modo jogado nele | [[Sessions]] · [[Matchmaking]] |
+| Sala sob demanda | `play {map, mode}` | Sala aberta quando alguém joga um mapa, numa versão dele, e fechada quando esvazia (as salas permanentes, como `principal`, saíram na PF-6) | [[Sessions]] · [[Matchmaking]] |
+| Versão de mapa | `map_version`, `SessionInfo.versao` | Cada salvamento de um mapa; imutável; a sala joga a mesma até o fim | [[Maps Index]] |
+| Equipe | papéis `admin` e `moderador` | Quem usa o Gerenciamento e mantém os mapas oficiais (`shared/roles.ts`) | [[Moderation]] |
 | Secundária | `secundaria`, `SECONDARIES`, `FLAG.secondary`, tecla `weapon2` | Segundo espaço de arma de fogo: uma das sete secundárias (Pistola do Porteiro, padrão; Grampeador do RH; Submetralhadora Liquidificador; Revólver do Delegado da Quadrilha; Furadeira do Vizinho de Domingo; Garrucha do Cangaceiro; Pistolão do Marombeiro), escolhida no Arsenal; troca com 1/2/roda | [[Weapons]] · [[Inventory]] |
 | Grampeador do RH (en: HR Stapler) | `grampeador`, `grampeador.json` | Secundária de **rajada** (3 grampos por clique); usa a progressão da pistola, libera com 700 pts de pistola | [[Weapons#Secundárias]] |
 | Revólver do Delegado da Quadrilha (en: Square Dance Sheriff's Revolver) | `revolver`, `revolver.json` | Secundária semi de 6 balas, tiro único na cabeça até 10 m; progressão da pistola, 3.200 pts | [[Weapons#Secundárias]] |
@@ -103,9 +107,9 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `jardim` / Jardim do Dragão | Propriedade chinesa noturna com 6 setores em volta do anel | [[Map - Jardim do Dragão]] |
 | `halloween` / Vila Assombrada | Cidade de Halloween com 8 regiões e esgoto | [[Map - Vila Assombrada]] |
 | `cemiterio` / Cemitério da Capela | Cemitério murado do modo zumbi, exclusivo dele (`exclusivo: 'zumbi'`) | [[Map - Cemitério da Capela]] |
-| Mapa exclusivo / mapas abertos | `MAPS[id].exclusivo`, `PVP_MAPS` | Um mapa feito para um modo só (o cemitério); os abertos são os outros, os únicos dos modos versus, dos bots e do campo de tiro | [[Maps Index]] |
+| Mapa exclusivo / mapas abertos | `exclusivo` nos dados do mapa, `modeAllowsMap` | Um mapa feito para um modo só (o cemitério); os abertos são os outros, os únicos dos modos versus, dos bots e do campo de tiro | [[Maps Index]] |
 | Alameda / Travessa / terraço | — | A avenida do Portão Principal até a capela (a zona de abate), o caminho entre as brechas laterais e a frente elevada da capela | [[Map - Cemitério da Capela]] |
-| `principal` | Id da sala fixa da Rua (legado de quando só existia a rua) | [[Sessions]] |
+| `principal` | Id da antiga sala fixa da Rua (até a PF-6) | [[Sessions]] |
 | Amora | Chow Chow da Rua; quem entra na faixa em frente à casinha morre com uma mordida | [[Map - Rua dos Vizinhos]] |
 | Anel | Corredor entre a Casa Principal e os setores do Jardim | [[Map - Jardim do Dragão]] |
 | Setores do Jardim | Santuário Ancestral, Jardim de Bonsai, Lago de Lótus, Pátio das Lanternas, Pátio dos Guerreiros, Vale do Bambu | [[Map - Jardim do Dragão]] |
@@ -118,6 +122,16 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `critters` | Coisas pequenas que tiro e faca acertam sem colisor próprio (carpas, frutas, rato, abóboras) | [[Interactive Objects]] |
 | `gentle` | Escada com degraus extras para ficar abaixo de 45° | [[ADR - Escadas com colisão em rampa sólida]] |
 | `seeded` | Gerador aleatório com semente: a colisão sai idêntica em todos os clientes | [[ADR - Aleatoriedade com semente na construção dos mapas]] |
+| `pose` (`Peca.pose`) | Giro livre e deslocamento que o gizmo do editor dá a uma peça inteira (P32) | [[ADR - Mapas como dados com catálogo de peças]] |
+| Grupo (`tipo: 'grupo'`, `Peca.pai`) | Peça sem geometria da Hierarchy do editor; a pose dela é o referencial das peças que a nomeiam em `pai` | [[World Structure]], [[Map Editor UI]] |
+| Lote do editor (`EditorBatches`) | `BatchedMesh` em que o editor desenha as peças fora da seleção (P46) | [[ADR - Lotes do editor com BatchedMesh]] |
+| Pivô / Centro (Pivot / Center) | Onde fica o gizmo do editor: na peça ativa, ou no meio da caixa da seleção (o ponto em volta do qual ela gira e escala) | [[Map Editor UI]] |
+| Local / Global | Eixos do gizmo do editor: os da peça ativa, ou os do mundo | [[Map Editor UI]] |
+| Encaixe (snap) e Grade | O gizmo do editor anda em passos (0,5 m e 15° por padrão) com Ctrl segurado, ou sempre com o botão Grade | [[Map Editor UI]] |
+| Retângulo (Rect Tool, T) | Ferramenta do editor: retângulo sobre a seleção que move, estica caixas, salas e colisores e escala o resto pelos cantos | [[Map Editor UI]] |
+| Pivô da câmera | O ponto que a câmera do editor olha, à distância dela; a órbita, a roda e o F giram em volta dele | [[Map Editor UI]] |
+| Projeto (Project) / miniatura | Painel do editor com os tipos do catálogo por pasta em miniaturas desenhadas pelo próprio editor e guardadas no navegador (IndexedDB `oc-editor`); arrastar cria a peça | [[Map Editor UI]] |
+| Play / aba Jogo (Game) | ▶ joga o mapa em edição numa página própria posta sobre a aba Jogo (`?jogoEditor=`); ❚❚ congela, ■ termina e devolve o editor como estava | [[Map Editor UI]], [[ADR - Editor de mapas no jogo]] |
 
 ## Combate e dados
 

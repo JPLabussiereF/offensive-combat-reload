@@ -1,7 +1,7 @@
 // Pooled combat effects (section 3: never create/destroy per shot): bullet decals, particles, tracers, muzzle light.
 import * as THREE from 'three';
 
-const MAX_DECALS = 160;
+const MAX_DECALS = 384;
 /** Marks stay this long, then fade out over DECAL_FADE seconds (bullet holes / explosion scorches). */
 const DECAL_LIFE = 14;
 const SCORCH_LIFE = 24;

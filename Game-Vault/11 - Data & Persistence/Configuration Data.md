@@ -56,7 +56,7 @@ Os JSON trazem um campo `_doc` com a explicação em português. Detalhes de gam
 |---|---|
 | `shared/constants.ts` | `MOVE`, `HEALTH` (100, regen 25/s após 4 s), `SCORE`, `HUMILIATION` (janela 6 s, raio 2 m, 3,2 s), `SIM`, `CHERRY`, `BISCUIT`, `KOI`, `RAT`, `POTION`… |
 | `shared/protocol.ts` | `NET` (tick 20 Hz, envio 20 Hz, interpolação 100 ms, 10 jogadores, limites de nome/chat, respawn 5 s, porta 8787, `/ws`), `FLAG` (inclui `secondary` = 512), `CLOSE` |
-| `shared/maps.ts` | `MAPS` (ids e nomes), `PICKUPS`, `FISH`, `RATS`, `WITCHES` por mapa |
+| `shared/maps.ts` | `OFFICIAL_MAPS` e `DEFAULT_MAP` (os mapas, com nomes e objetos, são dados: `shared/data/mapas/*.json` e, no servidor, as tabelas `map`/`map_version`) |
 | `shared/account.ts` | Regras de nome, senha (8–128), e-mail (≤ 254), cooldown de nome (7 dias), carência de exclusão (30 dias) |
 | `shared/catalog.ts`, `shared/palette.ts`, `shared/appearance.ts` | Catálogo de personalização, paleta e regras de aparência (validação no servidor) |
 

@@ -17,7 +17,7 @@ tags:
   - game
   - networking
   - multiplayer
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Networking Overview
@@ -78,7 +78,7 @@ flowchart LR
     HTTP --> RD
     WS -->|GETDEL ticket| RD
     WS -->|perfil, progresso| PG
-    RD -->|oc:revogacao / oc:silencio| WS
+    RD -->|oc:revogacao / oc:silencio / oc:perfil| WS
 ```
 
 - **Desenvolvimento**: o Vite (porta 5173) faz proxy de `/api` e `/ws` para `localhost:8787` (`vite.config.ts`, com `xfwd: true`), mantendo **uma única origem** — necessário para o cookie de sessão e para a checagem de `Origin`. Ver [[Local Development]].

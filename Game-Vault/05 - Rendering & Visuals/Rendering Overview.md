@@ -4,6 +4,7 @@ type: system
 status: documented
 area: rendering
 source_paths:
+  - client/render/shadows.ts
   - client/render/renderer.ts
   - client/render/quality.ts
   - client/render/materials.ts
@@ -14,12 +15,12 @@ source_paths:
   - client/world/surfaces.ts
   - client/character/material.ts
   - client/world/jardim/luzes.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
 tags:
   - game
   - rendering
   - threejs
-updated: 2026-10-05
+updated: 2026-10-07
 ---
 
 # Rendering Overview
@@ -80,12 +81,12 @@ Cada mapa pode devolver um `atmosphere` (`GameMap.atmosphere`), aplicado por `ap
 | --- | --- | --- |
 | [[Map - Rua dos Vizinhos]] | padrão (dia) | cor sólida `0x6ec3ff` + nuvens instanciadas (`skyClouds`) |
 | [[Map - Jardim do Dragão]] | `NIGHT` (`jardim/luzes.ts`) | cúpula com shader, 260 estrelas, 650 lanternas subindo |
-| [[Map - Vila Assombrada]] | lua azulada, névoa roxa (`hauntedTown.ts`) | cúpula com degradê por vértice, 700 estrelas, lua com halo |
+| [[Map - Vila Assombrada]] | lua azulada, névoa roxa (`ambiente.ceu` em `halloween.json`) | cúpula com degradê por vértice, 700 estrelas, lua com halo |
 | [[Map - Arena Teste (glTF)]] | padrão (o carregador glTF não define atmosfera) | cor sólida |
 
 ## Nível 3: implementação
 
-- `client/render/renderer.ts`: `RenderContext` (renderer, `scene`, `camera`, `vmScene`, `vmCamera`, `sun`, `hemi`, `vmHemi`, `vmSun`, `render()`), `applyAtmosphere()`, `patchBackFaceShadows()` (ver [[Shaders]]).
+- `client/render/renderer.ts`: `RenderContext` (renderer, `scene`, `camera`, `vmScene`, `vmCamera`, `sun`, `hemi`, `vmHemi`, `vmSun`, `render()`: pede o mapa de sombra que ainda não existe antes de desenhar, `ensureShadowMap` em `client/render/shadows.ts`), `applyAtmosphere()`, `patchBackFaceShadows()` (ver [[Shaders]]).
 - `client/render/quality.ts`: presets e resolução dinâmica ([[Performance Rendering]]).
 - `client/render/materials.ts`: rampa toon, cache de materiais toon, `mergeColoredParts`, `PALETTE`.
 - `client/render/effects.ts`: decals, partículas, traçantes, explosões, luz do disparo ([[Decals]], [[Particles]], [[Visual Effects]]).
@@ -108,7 +109,7 @@ Detalhes em [[Performance Rendering]] e [[GPU]].
 - `client/render/renderer.ts`
 - `client/render/quality.ts`
 - `client/main.ts` (função `render` dentro de `boot`)
-- `client/world/blockoutMap.ts` (`GameMap.atmosphere`, `GameMap.shadowExtent`)
+- `client/world/gameMap.ts` (`GameMap.atmosphere`, `GameMap.shadowExtent`), `client/world/mapLoader.ts` (`atmosphereOf`: a atmosfera vem de `ambiente.ceu` no JSON do mapa)
 
 ## Ver também
 

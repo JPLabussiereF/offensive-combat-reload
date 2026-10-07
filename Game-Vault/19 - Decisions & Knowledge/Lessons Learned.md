@@ -13,7 +13,7 @@ source_paths:
   - client/net/connection.ts
   - client/world/textures.ts
   - client/world/mapBuilder.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/render/renderer.ts
   - server/app.ts
   - server/session.ts
@@ -57,8 +57,9 @@ O que o projeto aprendeu fazendo, com a evidência no código ou no histórico. 
 - **A acne de sombra nas faces de costas** vinha do half-Lambert do toon somado a `shadowSide = back` (`client/render/renderer.ts`; [[ADR - Sombras ignoradas em faces de costas para o sol]]).
 - **Gerar a textura de ruído uma vez, como padrão,** economizou cerca de 10 ms por textura no carregamento (`client/world/textures.ts`; [[Loading Performance]]).
 - **Acabamentos ficam 8 mm para dentro das aberturas** para evitar z-fighting (`mapBuilder.ts`, `wall`; [[Environment Pieces]]).
-- **Para remover um objeto sorteado sem mudar os seguintes,** ainda é preciso consumir os números aleatórios dele (o truque `nowhere` em `hauntedTown.ts`; [[ADR - Aleatoriedade com semente na construção dos mapas]]).
-- **O tamanho da célula de lote importa:** 40 m dobrava as draw calls do Jardim, e 45 m resolveu (`dragonGarden.ts`; [[ADR - Lotes estáticos por material e célula]]).
+- **Para remover um objeto sorteado sem mudar os seguintes,** ainda é preciso consumir os números aleatórios dele (o truque `nowhere`, hoje em `client/world/conversao/halloween.ts`; [[ADR - Aleatoriedade com semente na construção dos mapas]]). Desde a PF-6 cada peça guarda a sua semente (`Peca.semente`), e a ordem das peças deixou de mover as seguintes.
+- **Teste visual por software não vale pela GPU.** O Chrome headless desenha com SwiftShader, que entra na qualidade `baixa` (sem sombras) e tolera o que a GPU recusa: o editor de mapas sem mapa de sombra só falhava com aceleração de hardware (ANGLE: "Mismatch between texture format and sampler type"). Para conferir a renderização, use um Chrome com GPU (`--use-angle=d3d11 --enable-gpu --ignore-gpu-blocklist`) e todo laço de render deve agendar a sombra ([[Problem - Editor sem mapa de sombra com aceleração de hardware]]).
+- **O tamanho da célula de lote importa:** 40 m dobrava as draw calls do Jardim, e 45 m resolveu (`ambiente.celula` em `shared/data/mapas/jardim.json`; [[ADR - Lotes estáticos por material e célula]]).
 
 ## Documentação
 

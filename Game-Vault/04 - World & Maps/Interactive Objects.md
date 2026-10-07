@@ -5,10 +5,11 @@ status: documented
 area: world
 source_paths:
   - client/world/props.ts
-  - client/world/blockoutMap.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
   - client/world/hydrant.ts
   - client/world/dog.ts
-  - client/world/dragonGarden.ts
+  - shared/data/mapas/jardim.json
   - client/world/oriental.ts
   - client/world/jardim/kit.ts
   - client/world/jardim/lago.ts
@@ -18,7 +19,7 @@ source_paths:
   - client/world/jardim/frutas.ts
   - client/world/jardim/peixes.ts
   - client/world/jardim/cereja.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/world/halloween.ts
   - shared/maps.ts
   - shared/constants.ts
@@ -28,7 +29,7 @@ tags:
   - maps
   - interaction
   - gags
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Interactive Objects
@@ -102,7 +103,7 @@ Catálogo **espacial** dos objetos de cada mapa que reagem ao jogador: onde est�
 | Sino do parque | `sinoparque` | medidor de força (44,5, altura 5,5, 26,5) | tiro | toca |
 | Armário da cozinha | `armario` | cozinha da mansão (~−43,4, 9) | tiro/faca | abre as portas e mostra o biscoito |
 | Biscoito Scooby (coletável) | `biscoito` | (−44,4, 0, 9), dentro do armário | passar perto com o armário aberto | vida cheia (ver [[Pickups]]) |
-| Rato gigante | `rato` (tabela `RATS`) | fim da rua sem saída do esgoto (7,5, −4, 47,5) | tiro (conta 1) / faca (conta 4); cai com 14 | "humanidade" para quem derruba (ver [[Buffs & Debuffs]]) |
+| Rato gigante | `rato` (`objetos.ratos`) | fim da rua sem saída do esgoto (7,5, −4, 47,5) | tiro (conta 1) / faca (conta 4); cai com 14 | "humanidade" para quem derruba (ver [[Buffs & Debuffs]]) |
 | Máquina de refrigerante | — | (58,9, −2) | — | só visual ("a gag for later") |
 
 > [!info]
@@ -115,7 +116,7 @@ Nenhum objeto interativo. O marcador `GAG_*` existe no carregador, mas a ligaç�
 ## Código relacionado
 
 - `client/world/props.ts` — `PropBus`, `PropTrigger`.
-- `client/world/blockoutMap.ts` — caminhão, hidrantes, flamingos, Amora, latido.
+- `client/world/catalog/objects.ts`, `catalog/vehicles.ts`, `catalog/glb.ts` — hidrantes, flamingos, Amora, caminhão e latido (Rua dos Vizinhos); cada piada guarda o seu id do `PropBus` na peça (`Peca.prop`).
 - `client/world/oriental.ts` — `Lanterns`, `Gong`, `Bell`, `FireBreath`.
 - `client/world/jardim/kit.ts` — `struck` (tambores).
 - `client/world/halloween.ts` — `GraveGhost`, `Bell`, `Pumpkins`, `LampPosts`, `Cauldron`, `Scarecrows`, `TargetRow`, `GiantPumpkin`, `GrandfatherClock`, `GlowShrooms`, `KitchenCabinet`, `ScoobyBiscuit`, `GiantRat`, `Witch`.

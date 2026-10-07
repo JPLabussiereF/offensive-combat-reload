@@ -4,10 +4,12 @@ type: architecture
 status: documented
 area: code-architecture
 source_paths:
+  - server/gestao.ts
   - client/main.ts
   - client/net/connection.ts
   - client/world/props.ts
-  - client/world/blockoutMap.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
   - client/world/halloween.ts
   - client/entities/localPlayer.ts
   - client/weapons/weapon.ts
@@ -49,7 +51,7 @@ Objetos expõem propriedades `onX` com uma função padrão vazia; o `boot()` (o
 | `chat.onSend(text)` | `client/ui/chat.ts` | `main.ts` | Enviar `{ t: 'chat' }` |
 | `PropBus.onLocal(id)`, `PropBus.shooter()` | `client/world/props.ts` | `main.ts` | Reportar gag local ao servidor; posição do olho do atirador |
 | `Bot.onShoot(spread)` | `client/ai/bot.ts` | `BotManager` | Resolver o tiro do bot com os serviços do mundo |
-| `map.rewards.ratDown`, `map.rewards.aimBonus` | `MapRewards` (`client/world/blockoutMap.ts`) | `main.ts` | O mapa avisa; o jogo decide o efeito (online, via servidor) |
+| `map.rewards.ratDown`, `map.rewards.aimBonus` | `MapRewards` (`client/world/gameMap.ts`) | `main.ts` | O mapa avisa; o jogo decide o efeito (online, via servidor) |
 
 Exceção com vários ouvintes: `Progress.onChange(f)` (`client/gameplay/progress.ts`) guarda um `Set` de ouvintes e os chama quando o progresso das armas muda (mensagem `progresso` do servidor) ou quando o jogador muda a escolha do Arsenal (secundária, melhorias opcionais).
 
@@ -121,12 +123,13 @@ Ver [[Replication]] e [[ADR - Bun como runtime único]].
 
 ## 7. Redis pub/sub — eventos entre processos
 
-`server/redis.ts` define dois canais; `startServer` assina com uma segunda conexão (`sub`):
+`server/redis.ts` define três canais; `startServer` assina com uma segunda conexão (`sub`):
 
 | Canal | Publicado por | Efeito no servidor de jogo |
 | --- | --- | --- |
 | `oc:revogacao` (`REVOCATION_CHANNEL`) | `auth/sessions.ts` (`revokeSession`, `revokeAll`), `api.ts` (`DELETE /api/conta`) | Fecha a conexão da conta com `CLOSE.revoked` (4001) |
-| `oc:silencio` (`MUTE_CHANNEL`) | `moderacao.ts` (`mute`, `unmute`, chamados por `tools/admin.ts`) | Recarrega `chatMutedUntil` da conexão viva |
+| `oc:silencio` (`MUTE_CHANNEL`) | `moderacao.ts` (`mute`, `unmute`, chamados por `tools/admin.ts` e pela API de Gerenciamento) | Recarrega `chatMutedUntil` da conexão viva |
+| `oc:perfil` (`PROFILE_CHANNEL`) | `server/gestao.ts` (`PATCH /api/gestao/contas/:id`) | Recarrega o perfil da conexão viva: o progresso novo (com o que a partida ainda não gravou) chega na hora (`progresso`); nome e aparência valem na próxima sala |
 
 Isso permite que o console de moderação (outro processo) afete uma partida em andamento. Ver [[Moderation]].
 

@@ -9,15 +9,19 @@ import { gunStats, slotStats } from '@shared/arsenal';
 import { computeDamage, critRegion, LETHAL_DAMAGE } from '@shared/weapons';
 import { HUMILIATION } from '@shared/constants';
 import { FINAL_STEP } from '@shared/gunGame';
-import type { MapId } from '@shared/maps';
-import { modeMaps, type GameModeId } from '@shared/modes';
+import type { OfficialMapId } from '@shared/maps';
+import type { GameModeId } from '@shared/modes';
 import { DEFAULT_CHOICE, PROG_WEAPONS, type ProgWeapon } from '@shared/progression';
 import type { Award, ClientMsg, KillKind, ServerMsg } from '@shared/protocol';
 import type { GameServer } from '../app';
 import { emptyTotals } from '../accounts';
 import { liveAccount, liveOwn, type LiveAccount } from '../progress';
+import { officialRuntime, type MapRuntime } from '../maps';
 import { Session, type Conn, type SPlayer } from '../session';
-import { Browser, Player, sleep, startTestServer } from './helpers';
+import { Browser, enterMap, Player, sleep, startTestServer } from './helpers';
+
+/** The official maps' saved data, as the server plays them (version 1). */
+const RUNTIMES = Object.fromEntries(await Promise.all((['rua', 'jardim', 'halloween', 'cemiterio'] as const).map(async (id) => [id, await officialRuntime(id)]))) as Record<OfficialMapId, MapRuntime>;
 
 let accountSeq = 1;
 /** A signed-in account as the server keeps it (`xp`: account XP, for its level). */
@@ -44,8 +48,8 @@ class Room {
   readonly stubs: Stub[] = [];
   readonly session: Session;
 
-  constructor(mode: GameModeId, map: MapId = modeMaps(mode)[0]) {
-    this.session = new Session(`album-${mode}`, 'Album', map, mode, false, () => this.t, () => {}, (_topic, data) => this.deliver(data));
+  constructor(mode: GameModeId, map: OfficialMapId = mode === 'zumbi' ? 'cemiterio' : 'rua') {
+    this.session = new Session(`album-${mode}`, 'Album', RUNTIMES[map], mode, () => this.t, () => {}, (_topic, data) => this.deliver(data));
   }
 
   private deliver(data: string, except?: Stub) {
@@ -395,8 +399,7 @@ describe('figurinhas próprias no servidor', () => {
     const p = await Player.connect(game, await b.ticket());
     p.send({ t: 'hello' });
     await p.next('welcome');
-    p.send({ t: 'join', session: 'principal' });
-    const joined = await p.next('joined');
+    const joined = await enterMap(p, 'rua');
     p.send({ t: 'respawn', p: [0, 0, 0], yaw: 0 });
     await p.next('spawned', (m) => m.id === joined.you);
     p.send({ t: 'selfDamage', amount: 9999, cause: 'void' });
@@ -410,8 +413,7 @@ describe('figurinhas próprias no servidor', () => {
     const q = await Player.connect(game, await b.ticket());
     q.send({ t: 'hello' });
     await q.next('welcome');
-    q.send({ t: 'join', session: 'principal' });
-    const again = await q.next('joined');
+    const again = await enterMap(q, 'rua');
     q.send({ t: 'respawn', p: [0, 0, 0], yaw: 0 });
     await q.next('spawned', (m) => m.id === again.you);
     q.send({ t: 'selfDamage', amount: 9999, cause: 'void' });
@@ -432,8 +434,7 @@ describe('figurinhas próprias no servidor', () => {
     const p = await Player.connect(game, await b.ticket());
     p.send({ t: 'hello' });
     await p.next('welcome');
-    p.send({ t: 'join', session: 'principal' });
-    const joined = await p.next('joined');
+    const joined = await enterMap(p, 'rua');
     p.send({ t: 'respawn', p: [0, 0, 0], yaw: 0 });
     await p.next('spawned', (m) => m.id === joined.you);
     p.send({ t: 'selfDamage', amount: 9999, cause: 'void' });
@@ -452,8 +453,7 @@ describe('figurinhas próprias no servidor', () => {
     const q = await Player.connect(game, await b.ticket());
     q.send({ t: 'hello' });
     await q.next('welcome');
-    q.send({ t: 'join', session: 'principal' });
-    const again = await q.next('joined');
+    const again = await enterMap(q, 'rua');
     const mine = again.players.find((x) => x.id === again.you)!;
     expect(mine.fig).toEqual(['fora-do-mapa', 1]);
     expect(mine.tit).toBeUndefined();

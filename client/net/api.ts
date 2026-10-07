@@ -12,15 +12,24 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T = void>(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> {
+export type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+export function api<T = void>(method: Method, path: string, body?: unknown): Promise<T> {
+  return request<T>(method, path, body === undefined ? {} : { 'content-type': 'application/json' }, body === undefined ? undefined : JSON.stringify(body));
+}
+
+/**
+ * Sends raw bytes (a GLB model: POST /api/mapas/arquivos) with their content type; the answer is JSON like any
+ * other.
+ */
+export function apiBinary<T = void>(method: Method, path: string, body: Blob | ArrayBuffer | Uint8Array, contentType: string): Promise<T> {
+  return request<T>(method, path, { 'content-type': contentType }, body as RequestInit['body']);
+}
+
+async function request<T>(method: Method, path: string, headers: Record<string, string>, body: RequestInit['body']): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(path, {
-      method,
-      credentials: 'same-origin',
-      headers: body === undefined ? {} : { 'content-type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    res = await fetch(path, { method, credentials: 'same-origin', headers, body });
   } catch {
     throw new ApiError(0, 'offline');
   }

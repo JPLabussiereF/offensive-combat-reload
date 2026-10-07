@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { fitText } from '../canvasText';
 import { toon, toonGradient } from '../../render/materials';
 import type { SpatialKindName, SpatialSfx, Vec } from '../../audio/spatial';
-import type { MapFrame } from '../blockoutMap';
+import type { MapFrame } from '../gameMap';
 import type { WaterDrops } from '../hydrant';
 import { MapBuilder, stairRun, worldUVs } from '../mapBuilder';
 import type { PropBus } from '../props';
@@ -237,6 +237,10 @@ export function gateway(c: Ctx, axis: 'x' | 'z', fixed: number, g: Gate, w: numb
     return;
   }
   beam(h - 0.05, h + 0.2, t + 0.95, g.tint ?? C.lacquer);
+  // For the sound: a roofed passage through the wall, open at both ends.
+  const p0 = onWall(axis, fixed, s0, -(t / 2 + 1.2));
+  const p1 = onWall(axis, fixed, s1, t / 2 + 1.2);
+  b.room({ x: p0[0], y: 0, z: p0[1] }, { x: p1[0], y: gh, z: p1[1] }, 0.5);
   const along: Rect = axis === 'x' ? { x0: s0 - 1.3, x1: s1 + 1.3, z0: fixed - t / 2 - 1.2, z1: fixed + t / 2 + 1.2 } : { x0: fixed - t / 2 - 1.2, x1: fixed + t / 2 + 1.2, z0: s0 - 1.3, z1: s1 + 1.3 };
   const top: Rect = axis === 'x' ? { x0: s0 - 0.1, x1: s1 + 0.1, z0: fixed, z1: fixed } : { x0: fixed, x1: fixed, z0: s0 - 0.1, z1: s1 + 0.1 };
   curvedRoof(b, { outer: along, top, eaveY: h + 0.2, topY: h + 1.15, curl: 0.5, ridges: true, collide: false });
@@ -519,6 +523,8 @@ export function ting(c: Ctx, x: number, z: number, half: number, o: { y0?: numbe
     gap('w', 'z', x - r, z - r, z + r, z);
     gap('e', 'z', x + r, z - r, z + r, z);
   }
+  // For the sound: roofed, open all around.
+  b.room({ x: x - half - 0.6, y: fy, z: z - half - 0.6 }, { x: x + half + 0.6, y: fy + h, z: z + half + 0.6 }, 0.3);
   return curvedRoof(b, { outer: { x0: x - half - 1.1, x1: x + half + 1.1, z0: z - half - 1.1, z1: z + half + 1.1 }, top: { x0: x, x1: x, z0: z, z1: z }, eaveY: fy + h, topY: fy + h + half * 0.75 + 0.9, curl: 0.6, ridges: true, tint: o.roofTint });
 }
 

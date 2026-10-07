@@ -9,6 +9,7 @@ source_paths:
   - server/session.ts
   - shared/protocol.ts
   - shared/maps.ts
+  - server/maps.ts
   - client/ui/home.ts
   - server/migrations/001_contas.sql
 tags:
@@ -27,46 +28,33 @@ O que existe é um **lobby com lista de salas** (browser de servidores), no pró
 
 ## Como funciona
 
-1. Após o `hello`, o cliente recebe `welcome.sessions` (lista inicial).
+Desde a PF-6 (fase 2) **as salas abrem sob demanda**: não há sala fixa. Uma sala existe enquanto alguém joga nela e fecha quando esvazia. Ver [[ADR - Sessões sob demanda por versão do mapa]].
+
+1. Após o `hello`, o cliente recebe `welcome.sessions` (as salas abertas agora; pode ser vazia).
 2. Enquanto está no lobby (sem sala), recebe `sessions {list}` sempre que algo muda (entrada/saída/criação/remoção), **agrupado em 100 ms** (`sessionsChanged()`).
 3. O jogador escolhe:
-   - **Entrar** numa sala: `join {session}`; recusado se a sala não existe mais ou está cheia (`players >= 10`).
-   - **Criar** uma sala: `create {name, map}`; o nome passa por `sanitizeName` (máx. 24 caracteres) e, vazio, vira `Sala de <nome>`; mapa inválido vira `DEFAULT_MAP`. O criador entra na hora.
-4. Entrar/criar sempre **sai da sala anterior** (e grava o progresso dela).
+   - **Jogar um mapa**: `play {map, mode}`. O servidor confere o mapa no banco (existe, não está oculto nem apagado, o modo é jogado nele: `modeAllowsMap`) e põe o jogador numa sala **da versão atual** do mapa naquele modo com vaga; se não houver, abre uma. É o que a entrada rápida da tela inicial manda.
+   - **Entrar** numa sala listada: `join {session}`; recusado se a sala não existe mais ou está cheia (`players >= 10`).
+   - **Criar** uma sala com nome: `create {name, map, mode}`; o nome passa por `sanitizeName` (máx. 24 caracteres) e, vazio, vira `Sala de <nome>`; um mapa indisponível ou onde o modo não é jogado cai no primeiro mapa oficial do modo (`defaultMapFor`: `rua`, ou `cemiterio` no zumbi). O criador entra na hora.
+4. Entrar/criar/jogar sempre **sai da sala anterior** (e grava o progresso dela). Enquanto um pedido de entrada espera o banco, outro da mesma conexão é ignorado (`Peer.entering`).
 
-## Salas permanentes
+## Salas abertas por `play`
 
-Ao iniciar, o servidor cria **uma sala fixa por mapa e por modo de jogo** (cada modo nos mapas em que é jogado, `modeMaps`: o zumbi só no Cemitério da Capela, sala `zumbi-cemiterio`; os outros modos só nos mapas abertos, `PVP_MAPS`, nunca no cemitério), que nunca é removida. O nome é o do mapa; o modo aparece ao lado na lista:
+- O nome é o do mapa (`mapaNome`); se já houver sala desse mapa e modo com esse nome, `<Mapa> 2`, `<Mapa> 3`…
+- Um mapa de promessas por `mapa@versão|modo` (`opening` em `server/app.ts`) evita duas salas iguais quando dois jogadores pedem ao mesmo tempo.
+- A sala guarda a **versão** do mapa com que abriu até o fim. Salvar uma versão nova no editor não muda as partidas em andamento: os próximos `play` abrem salas da versão nova (uma sala antiga com vaga ainda aceita `join` pelo id).
+- Mapas da comunidade são jogados online como os oficiais.
+- **Jogadas**: cada sala conta uma jogada do mapa por conta (`map.play_count`), na primeira vez que a conta entra nela. Partidas offline contam por `POST /api/mapas/:id/jogadas` ([[APIs]]).
 
-| id (`permanentSessionId`) | Nome (de `MAPS[...].nome`) | Mapa | Modo |
-|---|---|---|---|
-| `principal` | Rua dos Vizinhos | `rua` | mata-mata |
-| `jardim` | Jardim do Dragão | `jardim` | mata-mata |
-| `halloween` | Vila Assombrada | `halloween` | mata-mata |
-| `corrida-armada-rua` | Rua dos Vizinhos | `rua` | corrida armada |
-| `corrida-armada-jardim` | Jardim do Dragão | `jardim` | corrida armada |
-| `corrida-armada-halloween` | Vila Assombrada | `halloween` | corrida armada |
-| `zumbi-cemiterio` | Cemitério da Capela | `cemiterio` | zumbi |
+## Salas criadas com nome
 
-Os ids do mata-mata são os de antes dos modos (`principal` foi mantido "de quando só havia a rua"); os outros modos usam `<modo>-<mapa>`. Ver [[Maps Index]] e [[Game Modes Index]].
-
-## Sempre uma vaga por mapa e por modo
-
-Todo par mapa/modo tem sempre **pelo menos uma sala com vaga** (`keepRoom()` em `server/app.ts`, chamado em cada rodada de `sessionsChanged()`):
-
-- Quando todas as salas de um mapa num modo estão cheias (`players >= 10`), o servidor abre outra, não permanente e do mesmo modo, chamada `<Mapa> 2` (ou o próximo número livre: `<Mapa> 3`…).
-- Uma sala vazia não permanente só é removida se o mesmo mapa e modo tiverem vaga em **outra** sala. Assim, a sala extra fica aberta enquanto for a única vaga do mapa e fecha quando a fixa volta a ter lugar.
-- Como `sessionsChanged()` agrupa as mudanças em 100 ms, a sala extra aparece até 100 ms depois da sala que lotou.
-
-## Salas criadas por jogadores
-
-- id aleatório de 6 caracteres base36 (`Math.random`), único no processo.
+- id aleatório de 6 caracteres base36 (`Math.random`), único no processo (também nas salas abertas por `play`).
 - O `create` leva o mapa e o **modo** (`mode`; desconhecido → `mata-mata`).
-- Removidas (com `dispose()` do timer) quando ficam **vazias**, na próxima rodada de `sessionsChanged()`, salvo se forem a única vaga do mapa (ver acima).
+- Como toda sala, fecha quando fica **vazia**, na próxima rodada de `sessionsChanged()`.
 
 ## Ordenação da lista
 
-Permanentes primeiro; depois por número de jogadores (decrescente). Cada item é um `SessionInfo`: `{ id, name, map, mode, players, max, permanent }`. A mesma lista sai no `welcome`/`sessions` do WebSocket e em `GET /api/sessoes` (sem conexão de jogo, ver [[APIs]]).
+Por número de jogadores (decrescente), depois pelo nome. Cada item é um `SessionInfo`: `{ id, name, map, versao, mapaNome, mode, players, max }` (o campo `permanent` saiu). A mesma lista sai no `welcome`/`sessions` do WebSocket e em `GET /api/sessoes` (sem conexão de jogo, ver [[APIs]]).
 
 ## Regras da sala
 
@@ -81,10 +69,12 @@ A lista, o botão de entrar (desabilitado quando cheia) e o campo de criar sala 
 - Um único processo: as salas existem só na memória dele; não há descoberta entre servidores. Ver [[Problem - Estado das partidas só em memória de um processo]].
 - Sem senha/convite para salas privadas; qualquer conta logada pode entrar em qualquer sala listada.
 - Sem limite explícito de salas por jogador (criar uma sala nova sai da anterior, que é removida se ficar vazia).
+- A tela inicial filtra pelos mapas oficiais de `/api/mapas` somados aos mapas das salas abertas; um mapa da comunidade sem ninguém jogando só abre sala pela aba Mapas (Jogar) ou pela entrada rápida de quem o tem no filtro.
 
 ## Código relacionado
 
-- `server/app.ts` — `sessions`, `sessionList()`, `sessionsChanged()`, `createSession()`, casos `create`/`join`/`leave`/`list`.
+- `server/app.ts` — `sessions`, `sessionList()`, `sessionsChanged()`, `createSession()`, `sessionFor()`, `enter()`, casos `play`/`create`/`join`/`leave`/`list`.
+- `server/maps.ts` — `mapRow`, `playable`, `allows`, `defaultMapFor`, `MapStore` (as versões que as salas jogam).
 - `server/session.ts` — `Session.info`, `Session.full`.
 - `client/ui/home.ts` — `renderList`, `join`, `create`.
 - Ver também [[Sessions]], [[Match Services]].

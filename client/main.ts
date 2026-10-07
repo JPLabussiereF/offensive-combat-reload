@@ -7,7 +7,6 @@ import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { pickSafeSpawn } from './gameplay/spawnPicker';
 import { BISCUIT, CHERRY, GROUP, groups, HEALTH, HUMILIATION, KOI, MOVE, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
-import { MAPS, PICKUPS } from '@shared/maps';
 import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, idealTtk, LETHAL_DAMAGE, type HitRegion, type KnifePassive } from '@shared/weapons';
 import { eyeHeight, type MoveInput } from '@shared/movement';
 import { CLOSE, FLAG, NET, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
@@ -27,10 +26,10 @@ import { ANIM } from './character/animator';
 import { TuningPanel } from './ui/tuning';
 import { QualityManager } from './render/quality';
 import { createPhysics, type SurfaceMaterial } from './world/physics';
-import { buildBlockoutMap, type CritterHit, type SpawnPoint } from './world/blockoutMap';
-import { buildDragonGardenMap } from './world/dragonGarden';
-import { buildHauntedTownMap } from './world/hauntedTown';
-import { buildCemeteryMap } from './world/cemetery';
+import type { CritterHit, SpawnPoint } from './world/gameMap';
+import { buildMapFromData, loadOfficialMap } from './world/mapLoader';
+import { fetchMapVersion } from './net/maps';
+import { api } from './net/api';
 import { loadTextureOverrides } from './world/surfaces';
 import { buildGltfMap } from './world/gltfMap';
 import { MapBuilder } from './world/mapBuilder';
@@ -42,6 +41,7 @@ import { Weapon, type WeaponHooks } from './weapons/weapon';
 import { Melee, findMeleeTarget, meleeTargets } from './weapons/melee';
 import { GrenadeProjectiles, GrenadeThrower } from './weapons/grenades';
 import { applySpread, offsetDir, traceShot } from './weapons/hitscan';
+import { remoteImpact, type ImpactCast } from './weapons/remoteImpact';
 import { Taunt } from './gameplay/taunt';
 import { nearestHumiliable, type HitboxRegistry, type Humiliable, type Target } from './gameplay/targets';
 import { RemoteWorld, type RemotePlayer } from './net/remote';
@@ -52,13 +52,16 @@ import { CharacterRig, type HitPose } from './entities/rig';
 import { isBehind } from './entities/hitboxes';
 import { Corpse } from './gameplay/corpse';
 import { Sfx } from './audio/sfx';
-import { BodySounds, OCCLUSION_WEIGHT, type Vec, type Walker } from './audio/spatial';
+import { BACK_OFFSET, BodySounds, occluderWeight, pathOcclusion, type Vec, type Walker } from './audio/spatial';
 import { Chat } from './ui/chat';
 import { Hud, type Buff, type FeedIcon, type HitKind } from './ui/hud';
 import { DamageNumbers, damageTier, ShotDamage } from './ui/damageNumbers';
 import { Screens, type ModeTabMeta } from './ui/menu';
 import { ladderLeader, pauseContext, previewMapName, type PauseContext } from './ui/pauseMenu';
-import { closeReason, gameModeName, showHome } from './ui/home';
+import { closeReason, gameModeName, showHome, type HomeChoice } from './ui/home';
+import { runEditor } from './editor/editor';
+import { handoffChoice, takeHandoff } from './editor/launch';
+import { editorPlay } from './editor/playEmbed';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
 import { ArsenalPanel, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
@@ -131,7 +134,21 @@ async function boot() {
 
   // --- Home: the account, then an online session, bots or offline training -------------------------
   screens.hideLoading();
-  const choice = await showHome();
+  // The map editor's Play (Revisions 01 etapa 4): this page is the game in the editor's Game tab, playing the map
+  // being edited (client/editor/playEmbed.ts): no home, and its Exit goes back to editing.
+  const embed = editorGame;
+  // The map editor comes in through the home's choice (the Mapas tab's Editar and Novo mapa) or, between
+  // reloads, its handoff (client/editor/launch.ts: opening a map's current version again after a 409).
+  const handoff = embed ? null : takeHandoff();
+  const picked: HomeChoice = embed ? await embed.choice() : handoff ? handoffChoice(handoff) : await showHome();
+  if (picked.mode === 'editor') {
+    // The editor runs on its own loop: no input, player or HUD; leaving it reloads the page.
+    await runEditor({ ctx, quality, physics, mapa: picked.mapa, rascunho: picked.rascunho });
+    return;
+  }
+  const choice = picked;
+  /** The editor's map played in its Game tab: the document being edited (not saved). */
+  const tested = embed ? { data: embed.data } : null;
   const online = choice.mode === 'online' ? choice : null;
   const conn = online?.conn ?? null;
   const me = online?.joined.you ?? 0;
@@ -143,15 +160,21 @@ async function boot() {
   const tMap = performance.now();
   // ?mapa=/maps/arquivo.glb loads a map made in Blender over whatever was picked (map makers' preview).
   const mapUrl = new URLSearchParams(location.search).get('mapa');
-  const buildMap = mapUrl
-    ? buildGltfMap(mapUrl, new MapBuilder(physics, ctx.scene), ctx.renderer)
-    : choice.map === 'jardim'
-      ? buildDragonGardenMap(physics, ctx.scene, sfx)
-      : choice.map === 'halloween'
-        ? buildHauntedTownMap(physics, ctx.scene, sfx)
-        : choice.map === 'cemiterio'
-          ? buildCemeteryMap(physics, ctx.scene, sfx)
-          : buildBlockoutMap(physics, ctx.scene, ctx.renderer, sfx);
+  // Online: the version the session plays, downloaded from the server (cached). Offline: the official maps' data
+  // ship with the client (shared/data/mapas), so training and bots work without the server.
+  // A map picked in the Mapas tab for bots or the range (P43) comes at its version from the server, like online.
+  const mapData = tested
+    ? tested.data
+    : mapUrl
+      ? null
+      : online
+        ? await fetchMapVersion(online.joined.session.map, online.joined.session.versao)
+        : choice.versao
+          ? await fetchMapVersion(choice.map, choice.versao)
+          : await loadOfficialMap(choice.map);
+  // An offline match counts as a play of the map (the server counts the online ones itself); a Play in the editor doesn't.
+  if (!online && !mapUrl && !tested) api('POST', `/api/mapas/${encodeURIComponent(choice.map)}/jogadas`).catch(() => {});
+  const buildMap = mapData ? buildMapFromData(mapData, { physics, scene: ctx.scene, renderer: ctx.renderer, sfx, modo: 'jogo' }) : buildGltfMap(mapUrl!, new MapBuilder(physics, ctx.scene), ctx.renderer);
   const [map] = await Promise.all([buildMap, textures]);
   const mapBuildMs = performance.now() - tMap;
   if (map.atmosphere) applyAtmosphere(ctx, map.atmosphere);
@@ -222,14 +245,18 @@ async function boot() {
   const input = new Input(ctx.renderer.domElement);
   sfx.setVolume(settings.volume);
   sfx.setSpatialMode(spatialMode(settings));
-  // The map's walls for the sound: room echo where it's enclosed, muffling behind walls (audio/spatial.ts).
+  // The map's walls for the sound: room echo where it's enclosed (its marked rooms, rays elsewhere), muffling
+  // behind walls by how thick they are and what they are (audio/spatial.ts).
   const soundRay = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 1, z: 0 });
   const soundCast = (o: Vec, d: Vec, max: number) => {
     soundRay.origin = o;
     soundRay.dir = d;
     return physics.world.castRay(soundRay, max, true, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, WORLD_ONLY);
   };
-  const occluder = (handle: number) => OCCLUSION_WEIGHT[physics.surfaces.get(handle)?.material ?? 'concrete'];
+  const occluder = (handle: number, thickness: number | null) => {
+    const info = physics.surfaces.get(handle);
+    return occluderWeight(info?.material ?? 'concrete', thickness, info?.occluder);
+  };
   sfx.setWorld(
     (o, d, max) => soundCast(o, d, max)?.timeOfImpact ?? null,
     (from, to) => {
@@ -238,14 +265,15 @@ async function boot() {
       const dz = to.z - from.z;
       const len = Math.hypot(dx, dy, dz);
       if (len < 0.8) return 0;
-      // From the ears to the sound and back: the same collider both ways is one wall, two are two.
+      // From the ears to the sound and back: the same collider both ways is one obstacle (where each ray meets
+      // it gives its thickness), two are two.
       const a = soundCast(from, { x: dx / len, y: dy / len, z: dz / len }, len - 0.3);
       if (!a) return 0;
-      const back = { x: to.x - (dx / len) * 0.25, y: to.y - (dy / len) * 0.25, z: to.z - (dz / len) * 0.25 };
+      const back = { x: to.x - (dx / len) * BACK_OFFSET, y: to.y - (dy / len) * BACK_OFFSET, z: to.z - (dz / len) * BACK_OFFSET };
       const b = soundCast(back, { x: -dx / len, y: -dy / len, z: -dz / len }, len - 0.55);
-      const wa = occluder(a.collider.handle);
-      return !b || b.collider.handle === a.collider.handle ? wa : wa + occluder(b.collider.handle);
+      return pathOcclusion(len, { handle: a.collider.handle, toi: a.timeOfImpact }, b && { handle: b.collider.handle, toi: b.timeOfImpact }, occluder);
     },
+    map.rooms,
   );
   // Other people's footsteps, landings, slides and reloads, from what their bodies are doing.
   const bodySounds = new BodySounds();
@@ -298,7 +326,8 @@ async function boot() {
   let bots: BotManager | null = null;
   // Bots route around Amora's bite zone (a little wider than the zone itself). The solo zumbi game builds the
   // mesh the server bakes: the wall's gaps as polygons of their own, for its barricades (shared/barricades.ts).
-  const zombieNavMap = zombieMode ? ZOMBIE.mapas[choice.map] : undefined;
+  // (a glTF preview, ?mapa=, has no data: the cemetery's layout stands in)
+  const zombieNavMap = zombieMode ? (mapData?.zumbi ?? ZOMBIE.mapas.cemiterio) : undefined;
   const nav = botMode ? await NavMap.build(physics, map.dog ? [map.dog.zone.clone().expandByScalar(0.3)] : [], zombieNavMap ? gateAreas(zombieNavMap) : []) : null;
   const playerPos = new THREE.Vector3();
   const playerTarget: Combatant & { yaw: number } = {
@@ -332,7 +361,7 @@ async function boot() {
   let zombies: ZombieClient | null = null;
   let localZombies: LocalZombies | null = null;
   if (zombieMode) {
-    const zmap = ZOMBIE.mapas[choice.map] ?? ZOMBIE.mapas.cemiterio!;
+    const zmap = zombieNavMap!;
     let link: ZombieLink | null = null;
     if (conn) {
       link = { online: true, send: (m) => conn.send(m), on: (type, fn) => conn.on(type, fn), now: () => conn.serverNow(), renderTime: () => conn.serverNow() - NET.interpDelayMs };
@@ -386,7 +415,7 @@ async function boot() {
             if (head) effects.burst('star', at, UP, 12);
           },
         },
-        choice.map,
+        zmap,
         online?.joined.zumbi ?? localZombies?.match.sync(),
       );
       // The horde's bodies are built now, on the loading screen, not when the first wave comes.
@@ -465,8 +494,8 @@ async function boot() {
   let boostEnds = 0;
   /** Online: when we last asked the server for a pickup (once is enough while it answers). */
   let pickupAsked = 0;
-  /** What each collectible does (cherry or biscuit), from the map's table. */
-  const pickupKind = (id: string) => (mapUrl ? undefined : PICKUPS[choice.map].find((k) => k.id === id)?.kind);
+  /** What each collectible does (cherry or biscuit), from the map's objects. */
+  const pickupKind = (id: string) => mapData?.objetos.coletaveis.find((k) => k.id === id)?.tipo;
   /** A giant rat's humanity (RAT): extra max health until we die. */
   let humanity = false;
   /** Max health: the body's, the cherry's while it lasts and the humanity's. */
@@ -742,7 +771,8 @@ async function boot() {
       viewmodel.kick(weapon.data.coiceVisual ?? 1);
       gamepad.rumble(45, 0.1, 0.35);
       effects.flash(muzzle);
-      sfx.gunshot(1, weapon.data.silenciador ? 'silenciado' : weapon.data.arma);
+      // Clear even at low health: only the rest of the sound is muffled then.
+      sfx.unmuffled((s) => s.gunshot(1, weapon.data.silenciador ? 'silenciado' : weapon.data.arma));
 
       // The shot's feedback, once however many pellets landed: the best of them (a kill, then a head, then a hit).
       let landed = false;
@@ -1393,6 +1423,15 @@ async function boot() {
     for (const p of online.joined.players) net.upsertInfo(p);
     zombies?.syncInfo(online.joined.players);
     for (const c of online.joined.corpses) net.addCorpse(c);
+    /** The map alone (no players, no hitboxes) around the end of someone else's shot (weapons/remoteImpact.ts). */
+    const impactRay = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 });
+    const impactCast: ImpactCast = (from, dir, max) => {
+      impactRay.origin = from;
+      impactRay.dir = dir;
+      const hit = physics.world.castRayAndGetNormal(impactRay, max, true, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, WORLD_ONLY);
+      if (!hit) return null;
+      return { distance: hit.timeOfImpact, normal: new THREE.Vector3(hit.normal.x, hit.normal.y, hit.normal.z), surface: physics.surfaces.get(hit.collider.handle) };
+    };
 
     conn.on('snap', (m) => {
       net.snapshot(m.time, m.players);
@@ -1428,8 +1467,21 @@ async function boot() {
       rp.fire();
       // Their gun's own bang; a silencer: no tracer, and only those nearby hear it.
       const gun = rp.gun;
-      if (!gun.silenciador) effects.tracer(from, new THREE.Vector3(...m.e));
-      sfx.at(from, gun.silenciador ? 'step' : 'gun', (s) => s.gunshot(1, gun.silenciador ? 'silenciado' : gun.arma));
+      const end = new THREE.Vector3(...m.e);
+      if (!gun.silenciador) effects.tracer(from, end);
+      // The bang comes from where their muzzle really was (sent with the shot), not the estimated one: a shooter
+      // hugging a wall outside must not sound as if behind it.
+      sfx.at({ x: m.o[0], y: m.o[1], z: m.o[2] }, gun.silenciador ? 'step' : 'gun', (s) => s.gunshot(1, gun.silenciador ? 'silenciado' : gun.arma));
+      // Where it hit the map: the same mark, dust, sparks and impact sound as our own shots. Never the
+      // surface's gag (onShot): the shooter already triggers it and the `prop` message syncs it.
+      const impact = remoteImpact(new THREE.Vector3(...m.o), end, impactCast);
+      if (impact) {
+        effects.decal(impact.point, impact.normal);
+        effects.burst('debris', impact.point, impact.normal, 5, 0x9a8f80);
+        effects.burst('spark', impact.point, impact.normal, 3);
+        const material = impact.surface?.material;
+        if (material) sfx.at(impact.point, 'normal', (s) => s.impact(material));
+      }
     });
     conn.on('swing', (m) => {
       const rp = net.players.get(m.id);
@@ -1632,8 +1684,13 @@ async function boot() {
   // The start card and the pause menu (client/ui/pauseMenu.ts): what the rail says here (the mode, the map, the
   // session or the bots or the wave, the banner, the exit), and the mode's tab: the Arsenal, corrida armada's
   // ladder or the zumbi mode's coffin. Refreshed with the HUD while the menu is open (online the world goes on).
-  const mapName = mapUrl ? previewMapName(mapUrl) : MAPS[choice.map].nome;
-  const pauseNow = (): PauseContext =>
+  const mapName = mapUrl ? previewMapName(mapUrl) : (mapData?.nome ?? choice.map);
+  const pauseNow = (): PauseContext => {
+    const c = pauseFacts();
+    // A Play in the editor's Game tab: the exit stops the game and goes back to editing.
+    return embed ? { ...c, exit: t('backToEditor'), confirm: t('pmConfirmEditor') } : c;
+  };
+  const pauseFacts = (): PauseContext =>
     pauseContext({
       place: online ? 'online' : botMode ? 'bots' : 'range',
       mode: gameMode,
@@ -1698,8 +1755,8 @@ async function boot() {
     // The mouse first: the fullscreen request uses up the click, the pointer lock doesn't.
     void input.lock();
     // Phones: fullscreen and landscape (needs this tap). Computer: fullscreen keeps Esc for the game, so it
-    // opens and closes the menu exactly and the mouse aims again at once.
-    if (settings.fullscreen && (IS_MOBILE || CAN_KEEP_ESCAPE) && !isFullscreen()) void enterFullscreen();
+    // opens and closes the menu exactly and the mouse aims again at once. Never inside the editor's Game tab.
+    if (!embed && settings.fullscreen && (IS_MOBILE || CAN_KEEP_ESCAPE) && !isFullscreen()) void enterFullscreen();
   });
   // Entering fullscreen may cost the pointer lock (browser-made, so it can be retaken without a click).
   document.addEventListener('fullscreenchange', () => {
@@ -1722,9 +1779,11 @@ async function boot() {
       () => touch.resetLayout(),
     );
   }
-  // The exit (after its confirmation): back to the home screen.
+  // The exit (after its confirmation): back to the home screen, or to editing in the editor's Game tab.
   screens.onExit(() => {
     conn?.close();
+    // In the editor's Game tab: back to editing (the editor stops the game, as ■).
+    if (embed) return embed.exit();
     location.reload();
   });
   // Desktop: clicking the game takes the mouse back (on phones the menu's button resumes).
@@ -1749,7 +1808,8 @@ async function boot() {
       pausedAt = null;
       screens.hideMenu();
       hud.show(true);
-    } else {
+    } else if (!embed?.frozen) {
+      // Frozen by the editor's ❚❚: its veil says so, the pause menu waits for ▶.
       pausedAt = performance.now();
       screens.showMenu('pause');
       refreshMenu();
@@ -2419,7 +2479,7 @@ async function boot() {
     Object.assign(window, {
       __oc: {
         player, guns, melee, taunt, thrower, grenades, input, dummies, net, conn, me, ctx, physics, quality, map, effects, bots, nav, RAPIER,
-        mines, progress, zombies, localZombies,
+        mines, progress, zombies, localZombies, sfx,
         get weapon() {
           return weapon;
         },
@@ -2437,11 +2497,69 @@ async function boot() {
   refreshMenu();
   // Every handler exists now: messages that arrived while the map was being built go through.
   conn?.release();
-  startLoop(step, render);
+  if (!embed) {
+    startLoop(step, render);
+    return;
+  }
+  // The editor's Game tab: frozen by its ❚❚ (nothing simulated or drawn; the time frozen doesn't pile up), and ■
+  // lets go of the mouse, the sounds and the renderer's context before the editor removes this page.
+  let gone = false;
+  startLoop(
+    (dt) => {
+      if (!embed.frozen && !gone) step(dt);
+    },
+    (alpha, frameDt) => {
+      if (!embed.frozen && !gone) render(alpha, frameDt);
+    },
+  );
+  embed.ready({
+    pause() {
+      if (embed.frozen || gone) return;
+      embed.frozen = true;
+      embed.veil(true);
+      screens.hideMenu();
+      input.unlock();
+    },
+    resume() {
+      if (!embed.frozen || gone) return;
+      embed.frozen = false;
+      embed.veil(false);
+      window.focus();
+      sfx.unlock();
+      // The click on ▶ reaches this page: the mouse comes back at once where the browser allows, else the pause
+      // menu asks for a click.
+      void input.lock().then((got) => {
+        if (got || input.locked || gone) return;
+        pausedAt = performance.now();
+        screens.showMenu('pause');
+      });
+    },
+    dispose() {
+      if (gone) return;
+      gone = true;
+      embed.frozen = true;
+      input.unlock();
+      if (document.pointerLockElement) document.exitPointerLock();
+      sfx.dispose();
+      ctx.renderer.dispose();
+      ctx.renderer.forceContextLoss();
+    },
+    memory: () => ({ geometries: ctx.renderer.info.memory.geometries, textures: ctx.renderer.info.memory.textures }),
+  });
+  // P52: the editor's ▶ click still counts in this page (the browser hands a click's activation to the same-origin
+  // pages of the tab, for a few seconds): the sound and the mouse start at once, as the "Jogar" card would. When it
+  // doesn't (the map took too long to build, or the browser won't), the card stays and asks for a click.
+  if (embed.activated()) {
+    sfx.unlock();
+    void input.lock();
+  }
 }
 
+/** The map editor's game (its Game tab), if this page is one: it's told when the game can't start. */
+const editorGame = editorPlay();
 boot().catch((err) => {
   console.error(err);
+  editorGame?.failed(err);
   const tip = document.getElementById('loading-tip');
   if (tip) tip.textContent = `Erro ao iniciar: ${err instanceof Error ? err.message : String(err)}`;
 });

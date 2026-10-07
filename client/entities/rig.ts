@@ -74,7 +74,8 @@ export class CharacterRig {
     const holder = new THREE.Group();
     holder.add(root);
     holder.scale.setScalar(scale);
-    this.poser = { bones: Object.fromEntries(bones.map((b) => [b.name, b])), body: holder, holder, setGrip: () => {} };
+    // PCD: the same one-hand pose as the visible character, so the hitboxes follow the arm you see.
+    this.poser = { bones: Object.fromEntries(bones.map((b) => [b.name, b])), body: holder, holder, setGrip: () => {}, missing };
     this.animator = new CharacterAnimator(this.poser);
     const mat = new THREE.MeshBasicMaterial({ color: 0xff00ff, wireframe: true });
     for (const zone of zonesFor(missing)) {

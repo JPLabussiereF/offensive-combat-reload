@@ -9,12 +9,12 @@ source_paths:
   - server/session.ts
   - shared/maps.ts
   - docs/MAPAS.md
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
 tags:
   - game
   - modes
   - stub
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Objective Modes
@@ -26,7 +26,7 @@ updated: 2026-10-05
 
 - O único "objetivo" de partida é **pontuar** no mata-mata livre ([[Free For All]], [[Scoring]]).
 - Os mapas têm **objetivos secundários opcionais**, não ligados a um modo: coletar a cereja e o biscoito, abater carpas e o rato gigante, beber a poção da bruxa, derrubar os alvos do parque. Eles dão bônus temporários ou XP de conta. Ver [[Objectives]].
-- Os "segredos" dos mapas estão **planejados**: o código diz que os objetos contam o que aconteceu (`activations`, `rings`, `stirs`…) como "base para os segredos do documento de design" (`docs/MAPAS.md`; seção 23 citada em `client/world/hauntedTown.ts`). Ver [[Map Gags]].
+- Os "segredos" dos mapas estão **planejados**: o código diz que os objetos contam o que aconteceu (`activations`, `rings`, `stirs`…) como "base para os segredos do documento de design" (`docs/MAPAS.md`; seção 23 citada em `client/world/conversao/halloween.ts`). Ver [[Map Gags]].
 
 > [!info] Inferência
 > Nenhum comentário ou documento no repositório menciona a intenção de criar modos de objetivo. O roadmap do README (Fase 2) cita só arsenal, ragdoll, bots online e fim de partida.

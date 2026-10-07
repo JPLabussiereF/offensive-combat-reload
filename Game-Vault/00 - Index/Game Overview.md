@@ -58,7 +58,7 @@ Não há fim de partida, rotação nem votação de mapa ([[Problem - Partidas s
 | Vila Assombrada | `halloween` | 120×110 m, à noite | [[Map - Vila Assombrada]] |
 | Arena de teste | `arena_teste.glb` (só por `?mapa=`) | 36×36 m | [[Map - Arena Teste (glTF)]] |
 
-Online existe uma sala permanente por mapa (`principal`, `jardim`, `halloween`), e os jogadores podem criar outras ([[Matchmaking UI]]).
+Online as salas abrem sob demanda: jogar um mapa entra numa sala dele com vaga ou abre uma, e ela fecha quando esvazia; os jogadores também podem criar salas com nome ([[Matchmaking UI]], [[Matchmaking]]).
 
 ## Tecnologia em uma frase
 

@@ -207,22 +207,25 @@ export class LanternLights {
   private haloPos: Float32Array;
   private lights: { light: THREE.PointLight; spot: number; level: number }[] = [];
   private pick = 0;
-  private spots: number;
+  private spots = 0;
+  private swingingCount = 0;
+  private fixedCount = 0;
 
-  /** `swinging`: the hanging lanterns' live positions (Lanterns.at); `fixed`: stone lanterns and lamps. */
+  /**
+   * `swinging`: the hanging lanterns' live positions (Services.lanternSpots); `fixed`: stone lanterns and lamps.
+   * Both lists may grow or shrink later (the editor rebuilding a piece): the halos follow.
+   */
   constructor(
     scene: THREE.Scene,
     private swinging: () => Float32Array,
-    fixed: THREE.Vector3[],
+    private fixed: THREE.Vector3[],
   ) {
-    const n = swinging().length / 3;
-    this.spots = n + fixed.length;
-    this.haloPos = new Float32Array(this.spots * 3);
-    fixed.forEach((p, i) => this.haloPos.set([p.x, p.y, p.z], (n + i) * 3));
+    this.haloPos = new Float32Array(0);
     this.halos = new THREE.Points(
-      new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(this.haloPos, 3)),
+      new THREE.BufferGeometry(),
       new THREE.PointsMaterial({ map: glowTexture(), color: 0xff9a3c, size: 2.6, sizeAttenuation: true, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false }),
     );
+    this.layout(swinging().length / 3);
     this.halos.frustumCulled = false;
     scene.add(this.halos);
     for (let i = 0; i < LIGHTS; i++) {
@@ -232,13 +235,26 @@ export class LanternLights {
     }
   }
 
+  /** The halos' positions for `n` hanging lanterns, then the fixed ones; the lights pick again. */
+  private layout(n: number) {
+    this.swingingCount = n;
+    this.fixedCount = this.fixed.length;
+    this.spots = n + this.fixed.length;
+    this.haloPos = new Float32Array(this.spots * 3);
+    this.fixed.forEach((p, i) => this.haloPos.set([p.x, p.y, p.z], (n + i) * 3));
+    this.halos.geometry.setAttribute('position', new THREE.BufferAttribute(this.haloPos, 3));
+    for (const l of this.lights) l.spot = -1;
+    this.pick = 0;
+  }
+
   private spot(i: number, out: THREE.Vector3) {
     return out.fromArray(this.haloPos, i * 3);
   }
 
   update(dt: number, camera: THREE.Vector3) {
     const live = this.swinging();
-    this.haloPos.set(live.subarray(0, Math.min(live.length, this.haloPos.length)));
+    if (live.length !== this.swingingCount * 3 || this.fixed.length !== this.fixedCount) this.layout(live.length / 3);
+    this.haloPos.set(live);
     this.halos.geometry.getAttribute('position').needsUpdate = true;
     // A few times a second: which lanterns are nearest. A light keeps its lantern while it's still among them.
     this.pick -= dt;

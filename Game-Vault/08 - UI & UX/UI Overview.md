@@ -9,10 +9,13 @@ source_paths:
   - client/main.ts
   - client/ui/menu.ts
   - client/ui/home.ts
+  - client/ui/maps.ts
+  - client/ui/management.ts
   - client/ui/hud.ts
   - client/ui/strings.ts
   - client/ui/padNav.ts
   - client/core/device.ts
+  - client/editor/editor.ts
 tags:
   - game
   - ui
@@ -34,7 +37,7 @@ Visual: estilo "sticker" (painéis com contorno grosso e sombra dura deslocada),
 | --- | --- | --- |
 | `#game` | canvas do renderizador | [[Rendering Overview]] |
 | `#loading` | `Screens` (`client/ui/menu.ts`) | [[Menus]] — carregamento com dicas |
-| `#home` (`#home-in`: abas `#tab-play`, `#tab-arsenal`, `#tab-profile`, `#tab-settings`; `#home-out`: landing com `#home-auth`) | `showHome` (`client/ui/home.ts`), `auth.ts`, `profile.ts`, `customize.ts` | [[Menus]], [[Matchmaking UI]], [[Flow - First Access]] |
+| `#home` (`#home-in`: abas `#tab-play`, `#tab-maps`, `#tab-arsenal`, `#tab-album`, `#tab-profile`, `#tab-settings` e, para a equipe, `#tab-management`; `#home-out`: landing com `#home-auth`) | `showHome` (`client/ui/home.ts`), `maps.ts`, `management.ts`, `arsenalCanvas.ts`, `album.ts`, `auth.ts`, `profile.ts`, `customize.ts` | [[Menus]], [[Matchmaking UI]], [[Flow - First Access]], [[Moderation]], [[Achievements]] |
 | `#menu` (trilho `.pm-rail`, painel `#pm-panel`, janela de saída `#pm-confirm`, configurações `#menu-settings`) | `Screens` (`client/ui/menu.ts`), regras em `client/ui/pauseMenu.ts` | [[Menus]] (cartão de início e pausa), [[Settings]], [[Input & Controls]] |
 | `#hud` | `Hud` (`client/ui/hud.ts`) | [[HUD]] |
 | `#scoreboard` (dentro do HUD) | `Scoreboard` | [[Scoreboard]] |
@@ -45,6 +48,7 @@ Visual: estilo "sticker" (painéis com contorno grosso e sombra dura deslocada),
 | `#touch-edit-bar`, `#rotate` | `Screens` | [[Touch Controls]] |
 | Sprite 3D sobre corpos | `CorpseTimer` | [[HUD]], [[Humiliation]] |
 | Painel F6 (criado em código) | `TuningPanel` (`client/ui/tuning.ts`) | ferramenta de dev, ver [[Input & Controls]] |
+| `#editor` (criado em código, no lugar da partida) | `runEditor` (`client/editor/editor.ts`): toolbar, painéis encaixáveis (Hierarquia, Cena, Inspetor, Projeto) e barra de status, CSS próprio (`client/editor/style.ts`) e textos próprios (`client/editor/strings.ts`) | [[Map Editor UI]] |
 
 ## Fluxo geral de telas
 
@@ -79,7 +83,7 @@ A saída do menu ("Sair da sessão", "Sair da partida", "Sair da corrida", "Sair
 
 ## Notas desta área
 
-[[HUD]] · [[Menus]] · [[Matchmaking UI]] · [[Inventory UI]] · [[Scoreboard]] · [[Notifications]] · [[Input & Controls]] · [[Chat]] · [[Settings]] · [[Touch Controls]]
+[[HUD]] · [[Menus]] · [[Map Editor UI]] · [[Matchmaking UI]] · [[Inventory UI]] · [[Scoreboard]] · [[Notifications]] · [[Input & Controls]] · [[Chat]] · [[Settings]] · [[Touch Controls]]
 
 Fluxos: [[Flow - First Access]] · [[Flow - Join Online Match]] · [[Flow - Death and Respawn]]
 

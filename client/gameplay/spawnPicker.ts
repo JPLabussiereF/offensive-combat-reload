@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { GROUP, groups } from '@shared/constants';
 import type { Physics } from '../world/physics';
-import type { SpawnPoint } from '../world/blockoutMap';
+import type { SpawnPoint } from '../world/gameMap';
 
 const LOS_GROUPS = groups(GROUP.BULLET, GROUP.WORLD);
 

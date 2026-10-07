@@ -4,7 +4,7 @@ type: decision
 status: documented
 area: world
 source_paths:
-  - client/world/dragonGarden.ts
+  - shared/data/mapas/jardim.json
   - client/world/jardim/kit.ts
   - client/world/jardim/casa.ts
   - client/world/jardim/guerreiros.ts
@@ -13,7 +13,7 @@ tags:
   - decision
   - level-design
   - jardim
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # ADR - Linhas de visão curtas no Jardim do Dragão
@@ -40,7 +40,7 @@ Reconstruir o mapa (90 × 90 m) como uma propriedade murada em setores:
 
 ## Motivo
 
-Comentário em `dragonGarden.ts`: "sightlines stay inside one sector (or one room), so nobody across the map can shoot whoever is busy oppressing a corpse". Medição de `docs/MAPAS.md`: 0,6% dos pares se enxergam a mais de 25 m, contra 11,6% antes.
+Comentário do antigo `dragonGarden.ts` (hoje em `client/world/conversao/jardim.ts`): "sightlines stay inside one sector (or one room), so nobody across the map can shoot whoever is busy oppressing a corpse". Medição de `docs/MAPAS.md`: 0,6% dos pares se enxergam a mais de 25 m, contra 11,6% antes.
 
 ## Consequências
 
@@ -50,7 +50,7 @@ Comentário em `dragonGarden.ts`: "sightlines stay inside one sector (or one roo
 
 ## Código afetado
 
-- `client/world/dragonGarden.ts` — chamadas `gardenWall` com os portões.
+- `shared/data/mapas/jardim.json` — peças `muroJardim` (`gardenWall`) com os portões.
 - `client/world/jardim/kit.ts` — `WALL_H = 4`, `gardenWall`.
 - `client/world/jardim/casa.ts`, `client/world/jardim/guerreiros.ts`.
 - Mapa: [[Map - Jardim do Dragão]].

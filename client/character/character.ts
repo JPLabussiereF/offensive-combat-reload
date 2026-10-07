@@ -20,7 +20,7 @@ import { withLod } from './builder';
 import { bakedMaterial, paintedMaterial, setChannels, setTints, type Channels, type CharacterTints, type PaintedMaterial } from './material';
 import { paintColor, PRIMARY, SKIN, TINT, uvToCell, uvToGradient } from './palette';
 import { buildPiece, buildStump, type PieceGeometry } from './pieces';
-import { AssetRegistry, CHAR_SLOTS, type CharSlot, type ItemDef } from './registry';
+import { AssetRegistry, CHAR_SLOTS, mirrorGrip, type CharSlot, type ItemDef } from './registry';
 import { createCanonicalSkeleton, regionBits, SOCKETS, type RegionName, type SocketName } from './rig';
 
 export interface CharacterConfig {
@@ -60,9 +60,6 @@ const LOD_DISTANCES = [0, 20, 45];
 
 /** Morph targets that survive the bake (they change at runtime): the closed hands. */
 const LIVE_MORPHS = ['punho_L', 'punho_R'] as const;
-
-/** Rifle grip in the left hand (when the right one is missing): the right grip mirrored. */
-const LEFT_GRIP = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(1, 0, 0)));
 
 // --- Caches (shared by every character) ----------------------------------------------------------------
 
@@ -213,6 +210,11 @@ export class Character {
     return this.config.build.build;
   }
 
+  /** PCD: the missing parts (the animator holds the rifle in one hand). */
+  get missing() {
+    return this.missingParts();
+  }
+
   private itemFor(slot: CharSlot): string | null {
     if (slot === 'body') return this.config.items.body ?? (this.config.sex === 'f' ? 'corpo_f' : 'corpo_m');
     return this.config.items[slot] ?? null;
@@ -310,8 +312,9 @@ export class Character {
     let position = new THREE.Vector3(...(item.grip?.position ?? [0, 0, 0]));
     if (socket === 'wrist_L' && missing.handL) socket = 'wrist_R';
     if (socket === 'hand_R' && missing.handR) {
+      // The left hand holds it on the grip, mirrored (the rifle on the left of the chest: animator.ts).
       socket = 'hand_L';
-      rotation = LEFT_GRIP.clone();
+      rotation = mirrorGrip(rotation);
       position = position.clone().setX(-position.x);
     }
     // The slung rifle goes over a backpack (it would run through it).

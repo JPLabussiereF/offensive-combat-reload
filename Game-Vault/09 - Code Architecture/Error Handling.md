@@ -29,7 +29,7 @@ tags:
   - architecture
   - errors
   - logging
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Error Handling
@@ -48,7 +48,7 @@ updated: 2026-10-05
 - `HttpError` carrega `status`, `code` e `extra` (ex.: `conta_suspensa` com `{ ate }`, `cooldown_nome` com `{ liberaEm }`).
 - `handleApi` envolve cada rota: `HttpError` → `json(status, { erro: code, ...extra })` (preservando cookies de renovação); qualquer outro erro → log `[api] MÉTODO /caminho: mensagem` e `500 { erro: 'erro_interno' }`.
 - Rota inexistente → `404 nao_encontrado`; método que muda estado com Origin de outro site → `403 origem_invalida`.
-- `readJson` limita o corpo a 16 KiB (`413 corpo_grande_demais`) e rejeita JSON que não seja objeto (`400 json_invalido`).
+- `readJson(req, max)` limita o corpo (16 KiB por padrão, 2 MiB nos dados de mapa; `413 corpo_grande_demais`) e rejeita JSON que não seja objeto (`400 json_invalido`); `readBinary(req, max)` lê um corpo binário (o GLB, até 10 MB).
 - Lista completa de códigos: `ApiErrorCode` em `shared/account.ts` (ver [[APIs]]).
 
 ### WebSocket (`server/app.ts`, `server/session.ts`)

@@ -50,9 +50,9 @@ Nenhum: todos contra todos. Não há fogo amigo porque não há times ([[Team De
 
 - **Entrada:** exige conta. O WebSocket abre com um ticket de uso único. A mesma conta só joga em um lugar: uma conexão nova derruba a antiga (código de fechamento `4002`). Ver [[Authentication]].
 - **Sessões:**
-  - Uma **sessão permanente de mata-mata por mapa**, sempre presente: "Rua dos Vizinhos" (id `principal`), "Jardim do Dragão" (`jardim`) e "Vila Assombrada" (`halloween`). A corrida armada tem as suas ([[Matchmaking]]).
+  - Salas **sob demanda** (PF-6): jogar um mapa (`play`) entra numa sala de mata-mata dele com vaga ou abre uma, com o nome do mapa; toda sala fecha quando esvazia ([[Matchmaking]]).
   - Qualquer jogador pode **criar** uma sessão com nome (até 24 caracteres; vazio vira "Sala de {Nome}"), mapa e modo. Ela é apagada quando fica vazia.
-  - A lista mostra primeiro as permanentes, depois as mais cheias. Entrar numa sessão lotada responde "Sessão lotada."
+  - A lista mostra primeiro as mais cheias. Entrar numa sessão lotada responde "Sessão lotada."
 - **Nomes repetidos** na mesma sessão ganham sufixo: "Nome (2)".
 - **Regras de combate e opressão:** as globais ([[Game Rules]], [[Combat]], [[Humiliation]]), validadas pelo servidor ([[Validation]]).
 - **Coletáveis e bônus do mapa** (cereja, biscoito, carpas, rato, poções): validados e aplicados pelo servidor ([[Objectives]], [[Buffs & Debuffs]]).
@@ -113,7 +113,7 @@ Nenhum limite de partida. Os temporizadores existentes são de regra: janela de 
 | `NET.tickRate` / `stateRate` | 20 Hz | `shared/protocol.ts` |
 | `NET.sessionNameMax` | 24 | `shared/protocol.ts` |
 | `SWITCH_GRACE_MS` | 1000 ms (acertos da arma guardada após a troca) | `server/session.ts` |
-| Sessões permanentes | `principal` (rua), `jardim`, `halloween` | `server/app.ts` (`permanentSessionId`) |
+| Salas | sob demanda, uma versão de mapa cada | `server/app.ts` (`sessionFor`) |
 | `MODE_RULES['mata-mata']` | Arsenal, `lockedLoadout`, granadas, XP de arma, sem rodadas | `shared/modes.ts` |
 | Gravação do progresso | a cada 60 s e ao sair | `server/app.ts` (`FLUSH_EVERY_MS`) |
 
@@ -126,7 +126,7 @@ Nenhum limite de partida. Os temporizadores existentes são de regra: janela de 
 - `server/session.ts`: a classe `Session` (regras, validação, tick, placar)
 - `server/modes.ts`: `DeathmatchMode` (loadout da conta ao entrar)
 - `server/modes.ts`: `DeathmatchMode` (loadout da conta ao entrar)
-- `server/app.ts`: lobby, sessões permanentes, criação e remoção, gravação do progresso
+- `server/app.ts`: lobby, salas sob demanda, criação e remoção, gravação do progresso
 - `client/ui/home.ts`: lista de sessões, criar e entrar
 - `client/main.ts`: handlers `conn.on(...)`, respawn online
 - `client/gameplay/spawnPicker.ts`: escolha do ponto de nascimento

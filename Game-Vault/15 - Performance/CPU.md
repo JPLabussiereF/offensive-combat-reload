@@ -14,7 +14,7 @@ source_paths:
 tags:
   - performance
   - cpu
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # CPU
@@ -65,12 +65,12 @@ Otimizações e cuidados de CPU no cliente e no servidor. Cada item segue o mode
 ## 6. Servidor: proteção de CPU contra inundação
 
 - **Token bucket** de 150 mensagens/s por conexão (`server/app.ts`): excedentes são descartados antes do `JSON.parse`.
-- `maxPayloadLength` 16 KiB por mensagem WebSocket; corpo HTTP até 16 KiB.
+- `maxPayloadLength` 16 KiB por mensagem WebSocket; corpo HTTP até 16 KiB (2 MiB nos dados de mapa, 10 MB no GLB).
 - Chat: rajada de 4 e depois 1 a cada 1,5 s.
 
 ## 7. Servidor: tick por sessão
 
-Cada sessão roda `setInterval` a 20 Hz (`NET.tickRate`) com regeneração de vida, tempo de XP, limpeza de corpos e snapshot; placar completo só 1×/s. Salas vazias não enviam snapshot (mas o timer continua nas permanentes).
+Cada sessão roda `setInterval` a 20 Hz (`NET.tickRate`) com regeneração de vida, tempo de XP, limpeza de corpos e snapshot; placar completo só 1×/s. Salas vazias não enviam snapshot e fecham na atualização seguinte do lobby (não há salas fixas). Montar um mapa ao salvá-lo (0,2 a 0,6 s nos oficiais) roda numa thread própria (`server/mapWorker.ts`), fora do tick.
 
 ## Código relacionado
 

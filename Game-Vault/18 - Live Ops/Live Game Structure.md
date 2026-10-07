@@ -11,7 +11,7 @@ source_paths:
   - docs/DEPLOY.md
 tags:
   - liveops
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Live Game Structure
@@ -22,9 +22,9 @@ O Offensive Combat **não tem estrutura de live game** no sentido comercial (tem
 
 | Elemento | Como funciona | Fonte |
 | --- | --- | --- |
-| Salas permanentes | Uma por mapa, criadas na partida do servidor: `principal` (Rua dos Vizinhos), `jardim` (Jardim do Dragão), `halloween` (Vila Assombrada). Nunca são descartadas. | `server/app.ts` |
+| Salas | Sob demanda (PF-6): abrem quando alguém joga um mapa e fecham vazias, cada uma numa versão do mapa. | `server/app.ts` |
 | Salas de jogadores | Criadas sob demanda; somem quando ficam vazias. | `server/app.ts` |
-| Lista de mapas | Fixa em código (`MAPS` em `shared/maps.ts`); mudar exige novo build. | `shared/maps.ts` |
+| Lista de mapas | No banco (`map`, com versões em `map_version`); os 4 oficiais semeados de `shared/data/mapas/*.json`; mapas novos e versões novas pela API, sem build. | `server/maps.ts`, `server/mapRoutes.ts` |
 | Modo online | Só mata-mata livre, sem fim de partida (contínuo). | [[Free For All]], [[Problem - Partidas sem fim]] |
 | Progressão | Persistente por conta (XP de armas e conta). | [[Progression]] |
 

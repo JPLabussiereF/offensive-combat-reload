@@ -138,7 +138,7 @@
       <p id="loading-tip" class="tip"></p>
     </div>
 
-    <!-- Home: signed in, a header with tabs (play, arsenal, profile, settings) beside the character card; signed
+    <!-- Home: signed in, a header with tabs (play, maps, arsenal, profile, settings, and management for the staff) beside the character card; signed
          out, a landing page with the account form and a quick game against bots. Texts come from data-t (strings.ts). -->
     <div id="home" class="screen hidden" data-pad-scroll>
       <div id="home-in" class="hidden">
@@ -146,10 +146,13 @@
           <div class="home-logo">OFFENSIVE <span>COMBAT</span></div>
           <nav class="home-tabs" role="tablist">
             <button type="button" role="tab" data-tab="play" data-t="tabPlay"></button>
+            <button type="button" role="tab" data-tab="maps" data-t="tabMaps"></button>
             <button type="button" role="tab" data-tab="arsenal" data-t="tabArsenal"></button>
             <button type="button" role="tab" data-tab="album" data-t="tabAlbum"></button>
             <button type="button" role="tab" data-tab="profile" data-t="tabProfile"></button>
             <button type="button" role="tab" data-tab="settings" data-t="tabSettings"></button>
+            <!-- Only for admins and moderators (shown from /api/me's roles). -->
+            <button type="button" role="tab" data-tab="management" data-t="tabManagement" class="hidden"></button>
           </nav>
           <button id="acct-chip" type="button" class="acct-chip">
             <span class="acct-avatar"><img id="acct-avatar" alt="" /></span>
@@ -222,6 +225,9 @@
               </div>
               <div id="home-arsenal"></div>
             </div>
+            <!-- Mapas (client/ui/maps.ts) and Gerenciamento (client/ui/management.ts), filled when opened. -->
+            <div id="tab-maps" class="home-pane hidden"></div>
+            <div id="tab-management" class="home-pane hidden"></div>
             <div id="tab-album" class="home-pane hidden"></div>
             <div id="tab-profile" class="home-pane hidden"></div>
             <!-- The menu's controls and settings (#menu-settings) are lent to this tab while the home is open. -->

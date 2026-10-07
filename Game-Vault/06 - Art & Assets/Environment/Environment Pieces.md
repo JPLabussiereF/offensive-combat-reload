@@ -8,8 +8,9 @@ source_paths:
   - client/world/oriental.ts
   - client/world/jardim/kit.ts
   - client/world/halloween.ts
-  - client/world/hauntedTown.ts
-  - client/world/blockoutMap.ts
+  - shared/data/mapas/halloween.json
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
   - client/world/gltfMap.ts
   - docs/MAPAS.md
 tags:
@@ -17,7 +18,7 @@ tags:
   - art
   - environment
   - assets
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Environment Pieces
@@ -72,7 +73,7 @@ Muro de jardim com portões (`gardenWall`: portal com telhado e placa, lua, port
 
 A Vila tem 120 × 110 m (`W = 60`, `D = 55` de meia-extensão) e usa células de 60 m.
 
-## Rua dos Vizinhos (`blockoutMap.ts`)
+## Rua dos Vizinhos (`rua.json`, `catalog/street.ts`)
 
 Montada só com as primitivas do `MapBuilder`: casas de dois andares com telhado de duas águas (paredes `reboco`/`tijolo`, molduras), rua de `asfalto`, `calcada`, quintais cercados, piscina vazia (`azulejo`, 2 m de queda), casa na árvore, torre de vigia de 7 m, veículos (`vehicles.ts`). 80 × 60 m, três faixas leste-oeste.
 
@@ -84,8 +85,8 @@ Qualquer malha de um `.glb` vira peça de cenário pelo `addGltfToMap`, com as c
 
 - `client/world/mapBuilder.ts` (`MapBuilder`, `STEP_H`, `STEP_D`, `stairSteps`, `worldUVs`, `boxProjectUVs`)
 - `client/world/oriental.ts`, `client/world/jardim/kit.ts`
-- `client/world/halloween.ts`, `client/world/hauntedTown.ts`
-- `client/world/blockoutMap.ts`, `client/world/vehicles.ts`
+- `client/world/halloween.ts`, `client/world/catalog/haunted.ts`
+- `client/world/catalog/street.ts`, `client/world/vehicles.ts`
 
 ## Ver também
 

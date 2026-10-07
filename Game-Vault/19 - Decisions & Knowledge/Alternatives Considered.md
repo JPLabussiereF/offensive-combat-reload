@@ -7,7 +7,7 @@ source_paths:
   - README.md
   - docs/MAPAS.md
   - client/world/mapBuilder.ts
-  - client/world/dragonGarden.ts
+  - shared/data/mapas/jardim.json
   - client/render/effects.ts
   - client/character/material.ts
   - client/audio/sfx.ts
@@ -19,7 +19,7 @@ source_paths:
 tags:
   - game
   - decisions
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Alternativas consideradas
@@ -35,7 +35,7 @@ Caminhos que o projeto avaliou, trocou ou deixou para depois, com a evidência d
 | Altura e biotipo com efeito de jogo (vida e hitbox) | Altura e biotipo só visuais | Não criar meta de aparência (commit `68a2b32`) | [[ADR - Altura e biotipo apenas visuais]] |
 | Jardim aberto de 80×60 m | Jardim murado de 90×90 m com 6 setores | Linhas de visão curtas para proteger quem oprime (commit `c7ef981`, `docs/MAPAS.md`) | [[ADR - Linhas de visão curtas no Jardim do Dragão]] |
 | Colisão por degrau / rampa fina | Cunha sólida sob a escada | A rampa fina deixava um vão onde se escondia e atirava (`mapBuilder.ts`) | [[ADR - Escadas com colisão em rampa sólida]] |
-| Células de 40 m no Jardim | Células de 45 m | 40 m cortava a propriedade em 16 pedaços e dobrava as draw calls (`dragonGarden.ts`) | [[ADR - Lotes estáticos por material e célula]] |
+| Células de 40 m no Jardim | Células de 45 m | 40 m cortava a propriedade em 16 pedaços e dobrava as draw calls (comentário do antigo `dragonGarden.ts`, hoje em `client/world/conversao/jardim.ts`; `ambiente.celula` = 45 em `jardim.json`) | [[ADR - Lotes estáticos por material e célula]] |
 | Explosão com brilho aditivo | "Puffs" opacos e chapados | O aditivo "lava" contra o céu (`effects.ts`) | [[Particles]] |
 | Ctrl para agachar | Outra tecla padrão | Ctrl+W fecha a aba do navegador (`client/core/keybinds.ts`) | [[Input & Controls]] |
 | Pontuação de opressão original | Opressão triplicada (150) | A mecânica-assinatura precisa compensar o risco (`shared/constants.ts`) | [[ADR - Pontuação da Opressão triplicada]] |

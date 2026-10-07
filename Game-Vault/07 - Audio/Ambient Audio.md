@@ -6,15 +6,16 @@ area: audio
 source_paths:
   - client/audio/sfx.ts
   - client/audio/spatial.ts
-  - client/world/blockoutMap.ts
-  - client/world/dragonGarden.ts
-  - client/world/hauntedTown.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
+  - shared/data/mapas/jardim.json
+  - shared/data/mapas/halloween.json
   - client/world/hydrant.ts
 tags:
   - game
   - audio
   - ambient
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Ambient Audio
@@ -46,9 +47,8 @@ Vários props do mapa soam sozinhos ou quando alguém interage (sino da capela, 
 
 ## Código relacionado
 
-- `client/world/blockoutMap.ts` — `birdTimer` + `skyClouds` (laço animado).
-- `client/world/dragonGarden.ts` — `birdTimer`.
-- `client/world/hauntedTown.ts` — `crowTimer`, `howlTimer`.
+- `shared/data/mapas/*.json` — `ambiente.sons`: pássaro na Rua e no Jardim (primeiro em 4 s, depois a cada 6–15 s), corvo e uivo na Vila e no Cemitério; a cúpula de nuvens da Rua (`ambiente.ceu.cupula`).
+- `client/world/mapLoader.ts` — toca os sons ambientes (`skySpot`) e anima as nuvens (`skyClouds`).
 - `client/world/hydrant.ts` — uso de `sfx.hiss`.
 - `client/audio/spatial.ts` — `skySpot`, tipo `ambient`.
 - `client/audio/sfx.ts` — `ambientBird`, `ambientCrow`, `ambientHowl`, `hiss`, `loopAt`.
