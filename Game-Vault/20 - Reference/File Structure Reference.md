@@ -124,6 +124,7 @@ client/
 │   ├── arsenalTree.ts      Modelo puro da progressão do Arsenal (linhas, armas, melhorias e pontos que faltam)
 │   ├── ladder.ts           Corrida armada: nomes dos degraus e a aba Escada do menu de pausa
 │   ├── arsenalCanvas.ts    Canvas do Arsenal da tela inicial (arrastar, zoom, painel, minimapa)
+│   ├── arsenalStats.ts     Barras de atributo (armas de fogo e facas), texto da passiva e fichas, sem DOM
 │   ├── arsenalCanvasLayout.ts  Geometria e câmera do canvas do Arsenal (sem DOM)
 │   ├── corpseTimer.ts      Contagem sobre corpos oprimíveis
 │   ├── touch.ts            Controles de toque estilo CoD Mobile

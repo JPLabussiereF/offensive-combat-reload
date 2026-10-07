@@ -1,13 +1,17 @@
 // Every weapon and upgrade of shared/data/progression.json has its name and description in both languages
-// (client/ui/strings.ts): the Arsenal, the HUD and the kill feed show them by id. The secondaries of PF-10 have
-// the names and descriptions of the plan, and so do their coffin items (zumbi) and ladder steps.
+// (client/ui/strings.ts): the Arsenal, the HUD and the kill feed show them by id. Every knife's passive too, with its
+// numbers filled in. The secondaries of PF-10 have the names and descriptions of the plan, and so do their coffin
+// items (zumbi) and ladder steps.
 import { describe, expect, it } from 'bun:test';
-import { PROG_WEAPONS, PROGRESSION } from '@shared/progression';
+import { KNIVES, PROG_WEAPONS, PROGRESSION } from '@shared/progression';
 import { GAME_MODE_IDS } from '@shared/modes';
 import { LADDER } from '@shared/gunGame';
+import { SCORE } from '@shared/constants';
+import { MELEE } from '@shared/weapons';
 import { setLang, t, type Lang, type StringKey } from '../ui/strings';
 import { TREE_ROWS } from '../ui/arsenalTree';
 import { UPGRADE_KINDS } from '../ui/arsenalCanvasLayout';
+import { passiveText } from '../ui/arsenalStats';
 
 describe('textos do Arsenal', () => {
   for (const lang of ['pt-BR', 'en'] as Lang[]) {
@@ -45,6 +49,48 @@ describe('textos do Arsenal', () => {
       expect(missing).toEqual([]);
     });
   }
+});
+
+describe('passivas das facas', () => {
+  // The numbers each passive's text must show (from the knife's JSON: +50 health, 1.15× for 3 s, 100 points instead
+  // of SCORE.backstab).
+  const NUMBERS: Record<string, string[]> = {
+    colher: ['50'],
+    frango: ['15', '3'],
+    peixe: ['100', String(SCORE.backstab)],
+  };
+  for (const lang of ['pt-BR', 'en'] as Lang[]) {
+    it(`toda faca tem passiva com nome e descrição preenchidos em ${lang}`, () => {
+      setLang(lang);
+      for (const k of KNIVES) {
+        const p = MELEE[k].passiva;
+        expect({ k, ok: !!p?.id }).toEqual({ k, ok: true });
+        const { name, desc } = passiveText(k);
+        for (const text of [name, desc]) {
+          expect({ k, text, bad: !text || text === 'undefined' || /[{}]/.test(text) }).toEqual({ k, text, bad: false });
+        }
+        for (const n of NUMBERS[k] ?? []) expect({ k, desc, has: desc.includes(n) }).toEqual({ k, desc, has: true });
+      }
+      // The block's frame and the stat labels.
+      for (const key of ['knifePassive', 'knifePassiveWhere', 'statSwingReach', 'statLunge', 'statSwingSpeed', 'statStealth'] as StringKey[]) {
+        const text = t(key, { name: 'X' });
+        expect({ key, bad: !text || /[{}]/.test(text) }).toEqual({ key, bad: false });
+      }
+      expect(t('knifePassive', { name: passiveText('faca').name })).toContain(passiveText('faca').name);
+    });
+  }
+
+  it('cada faca tem a sua passiva (nenhuma repetida) e os dois idiomas dizem coisas diferentes', () => {
+    expect(new Set(KNIVES.map((k) => MELEE[k].passiva.id)).size).toBe(KNIVES.length);
+    for (const k of KNIVES) {
+      setLang('pt-BR');
+      const pt = passiveText(k);
+      setLang('en');
+      const en = passiveText(k);
+      expect({ k, same: pt.desc === en.desc }).toEqual({ k, same: false });
+    }
+    setLang('pt-BR');
+  });
 });
 
 describe('textos dos modos de jogo', () => {

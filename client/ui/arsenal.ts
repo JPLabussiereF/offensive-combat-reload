@@ -1,18 +1,23 @@
 // The Arsenal tab of the pause menu (PF-11): the four slots in use (primary, secondary, knife, grenade) on the left
 // and the picked slot's card: icon, slot and level, name, the points to the next level, the description, the gun's
-// stats as they are now, the unlocked upgrades of its progression (on or off) and how many are still locked. In a
-// match it shows what is in the player's hands, read-only (the loadout is locked; an upgrade unlocked meanwhile
-// "applies next match"). On the shooting range it also lists the slot's unlocked weapons with Equipar and the
-// upgrades switch on and off, saved to the account like the home's Arsenal and in the hands at once.
-// Also the names, icons, stats and effect chips every Arsenal view shares (the home's canvas, the HUD, the kill
-// feed).
-import { getLang, t, type StringKey } from './strings';
-import { gunStats, knifeOf, type Loadout } from '@shared/arsenal';
-import { GUN_DATA_ID, isGun, isKnife, levelCount, progOf, PROGRESSION, upgradeOf, type Efeitos, type GunId, type Levels, type ProgWeapon, type Upgrade, type WeaponId } from '@shared/progression';
+// or the knife's stats as they are now (and the knife's passive), the unlocked upgrades of its progression (on or
+// off) and how many are still locked. In a match it shows what is in the player's hands, read-only (the loadout is
+// locked; an upgrade unlocked meanwhile "applies next match"). On the shooting range it also lists the slot's
+// unlocked weapons with Equipar and the upgrades switch on and off, saved to the account like the home's Arsenal and
+// in the hands at once.
+// Also the names, icons and knife passive blocks every Arsenal view shares (the home's canvas, the HUD, the kill
+// feed), and, re-exported from client/ui/arsenalStats.ts (pure, no DOM), the stat bars, passive texts and effect
+// chips.
+import { t, type StringKey } from './strings';
+import { knifeOf, type Loadout } from '@shared/arsenal';
+import { GUN_DATA_ID, isGun, isKnife, levelCount, progOf, PROGRESSION, upgradeOf, type KnifeId, type Levels, type ProgWeapon, type Upgrade, type WeaponId } from '@shared/progression';
 import { MELEE, WEAPONS } from '@shared/weapons';
 import type { Progress } from '../gameplay/progress';
+import { effectChips, num, passiveText, weaponStatBars } from './arsenalStats';
 import { TREE_ROWS, weaponNode, type RowId } from './arsenalTree';
 import { moreUpgradesText } from './pauseMenu';
+
+export { effectChips, gunStatBars, knifeHeardAt, knifeStatBars, num, passiveText, weaponStatBars } from './arsenalStats';
 
 const ROW: Record<RowId, StringKey> = { primaria: 'treeRow_primaria', secundaria: 'treeRow_secundaria', faca: 'treeRow_faca', granada: 'treeRow_granada' };
 
@@ -40,42 +45,17 @@ export function weaponIcon(w: WeaponId, active: readonly string[] = []): string 
   return formOf(w, active)?.icone ?? own ?? PROGRESSION[progOf(w)].icone;
 }
 
-/** A gun's stats with the upgrades in effect, each 0.06 to 1 for a bar, and its "magazine / reserve" line. */
-export function gunStatBars(w: GunId, active: readonly string[]): { bars: [StringKey, number][]; mag: string } {
-  const g = gunStats(w, [...active]);
-  const clamp = (x: number) => Math.max(0.06, Math.min(1, x));
-  const bars: [StringKey, number][] = [
-    ['statDamage', g.dano.max / 40],
-    ['statRate', g.cadencia / 1100],
-    ['statAccuracy', 1 - g.dispersao.parado / 1.6 - g.dispersao.mirando],
-    ['statRange', g.dano.distMin / 60],
-    ['statMobility', (g.movimento - 0.85) / 0.3],
-  ];
-  return { bars: bars.map(([k, v]) => [k, clamp(v)]), mag: t('statMag', { mag: g.pente, reserve: g.reserva }) };
-}
-
-/** Effects where a lower number is the better one. */
-const LOWER_IS_BETTER = new Set<keyof Efeitos>(['recarga', 'dispersao', 'mirando', 'recuo', 'adsTempo', 'troca', 'intervalo', 'recargaGranada']);
-const ADDED = new Set<keyof Efeitos>(['pente', 'golpe', 'investida', 'granadas']);
-
-export const num = (n: number, digits = 1) => n.toLocaleString(getLang() === 'en' ? 'en' : 'pt-BR', { maximumFractionDigits: digits });
-
-/** What an upgrade changes, as short labeled chips (good in green, the price in red). */
-export function effectChips(fx: Efeitos): { text: string; good: boolean }[] {
-  const out: { text: string; good: boolean }[] = [];
-  for (const [k, v] of Object.entries(fx) as [keyof Efeitos, Efeitos[keyof Efeitos]][]) {
-    if (k === 'mira') continue;
-    if (k === 'silenciador') out.push({ text: t('fx_silenciador'), good: true });
-    else if (k === 'tipo') out.push({ text: str(`fx_tipo_${v}`), good: true });
-    else if (k === 'zoom') out.push({ text: t('fx_zoom', { v: num(1 / (v as number)) }), good: true });
-    else if (ADDED.has(k)) out.push({ text: str(`fx_${k}`, { v: `+${num(v as number)}` }), good: true });
-    else {
-      const pct = Math.round(((v as number) - 1) * 100);
-      if (!pct) continue;
-      out.push({ text: str(`fx_${k}`, { v: `${pct > 0 ? '+' : '−'}${Math.abs(pct)}%` }), good: pct > 0 !== LOWER_IS_BETTER.has(k) });
-    }
-  }
-  return out;
+/**
+ * A knife's passive as a card block, with the classes of the view (`pa` the pause menu, `cv` the home's canvas):
+ * "Passiva: <name>", what it does and where it works.
+ */
+export function passiveBlock(k: KnifeId, view: 'pa' | 'cv'): string {
+  const { name, desc } = passiveText(k);
+  return `<div class="${view}-passive">
+    <div class="${view}-passive-name">${esc(t('knifePassive', { name }))}</div>
+    <div class="${view}-passive-desc">${esc(desc)}</div>
+    <div class="${view}-passive-where">${esc(t('knifePassiveWhere'))}</div>
+  </div>`;
 }
 
 /** The weapon a loadout has in a slot (null: none there). */
@@ -174,7 +154,8 @@ export class ArsenalPanel {
         <span class="pa-equipped">✓ ${esc(t('treeEquipped'))}</span></div>
       <div class="pa-xp"><div class="xp-bar"><div class="xp-fill" style="width:${(n.progresso * 100).toFixed(1)}%"></div></div><div>${esc(xpText)}</div></div>
       <div class="pa-desc">${esc(str(`armaDesc_${w}`))}</div>
-      ${isGun(w) ? this.stats(w, active) : ''}
+      ${this.stats(w, active)}
+      ${isKnife(w) ? passiveBlock(w, 'pa') : ''}
       <div class="pa-section">${esc(t('pmUpgradesUnlocked'))}</div>
       <div class="pa-list">${ups.length ? ups.map((u) => this.upgrade(prog, u, active)).join('') : `<div class="pa-none">${esc(t('pmNoUpgrades'))}</div>`}</div>
       ${more ? `<div class="pa-locked">${esc(more)}</div>` : ''}
@@ -182,12 +163,13 @@ export class ArsenalPanel {
     </div>`;
   }
 
-  /** The gun's stats with the upgrades in effect, as bars two by two, and the magazine line. */
-  private stats(w: GunId, active: readonly string[]): string {
-    const { bars, mag } = gunStatBars(w, active);
-    return `<div class="pa-stats">${bars
+  /** The gun's or the knife's stats with the upgrades in effect, as bars two by two (and a gun's magazine line). */
+  private stats(w: WeaponId, active: readonly string[]): string {
+    const s = weaponStatBars(w, active);
+    if (!s) return '';
+    return `<div class="pa-stats">${s.bars
       .map(([k, v]) => `<span>${esc(t(k))}</span><div class="pa-bar"><div style="width:${(v * 100).toFixed(0)}%"></div></div>`)
-      .join('')}<small>${esc(mag)}</small></div>`;
+      .join('')}${s.mag ? `<small>${esc(s.mag)}</small>` : ''}</div>`;
   }
 
   /** One unlocked upgrade: on or off (a switch on the range), what it changes, what replaces it. */

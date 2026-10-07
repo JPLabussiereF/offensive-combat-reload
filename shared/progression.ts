@@ -119,6 +119,8 @@ export interface Efeitos {
   intervalo?: number;
   /** Lunge speed. */
   impulso?: number;
+  /** Swing duration (the gun is back in hand sooner); the hit's moment doesn't change. */
+  duracao?: number;
   // Grenade.
   /** + grenades carried. */
   granadas?: number;

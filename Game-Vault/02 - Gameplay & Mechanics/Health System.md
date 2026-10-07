@@ -14,7 +14,7 @@ tags:
   - game
   - gameplay
   - health
-updated: 2026-10-05
+updated: 2026-10-07
 ---
 
 # Health System
@@ -57,7 +57,7 @@ Máximo possível: 200. Ver [[Pickups]] e [[Buffs & Debuffs]].
 ### Autoridade
 
 - **Offline / campo de tiro / contra bots**: o `LocalPlayer` regenera e aplica dano localmente.
-- **Online**: o servidor é dono da vida (`netControlled`): regenera no tick de 20 Hz, aplica dano e envia `damage` e a vida em cada `snap` (arredondada para cima). O cliente só relata autodano (queda, void, cachorro) via `selfDamage`.
+- **Online**: o servidor é dono da vida (`netControlled`): regenera no tick de 20 Hz, aplica dano e envia `damage` e a vida em cada `snap` (arredondada para cima). O cliente só relata autodano (queda, void, cachorro) via `selfDamage`. Duas passivas de faca mexem na vida ([[Melee#Passivas]]): a Colher de Pau devolve 50 a cada abate com ela (o servidor cura no `onStab`) e o Macarrão de Piscina anula o dano de queda (o cliente não aplica e o servidor ignora o relato).
 
 ## Estados possíveis
 

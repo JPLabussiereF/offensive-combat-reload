@@ -5,8 +5,8 @@
 import * as THREE from 'three';
 import { HUMILIATION, SCORE } from '@shared/constants';
 import { computeDamage, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
-import type { WeaponId } from '@shared/progression';
-import type { Loadout } from '@shared/arsenal';
+import type { KnifeId, WeaponId } from '@shared/progression';
+import { knifePassive, type Loadout } from '@shared/arsenal';
 import type { GameModeId } from '@shared/modes';
 import { afterDeath, afterKill, GUN_GAME, ladderLoadout, ladderStart, type LadderPos } from '@shared/gunGame';
 import type { Award, KillKind, PlayerInfo, Sex } from '@shared/protocol';
@@ -16,7 +16,7 @@ import { Corpse, groundBelow } from '../gameplay/corpse';
 import { pickSafeSpawn } from '../gameplay/spawnPicker';
 import type { HitboxRegistry } from '../gameplay/targets';
 import { applySpread, offsetDir, traceShot } from '../weapons/hitscan';
-import { findMeleeTarget } from '../weapons/melee';
+import { findMeleeTarget, meleeTargets } from '../weapons/melee';
 import type { Pellet } from '../weapons/weapon';
 import type { Effects } from '../render/effects';
 import type { Sfx } from '../audio/sfx';
@@ -41,6 +41,8 @@ export interface HitInfo {
   region?: HitRegion;
   dist?: number;
   behind?: boolean;
+  /** A stab: the knife swung (its passive may change the kill's points). */
+  knife?: KnifeId;
 }
 
 export interface BotHooks {
@@ -214,12 +216,17 @@ export class BotManager {
       if (info.kind === 'head') awards.push({ label: 'headshot', value: SCORE.headshot });
       if (info.kind === 'groin') awards.push({ label: 'groin', value: SCORE.groin });
       if (info.kind === 'knife') awards.push({ label: 'knife', value: SCORE.knife });
-      if (info.kind === 'knife' && info.behind) awards.push({ label: 'backstab', value: SCORE.backstab });
+      // The frozen fish's passive: more for a stab in the back.
+      const passive = info.kind === 'knife' && info.knife ? knifePassive(info.knife, this.o.game) : null;
+      if (info.kind === 'knife' && info.behind) awards.push({ label: 'backstab', value: passive?.id === 'tapaGelado' ? passive.costas : SCORE.backstab });
       if (info.dist && info.dist > SCORE.longShotDistance) awards.push({ label: 'longShot', value: SCORE.longShot });
       const ks = this.score(killer);
       ks.kills++;
       ks.score += awards.reduce((s, a) => s + a.value, 0);
-      if (killer instanceof Bot) killer.notifyKill(this.time);
+      if (killer instanceof Bot) {
+        killer.notifyKill(this.time);
+        if (passive) killer.knifeKill(passive, this.time);
+      }
     }
     const p = victim.position;
     const yaw = victim instanceof Bot ? victim.yaw : (victim as Combatant & { yaw?: number }).yaw ?? 0;
@@ -342,11 +349,23 @@ export class BotManager {
    */
   private stab(bot: Bot, target: Combatant) {
     const eye = bot.eye(new THREE.Vector3());
-    this.o.sfx.at(eye, 'normal', (s) => s.meleeSwing(bot.knife.forma));
-    if (target.dead || !findMeleeTarget(this.o.physics, [target], eye, bot.yaw, bot.knife.alcance + 0.4, bot.knife.anguloGraus)) return;
+    const k = bot.knife;
+    // The kitchen knife is only heard nearby (its passive, in every mode).
+    this.o.sfx.at(eye, k.passiva.id === 'discreta' ? 'step' : 'normal', (s) => s.meleeSwing(k.forma));
+    // The lightsaber's sweep hits everyone in reach and in front, the others only the one swung at.
+    const sweep = knifePassive(k.forma, this.o.game)?.id === 'vuuum';
+    const reach = k.alcance + 0.4;
+    const victims = sweep
+      ? meleeTargets(this.o.physics, this.world.combatants().filter((c) => c !== bot), eye, bot.yaw, reach, k.anguloGraus).map((f) => f.target as Combatant)
+      : !target.dead && findMeleeTarget(this.o.physics, [target], eye, bot.yaw, reach, k.anguloGraus)
+        ? [target]
+        : [];
+    if (!victims.length) return;
     this.o.sfx.at(eye, 'normal', (s) => s.knifeHit());
-    this.o.effects.burst('star', target.position.clone().setY(target.position.y + 1.1), UP, 10);
-    this.hit(target, bot, LETHAL_DAMAGE, { kind: 'knife', behind: target.isBehind(eye), w: 'faca' });
+    for (const v of victims) {
+      this.o.effects.burst('star', v.position.clone().setY(v.position.y + 1.1), UP, 10);
+      this.hit(v, bot, LETHAL_DAMAGE, { kind: 'knife', behind: v.isBehind(eye), w: 'faca', knife: k.forma });
+    }
   }
 
   // --- Tick ---------------------------------------------------------------------------------------------

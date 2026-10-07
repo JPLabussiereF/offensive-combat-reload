@@ -16,7 +16,7 @@ import { ACCOUNT_XP } from '@shared/accountLevel';
 import { bodyStats } from '@shared/appearance';
 import { CHECKED_PROPS, FISH, PICKUPS, PROP_RANGE, PROPS, RATS, WITCHES, type MapId, type PickupKind } from '@shared/maps';
 import { isGun, weaponOfKill, type GunId, type WeaponId } from '@shared/progression';
-import { DEFAULT_LOADOUT, grenadeStats, loadoutKnife, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
+import { DEFAULT_LOADOUT, grenadeStats, knifePassive, loadoutKnife, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import type { GameModeId } from '@shared/modes';
 import { accountLevelOf, addAccountXp, addTime, addWeaponXp, equip, loadoutOf, progressMsg, stickerAdd, stickerMax, stickerUps, type LevelUp, type LiveAccount } from './progress';
 import { createMode, type SessionMode } from './modes';
@@ -69,6 +69,8 @@ export interface SPlayer {
   ping: number;
   hitTimes: number[];
   lastStab: number;
+  /** Who the current swing already hit (the lightsaber's sweep hits each one once). */
+  stabbed: Set<number>;
   lastShotRelay: number;
   lastProp: number;
   /** Chat token bucket (NET.chatBurst, one back every NET.chatEveryMs). */
@@ -119,6 +121,8 @@ const GOLIATH_KILLS = 10;
 /** Sticker album: deaths with nobody to blame. */
 /** Sticker album: how soon after a hit a fall still counts as a push, a kill with this little health left, a laggy death. */
 const PUSH_MS = 5000;
+/** The lightsaber's sweep: the other stabs of one swing arrive with the first (sent in the same tick). */
+const SWEEP_MS = 150;
 /** Sticker album: how long the map gags a player hit are kept for the sequences (the longest is 30 s). */
 const PROP_MEMORY_MS = 30_000;
 const LOW_HEALTH = 10;
@@ -275,6 +279,7 @@ export class Session {
       ping: 0,
       hitTimes: [],
       lastStab: 0,
+      stabbed: new Set(),
       lastShotRelay: 0,
       lastProp: 0,
       chatTokens: NET.chatBurst,
@@ -436,6 +441,8 @@ export class Session {
       case 'selfDamage': {
         if (!p.alive || !finite(msg.amount) || msg.amount <= 0) return;
         const cause: KillKind = msg.cause === 'void' ? 'void' : msg.cause === 'dog' ? 'dog' : 'fall';
+        // The pool noodle's passive: no fall damage while it's the knife equipped.
+        if (cause === 'fall' && knifePassive(loadoutKnife(p.loadout).forma, this.mode.id)?.id === 'boia') return;
         this.damage(p, null, Math.min(LETHAL_DAMAGE, msg.amount), cause, null, [], null);
         return;
       }
@@ -599,13 +606,23 @@ export class Session {
     const target = this.players.get(targetId);
     if (!target || target === p || !p.alive || p.downed || !target.alive) return;
     const knife = loadoutKnife(p.loadout);
-    if (now - p.lastStab < knife.intervalo * 1000 * 0.75) return;
+    // The knife's passive, only where the knife is the player's own (see knifePassive).
+    const passive = knifePassive(knife.forma, this.mode.id);
+    // The lightsaber's sweep: the swing's other stabs (each target once) come right after its first.
+    const sweep = passive?.id === 'vuuum' && now - p.lastStab <= SWEEP_MS && !p.stabbed.has(targetId);
+    if (!sweep && now - p.lastStab < knife.intervalo * 1000 * 0.75) return;
     const d = Math.hypot(p.state.p[0] - target.state.p[0], p.state.p[2] - target.state.p[2]);
     if (d > knife.alcanceInvestida + 1.5) return;
-    p.lastStab = now;
+    if (!sweep) {
+      p.lastStab = now;
+      p.stabbed.clear();
+    }
+    p.stabbed.add(targetId);
     const awards: Award[] = [{ label: 'knife', value: SCORE.knife }];
-    if (behind) awards.push({ label: 'backstab', value: SCORE.backstab });
+    if (behind) awards.push({ label: 'backstab', value: passive?.id === 'tapaGelado' ? passive.costas : SCORE.backstab });
     this.damage(target, p, knife.letal ? LETHAL_DAMAGE : 55, 'knife', eye(p), awards, 'faca');
+    // Grandma's lap: a kill with the spoon gives health back (the player gets it with the next snapshot).
+    if (passive?.id === 'coloDeVo' && !target.alive && p.alive) p.health = Math.min(this.maxHealth(p, now), p.health + passive.vida);
   }
 
   private onBoom(p: SPlayer, msg: Extract<ClientMsg, { t: 'boom' }>, now: number) {

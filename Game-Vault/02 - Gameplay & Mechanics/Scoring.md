@@ -36,7 +36,7 @@ Recompensar o abate e, acima dele, o **estilo**: tiro na cabeça, na virilha, de
 | `groin` | No pássaro / Right in the birdie | **+100** | o tiro que matou acertou a virilha (que mata na hora) |
 | `longShot` | Longa distância / Long shot | **+50** | o tiro que matou veio de **mais de 50 m** (`longShotDistance`) |
 | `knife` | Facada / Knifed | **+50** | abate com a faca |
-| `backstab` | Pelas costas / Backstab | **+50** | facada pelas costas (soma com `knife`) |
+| `backstab` | Pelas costas / Backstab | **+50** | facada pelas costas (soma com `knife`); **+100** com o Peixe Congelado (passiva Tapa Gelado, [[Melee#Passivas]]) |
 | `humiliation` | Opressão / Humiliation | **150** | dança completa sobre um corpo (evento separado do abate) |
 
 O comentário no código explica o valor da opressão: *"Tripled: dancing on a body leaves you exposed for 3 s, it has to pay off."* Ver [[ADR - Pontuação da Opressão triplicada]].

@@ -98,10 +98,18 @@ describe('árvore do Arsenal', () => {
   });
 
   it('o nível máximo não tem próximo nível', () => {
-    const n = weaponNode('faca', xpAt({ faca: 3 }), DEFAULT_CHOICE);
-    expect(n).toMatchObject({ nivel: 3, max: 3, faltamNivel: null, progresso: 1 });
+    // The knife has four levels: the base, the sharpener, the sneakers and the light hand.
+    const n = weaponNode('faca', xpAt({ faca: 4 }), DEFAULT_CHOICE);
+    expect(n).toMatchObject({ nivel: 4, max: 4, faltamNivel: null, progresso: 1, ativas: ['afiador', 'tenis', 'maoLeve'] });
+    // One level short: the light hand still to come.
+    expect(weaponNode('faca', xpAt({ faca: 3 }), DEFAULT_CHOICE)).toMatchObject({ nivel: 3, max: 4, faltamNivel: 4500 - 2800, progresso: 0 });
     // A knife shows the knife's level.
-    expect(weaponNode('sabre', { ...NO_XP, faca: 9000 }, DEFAULT_CHOICE)).toMatchObject({ prog: 'faca', nivel: 3, liberada: true });
+    expect(weaponNode('sabre', { ...NO_XP, faca: 9000 }, DEFAULT_CHOICE)).toMatchObject({ prog: 'faca', nivel: 4, liberada: true });
+    expect(upgradeNodes('sabre', { ...NO_XP, faca: 3000 }, DEFAULT_CHOICE).map((u) => [u.id, u.estado, u.faltam])).toEqual([
+      ['afiador', 'ligada', 0],
+      ['tenis', 'ligada', 0],
+      ['maoLeve', 'trancada', 1500],
+    ]);
   });
 
   it('cada melhoria: ligada, desligada, trancada (com os pontos que faltam) ou substituída por uma opcional do grupo', () => {

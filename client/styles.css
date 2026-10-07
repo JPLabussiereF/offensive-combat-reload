@@ -1723,6 +1723,32 @@ html:not(.mobile) #chat-close {
   font-size: 11px;
   opacity: 0.7;
 }
+/* A phone held upright: one bar per line, so the longer labels (a knife's "Alcance do golpe") leave the bar room. */
+@media (max-width: 420px) {
+  .pa-stats {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+/* A knife's passive: its name, what it does and where it works. */
+.pa-passive {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 9px;
+  background: #dff5d3;
+  font: 600 12.5px var(--body);
+  line-height: 1.35;
+}
+.pa-passive-name {
+  font: 900 12.5px var(--body);
+  line-height: 1.2;
+}
+.pa-passive-where {
+  font: 800 11px var(--body);
+  opacity: 0.65;
+}
 .pa-section {
   margin-top: 2px;
   font: 800 12px var(--body);
@@ -3910,6 +3936,27 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   margin: 0;
   font: 700 14px/1.45 var(--body);
   text-wrap: pretty;
+}
+/* A knife's passive: its name, what it does and where it works. */
+.cv-passive {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 2.5px solid var(--ink);
+  border-radius: 14px;
+  background: #dff5d3;
+}
+.cv-passive-name {
+  font: 900 14px/1.2 var(--body);
+}
+.cv-passive-desc {
+  font: 700 13px/1.4 var(--body);
+  text-wrap: pretty;
+}
+.cv-passive-where {
+  font: 800 11.5px/1.35 var(--body);
+  opacity: 0.65;
 }
 .cv-p-upgrades {
   border-top: 2px dashed rgba(27, 21, 48, 0.2);

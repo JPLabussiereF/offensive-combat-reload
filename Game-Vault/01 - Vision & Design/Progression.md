@@ -116,16 +116,17 @@ As miras dos níveis 7 a 9 voltaram das primeiras versões do jogo (PF-8). Nenhu
 | 4 | 3800 | Pente Tambor de Pipoqueira | pente +18 (50); **troca**: recarga +25%, saque +20%, mobilidade −4% | opcional |
 | 5 | 6000 | Coronha de Mangueira | recuo −25%, dispersão −15% | comum |
 
-#### Faca (as sete facas) — 3 níveis
+#### Faca (as sete facas) — 4 níveis
 
 Todas as facas são letais com um golpe; o Frango de Borracha e o Sabre de Luz, que eram formas da faca, agora são facas próprias ([[Melee]]).
 
 | Nv | XP | Melhoria | Efeito | Tipo |
 |---|---|---|---|---|
-| 2 | 600 | Afiador da Feira | intervalo entre golpes −20% | comum |
+| 2 | 600 | Afiador da Feira | intervalo entre golpes −20%, alcance do golpe +0,2 m | comum |
 | 3 | 2800 | Tênis de Molinha | investida +0,6 m, velocidade da investida +20% | comum |
+| 4 | 4500 | Mão Leve | duração do golpe −30% (a arma volta antes) | comum |
 
-Os pontos continuam contando depois do nível 3: as facas antigas liberam até 9.000 pontos de faca.
+Os pontos continuam contando depois do nível 4: as facas antigas liberam até 9.000 pontos de faca, e **cada faca traz uma passiva própria** (Colo de Vó, Fuga Escandalosa, Pausa pro Lanche, Tapa Gelado, Boia, Vuuum; a de cozinha é Discreta), que vale com a faca da conta ([[Melee#Passivas]], [[ADR - Passivas das facas e Mão Leve]]). Até 2026-10-06 a árvore tinha 3 níveis, o afiador só encurtava o intervalo, e as facas não tinham passivas: evoluir a faca quase não mudava o jogo.
 
 #### Granada — 5 níveis
 

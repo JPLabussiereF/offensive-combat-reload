@@ -41,6 +41,8 @@ export class LocalPlayer {
   private stride = 0;
   /** Online: the server owns health and death; the player only reports self damage. */
   netControlled = false;
+  /** The pool noodle's passive: landings never hurt (online the server also ignores a fall report). */
+  noFallDamage = false;
   respawnDelay = RESPAWN_DELAY;
   private voidReported = false;
 
@@ -105,8 +107,8 @@ export class LocalPlayer {
     ev.landed = this.move.landed;
     ev.fallHeight = this.move.fallHeight;
 
-    // Fall damage above 6 m (section 4).
-    if (ev.landed && ev.fallHeight > MOVE.fallDamageHeight) {
+    // Fall damage above 6 m (section 4); none with the pool noodle's passive.
+    if (ev.landed && ev.fallHeight > MOVE.fallDamageHeight && !this.noFallDamage) {
       const amount = Math.round((ev.fallHeight - MOVE.fallDamageHeight) * MOVE.fallDamagePerMeter + 10);
       if (this.netControlled) ev.selfDamage = { amount, cause: 'fall' };
       else {

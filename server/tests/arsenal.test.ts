@@ -3,7 +3,7 @@
 // upgrades (the old rifles and knives included) — the same functions the client plays with and the server
 // validates hits with.
 import { describe, expect, it } from 'bun:test';
-import { DEFAULT_LOADOUT, grenadeStats, gunStats, knifeOf, loadoutKnife, meleeStats, resolveLoadout, sanitizeLoadout, slotStats } from '@shared/arsenal';
+import { DEFAULT_LOADOUT, grenadeStats, gunStats, knifeOf, knifePassive, loadoutKnife, meleeStats, resolveLoadout, sanitizeLoadout, slotStats } from '@shared/arsenal';
 import {
   activeUpgrades,
   DEFAULT_CHOICE,
@@ -366,8 +366,48 @@ describe('rifles e facas antigos', () => {
     expect(gunStats('rifle', ['luneta4x']).ads.zoom).toBe(0.25);
     // A sight from these levels turned on takes the red dot off.
     expect(activeUpgrades('rifle', 9, ['luneta2x'])).toEqual(['empunhadura', 'pente', 'luneta2x']);
-    // The knife is down to the sharpener and the sneakers.
-    expect(PROGRESSION.faca.melhorias.map((u) => [u.nivel, u.xp, u.id])).toEqual([[2, 600, 'afiador'], [3, 2800, 'tenis']]);
+    // The knife: the sharpener, the sneakers and the light hand.
+    expect(PROGRESSION.faca.melhorias.map((u) => [u.nivel, u.xp, u.id])).toEqual([
+      [2, 600, 'afiador'],
+      [3, 2800, 'tenis'],
+      [4, 4500, 'maoLeve'],
+    ]);
+  });
+});
+
+describe('árvore e passivas das facas', () => {
+  it('o afiador dá golpes mais seguidos e mais alcance; a mão leve encurta o golpe sem mudar o momento do acerto', () => {
+    for (const k of KNIVES) {
+      const base = MELEE[k];
+      const sharp = meleeStats(k, ['afiador']);
+      expect(sharp.intervalo).toBeCloseTo(base.intervalo * 0.8);
+      expect(sharp.alcance).toBeCloseTo(base.alcance + 0.2);
+      const light = meleeStats(k, ['maoLeve']);
+      expect(light.duracao).toBeCloseTo(base.duracao * 0.7);
+      expect(light.impacto).toBe(base.impacto);
+      // Every upgrade at once: the hit still lands inside the (shorter) swing.
+      const all = meleeStats(k, ['afiador', 'tenis', 'maoLeve']);
+      expect(all.impacto).toBeLessThan(all.duracao);
+    }
+  });
+
+  it('cada faca tem a sua passiva, cada uma diferente', () => {
+    const ids = KNIVES.map((k) => MELEE[k].passiva.id);
+    expect(ids).toEqual(['discreta', 'coloDeVo', 'fugaEscandalosa', 'lanche', 'tapaGelado', 'boia', 'vuuum']);
+    expect(MELEE.colher.passiva).toEqual({ id: 'coloDeVo', vida: 50 });
+    expect(MELEE.frango.passiva).toEqual({ id: 'fugaEscandalosa', velocidade: 1.15, segundos: 3 });
+    expect(MELEE.peixe.passiva).toEqual({ id: 'tapaGelado', costas: 100 });
+    // The stats keep the knife's passive.
+    expect(meleeStats('sabre', ['afiador']).passiva.id).toBe('vuuum');
+  });
+
+  it('a passiva só vale com a faca da conta: mata-mata, treino e bots, não na corrida armada nem no zumbi', () => {
+    for (const k of KNIVES) {
+      expect(knifePassive(k, 'mata-mata')).toEqual(MELEE[k].passiva);
+      expect(knifePassive(k, null)).toEqual(MELEE[k].passiva);
+      expect(knifePassive(k, 'corrida-armada')).toBeNull();
+      expect(knifePassive(k, 'zumbi')).toBeNull();
+    }
   });
 });
 

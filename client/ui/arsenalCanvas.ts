@@ -2,14 +2,15 @@
 // wheel, a pinch, the − / + buttons; 25% to 200%), with one frame per slot, the slot's weapons linked side by side
 // and, under the weapon shown, its progression's upgrades in labeled rows by kind (sights, grenade modes, the rest;
 // PF-9 revision 01). Each upgrade turns on and off right on its node; clicking a weapon opens a panel on the right
-// (equip, progress, stats, description, the upgrade picked). Jump buttons, a minimap and "show all" move the camera.
+// (equip, progress, a gun's or a knife's stats, a knife's passive, description, the upgrade picked). Jump buttons, a
+// minimap and "show all" move the camera.
 // The data is the tree's (client/ui/arsenalTree.ts) and saving is Progress's, as in the pause menu's tree
 // (client/ui/arsenal.ts), which stays as it is. With a controller the focus
 // moves from node to node and the camera follows it; the right stick pans (client/ui/padNav.ts, `pad-pan`).
 // The geometry and the camera math are client/ui/arsenalCanvasLayout.ts.
 import { isGun, isKnife, progOf, upgradeOf, type ProgWeapon, type WeaponId } from '@shared/progression';
 import type { Progress } from '../gameplay/progress';
-import { effectChips, esc, gunStatBars, num, progName, upgradeName, weaponIcon, weaponName } from './arsenal';
+import { effectChips, esc, num, passiveBlock, progName, upgradeName, weaponIcon, weaponName, weaponStatBars } from './arsenal';
 import { arsenalTree, upgradeNodes, type RowId, type TreeRow, type UpgradeNode, type WeaponNode } from './arsenalTree';
 import {
   canvasLayout,
@@ -308,10 +309,11 @@ export class ArsenalCanvas {
       action = `<button type="button" class="cv-equip" data-equip="${w}" data-row="${row}" data-key="ce-${w}">${esc(label)}</button>`;
     }
     const xpText = n.faltamNivel === null ? t('maxLevel', { xp: num(n.xp, 0) }) : t('xpToNext', { xp: num(n.faltamNivel, 0), level: n.nivel + 1 });
-    const stats = isGun(w) ? gunStatBars(w, n.ativas) : null;
+    const stats = weaponStatBars(w, n.ativas);
     const statsHtml = stats
-      ? `<div class="cv-stats">${stats.bars.map(([k, v]) => `<span>${t(k)}</span><div class="cv-bar"><div style="width:${(v * 100).toFixed(0)}%"></div></div>`).join('')}<small>${esc(stats.mag)}</small></div>`
+      ? `<div class="cv-stats">${stats.bars.map(([k, v]) => `<span>${t(k)}</span><div class="cv-bar"><div style="width:${(v * 100).toFixed(0)}%"></div></div>`).join('')}${stats.mag ? `<small>${esc(stats.mag)}</small>` : ''}</div>`
       : '';
+    const passiveHtml = isKnife(w) ? passiveBlock(w, 'cv') : '';
     const onCount = n.liberada ? ups.filter((u) => u.estado === 'ligada').length : 0;
     const su = this.sel === w && this.selUpg ? ups.find((u) => u.id === this.selUpg) : undefined;
     let upgHtml: string;
@@ -348,6 +350,7 @@ export class ArsenalCanvas {
           <div class="cv-xp-text">${esc(xpText)}</div>
         </div>
         ${statsHtml}
+        ${passiveHtml}
         <p class="cv-desc">${esc(str(`armaDesc_${w}`))}</p>
         <div class="cv-p-upgrades">
           <div class="cv-p-row"><span>${t('cvUpgrades')}</span><span class="dim">${esc(t('cvOnCount', { n: onCount, total: ups.length }))}</span></div>

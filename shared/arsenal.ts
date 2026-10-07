@@ -8,7 +8,8 @@
 //   of upgrade ids of the weapon's progression (any list: a mode can give a weapon with no upgrades, or with all
 //   of them). The old rifles take the rifle's upgrades and every knife the knife's.
 // - Loadout.secundaria may be null (a mode where players start with the primary only).
-import { GRENADES, grenadeLevel, MELEE, WEAPONS, type GrenadeData, type GrenadeLevel, type MeleeData, type WeaponData } from './weapons';
+import { GRENADES, grenadeLevel, MELEE, WEAPONS, type GrenadeData, type GrenadeLevel, type KnifePassive, type MeleeData, type WeaponData } from './weapons';
+import { MODE_RULES, type GameModeId } from './modes';
 import {
   activeUpgrades,
   DEFAULT_CHOICE,
@@ -185,9 +186,20 @@ export function meleeStats(knife: KnifeId = DEFAULT_KNIFE, upgrades: readonly st
     alcance: base.alcance + sum(fx, 'golpe'),
     alcanceInvestida: base.alcanceInvestida + sum(fx, 'investida'),
     intervalo: base.intervalo * interval,
+    duracao: base.duracao * product(fx, 'duracao'),
     velocidadeInvestida: base.velocidadeInvestida * product(fx, 'impulso'),
     forma: isKnife(knife) ? knife : DEFAULT_KNIFE,
   };
+}
+
+/**
+ * A knife's passive where it works: with the account's knife, so in a mode whose weapons come from the Arsenal,
+ * on the training range (`mode` null) and against bots; null in a mode that hands out its own knife (corrida
+ * armada, zumbi).
+ */
+export function knifePassive(knife: KnifeId, mode: GameModeId | null): KnifePassive | null {
+  if (mode && MODE_RULES[mode].weapons !== 'arsenal') return null;
+  return (MELEE[knife] ?? MELEE[DEFAULT_KNIFE]).passiva;
 }
 
 /** The knife a loadout carries, with the knife's upgrades in effect. */

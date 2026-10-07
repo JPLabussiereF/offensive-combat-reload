@@ -20,6 +20,8 @@ source_paths:
   - client/weapons/melee.ts
   - client/entities/hitboxes.ts
   - client/main.ts
+  - client/entities/localPlayer.ts
+  - client/ai/bots.ts
   - server/session.ts
   - shared/arsenal.ts
   - client/audio/sfx.ts
@@ -61,7 +63,7 @@ Golpe rápido com a faca escolhida no Arsenal que **mata com um acerto** ("In th
 
 ### As facas
 
-São sete, cada uma com o seu JSON em `shared/data/weapons/` (`KnifeId` em `shared/progression.ts`). Todas são letais; o que muda é o alcance do golpe, o da investida e o intervalo. As seis antigas voltaram das primeiras versões do jogo (PF-8) e **liberam com os pontos da faca** (`libera`); todas usam **os pontos, o nível e as melhorias da faca** ([[ADR - Rifles e facas antigos como armas próprias]]).
+São sete, cada uma com o seu JSON em `shared/data/weapons/` (`KnifeId` em `shared/progression.ts`). Todas são letais; o que muda é o alcance do golpe, o da investida, o intervalo e a **passiva** de cada uma (abaixo). As seis antigas voltaram das primeiras versões do jogo (PF-8) e **liberam com os pontos da faca** (`libera`); todas usam **os pontos, o nível e as melhorias da faca** ([[ADR - Rifles e facas antigos como armas próprias]]).
 
 | Faca (`KnifeId`) | Libera com | Golpe | Investida | Intervalo | Velocidade da investida |
 |---|---|---|---|---|---|
@@ -75,9 +77,33 @@ São sete, cada uma com o seu JSON em `shared/data/weapons/` (`KnifeId` em `shar
 
 Cada uma tem modelo e som próprios ([[Weapon Models]], [[SFX]]). Só a faca de cozinha é discreta: o som das outras **todos ouvem de longe**.
 
+### Passivas
+
+Cada faca tem uma passiva própria (`passiva` no JSON, tipo `KnifePassive` em `shared/weapons.ts`), além dos números. Desde 2026-10-07 ([[ADR - Passivas das facas e Mão Leve]]).
+
+| Faca | Passiva (`id`) | Efeito |
+|---|---|---|
+| Faca de Cozinha | Discreta (`discreta`) | O golpe só é ouvido de perto (som espacial `step`, até 34 m; as outras usam `normal`, até 70 m). |
+| Colher de Pau da Vó | Colo de Vó (`coloDeVo`, `vida: 50`) | Cada abate com ela devolve 50 de vida (até o máximo). |
+| Frango de Borracha | Fuga Escandalosa (`fugaEscandalosa`, `velocidade: 1,15`, `segundos: 3`) | Depois de um abate com ele, ×1,15 de velocidade por 3 s. |
+| Baguete Amanhecida | Pausa pro Lanche (`lanche`) | Cada abate com ela enche o pente da arma na mão, sem gastar a reserva. |
+| Peixe Congelado | Tapa Gelado (`tapaGelado`, `costas: 100`) | O prêmio "Pelas costas" vale +100 em vez de +50 (pontos e XP da faca). |
+| Macarrão de Piscina | Boia (`boia`) | Com ele equipado, nenhum dano de queda. |
+| Sabre de Luz Paraguaio | Vuuum (`vuuum`) | O golpe acerta **todos** no alcance e no cone, não só um. |
+
+- **Onde vale:** `knifePassive(faca, modo)` (`shared/arsenal.ts`) devolve a passiva só com a faca da conta: em modo cujas armas vêm do Arsenal (mata-mata), no campo de tiro (`modo` null) e contra bots. Na [[Gun Game|corrida armada]] e no [[Zombie|zumbi]], a faca é do modo e não tem passiva. A exceção é a Discreta: é o som da faca de cozinha e vale em todo modo, como já valia.
+- **Quem aplica:**
+  - O **servidor** aplica a passiva da colher (cura no `onStab`, a vida chega no `snap`), a do peixe (valor do prêmio `backstab`), a do macarrão (ignora `selfDamage` de queda) e a do sabre (aceita os outros `stab` do mesmo golpe).
+  - O **cliente** aplica a velocidade do frango (`speedMul`, o movimento é confiado ao cliente) e o pente cheio da baguete (a munição é só do cliente). Ele também mostra um aviso no feed quando a colher, o frango ou a baguete agem (`passiveFx_*`).
+  - **Offline** (bots e campo de tiro), `BotManager` e `client/main.ts` aplicam todas, para o jogador e para os bots (`Bot.knifeKill`).
+
 ### Melhorias
 
-A árvore da faca tem dois níveis, que valem para **todas** as facas, aplicados por `meleeStats(faca, melhorias)` (`shared/arsenal.ts`): **Afiador** (nível 2, 600 pts: intervalo ×0,8) e **Tênis de Molinha** (nível 3, 2.800 pts: investida +0,6 m, velocidade da investida ×1,2). Ambas são comuns (ligam sozinhas, desligáveis no Arsenal). Custos em [[Progression]].
+A árvore da faca tem três níveis, que valem para **todas** as facas, aplicados por `meleeStats(faca, melhorias)` (`shared/arsenal.ts`). Todas são comuns (ligam sozinhas, desligáveis no Arsenal). Custos em [[Progression]].
+
+- **Afiador** (nível 2, 600 pts): intervalo ×0,8 e **+0,2 m** de alcance do golpe (o alcance entrou em 2026-10-07; antes, só o intervalo, que quase não pesa num golpe que mata de uma vez).
+- **Tênis de Molinha** (nível 3, 2.800 pts): investida +0,6 m, velocidade da investida ×1,2.
+- **Mão Leve** (nível 4, 4.500 pts, desde 2026-10-07): duração do golpe ×0,7 (efeito `duracao`). O acerto continua aos 0,14 s, mas o golpe acaba antes e a arma volta a atirar mais cedo.
 
 ### Sequência
 
@@ -110,16 +136,18 @@ Entrada: F, posição do olho, yaw, alvos. Saída: `MoveInput.lunge` para o [[Mo
 - Servidor: aceita `stab` se ambos vivos, intervalo ≥ 75% do `intervalo` e distância horizontal ≤ `alcanceInvestida` + 1,5 m, com os valores da **faca do jogador** com as melhorias dele (`loadoutKnife`). Ex.: com o Tênis, a baguete alcança 3,8 + 1,5 m e o macarrão 3,3 + 1,5 m. **O `behind` é confiado ao cliente.**
 - Modo PCD sem a mão direita: a faca vai para a mão esquerda (visual, README).
 - Na corrida armada, **morrer por facada** (faca ou sabre) tira um abate do degrau (sem abates nele, volta à arma anterior); a facada com a faca de cozinha **conta como um abate** para quem esfaqueia, igual a um abate com a arma do degrau (desde 2026-10-07; todo degrau de arma de fogo leva a faca de cozinha, qualquer que seja a do Arsenal). Ver [[Gun Game]].
-- **Bots** (offline) golpeiam pelas mesmas regras de alcance, cone e visão, sem investida, e só **uma vez por aproximação** a cada alvo; ver [[AI Decisions]] e [[ADR - Facada dos bots com uma chance por aproximação]].
+- **Bots** (offline) golpeiam pelas mesmas regras de alcance, cone e visão, sem investida, e só **uma vez por aproximação** a cada alvo; ver [[AI Decisions]] e [[ADR - Facada dos bots com uma chance por aproximação]]. Fora da corrida armada, as passivas da faca sorteada valem para eles também.
+- **Sabre (Vuuum) no servidor:** os `stab` do mesmo golpe chegam juntos; o servidor aceita os que vêm até 150 ms (`SWEEP_MS`) depois do primeiro, cada alvo uma vez (`SPlayer.stabbed`), sem a checagem de intervalo. Um golpe novo continua esperando 75% do `intervalo`.
 - Se `letal` for `false`, o código usa 55 de dano fixo (hoje nunca acontece).
 
 ## Código relacionado
 
-- `client/weapons/melee.ts` — `Melee` (tempo, cooldown, `lunging`), `findMeleeTarget` (também usado pelos bots).
+- `client/weapons/melee.ts` — `Melee` (tempo, cooldown, `lunging`), `meleeTargets` (todos no alcance e no cone, para o Vuuum) e `findMeleeTarget` (o mais perto; também usado pelos bots).
+- `client/main.ts` — `stabOne` (um alvo do golpe), `knifeKillPassive` (passiva depois de um abate com a faca); `client/entities/localPlayer.ts` — `noFallDamage`.
 - `client/main.ts` — `startMelee`, `resolveMelee`, cálculo de `lunge` no tick.
 - `client/entities/hitboxes.ts` — `isBehind`.
 - `server/session.ts` — `onStab`.
-- `shared/arsenal.ts` — `meleeStats(faca, melhorias)` (`forma` = o id da faca, alcances e intervalo com as melhorias), `knifeOf`, `loadoutKnife`.
+- `shared/arsenal.ts` — `meleeStats(faca, melhorias)` (`forma` = o id da faca, alcances, intervalo e duração com as melhorias), `knifePassive(faca, modo)`, `knifeOf`, `loadoutKnife`.
 - `shared/weapons.ts` — `MELEE` (os dados de cada faca), `WeaponLock`.
 
 ## Configurações relacionadas
