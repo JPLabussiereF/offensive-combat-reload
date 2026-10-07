@@ -265,6 +265,8 @@ export async function runEditor(o: EditorOptions): Promise<void> {
 
   const attach = () => {
     const s = selection.current;
+    // P46: the selected piece is drawn by its own meshes, the rest from the batches.
+    view.setOut(s && s.kind !== 'marcador' ? [s.id] : []);
     if (gizmo.dragging) return;
     if (!s) {
       handles.show(null);

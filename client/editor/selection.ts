@@ -42,6 +42,8 @@ export class Selection {
     private readonly gizmoHot: () => boolean,
     private readonly groupOf: (s: Selected) => THREE.Object3D | undefined,
   ) {
+    // The batched pieces' own meshes sit on a layer no camera draws (P46): the ray sees every layer.
+    this.ray.layers.enableAll();
     this.box.visible = false;
     (this.box.material as THREE.LineBasicMaterial).depthTest = false;
     this.box.renderOrder = 20;

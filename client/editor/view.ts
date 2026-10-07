@@ -1,14 +1,16 @@
 // The map in the editor's scene: built by the game's loader in its editor mode (every piece in a group of its
 // own, client/world/mapLoader.ts), and kept in step with the document by rebuilding only the pieces an edit
-// touched. Pieces that draw nothing (a room for the sound, an invisible collider, a light spot) get a wire
-// stand-in so they can be seen and picked.
+// touched. Pieces that draw nothing (a room for the sound, an invisible collider, a light spot, a group) get a
+// wire stand-in so they can be seen and picked. What isn't selected is drawn from batches (P46:
+// client/editor/batches.ts); the selection is drawn by its own meshes.
 import * as THREE from 'three';
 import type { MapData, Peca } from '@shared/mapData';
 import { MAP_CATALOG } from '@shared/mapCatalog';
 import type { Physics } from '../world/physics';
 import type { MapFrame, MapSfx } from '../world/gameMap';
 import { startBuild, type BuiltMap, type MapBuild } from '../world/mapLoader';
-import { poseMatrix } from '../world/pose';
+import { worldPoseMatrix } from '../world/pose';
+import { EditorBatches } from './batches';
 import type { EditorDocument } from './document';
 
 /** Sounds stay off in the editor (no one is there to set off the gags anyway). */
@@ -22,6 +24,8 @@ const NOBODY = new THREE.Vector3(0, -10_000, 0);
 
 export class MapView {
   readonly root = new THREE.Group();
+  /** P46: the pieces not selected, in batches. */
+  readonly batches: EditorBatches;
   private build!: MapBuild;
   map!: BuiltMap;
   private queue: Promise<void> = Promise.resolve();
@@ -39,6 +43,7 @@ export class MapView {
   ) {
     this.root.name = 'mapa';
     scene.add(this.root);
+    this.batches = new EditorBatches(this.root);
   }
 
   /** Builds every piece, then the sky and the shared systems. */
@@ -46,6 +51,8 @@ export class MapView {
     this.build = startBuild(this.doc.data, { physics: this.physics, scene: this.root as unknown as THREE.Scene, renderer: this.renderer, sfx: silentSfx, modo: 'editor' });
     for (const p of this.doc.data.pecas) await this.buildPiece(p);
     this.map = this.build.finish();
+    // The pieces' groups are reachable once the map is finished: their stand-ins and batches come now.
+    for (const p of this.doc.data.pecas) this.settle(p);
   }
 
   private async buildPiece(p: Peca) {
@@ -57,13 +64,22 @@ export class MapView {
       this.onError(p.id, err);
       return;
     }
+    if (this.map) this.settle(p);
+  }
+
+  /** A piece built: its wire stand-in, and its meshes into the batches (P46). */
+  private settle(p: Peca) {
+    const g = this.group(p.id);
+    if (!g) return;
     this.decorate(p);
+    this.batches.add(p.id, g);
   }
 
   /** Rebuilds the pieces an edit touched (in order: edits wait for the previous ones). */
   rebuild(ids: Set<string>) {
     this.queue = this.queue.then(async () => {
       for (const id of ids) {
+        this.batches.remove(id);
         this.build.remove(id);
         const p = this.doc.piece(id);
         if (p) await this.buildPiece(p);
@@ -93,7 +109,7 @@ export class MapView {
     const g = this.group(peca.id);
     const box = g ? new THREE.Box3().setFromObject(g) : new THREE.Box3();
     const c = box.isEmpty() ? new THREE.Vector3(...(peca.p ?? [0, 0, 0])) : box.getCenter(new THREE.Vector3());
-    const m = poseMatrix(peca.pose);
+    const m = worldPoseMatrix(peca, (id) => this.doc.piece(id));
     return m ? c.applyMatrix4(m.invert()) : c;
   }
 
@@ -122,6 +138,7 @@ export class MapView {
 
   /** Takes the whole map out of the scene and the physics world (to build it again). */
   dispose() {
+    this.batches.dispose();
     for (const id of [...(this.map?.pieces?.keys() ?? [])]) this.build.remove(id);
     this.root.removeFromParent();
     this.root.traverse((x) => (x as THREE.Mesh).geometry?.dispose());
@@ -133,6 +150,12 @@ export class MapView {
     const time = this.time;
     const frame: MapFrame = { feet: NOBODY, listener: camera, launch: () => {}, time };
     this.map?.update(dt, frame);
+    this.batches.update();
+  }
+
+  /** The pieces drawn by their own meshes (the selection, what's being edited): the rest comes from batches. */
+  setOut(ids: Iterable<string>) {
+    this.batches.setOut(ids);
   }
 
   /** A wire stand-in for what a piece doesn't draw (rooms, invisible colliders, light spots, empty pieces). */
@@ -164,6 +187,15 @@ export class MapView {
     if (p.tipo === 'colisor') {
       const [x, y, z] = p.params.meia as number[];
       box(at, new THREE.Vector3(x * 2, y * 2, z * 2), p.yaw ?? 0);
+      return;
+    }
+    if (p.tipo === 'grupo') {
+      // A group: its origin, as three short axes (red X, green Y, blue Z) and a ring to pick it by.
+      const axes = new THREE.AxesHelper(0.8);
+      (axes.material as THREE.LineBasicMaterial).depthTest = false;
+      add(axes);
+      const ring = new THREE.Mesh(new THREE.OctahedronGeometry(0.3), new THREE.MeshBasicMaterial({ color: 0xc8a2ff, wireframe: true, depthTest: false }));
+      add(ring);
       return;
     }
     const empty = new THREE.Box3().setFromObject(g).isEmpty();
