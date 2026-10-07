@@ -221,6 +221,8 @@ export function startBuild(data: MapData, o: LoadOptions): MapBuild {
       keep(b.rooms);
       keep(b.openings);
       if (t.trace.lights.length) s.lights.remove(...t.trace.lights);
+      const lit = t.trace.lanterns;
+      if (lit) s.lanternSources.splice(s.lanternSources.indexOf(lit), 1);
     }
     pieces!.delete(id);
     traces.delete(id);
@@ -238,8 +240,8 @@ export function startBuild(data: MapData, o: LoadOptions): MapBuild {
     else if (cupula?.tipo === 'oriental') {
       const sky = gardenSky(scene);
       const floating = new SkyLanterns(scene);
-      const lanterns = s.all.lanterns;
-      const lights = new LanternLights(scene, () => lanterns.at, s.all.cores);
+      // Every paper lantern's light, a posed piece's where its pose takes it (P42).
+      const lights = new LanternLights(scene, () => s.lanternSpots(), s.all.cores);
       animate((dt, { listener }) => {
         sky(listener);
         floating.update(dt);

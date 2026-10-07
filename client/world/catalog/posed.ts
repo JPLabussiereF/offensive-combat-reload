@@ -5,8 +5,9 @@
 // its collections (pumpkins, lamp posts, lanterns...) are its own and finish into that group, and everything
 // it hands the map's shared systems crosses the frame here: the light spots and particles it adds, the sounds
 // it plays, the players' feet and ears its gags watch, who shot it, and what it gives the game (collectibles,
-// the potion, the dog, what a shot or a knife hits). The static geometry (MapBuilder.pose), the colliders, the
-// rooms and the walls' holes are carried by the loader (client/world/pose.ts).
+// the potion, the dog, what a shot or a knife hits), the holes its ponds cut in the ground and its paper
+// lanterns' light (P42: the map-wide lists stay in the world). The static geometry (MapBuilder.pose), the
+// colliders, the rooms and the walls' holes are carried by the loader (client/world/pose.ts).
 import * as THREE from 'three';
 import type { Vec3 } from '@shared/mapData';
 import type { LightPool, LightSpot } from '../halloween';
@@ -14,13 +15,28 @@ import type { PropBus, PropTrigger } from '../props';
 import type { MapFrame, MapSfx } from '../gameMap';
 import type { ChowChow } from '../dog';
 import { PoseMap } from '../pose';
-import { Collections, type Services } from './services';
+import type { Rect } from '../oriental';
+import { Collections, type LanternSource, type Services } from './services';
 import type { BuildCtx, CritterSource, FruitSource, MapOutputs } from './types';
 
 /** What a piece added to the map's shared lists: the editor takes it away when the piece is rebuilt. */
 export interface PieceTrace {
   updates: ((dt: number, frame: MapFrame) => void)[];
   lights: LightSpot[];
+  /** Its paper lanterns, in the map's list of lantern sources. */
+  lanterns?: LanternSource;
+}
+
+/** A rectangle on the ground (a pond's hole) carried by a pose: the box around its four corners. */
+export function worldRect(map: PoseMap, r: Rect): Rect {
+  const xs: number[] = [];
+  const zs: number[] = [];
+  for (const [x, z] of [[r.x0, r.z0], [r.x1, r.z0], [r.x0, r.z1], [r.x1, r.z1]]) {
+    const w = map.toWorld({ x, y: 0, z });
+    xs.push(w.x);
+    zs.push(w.z);
+  }
+  return { x0: Math.min(...xs), z0: Math.min(...zs), x1: Math.max(...xs), z1: Math.max(...zs) };
 }
 
 export interface PieceView {
@@ -107,12 +123,18 @@ export function pieceView(base: BuildCtx, root: THREE.Object3D, m: THREE.Matrix4
       s.drops.emit(W(at), v.x, v.y, v.z, floorW(at, floor));
     },
   };
+  // The holes a pond cuts in the ground go to the map's list in the world (P42): a posed rectangle becomes the
+  // box around it, the ground's cut covering the whole pond.
+  const holes = {
+    push: (...rects: Rect[]) => s.holes.push(...rects.map((r) => (map ? worldRect(map, r) : r))),
+  } as unknown as Rect[];
   const services: Services = Object.create(s, {
     lights: { get: () => lights },
     puffs: { get: () => (map ? puffs : s.puffs) },
     debris: { get: () => (map ? debris : s.debris) },
     drops: { get: () => (map ? drops : s.drops) },
     water: { get: () => s.water },
+    holes: { get: () => (map ? holes : s.holes) },
     c: { value: null, writable: true },
   });
 
@@ -131,8 +153,14 @@ export function pieceView(base: BuildCtx, root: THREE.Object3D, m: THREE.Matrix4
 
   const before = { pickups: out.pickups.length, stabbable: out.stabbable.length, fruit: out.fruit.length, potion: out.potion, fish: out.fish, dog: out.dog };
   const settle = () => {
-    // The glowing cores light the garden's night (LanternLights reads the map's list).
+    // The glowing cores light the garden's night (LanternLights reads the map's list), and so do the piece's
+    // paper lanterns, wherever its pose takes them (P42).
     for (const p of collections.cores) s.all.cores.push(W(p));
+    if (collections.hasLanterns) {
+      const source = { lanterns: collections.lanterns, pose: map?.m ?? null };
+      s.lanternSources.push(source);
+      trace.lanterns = source;
+    }
     if (!map) return;
     for (let i = before.pickups; i < out.pickups.length; i++) {
       const inner = out.pickups[i];

@@ -193,6 +193,48 @@ describe('pose das peças (P32)', () => {
     expect(group!.children.length).toBeGreaterThan(0);
   });
 
+  it('lanterna de papel girada (P42): a luz da noite sai de onde a pose leva a lanterna', async () => {
+    const LANTERN: Peca = { id: 'lanterna', tipo: 'lanternaPapel', p: [2, 3, 1], params: { queda: 0.85 } };
+    const night = (pecas: Peca[]): MapData => ({ ...mapWith(pecas), ambiente: { ceu: { cupula: { tipo: 'oriental' } }, celula: 40, killY: -20 } });
+    const spots = async (data: MapData) => {
+      const built = await buildHeadless(async (physics, scene) => {
+        const b = startBuild(data, { physics, scene, renderer: fakeRenderer, sfx: silentSfx, modo: 'jogo' });
+        for (const p of data.pecas) await b.piece(p);
+        b.finish();
+        return b;
+      });
+      return Array.from(built.map.ctx.s.lanternSpots() as Float32Array);
+    };
+    const m = poseMatrix(POSE) as THREE.Matrix4;
+    const plain = await spots(night([LANTERN]));
+    const turned = await spots(night([posed(LANTERN)]));
+    expect(plain).toHaveLength(3);
+    expect(turned).toHaveLength(3);
+    expect(close(new THREE.Vector3(...turned), new THREE.Vector3(...plain).applyMatrix4(m))).toBe(true);
+    // Not left where the unposed lantern would be.
+    expect(close(new THREE.Vector3(...turned), new THREE.Vector3(...plain), 0.5)).toBe(false);
+  });
+
+  it('lago girado (P42): o recorte no chão vai com a pose; sem pose, igual', async () => {
+    const POND: Peca = { id: 'lago', tipo: 'tanque', params: { area: { x0: 2, z0: 1, x1: 6, z1: 3 }, fundo: 0.8 } };
+    const holes = async (data: MapData) => {
+      const built = await buildHeadless(async (physics, scene) => {
+        const b = startBuild(data, { physics, scene, renderer: fakeRenderer, sfx: silentSfx, modo: 'jogo' });
+        for (const p of data.pecas) await b.piece(p);
+        b.finish();
+        return b;
+      });
+      return built.map.ctx.s.holes as { x0: number; z0: number; x1: number; z1: number }[];
+    };
+    expect(await holes(mapWith([POND]))).toEqual([{ x0: 2, z0: 1, x1: 6, z1: 3 }]);
+    // A quarter turn around the origin and 10 m east: (x, z) → (z + 10, -x).
+    const [hole] = await holes(mapWith([posed(POND, { p: [10, 0, 0], r: [0, Math.PI / 2, 0] })]));
+    expect(hole.x0).toBeCloseTo(11, 6);
+    expect(hole.x1).toBeCloseTo(13, 6);
+    expect(hole.z0).toBeCloseTo(-6, 6);
+    expect(hole.z1).toBeCloseTo(-2, 6);
+  });
+
   it('editor: peça girada no seu grupo; tirar a peça leva os colisores, a sala e o vão', async () => {
     const data = mapWith([posed(WALL), posed(ROOM), CABINET]);
     const built = await buildHeadless(async (physics, scene) => {

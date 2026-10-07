@@ -124,6 +124,15 @@ export class Collections {
   }
 }
 
+/**
+ * Paper lanterns of a piece with collections of its own (a posed piece, every piece in the editor): where they
+ * are right now, in the piece's frame, and the pose that carries them into the world (null: none).
+ */
+export interface LanternSource {
+  lanterns: Lanterns;
+  pose: THREE.Matrix4 | null;
+}
+
 /** Systems the whole map shares (particles, real lights, the garden's water). */
 export class Services {
   private _lights?: LightPool;
@@ -131,8 +140,12 @@ export class Services {
   private _debris?: Debris;
   private _drops?: WaterDrops;
   private _water?: THREE.Material;
-  /** Holes the garden's sectors cut in the ground (ponds, the lake, the stream). */
+  private spots = new Float32Array(0);
+  private readonly v = new THREE.Vector3();
+  /** Holes the garden's sectors cut in the ground (ponds, the lake, the stream), in the world (a posed piece's carried by its pose). */
   readonly holes: Rect[] = [];
+  /** The lanterns that aren't in the map-wide collection (P42: their light follows the piece's pose). */
+  readonly lanternSources: LanternSource[] = [];
   /** The map-wide collections (the editor gives each piece its own: see `c`). */
   readonly all: Collections;
   /** The collections the piece being built adds to. */
@@ -141,6 +154,26 @@ export class Services {
   constructor(private readonly host: ServiceHost) {
     this.all = new Collections(host, this);
     this.c = this.all;
+  }
+
+  /**
+   * Where every paper lantern of the map is right now, in the world (x, y, z each): the map-wide collection's,
+   * then each piece's own, carried by its pose. The night's lights and halos follow them.
+   */
+  lanternSpots(): Float32Array {
+    const all = this.all.hasLanterns ? this.all.lanterns.at : new Float32Array(0);
+    if (!this.lanternSources.length) return all;
+    const n = this.lanternSources.reduce((k, s) => k + s.lanterns.at.length, all.length);
+    if (this.spots.length !== n) this.spots = new Float32Array(n);
+    this.spots.set(all);
+    let k = all.length;
+    for (const { lanterns, pose } of this.lanternSources) {
+      const at = lanterns.at;
+      if (!pose) this.spots.set(at, k);
+      else for (let i = 0; i < at.length; i += 3) this.v.set(at[i], at[i + 1], at[i + 2]).applyMatrix4(pose).toArray(this.spots, k + i);
+      k += at.length;
+    }
+    return this.spots;
   }
 
   /** Real lights: the nearest light spots (candles, lamps, the fire) light the scene for real. */
