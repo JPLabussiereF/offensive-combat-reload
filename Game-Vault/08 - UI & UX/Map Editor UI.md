@@ -45,6 +45,8 @@ source_paths:
   - client/tests/editorThumbs.test.ts
   - client/tests/editorDrop.test.ts
   - client/tests/editorPlay.test.ts
+  - client/tests/editorDefaults.test.ts
+  - shared/mapCatalog.ts
 tags:
   - ui
   - ux
@@ -158,8 +160,9 @@ O navegador de assets do Unity (etapa 4; substitui a paleta em lista):
 
 - **Pastas** à esquerda, com a quantidade: as categorias do catálogo (Primitivas, Estrutura, Construções, Natureza, Móveis, Veículos, Objetos, Luzes, Ambiente), **Modelos GLB** (os modelos que o mapa já usa e o botão **＋ Importar .glb do computador**) e **Marcadores** (spawns, boneco, cereja, biscoito, rato, peixe e, num mapa com dados do zumbi, surgimento e brecha). A pasta aberta e o tamanho ficam no `localStorage` (`oc.editor.projeto.v1`).
 - **Grade de miniaturas** à direita, com o nome embaixo; a **busca** procura em todas as pastas (nome em pt e en, id); a **barra de tamanho** vai de 56 a 160 px. Um tipo no limite do mapa (a bruxa, o caminhão de sorvete) fica apagado e não arrasta.
-- **As miniaturas são desenhadas pelo editor**: cada tipo é montado sozinho como uma peça nova dele (o exemplo dos mapas oficiais ou os padrões do catálogo, com a semente fixa), numa cena e numa câmera próprias, fora da tela, e guardado no navegador. Na primeira vez são feitas aos poucos (a pasta na tela primeiro, depois as outras), com um marcador girando onde ainda falta; da segunda vez em diante vêm do cache. O que não desenha nada (sala, colisor, luz) mostra o ícone da pasta. Os marcadores mostram um ícone.
+- **As miniaturas são desenhadas pelo editor**: cada tipo é montado sozinho como uma peça nova dele (os padrões do catálogo, com a semente fixa), numa cena e numa câmera próprias, fora da tela, e guardado no navegador. Na primeira vez são feitas aos poucos (a pasta na tela primeiro, depois as outras), com um marcador girando onde ainda falta; da segunda vez em diante vêm do cache. O que não desenha nada (sala, colisor, luz) mostra o ícone da pasta. Os marcadores mostram um ícone.
 - **Arrastar** uma miniatura para a **Cena** mostra uma caixa fantasma do tamanho da peça onde o mouse aponta e cria a peça ali ao soltar, com X e Z na grade do passo de mover; para a **Hierarquia**, cria dentro do grupo de destino (ver acima). **Clique duplo** (ou Enter) cria na frente da câmera. Cada criação é uma edição só (um Ctrl+Z desfaz) e a peça nova fica selecionada.
+- **A peça nova nasce com os padrões do catálogo** (P53): os valores padrão do esquema de `shared/mapCatalog.ts`, os mesmos das miniaturas, num tamanho neutro de alguns metros (o cilindro tem 1 m, a parede 4 m × 3 m, o pavilhão um andar, os carrinhos de bate-bate dois carros). Antes ela copiava o primeiro exemplo do tipo nos mapas oficiais (o cilindro era uma vela de 30 cm). O Ctrl+D e o Ctrl+V continuam copiando a peça de origem.
 - Durante o Play, nada se arrasta nem se cria.
 
 ## Play dentro do editor
@@ -170,9 +173,9 @@ O navegador de assets do Unity (etapa 4; substitui a paleta em lista):
 | **❚❚ Pause** | desligado | congela o jogo e solta o mouse | continua |
 | **■ Stop** | desligado | termina e volta a editar | termina e volta a editar |
 
-- **▶** joga o **mapa como está no editor** (sem salvar) na aba **Jogo**, que vem para a frente; os outros painéis continuam à vista. O modo é o do antigo Testar (P41): o **treino**; num mapa exclusivo do zumbi, a **partida de zumbi sozinho contra a horda**. O jogo aparece com o cartão "Jogar" (o clique prende o mouse); o botão de sair do menu de pausa dele vira **Voltar ao editor (Stop)**. Um mapa com dados inválidos não joga (a barra de status avisa).
+- **▶** joga o **mapa como está no editor** (sem salvar) na aba **Jogo**, que vem para a frente; os outros painéis continuam à vista. O modo é o do antigo Testar (P41): o **treino**; num mapa exclusivo do zumbi, a **partida de zumbi sozinho contra a horda**. Montado o mapa, o jogo **já prende o mouse e liga o som**, aproveitando o clique do ▶ (P52: a ativação do clique vale por alguns segundos na página do jogo); o cartão "Jogar" só fica como reserva, quando o mapa demorou demais ou o navegador não deixa; o botão de sair do menu de pausa dele vira **Voltar ao editor (Stop)**. Um mapa com dados inválidos não joga (a barra de status avisa).
 - **Jogando**: o editor só olha. Os atalhos e a câmera da Cena ficam desligados, o documento não aceita edição (nem desfazer), a Hierarquia, o Inspetor e o Projeto ficam só leitura e a toolbar fica tingida. A Cena (se estiver à vista ao lado do Jogo) é redesenhada a cada quatro quadros, e as miniaturas que faltam esperam. Um controle (gamepad) só joga: a navegação dos botões do editor pelo controle volta na pausa e no Stop.
-- **❚❚** congela o jogo (nada simula nem desenha) sob um véu "Pausado" e solta o mouse. Aí a câmera da Cena e a seleção voltam (clique, caixa, Hierarquia, F), para olhar o mapa e ler o Inspetor, mas nada muda o mapa: dos atalhos, só F, Esc, Ctrl+C e Ctrl+A. **▶** (ou ❚❚ de novo) continua com a aba Jogo na frente e tenta prender o mouse de volta; se o navegador não deixar, o menu de pausa do jogo pede um clique.
+- **❚❚** congela o jogo (nada simula nem desenha) sob um véu "Pausado" e solta o mouse. Aí a câmera da Cena e a seleção voltam (clique, caixa, Hierarquia, F), para olhar o mapa e ler o Inspetor, mas nada muda o mapa. **A Cena e a Hierarquia mostram só o mapa editado**, não o estado do jogo (jogador, bots, zumbis, portas abertas não aparecem nelas: P51, decidido assim). Dos atalhos funcionam só F, Esc, Ctrl+C e Ctrl+A. **▶** (ou ❚❚ de novo) continua com a aba Jogo na frente e tenta prender o mouse de volta; se o navegador não deixar, o menu de pausa do jogo pede um clique.
 - **■** termina o jogo, libera tudo o que ele criou e **volta a editar no mesmo ponto**: a seleção e a câmera de antes do ▶ (mesmo que tenham mudado na pausa), o histórico intacto e a aba Cena na frente, sem recarregar a página. O **Sair** do editor durante o Play para o jogo antes.
 - O rascunho automático (P40) continua valendo; o Play não grava nada.
 
