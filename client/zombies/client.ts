@@ -683,10 +683,16 @@ export class ZombieClient {
   }
 }
 
-function crossTexture(): THREE.CanvasTexture {
+/**
+ * The downed marker: a red cross on a dark disc, on a `size` px canvas. The game's is 64 px; the sticker studio
+ * (client/dev/studio) paints it bigger for the album, the same drawing scaled up.
+ */
+export function crossTexture(size = 64): THREE.CanvasTexture {
   const c = document.createElement('canvas');
-  c.width = c.height = 64;
+  c.width = c.height = size;
   const g = c.getContext('2d')!;
+  // Drawn on the 64 px grid (identity at the game's size).
+  g.scale(size / 64, size / 64);
   g.fillStyle = 'rgba(0,0,0,0.6)';
   g.beginPath();
   g.arc(32, 32, 30, 0, Math.PI * 2);

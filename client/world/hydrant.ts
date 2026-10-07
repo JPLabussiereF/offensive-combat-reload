@@ -2,6 +2,9 @@
 // and anyone standing on it gets launched into the air.
 import * as THREE from 'three';
 import type { SpatialSfx, Vec } from '../audio/spatial';
+import type { MapBuilder } from './mapBuilder';
+import type { SurfaceInfo } from './physics';
+import { surfaceMaterial } from './surfaces';
 
 const GUSH_TIME = 3;
 const FADE_TIME = 0.8;
@@ -80,6 +83,23 @@ export class WaterDrops {
       this.mesh.setMatrixAt(i, this.m);
     }
     if (any) this.mesh.instanceMatrix.needsUpdate = true;
+  }
+}
+
+/**
+ * The hydrant itself, standing at height `base` on (x, z): flange, red body (shooting it calls `onShot`), dome,
+ * cap nut and the two side nozzles. Its top, where the Hydrant's water comes out, is at base + 0.85. The Rua dos
+ * Vizinhos builds its hydrants with it, and so does the sticker studio (client/dev/studio/rua.ts).
+ */
+export function hydrantBody(b: MapBuilder, x: number, base: number, z: number, onShot?: SurfaceInfo['onShot']) {
+  const red = 0xe23b3b;
+  b.cylinder(x, base, z, 0.2, 0.06, 'metal', { tint: 0xb02a2a, collide: false }); // flange
+  b.cylinder(x, base, z, 0.16, 0.66, 'metal', { tint: red, onShot });
+  b.addGeometry(new THREE.SphereGeometry(0.16, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(x, base + 0.66, z), surfaceMaterial('metal'), red);
+  b.cylinder(x, base + 0.78, z, 0.05, 0.08, 'metal', { tint: 0xd8dde3, collide: false }); // cap nut
+  for (const side of [-1, 1]) {
+    const nozzle = new THREE.CylinderGeometry(0.06, 0.06, 0.14, 8).rotateZ(Math.PI / 2).translate(x + side * 0.2, base + 0.45, z);
+    b.addGeometry(nozzle, surfaceMaterial('metal'), 0xd8dde3);
   }
 }
 

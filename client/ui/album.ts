@@ -1,25 +1,31 @@
 // Album tab on the home card: the account's stickers by page, each with its finish (common, shiny,
 // holographic, gold) and the way to the next target. Read from the profile (shared/achievements.ts).
-import { album, albumCount, fillHow, finishOf, isHidden, itemProgress, pageById, PAGES, sourcesFromProfile, stickerById, titleProgress, titlesOf, type Finish, type Own, type Sticker, type StickerState } from '@shared/achievements';
+// The cards and the badges show each sticker's baked picture (stickerArt.ts) or its emoji.
+import { album, albumCount, fillHow, finishOf, isHidden, itemProgress, pageById, PAGES, sourcesFromProfile, stickerById, titleProgress, titlesOf, type Own, type StickerState } from '@shared/achievements';
 import { api, fetchProfile } from '../net/api';
 import { errorText } from './auth';
-import { getLang, t, type StringKey } from './strings';
+import { amount, bar, barHtml, cardHtml, FINISH_KEY, finishName, stickerBadge, text } from './stickerArt';
+import { t } from './strings';
 
-const FINISH_KEY: Record<Finish, StringKey> = {
-  comum: 'finishComum',
-  brilhante: 'finishBrilhante',
-  holografica: 'finishHolografica',
-  dourada: 'finishDourada',
-};
-/** The CSS class of each finish (fig-t0: not stuck in). */
-const FINISH_CLASS: Record<Finish, number> = { comum: 1, brilhante: 2, holografica: 3, dourada: 4 };
+// Scoreboard, death card and profile import the badge from here.
+export { stickerBadge };
 
-const text = (x: { pt: string; en: string }) => (getLang() === 'en' ? x.en : x.pt);
-
-const finishName = (s: Sticker, tier: number) => {
-  const f = finishOf(s, tier);
-  return f ? t(FINISH_KEY[f]) : t('finishNone');
-};
+// A sticker picture that fails to load (a file missing on the server) becomes its emoji, wherever it is: the
+// album, the scoreboard, the death card, the profile. The error event doesn't bubble, so it is caught on the way
+// down (capture), once for the whole page.
+if (typeof document !== 'undefined')
+  document.addEventListener(
+    'error',
+    (e) => {
+      const img = e.target;
+      if (!(img instanceof HTMLImageElement) || !img.classList.contains('fig-img')) return;
+      const icon = document.createElement('span');
+      icon.className = 'fig-icon';
+      icon.textContent = img.dataset.icon ?? '';
+      img.replaceWith(icon);
+    },
+    true,
+  );
 
 /** The in-game line for a sticker that went up to `tier` (null: a sticker this client doesn't know). */
 export function stickerUpText(id: string, tier: number): string | null {
@@ -31,38 +37,17 @@ export function stickerUpText(id: string, tier: number): string | null {
   return t('stickerUp', { icon: s.icone, finish: t(FINISH_KEY[finish]), name: text(s.nome) });
 }
 
-/** A sticker's number as it reads (hours for time). */
-const amount = (s: Sticker, n: number) => (s.formato === 'horas' ? `${Math.floor(n / 3600)} h` : n.toLocaleString(getLang() === 'en' ? 'en' : 'pt-BR'));
-
 /** How to get the next target (or, done, the last one). */
 const howTo = (st: StickerState) => {
   const meta = st.next ?? st.sticker.metas[st.sticker.metas.length - 1];
   return fillHow(text(st.sticker.como), meta, amount(st.sticker, meta));
 };
 
-/** How full the bar is toward the next target, counted from zero (300 of 1,000: 30%), and its label. */
-function bar(st: StickerState) {
-  const s = st.sticker;
-  if (st.next === null) return { pct: 100, label: t('albumDone') };
-  return { pct: Math.min(100, Math.round((st.progress / Math.max(1, st.next)) * 100)), label: `${amount(s, st.progress)} / ${amount(s, st.next)}` };
-}
-
-/** A small sticker as others see it (scoreboard, death card, profile): its drawing with its finish; '' for none. */
-export function stickerBadge(fig: [id: string, nivel: number] | undefined | null): string {
-  const s = fig ? stickerById(fig[0]) : undefined;
-  const f = s && finishOf(s, fig![1]);
-  if (!s || !f) return '';
-  const color = pageById(s.pagina)?.cor ?? '#888';
-  return `<span class="fig-mini fig-t${FINISH_CLASS[f]}" style="--c:${color}" title="${text(s.nome)} · ${t(FINISH_KEY[f])}"><span class="fig-art"><span class="fig-icon">${s.icone}</span></span></span>`;
-}
-
 /** A title (a page id) as it reads; '' for none or one this client doesn't know. */
 export const titleText = (page: string | null | undefined) => {
   const p = page ? pageById(page) : undefined;
   return p ? text(p.titulo) : '';
 };
-
-const barHtml = (pct: number) => `<span class="xp-bar fig-bar"><span class="xp-fill" style="width:${pct}%"></span></span>`;
 
 interface Options {
   setStatus(msg: string, error?: boolean): void;
@@ -89,29 +74,7 @@ export async function showAlbum(root: HTMLElement, o: Options) {
   }
   let selected: string | null = null;
 
-  const card = (st: StickerState) => {
-    const s = st.sticker;
-    // A hidden one: no drawing, no name, no numbers until it's stuck in.
-    if (isHidden(st))
-      return `
-      <button type="button" class="fig fig-t0 fig-hidden" style="--c:#888" data-id="${s.id}" aria-pressed="${selected === s.id}" aria-label="${t('albumHidden')}">
-        <span class="fig-art"><span class="fig-icon">❓</span></span>
-        <b class="fig-name">???</b>
-        <small class="fig-count">${t('albumHidden')}</small>
-      </button>`;
-    const color = PAGES.find((p) => p.id === s.pagina)?.cor ?? '#888';
-    const f = finishOf(s, st.tier);
-    const b = bar(st);
-    const pips = s.metas.map((_, i) => `<i class="${i < st.tier ? 'on' : ''}"></i>`).join('');
-    return `
-      <button type="button" class="fig fig-t${f ? FINISH_CLASS[f] : 0}" style="--c:${color}" data-id="${s.id}" aria-pressed="${selected === s.id}" aria-label="${text(s.nome)}: ${finishName(s, st.tier)}">
-        <span class="fig-art"><span class="fig-icon">${s.icone}</span>${st.repeats > 1 ? `<span class="fig-rep">×${st.repeats}</span>` : ''}</span>
-        <b class="fig-name">${text(s.nome)}</b>
-        <span class="fig-pips">${pips}</span>
-        ${barHtml(b.pct)}
-        <small class="fig-count">${b.label}</small>
-      </button>`;
-  };
+  const card = (st: StickerState) => cardHtml(st, selected === st.sticker.id);
 
   const detail = (st: StickerState) => {
     const s = st.sticker;

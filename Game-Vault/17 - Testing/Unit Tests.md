@@ -16,6 +16,7 @@ source_paths:
   - shared/arsenal.ts
   - server/migrations/003_melhorias.sql
   - client/tests/offlineModes.test.ts
+  - client/tests/stickerArt.test.ts
   - client/gameplay/progress.ts
   - client/zombies/local.ts
   - client/zombies/link.ts
@@ -129,6 +130,14 @@ Testa `shared/progression.ts` e `shared/arsenal.ts` (puros), 33 casos:
 - **Rifles e facas antigos:** cada rifle tem a vantagem e o custo do plano em relação ao Padrão; as melhorias do rifle valem em todo rifle e não mudam a pintura; as facas trocam alcance por velocidade e todas matam com um golpe; as miras antigas são os níveis 7 a 9 do rifle, opcionais do grupo `mira`.
 - **Árvore e passivas das facas** (2026-10-07, [[ADR - Passivas das facas e Mão Leve]]): o afiador dá intervalo ×0,8 e +0,2 m de alcance em toda faca; a mão leve encurta o golpe ×0,7 sem mudar o momento do acerto, e com todas as melhorias o acerto continua dentro do golpe; cada faca tem a sua passiva, todas diferentes, com os números dos JSONs; `knifePassive` devolve a passiva no mata-mata e no campo de tiro e null na corrida armada e no zumbi; a árvore da faca é afiador (2, 600), tênis (3, 2.800) e mão leve (4, 4.500).
 - **Migração 003:** lê `server/migrations/003_melhorias.sql` e confere que todo XP de destino é um limiar que existia nos níveis **da época** da migração (fixados no teste: os níveis de hoje mudaram com a PF-8) ([[Data Migrations]]).
+
+## `client/tests/stickerArt.test.ts` → [[Achievements]], [[Asset Pipeline]]
+
+- **Manifestos** (`shared/data/figurinhas/*.json`): leem, chaves em ordem com a linha `_doc`, cada id existe no álbum e está só no manifesto do seu domínio.
+- **PNGs:** cada um existe, tem a assinatura PNG e o tamanho certo no cabeçalho (400 × 300 e 128 × 128), o hash dos bytes bate com o manifesto (`?v=`), fica abaixo de 150 KB (carta) e 30 KB (mini), e não sobra PNG sem dono.
+- **No álbum:** secreta não colada nunca manda a URL da arte; uma página só usa arte quando todas as figurinhas dela têm; o selo usa a mini.
+- **Estúdio:** o recorte (fechamento, buracos, peças) e o elenco (vizinhos simples, o sexo de cada visual, cabelo e barba no `dress`).
+- Roda sem banco: `bun --config=<bunfig sem preload> test client/tests/stickerArt.test.ts`.
 
 ## `client/tests/offlineModes.test.ts` → [[Training]], [[Versus Bots]], [[Zombie]]
 

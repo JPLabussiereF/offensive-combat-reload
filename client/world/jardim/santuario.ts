@@ -195,7 +195,7 @@ function hangingBell(c: Ctx, x: number, top: number, z: number) {
 }
 
 /** Big drum on a stand: booms when shot. */
-function bigDrum(c: Ctx, x: number, y: number, z: number) {
+export function bigDrum(c: Ctx, x: number, y: number, z: number) {
   const { b } = c;
   b.span(x - 0.9, y, z - 0.5, x + 0.9, y + 0.7, z + 0.5, 'madeira', { tint: C.lacquerDark });
   const drum = new THREE.CylinderGeometry(0.85, 0.85, 1.0, 18).rotateZ(Math.PI / 2).translate(x, y + 1.55, z);

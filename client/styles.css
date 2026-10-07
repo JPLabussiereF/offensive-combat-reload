@@ -4795,6 +4795,15 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   line-height: 1;
   filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.35));
 }
+/* The sticker's baked picture (client/ui/stickerArt.ts) in place of the emoji: the die-cut PNG fills the box.
+   Size containment keeps the 400 x 300 file out of the grid's track sizing, so the box decides. */
+.fig-art > .fig-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  contain: size;
+  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.35));
+}
 .fig-rep {
   position: absolute;
   z-index: 2;
@@ -4845,6 +4854,11 @@ html:not(.mobile) #tab-arsenal .hint-touch {
 .fig-t0 .fig-icon {
   filter: grayscale(1) brightness(0.3);
   opacity: 0.35;
+}
+/* The empty slot shows the picture's silhouette (its die-cut shape). */
+.fig-t0 .fig-img {
+  filter: brightness(0);
+  opacity: 0.3;
 }
 /* Shiny, holographic and gold: a light sweeping across the picture. */
 .fig-t2 .fig-art::after,
@@ -4915,6 +4929,9 @@ html:not(.mobile) #tab-arsenal .hint-touch {
 }
 .fig-mini .fig-icon {
   font-size: 17px;
+}
+.fig-mini .fig-img {
+  object-fit: cover;
 }
 .fig-mini.fig-t4 {
   background: none;
