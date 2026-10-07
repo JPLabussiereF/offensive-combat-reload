@@ -3,7 +3,10 @@
 // game's own loader in its editor mode, and runs its own loop: a free camera, picking with a click, the gizmo
 // (move, turn, scale on a 0.5 m and 15° grid; Shift held for free moves), undo and redo, the palette, the
 // properties panel, the markers, the ends and holes of walls, GLB models from the computer, the live budget
-// bar, testing the map (the training range, or the zumbi match on a zumbi-only map) and saving it. Every edit
+// bar, testing the map (the training range, or the zumbi match on a zumbi-only map) and saving it.
+// Revisions 01 lays it out as Unity's editor: a toolbar with Play in the middle, dockable panels (Hierarchy
+// with groups, the Scene, the Inspector with its Transform, the Project) and a status bar; the pieces not
+// selected are drawn from batches (P46). Every edit
 // keeps a draft in IndexedDB (P40), offered back when the map opens again; saving forgets it. Leaving reloads
 // the page.
 import * as THREE from 'three';
@@ -18,6 +21,11 @@ import { atmosphereOf, loadOfficialMap } from '../world/mapLoader';
 import { api, fetchMe } from '../net/api';
 import { deleteDraft, fetchMapVersion, loadDraft, saveDraft } from '../net/maps';
 import { EditorDocument, clone, newPieceId, type Rest } from './document';
+import { groupMatrix, worldPoseMatrix } from '../world/pose';
+import { duplicateTree, linkedRest, makeGroup, moveInto, moveTree, removalOf, scaleTree, subtree, topLevel } from './groups';
+import { Hierarchy } from './hierarchy';
+import { DockView } from './dock';
+import { applyEdit, fieldsOf, matrixOf, type Fields } from './transformFields';
 import { historyKey } from './history';
 import { MapView } from './view';
 import { FlyCamera, typing } from './flyCamera';
@@ -25,17 +33,17 @@ import { Selection, type Selected } from './selection';
 import { Gizmo, GRID } from './gizmo';
 import { Markers, addMarker, markerPlace, markerTurns, removeMarker, setMarkerPlace, type MarkerKind } from './markers';
 import { LinearHandles, hasHandles, moveHandle } from './linearHandles';
-import { Inspector } from './inspector';
+import { Inspector, type TransformBinding } from './inspector';
 import { Palette } from './palette';
 import { BudgetBar } from './budgetBar';
-import { applyHandle, handleBase, handleDelta, handleWorld, hasLinked, moveLinked, scalable } from './transform';
-import { duplicatePiece, newPiece, removalRest, templatesFrom } from './create';
+import { applyHandle, handleBase, handleDelta, handleLocal, handleWorld, hasLinked, moveLinked, scalable } from './transform';
+import { newPiece, removalRest, templatesFrom } from './create';
 import { fileEntry, pickGlb, uploadGlb } from './glbImport';
 import { showSaveDialog, type MapTarget } from './save';
 import { draftKey, handOff, type EditorMap } from './launch';
 import { draftIsNewer, recoveredBase, type Draft } from './recovery';
 import { injectEditorStyle } from './style';
-import { et } from './strings';
+import { et, type EditorKey } from './strings';
 import type { MapaResumo, TipoMapa } from '@shared/mapData';
 
 export interface EditorOptions {
@@ -140,37 +148,106 @@ function choose(host: HTMLElement, title: string, text: string, yes: string, no:
 const snap = (v: number) => Math.round(v / GRID) * GRID;
 const r4 = (v: number) => Math.round(v * 1e4) / 1e4;
 
+/** The toolbar's buttons and their texts (the full text is the tooltip; the button shows it without the key). */
+const LABEL: Record<string, EditorKey> = {
+  undo: 'undo',
+  redo: 'redo',
+  translate: 'move',
+  rotate: 'rotate',
+  scale: 'scale',
+  play: 'play',
+  pause: 'pause',
+  stop: 'stop',
+  focus: 'focus',
+  duplicate: 'duplicate',
+  remove: 'remove',
+  layout: 'layout',
+  layoutReset: 'layoutReset',
+  save: 'save',
+  exit: 'exit',
+};
+
 export async function runEditor(o: EditorOptions): Promise<void> {
   const { ctx, physics } = o;
   injectEditorStyle();
+  // Unity's window (Revisions 01): the toolbar on top (Play in the middle), the dockable panels, the status bar.
+  // The empty slots hold what comes next: Pivot/Center and Local/Global, and the grid button.
   const root = document.createElement('div');
   root.id = 'editor';
   root.innerHTML = `
-    <div class="ed-panel ed-top">
+    <div class="ed-toolbar">
       <span class="ed-title"></span>
-      <button data-a="undo"></button><button data-a="redo"></button>
-      <button data-a="translate"></button><button data-a="rotate"></button><button data-a="scale"></button>
-      <button data-a="focus"></button><button data-a="duplicate"></button><button data-a="remove"></button>
+      <div class="ed-tgroup"><button data-a="undo"></button><button data-a="redo"></button></div>
+      <div class="ed-tgroup"><button data-a="translate"></button><button data-a="rotate"></button><button data-a="scale"></button></div>
+      <div class="ed-tgroup ed-slot" data-slot="pivo"></div>
+      <div class="ed-tgroup ed-slot" data-slot="grade"></div>
       <span class="ed-spacer"></span>
-      <button data-a="test"></button><button data-a="save" class="ed-primary"></button><button data-a="exit"></button>
+      <div class="ed-tgroup ed-play"><button data-a="play"></button><button data-a="pause"></button><button data-a="stop"></button></div>
+      <span class="ed-spacer"></span>
+      <div class="ed-tgroup"><button data-a="focus"></button><button data-a="duplicate"></button><button data-a="remove"></button></div>
+      <div class="ed-tgroup ed-layoutmenu"><button data-a="layout"></button><div class="ed-menu" hidden><button data-a="layoutReset"></button></div></div>
+      <button data-a="save" class="ed-primary"></button><button data-a="exit"></button>
     </div>
-    <div class="ed-panel ed-left"></div>
-    <div class="ed-panel ed-right"></div>
-    <div class="ed-panel ed-bottom"><div class="ed-budget"></div><span class="ed-status"></span><span class="ed-hint"></span></div>
+    <div class="ed-dock"></div>
+    <div class="ed-statusbar"><div class="ed-budget"></div><span class="ed-status"></span><span class="ed-hint"></span></div>
     <div class="ed-loading"></div>`;
   document.body.append(root);
   const $ = <T extends HTMLElement>(sel: string) => root.querySelector(sel) as T;
   const button = (a: string) => $<HTMLButtonElement>(`button[data-a="${a}"]`);
-  const LABEL: Record<string, Parameters<typeof et>[0]> = { undo: 'undo', redo: 'redo', translate: 'move', rotate: 'rotate', scale: 'scale', focus: 'focus', duplicate: 'duplicate', remove: 'remove', test: 'test', save: 'save', exit: 'exit' };
   for (const [a, k] of Object.entries(LABEL)) {
     const b = button(a);
     const text = et(k);
     b.textContent = text.replace(/ \(.*\)$/, '');
     b.title = text;
   }
+  for (const a of ['play', 'pause', 'stop']) button(a).classList.add('ed-icon');
+  button('play').textContent = '▶';
+  button('pause').textContent = '❚❚';
+  button('stop').textContent = '■';
+  // Pause and Stop wait for Play inside the editor; Play opens the test as Testar did.
+  button('pause').disabled = button('stop').disabled = true;
   $('.ed-hint').textContent = et('hint');
   const loading = $<HTMLElement>('.ed-loading');
   loading.textContent = et('loading');
+
+  // The panels, docked as the layout kept in the browser says (or Unity's).
+  const panel = (cls: string) => {
+    const el = document.createElement('div');
+    el.className = `ed-panel-body ${cls}`;
+    return el;
+  };
+  const hierEl = panel('ed-hierarchy');
+  const sceneEl = panel('ed-scene');
+  const inspEl = panel('ed-inspector');
+  const projEl = panel('ed-project');
+  const dock = new DockView($('.ed-dock'), {
+    hierarchy: { title: et('panelHierarchy'), el: hierEl },
+    scene: { title: et('panelScene'), el: sceneEl },
+    inspector: { title: et('panelInspector'), el: inspEl },
+    project: { title: et('panelProject'), el: projEl },
+  });
+  const canvas = ctx.renderer.domElement;
+  canvas.style.display = 'block';
+  sceneEl.append(canvas);
+  const camera = ctx.camera;
+  /** The 3D view fills the Scene panel, wherever it's docked and however big. */
+  const size = new THREE.Vector2();
+  const fit = () => {
+    const w = sceneEl.clientWidth;
+    const h = sceneEl.clientHeight;
+    if (!w || !h) return;
+    ctx.renderer.getSize(size);
+    if (size.x === w && size.y === h) return;
+    ctx.renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  };
+  dock.onLayout = fit;
+  fit();
+  const layoutMenu = $<HTMLElement>('.ed-layoutmenu .ed-menu');
+  document.addEventListener('pointerdown', (e) => {
+    if (!layoutMenu.contains(e.target as Node) && e.target !== button('layout')) layoutMenu.hidden = true;
+  });
 
   let statusTimer: ReturnType<typeof setTimeout> | null = null;
   const status = (text: string, bad = false) => {
@@ -200,6 +277,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   const target = opened.target;
   let restored = opened.restored;
   const doc = new EditorDocument(opened.data);
+  const find = (id: string) => doc.piece(id);
   /** The draft's key now (a new map's changes to its id once saved). */
   const keyNow = () => draftKey(target.id ? { id: target.id, versao: target.versao ?? 0 } : null);
   const papeis: Papel[] = (await fetchMe()).me?.papeis ?? [];
@@ -221,8 +299,6 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   await view.init();
   loading.remove();
 
-  const camera = ctx.camera;
-  const canvas = ctx.renderer.domElement;
   const fly = new FlyCamera(camera, canvas);
   {
     const box = view.bounds();
@@ -237,37 +313,148 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   markers.draw(doc.data);
   const handles = new LinearHandles(ctx.scene);
   const gizmo = new Gizmo(camera, canvas, ctx.scene);
-  const selection = new Selection(
-    ctx.scene,
-    camera,
-    canvas,
-    () => [handles.group, markers.group, view.root],
-    () => gizmo.hot(),
-    (s) => (s.kind === 'marcador' ? markers.get(s.key) : view.group(s.kind === 'peca' ? s.id : s.id)),
-  );
+
+  /** What a piece builds, with everything inside it when it's a group. */
+  const pieceBounds = (id: string) => {
+    const box = new THREE.Box3();
+    for (const x of subtree(doc.data, [id])) {
+      const g = view.group(x);
+      if (g) box.union(new THREE.Box3().setFromObject(g));
+    }
+    return box;
+  };
+  const boundsOf = (s: Selected): THREE.Box3 | null => {
+    if (s.kind === 'peca') return pieceBounds(s.id);
+    if (s.kind === 'marcador') {
+      const m = markers.get(s.key);
+      return m ? new THREE.Box3().setFromObject(m) : null;
+    }
+    const mesh = handles.group.children.find((c) => c.userData.ponta === s.key);
+    return mesh ? new THREE.Box3().setFromObject(mesh) : null;
+  };
+  const selection = new Selection(ctx.scene, camera, canvas, () => [handles.group, markers.group, view.root], () => gizmo.hot(), boundsOf);
   // Clicking the 3D view takes the keyboard back from the panels.
   canvas.addEventListener('pointerdown', () => (document.activeElement as HTMLElement | null)?.blur?.());
 
-  const inspector = new Inspector($('.ed-right'), {
+  /** The pieces selected (that still exist), the active one last. */
+  const selectedPieces = (): Peca[] => selection.pieceIds.map(find).filter((p): p is Peca => !!p);
+  const pivotOf = (p: Peca) => view.pivot(p);
+
+  const inspector = new Inspector(inspEl, {
     editPiece: (next, rest) => commitPiece(next, rest),
+    editPieces: (next) => doc.setPieces(doc.data.pecas.map((p) => next.find((n) => n.id === p.id) ?? p), linkedRestFor(next)),
     editRest: (f) => doc.editRest(f),
     markerRemoved: () => selection.set(null),
+    rename: (id, nome) => rename(id, nome),
+    clearPose: (ids) => {
+      const next = doc.data.pecas.map((p) => {
+        if (!ids.includes(p.id) || !p.pose) return p;
+        const n = clone(p);
+        delete n.pose;
+        return n;
+      });
+      doc.setPieces(next, linkedRest(doc.data, next));
+    },
   });
   const budget = new BudgetBar($('.ed-budget'), () => doc.data, ctx.renderer);
 
-  // --- Selection and the gizmo -------------------------------------------------------------------------------
-  /** Where the gizmo's handle sat on the selected piece before its pose (fixed for one drag). */
+  /** The rest of the map after `next` pieces replace theirs: the server's places tied to them follow. */
+  const linkedRestFor = (next: Peca[]) => linkedRest(doc.data, doc.data.pecas.map((p) => next.find((n) => n.id === p.id) ?? p));
+
+  const rename = (id: string, nome: string | null) => {
+    const p = find(id);
+    if (!p) return;
+    const n = clone(p);
+    if (nome) n.nome = nome.slice(0, 60);
+    else delete n.nome;
+    doc.editPiece(n);
+  };
+
+  // --- Selection, the gizmo and the Transform ---------------------------------------------------------------
+  /** Where the gizmo's handle sat on the active piece before its pose (fixed for one drag). */
   let base = new THREE.Matrix4();
-  const selectedPiece = (): Peca | undefined => {
-    const s = selection.current;
-    return s && s.kind !== 'marcador' ? doc.piece(s.id) : undefined;
+  /** The rotation last typed for each piece (200° stays 200°, as in Unity). */
+  const hints = new Map<string, Fields>();
+
+  /** The pieces drawn by their own meshes (P46): the selection and everything inside the selected groups. */
+  const drawnApart = () => subtree(doc.data, selection.pieceIds);
+
+  /** While dragging: every selected piece (and what's in its groups) shown moved by its delta. */
+  let previewing: string[] = [];
+  const previewDeltas = (deltas: Map<string, THREE.Matrix4>) => {
+    previewing = [];
+    for (const [top, delta] of deltas)
+      for (const id of subtree(doc.data, [top])) {
+        const g = view.group(id);
+        if (!g) continue;
+        g.matrixAutoUpdate = false;
+        g.matrix.copy(delta);
+        g.matrixWorldNeedsUpdate = true;
+        previewing.push(id);
+      }
+    selection.refresh();
+  };
+  const clearPreview = () => {
+    for (const id of previewing) {
+      const g = view.group(id);
+      if (!g) continue;
+      g.matrix.identity();
+      g.matrixWorldNeedsUpdate = true;
+    }
+    previewing = [];
+    selection.refresh();
+  };
+
+  /** The Transform component's binding for the selected pieces (the ones not inside another selected group). */
+  const transformBinding = (pieces: Peca[]): TransformBinding => {
+    const top = new Set(topLevel(doc.data, pieces.map((p) => p.id)));
+    const items = pieces
+      .filter((p) => top.has(p.id))
+      .map((p) => {
+        const b = handleBase(p, pivotOf(p));
+        const parent = groupMatrix(p, find);
+        const fields = fieldsOf(handleLocal(p, b), hints.get(p.id));
+        return { p, base: b, parent, fields };
+      });
+    const worldOf = (it: (typeof items)[number], f: Fields) => {
+      const m = matrixOf(f);
+      return it.parent ? it.parent.clone().multiply(m) : m;
+    };
+    return {
+      fields: items.map((i) => i.fields),
+      scales: items.map((i) => scalable(i.p)),
+      preview: (e) => previewDeltas(new Map(items.map((it) => [it.p.id, worldOf(it, applyEdit(it.fields, e)).multiply(worldOf(it, it.fields).invert())]))),
+      cancel: () => clearPreview(),
+      commit: (e) => {
+        clearPreview();
+        let next = doc.data.pecas;
+        for (const it of items) {
+          const f = applyEdit(it.fields, e);
+          if (e.c === 's') {
+            // The scale: a scalable piece grows, a group scales its children (its own frame keeps no scale).
+            if (!scalable(it.p) || !it.fields.s) continue;
+            const pivot = new THREE.Vector3().setFromMatrixPosition(worldOf(it, it.fields));
+            next = scaleTree({ ...doc.data, pecas: next }, [it.p.id], pivot, f.s / it.fields.s, pivotOf);
+            continue;
+          }
+          if (e.c === 'r') hints.set(it.p.id, f);
+          const cur = next.find((p) => p.id === it.p.id)!;
+          const moved = applyHandle(cur, it.base, worldOf(it, f), it.parent);
+          next = next.map((p) => (p.id === moved.id ? moved : p));
+        }
+        doc.setPieces(next, linkedRest(doc.data, next));
+      },
+    };
   };
 
   const attach = () => {
     const s = selection.current;
-    // P46: the selected piece is drawn by its own meshes, the rest from the batches.
-    view.setOut(s && s.kind !== 'marcador' ? [s.id] : []);
+    const pieces = selectedPieces();
+    hierarchy.setSelection(pieces.map((p) => p.id), s?.kind === 'marcador' ? s.key : null);
+    view.setOut(drawnApart());
     if (gizmo.dragging) return;
+    // Pieces gone (an undo, a delete) leave the selection.
+    if (pieces.length !== selection.pieceIds.length) return selection.setMany(pieces.map((p) => ({ kind: 'peca', id: p.id })));
     if (!s) {
       handles.show(null);
       gizmo.attach(null);
@@ -283,29 +470,28 @@ export async function runEditor(o: EditorOptions): Promise<void> {
       inspector.showMarker(s.key, doc.data);
       return;
     }
-    const peca = doc.piece(s.id);
+    const peca = find(s.id);
     if (!peca) return selection.set(null);
-    handles.show(hasHandles(peca) ? peca : null);
+    const parent = groupMatrix(peca, find);
+    handles.show(pieces.length === 1 && hasHandles(peca) ? peca : null, worldPoseMatrix(peca, find));
     if (s.kind === 'ponta') {
       const h = handles.world(s.key);
       if (!h) return selection.set({ kind: 'peca', id: s.id });
       gizmo.attach({ world: h.world, rotate: false, scale: false, axis: h.axis ?? undefined });
     } else {
-      base = handleBase(peca, view.pivot(peca));
-      gizmo.attach({ world: handleWorld(peca, base), rotate: true, scale: scalable(peca) });
+      base = handleBase(peca, pivotOf(peca));
+      gizmo.attach({ world: handleWorld(peca, base, parent), rotate: true, scale: pieces.some(scalable) });
     }
-    inspector.showPiece(peca, doc.data);
+    inspector.showPieces(pieces.length ? pieces : [peca], doc.data, transformBinding(pieces.length ? pieces : [peca]));
   };
   selection.onChange = () => attach();
 
-  const preview = (s: Selected, world: THREE.Matrix4, start: THREE.Matrix4) => {
+  gizmo.onDrag = (world, start) => {
+    const s = selection.current;
+    if (!s) return;
     if (s.kind === 'peca') {
-      const g = view.group(s.id);
-      if (!g) return;
-      g.matrixAutoUpdate = false;
-      g.matrix.copy(world.clone().multiply(start.clone().invert()));
-      g.matrixWorldNeedsUpdate = true;
-      selection.refresh();
+      const delta = world.clone().multiply(start.clone().invert());
+      previewDeltas(new Map(topLevel(doc.data, selection.pieceIds).map((id) => [id, delta])));
     } else if (s.kind === 'marcador') {
       const m = markers.get(s.key);
       if (m) world.decompose(m.position, m.quaternion, new THREE.Vector3());
@@ -315,24 +501,22 @@ export async function runEditor(o: EditorOptions): Promise<void> {
       mesh?.position.set(...local);
     }
   };
-  gizmo.onDrag = (world, start) => selection.current && preview(selection.current, world, start);
   gizmo.onEnd = (start, world) => {
     const s = selection.current;
     if (!s) return;
-    if (s.kind === 'peca') {
-      const g = view.group(s.id);
-      if (g) {
-        g.matrix.identity();
-        g.matrixWorldNeedsUpdate = true;
-      }
-    }
+    if (s.kind === 'peca') clearPreview();
     if (start.equals(world)) return attach();
     if (s.kind === 'peca') {
-      const peca = doc.piece(s.id);
-      if (!peca) return;
-      const next = applyHandle(peca, base, world);
-      const delta = handleDelta(start, world);
-      doc.editPiece(next, hasLinked(peca, doc.data) ? (r) => moveLinked(r, peca, delta) : undefined);
+      const ids = selection.pieceIds;
+      let next: Peca[];
+      if (gizmo.controls.mode === 'scale') {
+        // Scaled about the active piece's handle: the selection spreads from it and what scales grows.
+        const a = new THREE.Vector3().setFromMatrixScale(start);
+        const b = new THREE.Vector3().setFromMatrixScale(world);
+        const ratio = (b.x + b.y + b.z) / (a.x + a.y + a.z);
+        next = scaleTree(doc.data, ids, new THREE.Vector3().setFromMatrixPosition(start), ratio, pivotOf);
+      } else next = moveTree(doc.data, ids, handleDelta(start, world));
+      doc.setPieces(next, linkedRest(doc.data, next));
     } else if (s.kind === 'marcador') {
       const t = new THREE.Vector3();
       const q = new THREE.Quaternion();
@@ -340,18 +524,19 @@ export async function runEditor(o: EditorOptions): Promise<void> {
       const yaw = markerTurns(s.key) ? new THREE.Euler().setFromQuaternion(q, 'YXZ').y : undefined;
       doc.editRest((r) => setMarkerPlace(r, s.key, { p: [t.x, t.y, t.z], yaw }));
     } else {
-      const peca = doc.piece(s.id);
+      const peca = find(s.id);
       if (peca) doc.editPiece(moveHandle(peca, s.key, handles.toLocal(world)));
     }
   };
 
   /** A piece edited in the panel: the server's places tied to it follow when it moves. */
   const commitPiece = (next: Peca, rest?: (r: Rest) => void) => {
-    const peca = doc.piece(next.id);
+    const peca = find(next.id);
     if (peca && !rest && hasLinked(peca, doc.data)) {
-      const pivot = view.pivot(peca);
-      const from = handleWorld(peca, handleBase(peca, pivot));
-      const to = handleWorld(next, handleBase(next, pivot));
+      const pivot = pivotOf(peca);
+      const parent = groupMatrix(peca, find);
+      const from = handleWorld(peca, handleBase(peca, pivot), parent);
+      const to = handleWorld(next, handleBase(next, pivot), parent);
       const delta = handleDelta(from, to);
       rest = (r) => moveLinked(r, peca, delta);
     }
@@ -361,6 +546,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   // --- Edits reach the scene ---------------------------------------------------------------------------------
   let ambiente = JSON.stringify(doc.data.ambiente);
   let palette: Palette;
+  let hierarchy: Hierarchy;
   view.onRebuilt = () => {
     selection.refresh();
     attach();
@@ -386,15 +572,14 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     keepDraft();
     budget.schedule();
     const amb = JSON.stringify(doc.data.ambiente);
+    hierarchy.render();
     if (amb !== ambiente) {
       // The sky and the shared systems are the map's: it's built again whole.
       ambiente = amb;
       void reloadView();
-    } else if (c.ids.size) void view.rebuild(c.ids);
-    if (c.resto) {
-      markers.draw(doc.data);
-      if (!c.ids.size) attach();
-    }
+    } else if (c.ids.size) void view.rebuild(subtree(doc.data, c.ids)); // A group's children move with it.
+    if (c.resto) markers.draw(doc.data);
+    if (!c.ids.size) attach();
     palette.render();
     button('undo').disabled = !doc.history.canUndo;
     button('redo').disabled = !doc.history.canRedo;
@@ -416,11 +601,11 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     attach();
   };
 
-  // --- Adding, duplicating and deleting ----------------------------------------------------------------------
+  // --- Adding, duplicating, grouping and deleting ------------------------------------------------------------
   let templates: Map<string, Peca> | null = null;
   const templatesReady = Promise.all(OFFICIAL_MAPS.map((id) => loadOfficialMap(id))).then((maps) => (templates = templatesFrom(maps)));
 
-  /** Where new things land: what's under the middle of the screen, on the grid. */
+  /** Where new things land: what's under the middle of the 3D view, on the grid. */
   const dropPoint = (): Vec3 => {
     const r = canvas.getBoundingClientRect();
     const p = selection.dropPoint(r.left + r.width / 2, r.top + r.height / 2, view.root);
@@ -476,16 +661,65 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     selection.set({ kind: 'peca', id: peca.id });
   };
 
-  palette = new Palette($('.ed-left'), { piece: (t) => void addPiece(t), marker: addMarkerAt, importGlb: () => void importGlb(), glbPiece: (f) => void glbPiece(f) }, () => doc.data);
+  // The Project panel: the palette as a list until its thumbnails come.
+  palette = new Palette(projEl, { piece: (t) => void addPiece(t), marker: addMarkerAt, importGlb: () => void importGlb(), glbPiece: (f) => void glbPiece(f) }, () => doc.data);
+
+  const selectPieces = (ids: string[], active: string | null = ids[ids.length - 1] ?? null) =>
+    selection.setMany(
+      ids.map((id) => ({ kind: 'peca', id })),
+      active ? { kind: 'peca', id: active } : null,
+    );
+
+  /** A new group: empty at the middle of the view, or around the selection (at its middle). */
+  const group = async (around: boolean) => {
+    const ids = around ? selection.pieceIds : [];
+    let at = dropPoint();
+    if (ids.length) {
+      const box = new THREE.Box3();
+      for (const id of ids) box.union(pieceBounds(id));
+      if (!box.isEmpty()) {
+        const c = box.getCenter(new THREE.Vector3());
+        at = [snap(c.x), r4(box.min.y), snap(c.z)];
+      }
+    }
+    const made = makeGroup(doc.data, ids, at);
+    hierarchy.expand(made.id);
+    doc.setPieces(made.pecas);
+    await view.idle();
+    selection.set({ kind: 'peca', id: made.id });
+    hierarchy.rename(made.id);
+  };
+
+  hierarchy = new Hierarchy(
+    hierEl,
+    {
+      select: (ids, active) => selectPieces(ids, active),
+      marker: (key) => selection.set({ kind: 'marcador', key }),
+      rename: (id, nome) => rename(id, nome),
+      move: (ids, pai, slot) => {
+        const next = moveInto(doc.data, ids, pai, slot);
+        if (!next) return status(et('cantMove'), true);
+        doc.setPieces(next, linkedRest(doc.data, next));
+      },
+      newGroup: () => void group(false),
+      groupSelection: () => void group(true),
+    },
+    () => doc.data,
+  );
+  hierarchy.render();
 
   const duplicate = async () => {
-    const peca = selectedPiece();
-    if (!peca) return;
-    const made = duplicatePiece(doc.data, peca);
-    if (!made) return status(et('limitReached', { nome: MAP_CATALOG[peca.tipo]?.nome.pt ?? peca.tipo }), true);
-    doc.addPieces([made.peca], made.rest, doc.indexOf(peca.id) + 1);
+    const ids = selection.pieceIds;
+    if (!ids.length) return;
+    const made = duplicateTree(doc.data, ids);
+    if (made.skipped.length) {
+      const p = find(made.skipped[0]);
+      status(et('limitReached', { nome: p ? (MAP_CATALOG[p.tipo]?.nome.pt ?? p.tipo) : made.skipped[0] }), true);
+    }
+    if (!made.copies.length) return;
+    doc.setPieces(made.pecas, made.rest);
     await view.idle();
-    selection.set({ kind: 'peca', id: made.peca.id });
+    selectPieces(made.copies);
   };
 
   const remove = () => {
@@ -495,15 +729,23 @@ export async function runEditor(o: EditorOptions): Promise<void> {
       const probe = clone(doc.data);
       if (!removeMarker(probe, s.key)) return;
       doc.editRest((r) => removeMarker(r, s.key));
-    } else doc.removePieces([s.id], removalRest(doc.data, [s.id]));
+    } else {
+      // A group goes with everything inside it.
+      const ids = removalOf(doc.data, selection.pieceIds);
+      doc.removePieces(ids, removalRest(doc.data, ids));
+    }
     selection.set(null);
   };
 
   const focus = () => {
     const s = selection.current;
     if (!s) return fly.frame(view.bounds());
-    const o = s.kind === 'marcador' ? markers.get(s.key) : view.group(s.id);
-    if (o) fly.frame(new THREE.Box3().setFromObject(o));
+    const box = new THREE.Box3();
+    for (const x of selection.items) {
+      const b = boundsOf(x);
+      if (b) box.union(b);
+    }
+    if (!box.isEmpty()) fly.frame(box);
   };
 
   // --- Test and save ------------------------------------------------------------------------------------------
@@ -573,7 +815,15 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     focus,
     duplicate: () => void duplicate(),
     remove,
-    test: () => void test(),
+    // Until Play runs inside the editor, it's the test of the map (Testar).
+    play: () => void test(),
+    pause: () => {},
+    stop: () => {},
+    layout: () => (layoutMenu.hidden = !layoutMenu.hidden),
+    layoutReset: () => {
+      layoutMenu.hidden = true;
+      dock.restore();
+    },
     save: () => void save(),
     exit: () => {
       if ((doc.dirty || restored) && !confirm(et('exitConfirm'))) return;
@@ -598,13 +848,25 @@ export async function runEditor(o: EditorOptions): Promise<void> {
       actions.duplicate();
       return;
     }
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyG') {
+      e.preventDefault();
+      void group(true);
+      return;
+    }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.code === 'Digit1') setMode('translate');
     else if (e.code === 'Digit2') setMode('rotate');
     else if (e.code === 'Digit3') setMode('scale');
     else if (e.code === 'Delete' || e.code === 'Backspace') remove();
     else if (e.code === 'KeyF') focus();
-    else if (e.code === 'Escape') selection.set(null);
+    else if (e.code === 'F2') {
+      const id = selection.pieceIds.pop();
+      if (id) {
+        e.preventDefault();
+        dock.show('hierarchy');
+        hierarchy.rename(id);
+      }
+    } else if (e.code === 'Escape') selection.set(null);
   });
   // Closing the tab with unsaved edits asks first (leaving by the Exit button already asked; testing keeps the draft).
   window.addEventListener('beforeunload', (e) => {
@@ -620,7 +882,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   if (import.meta.env.DEV) {
     Object.assign(window, {
       __ocEditor: {
-        THREE, doc, selection, gizmo, markers, handles, budget, target, actions, addPiece, addMarkerAt, importGlb,
+        THREE, doc, selection, gizmo, markers, handles, budget, target, actions, addPiece, addMarkerAt, importGlb, dock, hierarchy, inspector, renderer: ctx.renderer,
         get view() {
           return view;
         },
@@ -636,6 +898,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   const frame = (now: number) => {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
+    fit();
     fly.update(dt);
     view.update(dt, camera.position);
     // The shadow map is refreshed on demand: without this it was never drawn (PF-6 Revisions 01).

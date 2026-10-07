@@ -1,7 +1,9 @@
-// The editor's properties panel: a form made from the catalog's schema (shared/mapCatalog.ts) for the selected
-// piece (its place, its pose, its seed and gag id, then every parameter by its type: numbers, switches, texts,
-// colors, surfaces, options, vectors, lists, nested objects and free JSON), for the selected marker, or the
-// map's own settings when nothing is selected. Every change is one undoable edit, made when the field is left.
+// The editor's properties panel, Unity's Inspector (Revisions 01): for the selected pieces their name, the
+// Transform component (position, rotation in degrees and scale, labels draggable) and a form made from the
+// catalog's schema (shared/mapCatalog.ts: its seed and gag id, then every parameter by its type: numbers,
+// switches, texts, colors, surfaces, options, vectors, lists, nested objects and free JSON); for the selected
+// marker its place; the map's own settings when nothing is selected. Every change is one undoable edit, made
+// when the field is left (or the label let go).
 import type { MapData, Peca, Vec3 } from '@shared/mapData';
 import { MAP_CATALOG, SUPERFICIES, type Param } from '@shared/mapCatalog';
 import { BOSS_IDS } from '@shared/zombies';
@@ -10,8 +12,79 @@ import { defaultValue } from './create';
 import { markerPlace, markerTurns, removeMarker, setMarkerPlace, zombieTemplate } from './markers';
 import { addOpening, hasHandles } from './linearHandles';
 import { et, nameOf } from './strings';
+import { common, dragStep, type Axis, type Component, type FieldEdit, type Fields } from './transformFields';
 
 const DEG = 180 / Math.PI;
+
+/**
+ * What the Transform component edits: the selected pieces' places in their groups' frames (one Fields each) and
+ * what an edit does (the editor previews a label being dragged and commits it when let go, or when typed).
+ */
+export interface TransformBinding {
+  fields: Fields[];
+  /** Whether each one scales (a group scales its children; other kinds keep their size). */
+  scales: boolean[];
+  preview(e: FieldEdit): void;
+  commit(e: FieldEdit): void;
+  /** A drag let go where it started. */
+  cancel(): void;
+}
+
+/** Unity's Transform: position, rotation (degrees) and scale, each label draggable to change its value. */
+function transformComponent(t: TransformBinding, posed: boolean, clearPose: () => void): HTMLElement {
+  const box = h('fieldset', { class: 'ed-obj ed-comp ed-transform' }, h('legend', {}, et('transform')));
+  const shown = common(t.fields);
+  const anyScales = t.scales.some(Boolean);
+  const line = (c: Component, label: string, values: (number | null)[], enabled = true) => {
+    const r = h('div', { class: 'ed-row ed-trow' }, h('span', {}, label));
+    const vec = h('span', { class: 'ed-vec' });
+    values.forEach((v, axis) => {
+      const lab = h('span', { class: 'ed-axis', title: et('dragHint') }, c === 's' ? '↔' : 'XYZ'[axis]);
+      const input = h('input', { type: 'number', step: 'any' });
+      input.disabled = !enabled;
+      if (v === null) input.placeholder = '—';
+      else input.value = String(v);
+      input.onchange = () => {
+        const n = Number(input.value);
+        if (input.value.trim() !== '' && Number.isFinite(n)) t.commit({ c, axis: axis as Axis, value: n });
+      };
+      // Dragging the axis letter changes the value (Shift: faster), as Unity's labels do.
+      lab.onpointerdown = (e) => {
+        if (e.button !== 0 || !enabled) return;
+        e.preventDefault();
+        lab.setPointerCapture(e.pointerId);
+        const x0 = e.clientX;
+        let delta = 0;
+        const start = v ?? 0;
+        const move = (ev: PointerEvent) => {
+          delta = (ev.clientX - x0) * dragStep(c, ev.shiftKey);
+          if (v !== null) input.value = String(Math.round((start + delta) * 1e4) / 1e4);
+          t.preview({ c, axis: axis as Axis, delta });
+        };
+        const up = () => {
+          lab.removeEventListener('pointermove', move);
+          lab.removeEventListener('pointerup', up);
+          lab.removeEventListener('pointercancel', up);
+          if (delta) t.commit({ c, axis: axis as Axis, delta });
+          else t.cancel();
+        };
+        lab.addEventListener('pointermove', move);
+        lab.addEventListener('pointerup', up);
+        lab.addEventListener('pointercancel', up);
+      };
+      vec.append(h('label', { class: 'ed-axisfield' }, lab, input));
+    });
+    r.append(vec);
+    return r;
+  };
+  box.append(line('p', et('position'), shown.p), line('r', et('rotation'), shown.r), line('s', et('scaleField'), [shown.s], anyScales));
+  if (posed) {
+    const clear = h('button', { type: 'button', class: 'ed-mini' }, et('poseClear'));
+    clear.onclick = clearPose;
+    box.append(clear);
+  }
+  return box;
+}
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const r4 = (v: number) => Math.round(v * 1e4) / 1e4;
 
@@ -168,6 +241,12 @@ function paramEditor(p: Param, value: unknown, set: (v: unknown) => void, name: 
 
 export interface InspectorActions {
   editPiece(next: Peca, rest?: (r: Rest) => void): void;
+  /** Several pieces edited at once (a multiple selection). */
+  editPieces(next: Peca[]): void;
+  /** A piece's name (null: back to its id). */
+  rename(id: string, nome: string | null): void;
+  /** The pieces' poses taken away (Unity's Reset). */
+  clearPose(ids: string[]): void;
   editRest(f: (r: Rest) => void): void;
   /** A marker was taken away (the selection goes with it). */
   markerRemoved(): void;
@@ -184,57 +263,82 @@ export class Inspector {
     this.el.append(h('h3', {}, title));
   }
 
-  showPiece(peca: Peca, data: MapData) {
+  /**
+   * The selected pieces (one or more), as Unity's Inspector: the name, the Transform component (position,
+   * rotation in degrees and scale, in the group's frame; with several, the values they share and a dash where
+   * they differ, an edit going to all of them), then the piece's own settings and parameters (with several of
+   * the same kind, the values of the first, an edit going to all of them).
+   */
+  showPieces(list: Peca[], data: MapData, transform: TransformBinding) {
+    const many = list.length > 1;
+    const peca = list[list.length - 1];
     const k = MAP_CATALOG[peca.tipo];
-    this.reset(`${et('piece')}: ${peca.id}`);
-    this.el.append(h('div', { class: 'ed-kind' }, `${et('kind')}: ${k ? nameOf(k.nome) : peca.tipo}`));
-    const edit = (f: (p: Peca) => void) => {
-      const next = clone(peca);
-      f(next);
-      this.act.editPiece(next);
-    };
-    if (k?.usa?.p) this.el.append(row(et('position'), vecInput(peca.p ?? [0, 0, 0], (v) => edit((p) => (p.p = v.map(r4) as Vec3)))));
-    if (k?.usa?.yaw) this.el.append(row(et('yaw'), numberInput(r4((peca.yaw ?? 0) * DEG), (v) => edit((p) => (p.yaw = r4(v / DEG))))));
-    if (k?.usa?.escala) this.el.append(row(et('scaleField'), numberInput(peca.escala ?? 1, (v) => edit((p) => (p.escala = v)))));
-    // The pose (P32): what the gizmo did to a piece beyond its own place.
-    const pose = peca.pose ?? { p: [0, 0, 0] as Vec3, r: [0, 0, 0] as Vec3 };
-    const poseBox = h('fieldset', { class: 'ed-obj' }, h('legend', {}, et('pose')));
-    poseBox.append(
-      row(et('posePos'), vecInput(pose.p, (v) => edit((p) => (p.pose = { p: v.map(r4) as Vec3, r: [...pose.r] })))),
-      row(et('poseRot'), vecInput(pose.r, (v) => edit((p) => (p.pose = { p: [...pose.p], r: v.map((x) => r4(x)) as Vec3 })), DEG)),
-    );
-    if (peca.pose) {
-      const clear = h('button', { type: 'button', class: 'ed-mini' }, et('poseClear'));
-      clear.onclick = () => edit((p) => delete p.pose);
-      poseBox.append(clear);
+    const sameKind = list.every((p) => p.tipo === peca.tipo);
+    this.el.innerHTML = '';
+    // The header: the name (Unity's object name field) and the kind.
+    const head = h('div', { class: 'ed-ihead' });
+    if (many) head.append(h('h3', {}, et('manySelected', { n: list.length })));
+    else {
+      const name = h('input', { type: 'text', maxlength: '60', class: 'ed-iname', placeholder: peca.id });
+      name.value = peca.nome ?? '';
+      name.title = et('nameField');
+      name.onchange = () => this.act.rename(peca.id, name.value.trim() && name.value.trim() !== peca.id ? name.value.trim() : null);
+      head.append(name);
     }
-    this.el.append(poseBox);
-    if (k?.semente) this.el.append(row(et('seed'), numberInput(peca.semente ?? 0, (v) => edit((p) => (p.semente = v)), '1', true)));
-    if (k?.prop) {
+    head.append(h('div', { class: 'ed-kind' }, many && !sameKind ? et('mixedKinds') : `${k ? nameOf(k.nome) : peca.tipo}${many ? '' : ` · ${peca.id}`}`));
+    this.el.append(head);
+
+    this.el.append(transformComponent(transform, list.some((p) => !!p.pose), () => this.act.clearPose(list.map((p) => p.id))));
+    if (!sameKind || !k) return;
+
+    const edit = (f: (p: Peca) => void) => {
+      const next = list.map((p) => {
+        const n = clone(p);
+        f(n);
+        return n;
+      });
+      if (many) this.act.editPieces(next);
+      else this.act.editPiece(next[0]);
+    };
+    const comp = h('fieldset', { class: 'ed-obj ed-comp' }, h('legend', {}, k.id === 'grupo' ? et('group') : nameOf(k.nome)));
+    const differs = (get: (p: Peca) => unknown) => many && list.some((p) => JSON.stringify(get(p)) !== JSON.stringify(get(peca)));
+    const mark = (el: HTMLElement, mixed: boolean) => {
+      if (mixed) {
+        el.classList.add('ed-mixed');
+        el.title = et('mixedValues');
+      }
+      return el;
+    };
+    if (k.semente) comp.append(mark(row(et('seed'), numberInput(peca.semente ?? 0, (v) => edit((p) => (p.semente = v)), '1', true)), differs((p) => p.semente)));
+    if (k.prop && !many) {
       const i = h('input', { type: 'text', maxlength: '20' });
       i.value = peca.prop ?? '';
       i.onchange = () => edit((p) => (i.value ? (p.prop = i.value) : delete p.prop));
-      this.el.append(row(et('propId'), i));
+      comp.append(row(et('propId'), i));
     }
-    if (k?.coletavel) {
+    if (k.coletavel && !many) {
       const s = h('select');
       s.append(h('option', { value: '' }, et('none')));
       for (const c of data.objetos.coletaveis) s.append(h('option', { value: c.id }, `${c.id} (${c.tipo})`));
       s.value = peca.coletavel ?? '';
       s.onchange = () => edit((p) => (s.value ? (p.coletavel = s.value) : delete p.coletavel));
-      this.el.append(row(et('collectible'), s));
+      comp.append(row(et('collectible'), s));
     }
-    if (k) {
-      const box = h('fieldset', { class: 'ed-obj' }, h('legend', {}, et('params')));
-      for (const [name, param] of Object.entries(k.params)) {
+    const params = Object.entries(k.params);
+    if (params.length) {
+      const box = h('div', { class: 'ed-params' });
+      for (const [name, param] of params) {
         box.append(
-          row(
-            name,
-            paramEditor(param, peca.params[name], (v) => edit((p) => (v === undefined ? delete p.params[name] : (p.params[name] = v))), name),
+          mark(
+            row(
+              name,
+              paramEditor(param, peca.params[name], (v) => edit((p) => (v === undefined ? delete p.params[name] : (p.params[name] = clone(v)))), name),
+            ),
+            differs((p) => p.params[name]),
           ),
         );
       }
-      if (hasHandles(peca) && Array.isArray(peca.params.vaos)) {
+      if (!many && hasHandles(peca) && Array.isArray(peca.params.vaos)) {
         const add = h('button', { type: 'button', class: 'ed-mini' }, et('addOpening'));
         add.onclick = () => {
           const next = addOpening(peca);
@@ -242,8 +346,9 @@ export class Inspector {
         };
         box.append(add);
       }
-      this.el.append(box);
+      comp.append(box);
     }
+    if (comp.children.length > 1) this.el.append(comp);
   }
 
   showMarker(key: string, data: MapData) {
