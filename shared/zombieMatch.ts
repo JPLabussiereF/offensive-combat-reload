@@ -34,6 +34,7 @@ import {
   nailBoard,
   needsWork,
   smashesThrough,
+  thornsAt,
 } from './barricades';
 import {
   isBoss,
@@ -72,8 +73,8 @@ export interface ZombieHost {
   rng(): number;
   /** An event for every player. */
   emit(msg: ServerMsg): void;
-  /** A zombie hurts a standing player; if that takes them to 0, the host calls `lethal`. */
-  hurt(id: number, amount: number, from: Vec3): void;
+  /** A zombie (or the thorns, `kind`) hurts a standing player; if that takes them to 0, the host calls `lethal`. */
+  hurt(id: number, amount: number, from: Vec3, kind?: 'thorns'): void;
   /** Account XP (online only). */
   giveXp(id: number, xp: number): void;
   /** Other weapons in a player's hands. */
@@ -134,6 +135,10 @@ interface Part {
   reviving: { target: number; since: number } | null;
   /** Money earned nailing boards since the last wave ended (capped by barricadas.reparoTetoOnda). */
   repairPaid: number;
+  /** Bleeding from the thorns until then (0: not bleeding), the next bleed tick, the next thorn hit. */
+  bleedUntil: number;
+  bleedNext: number;
+  thornNext: number;
 }
 
 type Act = 'swipe' | 'fuse' | 'spit' | 'slam' | 'summon' | 'scream' | 'blink' | 'chargeWindup' | 'charge' | 'pound' | 'smash';
@@ -272,6 +277,9 @@ export class ZombieMatch {
       items: startItems(),
       reviving: null,
       repairPaid: 0,
+      bleedUntil: 0,
+      bleedNext: 0,
+      thornNext: 0,
     });
     if (this.phase === 'waiting') this.countdown();
   }
@@ -716,7 +724,7 @@ export class ZombieMatch {
   /** A new match for whoever is there: fresh money and weapons, no barricades, everyone back at once. */
   private restart() {
     for (const p of this.parts.values()) {
-      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0 });
+      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0, bleedUntil: 0, bleedNext: 0, thornNext: 0 });
       this.host.setLoadout(p.id, zombieLoadout(p.items));
     }
     this.resetBarricades(true);
@@ -899,10 +907,45 @@ export class ZombieMatch {
         break;
     }
     this.tickRevives(now);
+    this.tickThorns(now);
     this.tickWork(now);
     this.tickZombies(dt, now);
     this.tickProjectiles(now);
     if (this.phase === 'wave' && this.spawned >= this.spec.total && this.zombies.size === 0 && this.rising.length === 0) this.endWave();
+  }
+
+  /**
+   * The thorns: up on the wall's bars or the hedge, a hit every espinhos.intervaloSegundos while there, and
+   * bleeding for espinhos.sangraSegundos (touching again renews it, doesn't stack). Only standing players
+   * bleed: going down or dying stops it.
+   */
+  private tickThorns(now: number) {
+    const t = ZOMBIE.espinhos;
+    for (const p of this.parts.values()) {
+      if (p.state !== 'up' || !p.alive) {
+        if (p.bleedUntil) {
+          p.bleedUntil = 0;
+          this.host.emit({ t: 'zbleed', id: p.id, until: 0 });
+        }
+        continue;
+      }
+      if (thornsAt(this.map, p.feet) && now >= p.thornNext) {
+        p.thornNext = now + t.intervaloSegundos * 1000;
+        if (!p.bleedUntil) p.bleedNext = now + t.sangraTiqueSegundos * 1000;
+        p.bleedUntil = now + t.sangraSegundos * 1000;
+        this.host.emit({ t: 'zbleed', id: p.id, until: p.bleedUntil });
+        this.host.hurt(p.id, t.dano, p.feet, 'thorns');
+        if (p.state !== 'up') continue;
+      }
+      if (p.bleedUntil && now >= p.bleedNext) {
+        if (now > p.bleedUntil) {
+          p.bleedUntil = 0;
+          continue;
+        }
+        p.bleedNext += t.sangraTiqueSegundos * 1000;
+        this.host.hurt(p.id, t.sangraDano, p.feet, 'thorns');
+      }
+    }
   }
 
   private tickRevives(now: number) {

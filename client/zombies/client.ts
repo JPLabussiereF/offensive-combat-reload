@@ -95,6 +95,8 @@ export class ZombieClient {
   private summary: Extract<ServerMsg, { t: 'zend' }> | null = null;
   private slowUntil = 0;
   private slowFactor = 1;
+  /** Bleeding from the thorns until then (server ms). */
+  private bleedUntil = 0;
   private heartbeatIn = 0;
   private markers = new Map<number, THREE.Sprite>();
   private markerTex: THREE.CanvasTexture | null = null;
@@ -214,6 +216,12 @@ export class ZombieClient {
       const f = g.feet();
       if (m.fx === 'pound' && Math.hypot(f.x - m.at[0], f.z - m.at[2]) < (m.r ?? 15)) g.hud.showBanner(t('zJump'), 'bird');
       if (m.fx === 'boom' && Math.hypot(f.x - m.at[0], f.z - m.at[2]) < 12) g.shake(0.5);
+    });
+    L.on('zbleed', (m) => {
+      if (m.id !== this.me) return;
+      // A new cut: the first time a banner says why (the bars and the hedge look climbable).
+      if (m.until && !this.bleedLeft()) g.hud.notice(t('zThorns'));
+      this.bleedUntil = m.until;
     });
     L.on('zhitfx', (m) => {
       if (m.id !== this.me) return;
@@ -594,6 +602,11 @@ export class ZombieClient {
   /** Seconds left of the scream's slow (0: none), for the buff panel. */
   slowLeft(): number {
     return Math.max(0, (this.slowUntil - this.link.now()) / 1000);
+  }
+
+  /** Seconds left bleeding from the thorns (0: none), for the buff panel. */
+  bleedLeft(): number {
+    return Math.max(0, (this.bleedUntil - this.link.now()) / 1000);
   }
 
   // --- Per frame ---------------------------------------------------------------------------------------------

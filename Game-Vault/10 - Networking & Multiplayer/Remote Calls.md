@@ -120,6 +120,7 @@ Convenções:
 | `zdie` | `id`, `by`, `how`, `award?`, `money?` | zumbi morreu | sala |
 | `zfx` | `fx` (`slam`/`summon`/`scream`/`blink`/`charge`/`pound`/`spit`/`boom`/`intro`/`rise`), `id?`, `at`, `to?`, `r?`, `t0`, `t1` | golpe telegrafado ou efeito (o dano cai em `t1`); `rise`: um zumbi vai sair do chão em `at` em `t1` (0,9 s depois; um por surgimento) | sala |
 | `zhitfx` | `id`, `fx`, `v?` (empurrão), `slow?`, `until?` | um golpe empurrou ou deixou alguém lento | sala (o cliente do jogador aplica) |
+| `zbleed` | `id`, `until` (0: parou) | alguém subiu nos espinhos da grade ou da sebe e sangra até `until` | sala (o cliente do jogador mostra "Sangrando") |
 | `zbox` | `state` (`idle`/`rolling`/`offer`), `by`, `item`, `flaw` (`municao`/`dano`/`ambos` ou null), `until`, `money?` | o caixão mudou (o defeito só aparece na oferta) | sala |
 | `zbar` | `i`, `fx` (`build`/`nail`/`hit`/`break`/`reset`), `built`, `boards`, `hp`, `by?`, `award?`, `money?` | uma barricada mudou: erguida, tábua pregada, golpe da horda (~1 por golpe), arrombada, ou desfeita numa partida nova | sala |
 | `zbarwork` | `i`, `by`, `until` (0: parou) | alguém começou/parou de trabalhar numa barricada (próxima tábua em `until`) | sala |

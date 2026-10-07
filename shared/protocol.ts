@@ -169,7 +169,7 @@ export interface ZSummaryRow {
 }
 
 /** `zombie`: bled out after going down in the zumbi mode. */
-export type KillKind = 'gun' | 'head' | 'groin' | 'knife' | 'grenade' | 'fall' | 'void' | 'explosion' | 'dog' | 'zombie';
+export type KillKind = 'gun' | 'head' | 'groin' | 'knife' | 'grenade' | 'fall' | 'void' | 'explosion' | 'dog' | 'zombie' | 'thorns';
 export type AwardLabel = 'kill' | 'headshot' | 'groin' | 'knife' | 'backstab' | 'longShot' | 'humiliation';
 export interface Award {
   label: AwardLabel;
@@ -325,6 +325,8 @@ export type ServerMsg =
   | { t: 'zbarwork'; i: number; by: number; until: number }
   /** Zumbi: players' money changed (assists, the wave bonus, a boss's reward). */
   | { t: 'zmoney'; m: [id: number, money: number][]; why: 'assist' | 'wave' | 'boss' }
+  /** A player climbed the thorns (the wall's bars, the hedge) and bleeds until `until` (server ms; 0: stopped). */
+  | { t: 'zbleed'; id: number; until: number }
   /** Zumbi: a player went down; they bleed out at `until` unless someone revives them. */
   | { t: 'zdown'; id: number; until: number }
   /** Zumbi: `by` is reviving `id` (done at `until`; 0: they let go). */

@@ -108,6 +108,8 @@ export interface ZombieMapData {
   chefe: Record<BossId, Vec3>;
   /** The gaps in the wall, in the order the barricades are numbered (network, navmesh flags). */
   barricadas: BarricadeSpot[];
+  /** The hedge around the grave field, its center line (x0, z0, x1, z1): thorny, like the wall's bars. */
+  sebe?: [number, number, number, number];
 }
 
 /**
@@ -155,6 +157,19 @@ export const ZOMBIE = data as unknown as {
     alcance: number;
     /** What one blow takes from the boards: each kind's swipe, a boss's, a bloater's burst ('explosao'). */
     dano: Record<ZType | 'chefe' | 'explosao', number>;
+  };
+  /** The wall's bars and the hedge hurt whoever climbs them, and leave them bleeding. */
+  espinhos: {
+    dano: number;
+    intervaloSegundos: number;
+    sangraSegundos: number;
+    sangraDano: number;
+    sangraTiqueSegundos: number;
+    /** Feet this high or more (m) count as climbing: on the ground nobody's centre gets that close to the line. */
+    alturaMinima: number;
+    /** How close to the wall's / hedge's centre line (m) the feet must be. */
+    faixaMuro: number;
+    faixaSebe: number;
   };
   raridades: Record<Rarity, { peso: number; dano: number }>;
   inicial: string;

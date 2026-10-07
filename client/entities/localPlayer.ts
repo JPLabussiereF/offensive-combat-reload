@@ -10,7 +10,7 @@ const PLAYER_GROUPS = groups(GROUP.PLAYER, GROUP.WORLD | GROUP.BLOCKER);
 const GROUND_PROBE_GROUPS = groups(GROUP.BULLET, GROUP.WORLD);
 const RESPAWN_DELAY = 3;
 
-export type DeathCause = 'fall' | 'void' | 'explosion' | 'dog' | 'killed' | 'zombie';
+export type DeathCause = 'fall' | 'void' | 'explosion' | 'dog' | 'killed' | 'zombie' | 'thorns';
 
 export interface PlayerEvents {
   jumped: boolean;

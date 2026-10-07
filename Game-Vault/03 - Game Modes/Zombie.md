@@ -213,6 +213,15 @@ As cinco secundárias da PF-10 entram no caixão **sem melhorias**, com o nome d
 - Como aparece: a arma flutua torta, piscando, com brilho avermelhado e a placa "DANIFICADA" com uma rachadura; acorde azedo; faixa "Saiu DANIFICADA: menos munição" para quem pagou; o prompt diz o defeito antes de pegar; no HUD o nome da arma ganha a etiqueta com o ícone de rachadura; na pausa, a arma carregada mostra o defeito com os números e cada raridade, a chance de vir danificada.
 - Não existe mais o **pato de borracha** nem o caixão que voa para outro lugar (substituídos por este azar).
 
+### Espinhos na grade e na sebe (`espinhos`)
+
+A base do muro deixava uma beirada para subir nas grades, e dava para subir na sebe. As duas agora têm espinhos:
+
+- **Quem sobe** (pés a 0,3 m do chão ou mais, em cima da grade do muro fora das brechas ou da sebe; `thornsAt` em `shared/barricades.ts`) leva **10 de dano** a cada segundo que fica lá.
+- E fica **sangrando por 10 s**: perde **2 de vida por segundo** (um tique por segundo). Encostar de novo **renova** os 10 s, sem somar.
+- O sangramento pode **derrubar** durante a onda (vira caído, como um golpe de zumbi) e para quando o jogador cai ou morre. Fora da onda, zerar a vida é a morte comum (`thorns` nas mensagens de morte).
+- Decidido pelo motor (`ZombieMatch.tickThorns`): no servidor online, com a posição dos pés que ele já recebe, e no navegador no jogo solo. Evento `zbleed` (`{ id, until }`) para o HUD: o painel de efeitos mostra **🩸 Sangrando** com a contagem, e o primeiro corte avisa "Espinhos!".
+
 ### Caído, reanimar, morrer
 
 - Vida a zero **durante uma onda** (zumbi, chefe, queda, a própria granada; **não** cair para fora do mapa): você **cai** (`Session.onLethal` → `ZombieMatch.lethal`). Caído não anda, não atira, a câmera fica rente ao chão, a tela mostra "CAÍDO!" e quanto falta para sangrar; os zumbis passam a ignorar você.
@@ -274,8 +283,9 @@ Tudo em `shared/data/zumbi.json` (lido por `shared/zombies.ts` como o objeto `ZO
 | `caixa` | $950, gira 3,5 s, oferta 8 s, alcance 2,5 m | |
 | `caixa.danificada` | chance por raridade 25/18/12/6%; defeitos 45/45/10%; pente ×0,6, reserva ×0,5, dano ×0,75 | armas danificadas |
 | `barricadas` | 5 tábuas × 150, $300, erguer 2,5 s, repregar 0,8 s, +$10 até $150/onda, alcance 2,4 m, `dano` por tipo | barricadas |
+| `espinhos` | 10 a cada 1 s em cima; sangra 10 s, 2 por tique de 1 s; conta com os pés a 0,3 m ou mais, até 0,5 m do muro e 0,8 m da sebe | grade e sebe |
 | `raridades`, `itens`, `inicial` | | o caixão |
-| `mapas.cemiterio` | `dentro` (o muro), 24 pontos de surgimento (fora do muro), o lugar do caixão, onde cada chefe surge, as 5 brechas (`barricadas`: eixo, centro, largura) | o mapa (o construtor do mapa corta o muro com estes dados) |
+| `mapas.cemiterio` | `dentro` (o muro), `sebe` (a sebe em volta do campo, com espinhos), 24 pontos de surgimento (fora do muro), o lugar do caixão, onde cada chefe surge, as 5 brechas (`barricadas`: eixo, centro, largura) | o mapa (o construtor do mapa corta o muro com estes dados) |
 | `MODE_RULES.zumbi` | `weapons: 'mode'`, `lockedLoadout`, `grenades`, sem XP de arma, `rounds`, `bots` (jogo solo), `coop`, `maps: ['cemiterio']` | `shared/modes.ts` |
 | Sala fixa | `zumbi-cemiterio` | `server/app.ts` |
 
