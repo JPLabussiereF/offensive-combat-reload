@@ -100,6 +100,31 @@ describe('lotes do editor (P46)', () => {
     expect(hits.some((h) => (h.object as unknown as THREE.BatchedMesh).isBatchedMesh)).toBe(false);
   }, 60_000);
 
+  it('materiais iguais de peças diferentes dividem um lote; material que muda depois (pisca, apaga) sai do lote', async () => {
+    const scene = new THREE.Scene();
+    const batches = new EditorBatches(scene);
+    const piece = (id: string, x: number) => {
+      const g = new THREE.Group();
+      const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0x336699 }));
+      m.position.x = x;
+      g.add(m);
+      scene.add(g);
+      batches.add(id, g);
+      return m;
+    };
+    const a = piece('a', 0);
+    const b = piece('b', 3);
+    batches.update();
+    expect(batches.stats()).toEqual({ batches: 1, meshes: 2 });
+    expect(drawCount(scene)).toBe(1);
+    (b.material as THREE.MeshLambertMaterial).color.set(0xff0000);
+    batches.update();
+    expect(batches.stats()).toEqual({ batches: 1, meshes: 1 });
+    expect(b.layers.isEnabled(HIDDEN_LAYER)).toBe(false);
+    expect(a.layers.isEnabled(HIDDEN_LAYER)).toBe(true);
+    expect(drawCount(scene)).toBe(2);
+  });
+
   it('peça reconstruída troca as suas cópias; peça apagada leva as cópias', async () => {
     const data = (await loadOfficialMap('rua')) as MapData;
     const { scene, map, batches } = await editorWithBatches(data);
