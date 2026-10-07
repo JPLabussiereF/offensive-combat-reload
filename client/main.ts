@@ -644,6 +644,8 @@ async function boot() {
     // The thorns on the wall's bars and the hedge: losing health every second for a while.
     const bleed = zombies?.bleedLeft() ?? 0;
     if (bleed > 0) list.push({ id: 'bleed', icon: '🩸', label: t('buffBleeding'), color: '#e0453a', left: bleed, total: ZOMBIE.espinhos.sangraSegundos });
+    // The chapel's totem: no break between waves, more money and XP, until the match ends.
+    if (zombies?.totemOn) list.push({ id: 'vigil', icon: '🕯️', label: t('buffVigil'), color: '#ff7a1a', until: t('buffUntilMatchEnd') });
     if (duckAmmo) list.push({ id: 'duck', icon: '🦆', label: t('buffDuck'), color: '#ffe066' });
     return list;
   };

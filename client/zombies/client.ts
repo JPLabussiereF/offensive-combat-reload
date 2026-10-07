@@ -18,6 +18,7 @@ import type { HitboxRegistry } from '../gameplay/targets';
 import { t, type StringKey } from '../ui/strings';
 import { ZombieView, Zombie } from './view';
 import { Coffin } from './coffin';
+import { Totem } from './totem';
 import { BarricadeView } from './barricades';
 import { flawText } from './ambience';
 import type { ZombieLink } from './link';
@@ -67,6 +68,10 @@ const GAP_WATCH = 10;
 export class ZombieClient {
   readonly view: ZombieView;
   readonly coffin: Coffin;
+  /** The chapel's totem (the no-break vigil), where the map has one. */
+  readonly totem: Totem | null;
+  /** The vigil is on (for the rest of the match). */
+  totemOn = false;
   readonly barricades: BarricadeView;
   private readonly map: ZombieMapData;
   /** Every barricade as the match last said. */
@@ -113,6 +118,7 @@ export class ZombieClient {
     this.map = map;
     this.view = new ZombieView(game.world, game.scene, game.registry, game.sfx, game.effects, { ear: () => game.feet() });
     this.coffin = new Coffin(game.scene, game.physics, this.map.caixa, game.sfx);
+    this.totem = this.map.totem ? new Totem(game.scene, this.map.totem) : null;
     this.barricades = new BarricadeView(game.scene, game.physics, this.map.barricadas, game.sfx, game.effects);
     this.bars = this.map.barricadas.map(() => emptyBarricade());
     if (sync) this.applySync(sync);
@@ -140,6 +146,8 @@ export class ZombieClient {
   }
 
   private applySync(s: ZombieSync) {
+    this.totemOn = !!s.totem;
+    this.totem?.set(this.totemOn);
     this.phase = s.phase;
     this.wave = s.wave;
     this.until = s.until;
@@ -240,6 +248,12 @@ export class ZombieClient {
         this.slowUntil = m.until;
       }
       g.shake(m.fx === 'charge' ? 0.9 : 0.5);
+    });
+    L.on('ztotem', (m) => {
+      this.totemOn = m.on;
+      this.totem?.set(m.on);
+      if (m.by === this.me && m.money !== undefined) this.money = m.money;
+      if (m.on) g.hud.showBanner(t('zTotemOn', { name: m.by === this.me ? t('you') : g.nameOf(m.by ?? -1) }), 'level');
     });
     L.on('zbox', (m) => {
       this.coffin.set(m, L.now());
@@ -422,6 +436,20 @@ export class ZombieClient {
 
   // --- E: the coffin, revives and barricades ---------------------------------------------------------------------
 
+  private nearTotem(): boolean {
+    if (!this.totem) return false;
+    const f = this.game.feet();
+    const c = this.totem.position;
+    return Math.hypot(f.x - c.x, f.z - c.z) < ZOMBIE.totem.alcance && Math.abs(f.y - c.y) < 1.6;
+  }
+
+  /** At the totem: what E does there (light the vigil, for its price), or that it already burns. */
+  private totemPrompt(): { text: string; frac: number } {
+    const cost = ZOMBIE.totem.custo;
+    if (this.totemOn) return { text: t('zTotemLit'), frac: 1 };
+    return this.money >= cost ? { text: t('zTotemBuy', { cost }), frac: 0 } : { text: t('zTotemPoor', { cost, money: this.money }), frac: Math.min(1, this.money / cost) };
+  }
+
   private nearCoffin(): boolean {
     const f = this.game.feet();
     const c = this.coffin.position;
@@ -484,6 +512,10 @@ export class ZombieClient {
   press(): boolean {
     if (this.downed || !this.game.alive()) return this.downed;
     if (this.nearDowned() !== null) return true;
+    if (this.nearTotem() && !this.totemOn) {
+      this.link.send({ t: 'totem' });
+      return true;
+    }
     if (this.nearCoffin()) {
       const st = this.coffin.state;
       if (st.state === 'offer' && st.by === this.me && st.item) this.lastOffer = { item: st.item, flaw: st.flaw };
@@ -530,6 +562,7 @@ export class ZombieClient {
     }
     const d = this.nearDowned();
     if (d !== null) return { text: t('zRevivePrompt', { name: this.game.nameOf(d) }), frac: 1 - Math.max(0, (this.down.get(d) ?? now) - now) / (ZOMBIE.jogador.caidoSegundos * 1000) };
+    if (this.nearTotem()) return this.totemPrompt();
     if (this.nearCoffin()) return this.coffinPrompt(now);
     return this.barricadePrompt(now);
   }
@@ -624,6 +657,7 @@ export class ZombieClient {
     const now = this.link.now();
     this.view.update(this.link.renderTime(), dt, now);
     this.coffin.update(dt, now);
+    this.totem?.update(dt);
     this.barricades.update(dt);
     this.view.render(dt, now);
     this.renderMarkers();

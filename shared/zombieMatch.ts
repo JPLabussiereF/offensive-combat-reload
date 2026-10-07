@@ -141,6 +141,8 @@ interface Part {
   thornNext: number;
   /** Joined during a wave and hasn't played yet: out (like the dead) until the break, and no end-of-match credit. */
   waiting: boolean;
+  /** The vigil's extra XP below 1 point, carried to the next gain (a 3 XP kill with +10% must not round the bonus away). */
+  xpCarry: number;
 }
 
 type Act = 'swipe' | 'fuse' | 'spit' | 'slam' | 'summon' | 'scream' | 'blink' | 'chargeWindup' | 'charge' | 'pound' | 'smash';
@@ -226,6 +228,8 @@ export class ZombieMatch {
   private boss: Zombie | null = null;
   private startedAt = 0;
   /** The coffin, and the roll it's spinning toward (decided when paid, shown when it stops). */
+  /** The chapel's totem: the Vigília Sem Trégua, on for the rest of the match once someone paid for it. */
+  readonly totem = { on: false, by: null as number | null };
   private box: BoxInfo & { pending: string | null; pendingFlaw: ZFlaw | null } = { state: 'idle', by: null, item: null, flaw: null, until: 0, pending: null, pendingFlaw: null };
   private spits: { to: Vec3; at: number; damage: number; radius: number; from: Vec3 }[] = [];
   private waves: Shockwave[] = [];
@@ -285,6 +289,7 @@ export class ZombieMatch {
       bleedNext: 0,
       thornNext: 0,
       waiting,
+      xpCarry: 0,
     });
     if (this.phase === 'waiting') this.countdown();
   }
@@ -322,6 +327,7 @@ export class ZombieMatch {
       box: { state, by, item, flaw, until },
       down: [...this.parts.values()].filter((p) => p.state === 'down').map((p) => [p.id, p.downUntil]),
       bars: this.bars.map((b) => ({ ...b })),
+      totem: this.totem.on,
     };
   }
 
@@ -604,15 +610,40 @@ export class ZombieMatch {
     if (z.kind === 'inchado') this.burst(z, killer ? by : null);
   }
 
+  /** Money for a player (the vigil, once on, adds its share). */
   private pay(p: Part, amount: number) {
+    if (this.totem.on) amount = Math.round(amount * ZOMBIE.totem.dinheiro);
     p.money += amount;
     p.earned += amount;
   }
 
+  /** Account XP for a player (the vigil, once on, adds its share; fractions carry over to the next gain). */
   private xp(p: Part, amount: number) {
     if (amount <= 0) return;
+    if (this.totem.on) {
+      const extra = amount * (ZOMBIE.totem.xp - 1) + p.xpCarry;
+      p.xpCarry = extra - Math.floor(extra);
+      amount += Math.floor(extra);
+    }
     p.xp += amount;
     this.host.giveXp(p.id, amount);
+  }
+
+  /**
+   * E at the chapel's totem: pays and turns on the Vigília Sem Trégua for the rest of the match (no break between
+   * waves; more money and XP). It can't be turned off; a new match starts without it.
+   */
+  useTotem(id: number) {
+    const p = this.parts.get(id);
+    const at = this.map.totem;
+    if (!p || !at || p.state !== 'up' || this.totem.on || this.phase === 'waiting' || this.phase === 'over') return;
+    if (Math.hypot(p.feet[0] - at[0], p.feet[2] - at[2]) > ZOMBIE.totem.alcance + 1 || Math.abs(p.feet[1] - at[1]) > 2) return;
+    if (p.money < ZOMBIE.totem.custo) return;
+    p.money -= ZOMBIE.totem.custo;
+    Object.assign(this.totem, { on: true, by: id });
+    this.host.emit({ t: 'ztotem', on: true, by: id, money: p.money });
+    // During a break the next wave comes now: the vigil leaves no time to get ready.
+    if (this.phase === 'break') this.until = Math.min(this.until, this.now + ZOMBIE.totem.intervaloSegundos * 1000);
   }
 
   /** A bloater bursts: hurts players and zombies around it (a player's kill gets the chain's credit). */
@@ -682,7 +713,8 @@ export class ZombieMatch {
     if (money.length) this.host.emit({ t: 'zmoney', m: money, why: 'wave' });
     if (this.wave >= WAVES) return this.finish(true);
     this.phase = 'break';
-    this.until = now + (this.spec.boss ? ZOMBIE.intervaloChefeSegundos : ZOMBIE.intervaloSegundos) * 1000;
+    // The vigil (the chapel's totem) leaves no time to get ready.
+    this.until = now + (this.totem.on ? ZOMBIE.totem.intervaloSegundos : this.spec.boss ? ZOMBIE.intervaloChefeSegundos : ZOMBIE.intervaloSegundos) * 1000;
     this.emitWave();
     for (const p of this.parts.values()) if (p.state === 'dead') this.respawnDead(p);
   }
@@ -731,13 +763,21 @@ export class ZombieMatch {
   /** A new match for whoever is there: fresh money and weapons, no barricades, everyone back at once. */
   private restart() {
     for (const p of this.parts.values()) {
-      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0, bleedUntil: 0, bleedNext: 0, thornNext: 0, waiting: false });
+      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0, bleedUntil: 0, bleedNext: 0, thornNext: 0, waiting: false, xpCarry: 0 });
       this.host.setLoadout(p.id, zombieLoadout(p.items));
     }
     this.resetBarricades(true);
+    this.offTotem(true);
     this.spec = waveSpec(1, this.parts.size);
     this.host.newMatch([...this.parts.keys()]);
     this.countdown();
+  }
+
+  /** A new match starts without the vigil. */
+  private offTotem(announce: boolean) {
+    if (!this.totem.on) return;
+    Object.assign(this.totem, { on: false, by: null });
+    if (announce) this.host.emit({ t: 'ztotem', on: false, by: null });
   }
 
   /** Nobody left: back to waiting, no zombies, no barricades. */
@@ -749,6 +789,7 @@ export class ZombieMatch {
     this.until = 0;
     this.spits = [];
     this.waves = [];
+    this.offTotem(false);
     Object.assign(this.box, { state: 'idle', by: null, item: null, flaw: null, until: 0, pending: null, pendingFlaw: null });
   }
 

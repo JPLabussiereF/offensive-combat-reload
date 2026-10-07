@@ -223,6 +223,18 @@ A base do muro deixava uma beirada para subir nas grades, e dava para subir na s
 - O sangramento pode **derrubar** durante a onda (vira caído, como um golpe de zumbi) e para quando o jogador cai ou morre. Fora da onda, zerar a vida é a morte comum (`thorns` nas mensagens de morte).
 - Decidido pelo motor (`ZombieMatch.tickThorns`): no servidor online, com a posição dos pés que ele já recebe, e no navegador no jogo solo. Evento `zbleed` (`{ id, until }`) para o HUD: o painel de efeitos mostra **🩸 Sangrando** com a contagem, e o primeiro corte avisa "Espinhos!".
 
+### O totem da capela: Vigília Sem Trégua (`totem`)
+
+No altar da capela, entre as duas velas, fica um **totem** (um ídolo de osso e madeira com chifres; olhos verdes apagados). `E` perto dele (a até 2,2 m, de pé) **acende a Vigília Sem Trégua**:
+
+- **Custa $500** de quem acende e vale **até o fim da partida**: **não desliga**, e uma partida nova começa com ele apagado.
+- **Sem intervalo**: a próxima onda vem assim que a anterior acaba (`totem.intervaloSegundos` = 0). Aceso num intervalo, a próxima onda vem na hora. A munição, as granadas e quem caiu ou morreu voltam no fim de cada onda, como antes.
+- **Rende mais**: todo dinheiro da partida **+20%** e todo XP de conta **+10%**, para todos, desde que acende (`pay` e `xp` do motor; o XP quebrado de abates pequenos vai somando).
+- Aceso: os olhos ficam vermelhos e uma chama dança na cabeça; faixa "Fulano acendeu a Vigília Sem Trégua!" para todos e **🕯️ Vigília Sem Trégua** no painel de efeitos. Quem entra no meio recebe o estado em `joined.zumbi.totem`.
+- Quem entra com uma onda em andamento e o totem aceso entra no começo da onda seguinte (não há intervalo para esperar).
+
+Decidido pelo motor (`ZombieMatch.useTotem`): no servidor online (mensagem `totem`, evento `ztotem`) e no navegador no jogo solo. O lugar fica no mapa (`zumbi.totem` em `shared/data/mapas/cemiterio.json`); o modelo, em `client/zombies/totem.ts`.
+
 ### Caído, reanimar, morrer
 
 - Vida a zero **durante uma onda** (zumbi, chefe, queda, a própria granada; **não** cair para fora do mapa): você **cai** (`Session.onLethal` → `ZombieMatch.lethal`). Caído não anda, não atira, a câmera fica rente ao chão, a tela mostra "CAÍDO!" e quanto falta para sangrar; os zumbis passam a ignorar você.
@@ -284,6 +296,7 @@ Tudo em `shared/data/zumbi.json`, menos os dados do mapa, que ficam no campo `zu
 | `caixa` | $950, gira 3,5 s, oferta 8 s, alcance 2,5 m | |
 | `caixa.danificada` | chance por raridade 25/18/12/6%; defeitos 45/45/10%; pente ×0,6, reserva ×0,5, dano ×0,75 | armas danificadas |
 | `barricadas` | 5 tábuas × 150, $300, erguer 2,5 s, repregar 0,8 s, +$10 até $150/onda, alcance 2,4 m, `dano` por tipo | barricadas |
+| `totem` | $500, alcance 2,2 m, intervalo 0 s, dinheiro ×1,2, XP ×1,1 | Vigília Sem Trégua |
 | `espinhos` | 10 a cada 1 s em cima; sangra 10 s, 2 por tique de 1 s; conta com os pés a 0,3 m ou mais, até 0,5 m do muro e 0,8 m da sebe | grade e sebe |
 | `raridades`, `itens`, `inicial` | | o caixão |
 | `zumbi` (em `shared/data/mapas/cemiterio.json`) | `dentro` (o muro), `sebe` (a sebe em volta do campo, com espinhos), 24 pontos de surgimento (fora do muro), o lugar do caixão, onde cada chefe surge, as 5 brechas (`barricadas`: eixo, centro, largura) | o mapa (o muro foi cortado nas brechas na conversão; `ZOMBIE.mapas.cemiterio`; `checkZombieMap`) |

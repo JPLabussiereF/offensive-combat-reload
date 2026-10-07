@@ -586,3 +586,103 @@ describe('quem entra com a onda em andamento', () => {
     expect(w.stats.some(([id, s]) => id === 1 && s.e === 'end')).toBe(true);
   });
 });
+
+describe('o totem da capela (Vigília Sem Trégua)', () => {
+  /** A match on a fake clock that records events and XP; player 1 stands at `feet`. */
+  function vigil(feet: Vec3) {
+    const v = { t: 0, events: [] as ServerMsg[], xp: 0 };
+    const host: ZombieHost = {
+      now: () => v.t,
+      rng: seeded(9),
+      emit: (m) => v.events.push(m),
+      hurt: () => {},
+      giveXp: (_id, xp) => (v.xp += xp),
+      setLoadout: () => {},
+      bleedOut: () => {},
+      revive: () => {},
+      allowRespawn: () => {},
+      newMatch: () => {},
+    };
+    const match = new ZombieMatch(host, navMesh, MAP());
+    match.join(1, 'P1');
+    const tick = (seconds: number) => {
+      for (let i = 0; i < seconds * 20; i++) {
+        v.t += 50;
+        match.tick(0.05, [{ id: 1, feet, grounded: true, alive: true }]);
+      }
+    };
+    tick(0.1);
+    return { v, match, tick, part: match.parts.get(1) as unknown as { money: number } };
+  }
+  const T = () => ZOMBIE.totem;
+  /** In front of the altar, on the chapel's floor. */
+  const altar = (): Vec3 => [MAP().totem![0], 0.6, MAP().totem![2] + 1.3];
+
+  it('fica no altar da capela, dentro do muro', () => {
+    expect(MAP().totem).toBeDefined();
+    expect(insideWall(MAP(), MAP().totem!)).toBe(true);
+  });
+
+  it('acende só perto e com dinheiro, cobra uma vez e não apaga', () => {
+    const far = vigil([0, 0.1, 0]);
+    far.match.useTotem(1);
+    expect(far.match.totem.on).toBe(false);
+
+    const poor = vigil(altar());
+    poor.part.money = T().custo - 1;
+    poor.match.useTotem(1);
+    expect(poor.match.totem.on).toBe(false);
+
+    const { v, match, part } = vigil(altar());
+    part.money = T().custo + 100;
+    match.useTotem(1);
+    expect(match.totem).toEqual({ on: true, by: 1 });
+    expect(part.money).toBe(100);
+    expect(v.events.filter((e) => e.t === 'ztotem')).toEqual([{ t: 'ztotem', on: true, by: 1, money: 100 }]);
+    expect(match.sync().totem).toBe(true);
+    // Again: nothing (it can't be turned off, and nobody pays twice).
+    part.money = 5000;
+    match.useTotem(1);
+    expect(part.money).toBe(5000);
+    expect(match.totem.on).toBe(true);
+  });
+
+  it('acesa, a próxima onda vem sem intervalo', () => {
+    const { match, part, tick } = vigil(altar());
+    tick(ZOMBIE.inicioSegundos + 0.5);
+    expect(match.phase).toBe('wave');
+    part.money = T().custo;
+    match.useTotem(1);
+    (match as unknown as { endWave(): void }).endWave();
+    expect(match.phase).toBe('break');
+    tick(T().intervaloSegundos + 0.2);
+    expect(match.phase).toBe('wave');
+    expect(match.wave).toBe(2);
+  });
+
+  it('acesa, todo dinheiro e XP da partida rendem mais (o XP quebrado vai somando)', () => {
+    const { v, match, part } = vigil(altar());
+    const pay = (n: number) => (match as unknown as { pay(p: unknown, n: number): void }).pay(part, n);
+    const xp = (n: number) => (match as unknown as { xp(p: unknown, n: number): void }).xp(part, n);
+    part.money = T().custo;
+    pay(100);
+    xp(3);
+    expect([part.money, v.xp]).toEqual([T().custo + 100, 3]);
+    match.useTotem(1);
+    part.money = 0;
+    v.xp = 0;
+    pay(100);
+    expect(part.money).toBe(Math.round(100 * T().dinheiro));
+    for (let i = 0; i < 10; i++) xp(3);
+    expect(v.xp).toBe(Math.floor(30 * T().xp + 1e-9));
+  });
+
+  it('uma partida nova começa com o totem apagado', () => {
+    const { v, match, part } = vigil(altar());
+    part.money = T().custo;
+    match.useTotem(1);
+    (match as unknown as { restart(): void }).restart();
+    expect(match.totem.on).toBe(false);
+    expect(v.events.filter((e) => e.t === 'ztotem').at(-1)).toEqual({ t: 'ztotem', on: false, by: null });
+  });
+});
