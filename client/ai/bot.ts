@@ -18,6 +18,7 @@ import { configureController, CONTROLLER_OFFSET, createMoveState, eyeHeight, HAL
 import type { HitRegion } from '@shared/weapons';
 import { DEFAULT_LOADOUT, gunStats, knifeOf, meleeStats, type Loadout, type MeleeStats } from '@shared/arsenal';
 import { KNIVES, PRIMARIES, progOf, type GunId, type KnifeId } from '@shared/progression';
+import { pickGun } from './botGuns';
 import type { Sex } from '@shared/protocol';
 import { bodyStats, randomAppearance, type Appearance, type BodyStats } from '@shared/appearance';
 import { Avatar } from '../entities/avatar';
@@ -25,7 +26,7 @@ import { isBehind } from '../entities/hitboxes';
 import { CharacterRig, type HitPose } from '../entities/rig';
 import type { HitboxRegistry, Target } from '../gameplay/targets';
 import type { Corpse } from '../gameplay/corpse';
-import { Weapon } from '../weapons/weapon';
+import { Weapon, type Pellet } from '../weapons/weapon';
 import { holdOf } from '../render/weaponModels';
 import type { SpawnPoint } from '../world/blockoutMap';
 import type { NavMap } from './navmesh';
@@ -76,8 +77,8 @@ export interface BotWorld {
   nav: NavMap;
   combatants(): Combatant[];
   corpses(): Iterable<Corpse>;
-  /** Resolve one bullet fired by `bot` (spread in radians). */
-  fire(bot: Bot, spread: number): void;
+  /** Resolve one shot fired by `bot` (spread in radians): its bullet, or each of its pellets. */
+  fire(bot: Bot, spread: number, pellets: Pellet[] | null): void;
   stab(bot: Bot, target: Combatant): void;
   tauntStarted(bot: Bot, corpse: Corpse): void;
   tauntFinished(bot: Bot, corpse: Corpse): void;
@@ -89,14 +90,6 @@ const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
 const pick = <T>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)];
 
-/**
- * The gun a bot takes for a life (no upgrades): mostly a rifle, any of them alike, sometimes a secondary. Bots
- * have no account, so no weapon is locked for them.
- */
-function pickGun(): GunId {
-  const r = Math.random();
-  return r < 0.6 ? pick(PRIMARIES) : r < 0.85 ? 'smg' : 'pistola';
-}
 const angleDiff = (a: number, b: number) => {
   let d = b - a;
   while (d > Math.PI) d -= Math.PI * 2;
@@ -210,7 +203,7 @@ export class Bot implements Combatant {
     this.rig = new CharacterRig(world, this, registry, this.bodyStats.missing);
     this.mb = { world, body, collider, controller, ignoreBody: this.rig.body };
     this.weapon = new Weapon(gunStats('rifle'), {
-      shoot: (spread) => this.onShoot?.(spread),
+      shoot: (spread, _shot, pellets) => this.onShoot?.(spread, pellets),
       dryFire: () => {},
       reloadStart: () => {},
       reloadEnd: () => {},
@@ -223,8 +216,8 @@ export class Bot implements Combatant {
     this.avatar.root.add(this.plate, this.rig.debug);
   }
 
-  /** Set by the manager: resolves the bullet (needs the world services). */
-  onShoot: ((spread: number) => void) | null = null;
+  /** Set by the manager: resolves the bullet, or each pellet of a scattergun's shot (needs the world services). */
+  onShoot: ((spread: number, pellets: Pellet[] | null) => void) | null = null;
 
   get position(): THREE.Vector3 {
     return this.curr;
@@ -623,7 +616,8 @@ export class Bot implements Combatant {
       }
     }
     const reload = this.weapon.mag === 0 || (!this.targetVisible && this.weapon.mag < this.weapon.data.pente * 0.4 && !this.weapon.reloading);
-    // Semi-automatic: let go of the trigger every other tick so each press fires.
+    // Semi-automatic and burst: let go of the trigger every other tick so each press fires (a burst then runs by
+    // itself, and the next press waits out its pause).
     this.triggerUp = fire && this.weapon.data.modo !== 'auto' ? !this.triggerUp : false;
     this.weapon.update(dt, {
       fireHeld: fire && !this.triggerUp,
@@ -634,6 +628,7 @@ export class Bot implements Combatant {
       grounded: this.move.grounded,
       crouched: this.move.crouched,
       speed: Math.hypot(this.move.vel.x, this.move.vel.z),
+      holdFire: this.knifeAnim > 0,
     });
   }
 
