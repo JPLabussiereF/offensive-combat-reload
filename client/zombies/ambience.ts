@@ -2,11 +2,12 @@
 // - the mode's own map (the cemetery) already brings the night it was made for: the green fog stays pushed back so
 //   the gaps in the wall and the grave field beyond them read from anywhere in the yard; on a boss wave the fog
 //   slowly turns blood red;
-// - the pause menu shows what we carry from the Mystery Coffin (damaged copies tagged) and its odds, in place of
-//   the Arsenal.
+// - the pause menu's Caixão tab, in place of the Arsenal: what we carry from the Mystery Coffin (damaged copies
+//   tagged) beside its odds by rarity.
 import * as THREE from 'three';
 import { BOX_ITEMS, itemOf, RARITIES, ZOMBIE, type ZFlaw, type ZItems } from '@shared/zombies';
 import type { Atmosphere, RenderContext } from '../render/renderer';
+import { esc, num } from '../ui/arsenal';
 import { t, type StringKey } from '../ui/strings';
 import { RARITY_COLOR } from './coffin';
 
@@ -29,7 +30,6 @@ export function tintFog(ctx: RenderContext, boss: boolean, dt: number) {
   if (ctx.scene.background instanceof THREE.Color) ctx.scene.background.lerp(want.multiplyScalar(0.45), 1 - Math.exp(-dt * 0.6));
 }
 
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const itemName = (id: string) => t(`zitem_${id}` as StringKey);
 const pct = (k: number) => Math.round(k * 100);
 
@@ -41,8 +41,8 @@ export function flawText(flaw: ZFlaw): string {
   return flaw === 'municao' ? ammo : flaw === 'dano' ? damage : `${ammo} · ${damage}`;
 }
 
-/** The pause menu's page: what we carry (by slot), then every rarity's odds, its chance of coming damaged and its weapons. */
-export function renderZombieArsenal(el: HTMLElement, items: ZItems) {
+/** The pause menu's Caixão tab: what we carry (by slot, in its rarity's color, a damaged copy's flaw), and every rarity's odds, damage, chance of coming damaged and weapons. */
+export function renderCoffinTab(el: HTMLElement, items: ZItems) {
   const carried = (['primaria', 'secundaria', 'faca'] as const)
     .map((slot) => {
       const it = itemOf(items[slot]);
@@ -50,22 +50,24 @@ export function renderZombieArsenal(el: HTMLElement, items: ZItems) {
       const name = it ? itemName(it.id) : slot === 'faca' ? t('arma_faca' as StringKey) : '—';
       const color = it ? RARITY_COLOR[it.raridade] : '#c8c8c8';
       const flaw = it ? items.danificadas?.[slot] : undefined;
-      const tag = flaw ? `<br><small class="zflaw">${esc(t('zDamaged'))}: ${esc(flawText(flaw))}</small>` : '';
-      return `<li style="border-left:8px solid ${color}"><span class="rung">${icon}</span><span class="icon"></span>
-        <span>${esc(name)}${tag}</span><small>${it ? esc(t(`rar_${it.raridade}` as StringKey)) : ''}</small></li>`;
+      const tag = flaw ? `<span class="fx bad">${esc(t('zDamaged'))}: ${esc(flawText(flaw))}</span>` : '';
+      return `<div class="pz-carry" style="--rarity:${color}"><span class="pz-icon">${icon}</span>
+        <span class="pz-what"><span class="pz-slot">${esc(t(`treeRow_${slot}` as StringKey))}</span><span class="pz-name">${esc(name)}</span>${tag}</span>
+        <span class="pz-carry-rar">${it ? esc(t(`rar_${it.raridade}` as StringKey)) : ''}</span></div>`;
     })
     .join('');
   const weights = RARITIES.filter((r) => r !== 'inicial');
   const sum = weights.reduce((s, r) => s + ZOMBIE.raridades[r].peso, 0);
   const odds = weights
     .map((r) => {
-      const names = BOX_ITEMS.filter((i) => i.raridade === r).map((i) => esc(itemName(i.id))).join(', ');
+      const names = BOX_ITEMS.filter((i) => i.raridade === r).map((i) => itemName(i.id)).join(', ');
       const chance = Math.round((ZOMBIE.raridades[r].peso / sum) * 100);
-      const broken = t('zArsenalDamaged', { n: pct(ZOMBIE.caixa.danificada.chance[r]) });
-      return `<li style="border-left:8px solid ${RARITY_COLOR[r]}"><span class="rung">${chance}%</span><span class="icon">×${ZOMBIE.raridades[r].dano}</span>
-        <span>${esc(t(`rar_${r}` as StringKey))}<br><small>${names}</small></span><small>${esc(broken)}</small></li>`;
+      return `<div class="pz-odds" style="--rarity:${RARITY_COLOR[r]}">
+        <div class="pz-odds-top"><span class="pz-rar">${esc(t(`rar_${r}` as StringKey))}</span><div class="pz-bar"><div style="width:${Math.min(100, chance * 2)}%"></div></div><span class="pz-chance">${chance}%</span></div>
+        <div class="pz-chips"><span class="fx good">${esc(t('pmCoffinMul', { m: num(ZOMBIE.raridades[r].dano, 2) }))}</span><span class="fx bad">${esc(t('pmCoffinBroken', { n: pct(ZOMBIE.caixa.danificada.chance[r]) }))}</span><span class="pz-items">${esc(names)}</span></div>
+      </div>`;
     })
     .join('');
-  el.innerHTML = `<h4 class="zars-title">${esc(t('zArsenalCarry'))}</h4><ol class="ladder-list">${carried}</ol>
-    <h4 class="zars-title">${esc(t('zArsenalOdds'))} · $${ZOMBIE.caixa.custo}</h4><ol class="ladder-list">${odds}</ol>`;
+  el.innerHTML = `<div class="pz"><div class="pz-col"><div class="pz-title">${esc(t('zArsenalCarry'))}</div>${carried}</div>
+    <div class="pz-col"><div class="pz-title">${esc(t('pmCoffinOdds', { cost: ZOMBIE.caixa.custo }))}</div>${odds}</div></div>`;
 }

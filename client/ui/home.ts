@@ -150,7 +150,8 @@ export function showHome(): Promise<HomeChoice> {
   createInput.placeholder = t('sessionNamePlaceholder');
   createInput.maxLength = NET.sessionNameMax;
 
-  // The menu's controls and settings live in the Settings tab while the home is open (given back on leaving).
+  // The pause menu's settings (its sub-tabs: aim, video, audio, keys or the controller, touch on phones) live in
+  // the Settings tab while the home is open (given back on leaving).
   const settingsPanel = $('menu-settings');
   const settingsHome = { parent: settingsPanel.parentElement!, next: settingsPanel.nextSibling };
   $('tab-settings').appendChild(settingsPanel);

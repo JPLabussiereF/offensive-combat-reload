@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { pickSafeSpawn } from './gameplay/spawnPicker';
 import { BISCUIT, CHERRY, GROUP, groups, HEALTH, HUMILIATION, KOI, MOVE, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
-import { PICKUPS } from '@shared/maps';
+import { MAPS, PICKUPS } from '@shared/maps';
 import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, idealTtk, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
 import { eyeHeight, type MoveInput } from '@shared/movement';
 import { CLOSE, FLAG, NET, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
@@ -55,24 +55,25 @@ import { Sfx } from './audio/sfx';
 import { BodySounds, OCCLUSION_WEIGHT, type Vec, type Walker } from './audio/spatial';
 import { Chat } from './ui/chat';
 import { Hud, type Buff, type FeedIcon } from './ui/hud';
-import { Screens } from './ui/menu';
+import { Screens, type ModeTabMeta } from './ui/menu';
+import { ladderLeader, pauseContext, previewMapName, type PauseContext } from './ui/pauseMenu';
 import { closeReason, gameModeName, showHome } from './ui/home';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
-import { Arsenal, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
+import { ArsenalPanel, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
 import { stickerBadge, stickerUpText, titleText } from './ui/album';
 import { GUN_IDS, isKnife, KNIVES, progOf, upgradeAt, type KnifeId, type WeaponId } from '@shared/progression';
 import { DEFAULT_LOADOUT, grenadeStats, gunIn, knifeOf, loadoutKnife, sanitizeLoadout, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import { MODE_RULES, type GameModeId } from '@shared/modes';
-import { FINAL_STEP, GUN_GAME, killsForStep, ladderLoadout, type LadderPos } from '@shared/gunGame';
-import { renderLadder, stepName } from './ui/ladder';
+import { FINAL_STEP, killsForStep, ladderLoadout, type LadderPos } from '@shared/gunGame';
+import { ladderTabSub, renderLadderTab, stepName } from './ui/ladder';
 import { Scoreboard } from './ui/scoreboard';
 import { DEATH_MESSAGES, getLang, pick, t, type StringKey } from './ui/strings';
 import { itemOf, startItems, ZOMBIE, zombieGunData, zombieLoadout, type ZItems } from '@shared/zombies';
 import { gateAreas } from '@shared/barricades';
 import { ZombieClient, type ZombieLink } from './zombies/client';
 import { LocalZombies } from './zombies/local';
-import { flawText, renderZombieArsenal, tintFog, zombieAtmosphere } from './zombies/ambience';
+import { renderCoffinTab, tintFog, zombieAtmosphere } from './zombies/ambience';
 
 const DEG = Math.PI / 180;
 const MOUSE_DEG_PER_COUNT = 0.022;
@@ -938,29 +939,19 @@ async function boot() {
     stickerLines.push(line);
     if (!stickerShowing) nextSticker();
   });
-  // The pause menu: corrida armada shows its ladder (the mode hands out the weapons); otherwise the Arsenal,
-  // read-only during a match with a locked loadout (mata-mata), editable on the training range.
-  const arsenalGrid = document.getElementById('arsenal-grid')!;
-  if (gunGame) {
-    document.getElementById('arsenal-title')!.textContent = t('ladderTitle');
-    document.getElementById('arsenal-hint')!.textContent = t('ladderHint', { n: GUN_GAME.killsPerStep });
-    renderLadder(arsenalGrid, { step: 0, kills: 0 });
-  } else if (zombieMode) {
-    // Zumbi: the coffin (what we carry, the rarities and their odds) instead of the account's Arsenal.
-    document.getElementById('arsenal-title')!.textContent = t('zArsenalTitle');
-    const r = ZOMBIE.raridades;
-    document.getElementById('arsenal-hint')!.textContent = t('zArsenalHint', { cost: ZOMBIE.caixa.custo, c: r.comum.dano, r: r.raro.dano, e: r.epico.dano, l: r.lendario.dano, ammo: flawText('municao'), damage: flawText('dano') });
-    renderZombieArsenal(arsenalGrid, startItems());
-  } else {
-    if (lockedLoadout) document.getElementById('arsenal-hint')!.textContent = t('arsenalLockedHint');
-    new Arsenal(progress, () => applyLoadout(progress.loadout, true), arsenalGrid, lockedLoadout);
-    // Training range: a change the account didn't save is undone, in the Arsenal and in our hands.
-    if (!lockedLoadout)
-      progress.onSaveError(() => {
-        applyLoadout(progress.loadout, true);
-        hud.notice(t('arsenalSaveFailed'));
-      });
-  }
+  // The pause menu's Arsenal tab (corrida armada shows its ladder and zumbi the coffin instead, see "Menus"):
+  // in a match what is in our hands (locked as the match began, levels and points live), on the training range
+  // editable, the new choice in our hands at once.
+  const arsenalPanel =
+    !gunGame && !zombieMode
+      ? new ArsenalPanel(progress, screens.modeBody, { editable: !lockedLoadout, inUse: () => loadout, startLevels: progress.levels, onChange: () => applyLoadout(progress.loadout, true) })
+      : null;
+  // Training range: a change the account didn't save is undone, in the Arsenal and in our hands.
+  if (arsenalPanel && !lockedLoadout)
+    progress.onSaveError(() => {
+      applyLoadout(progress.loadout, true);
+      hud.notice(t('arsenalSaveFailed'));
+    });
   applyLoadout(startLoadout);
   // Zumbi: the bigger reserve from the start.
   if (zombieMode) for (const g of Object.values(guns)) g.refill();
@@ -1257,7 +1248,6 @@ async function boot() {
     if (isKnife(w)) return weaponLabel(knifeOf(lo));
     return weaponLabel(w, lo.ativas[progOf(w)]);
   };
-  if (zombieMode && !online) screens.setSubtitle(t('zSoloSubtitle'));
   if (botMode && nav && !zombieMode) {
     bots = new BotManager({
       physics,
@@ -1313,7 +1303,6 @@ async function boot() {
         },
       },
     });
-    screens.setSubtitle(t('botsSubtitle', { n: botMode.count, mode: gameModeName(botMode.game) }));
     const navDebug = nav.debugMesh();
     ctx.scene.add(navDebug);
     Object.assign(window, { __ocNavDebug: navDebug });
@@ -1324,7 +1313,6 @@ async function boot() {
     for (const p of online.joined.players) net.upsertInfo(p);
     zombies?.syncInfo(online.joined.players);
     for (const c of online.joined.corpses) net.addCorpse(c);
-    screens.setSubtitle(t('onlineSubtitle', { name: online.joined.session.name, mode: gameModeName(online.joined.session.mode) }));
 
     conn.on('snap', (m) => {
       net.snapshot(m.time, m.players);
@@ -1514,7 +1502,6 @@ async function boot() {
     const before = shownLadder;
     shownLadder = l;
     if (before?.step === l.step && before.kills === l.kills) return;
-    renderLadder(arsenalGrid, l);
     if (!before) return;
     // A stab on a step with kills: one of them lost, same weapon.
     if (before.step === l.step) {
@@ -1526,7 +1513,7 @@ async function boot() {
       sfx.levelUp();
     } else hud.showBanner(t('ladderDown', { weapon: stepName(l.step) }), 'bird');
   };
-  /** Zumbi: the coffin's weapons we carry, as last shown (the pause menu's page and the weapon's name follow them). */
+  /** Zumbi: the coffin's weapons we carry, as last shown (the weapon's name follows them; the menu reads them itself). */
   let shownItems = '';
   const watchZombieItems = () => {
     if (!zombieMode) return;
@@ -1534,7 +1521,6 @@ async function boot() {
     const key = JSON.stringify(items);
     if (key === shownItems) return;
     shownItems = key;
-    renderZombieArsenal(arsenalGrid, items);
     if (!bladeOnly) hud.setWeaponName(slotName(slot), slotRarity(slot), slotDamaged(slot));
   };
   /** The round is over (who won, and when the next starts on the game clock); null while playing. */
@@ -1552,11 +1538,7 @@ async function boot() {
     roundOver = null;
     hud.showRoundEnd(null);
     shownLadder = { step: 0, kills: 0 };
-    if (gunGame) renderLadder(arsenalGrid, shownLadder);
-    if (zombies) {
-      zombies.reset();
-      renderZombieArsenal(arsenalGrid, startItems());
-    }
+    if (zombies) zombies.reset();
     taunt.cancel(simTime);
     thrower.cancel();
     secondThrowIn = null;
@@ -1566,6 +1548,69 @@ async function boot() {
 
   // --- Menus and pointer lock ---------------------------------------------------------------------
   relayoutTouch = () => touch?.layout();
+  // The start card and the pause menu (client/ui/pauseMenu.ts): what the rail says here (the mode, the map, the
+  // session or the bots or the wave, the banner, the exit), and the mode's tab: the Arsenal, corrida armada's
+  // ladder or the zumbi mode's coffin. Refreshed with the HUD while the menu is open (online the world goes on).
+  const mapName = mapUrl ? previewMapName(mapUrl) : MAPS[choice.map].nome;
+  const pauseNow = (): PauseContext =>
+    pauseContext({
+      place: online ? 'online' : botMode ? 'bots' : 'range',
+      mode: gameMode,
+      session: online ? { name: online.joined.session.name, players: net?.info.size ?? 1, max: online.joined.session.max } : undefined,
+      bots: botMode ? { count: botMode.count, skill: botMode.skill } : undefined,
+      wave: zombies?.wave ?? 0,
+    });
+  const modeTabMeta = (c: PauseContext): ModeTabMeta => {
+    if (c.tab === 'escada') {
+      return { icon: '🪜', label: t('pmTabLadder'), sub: ladderTabSub(myLadder() ?? { step: 0, kills: 0 }), title: t('ladderTitle'), hint: t('pmLadderHint'), badge: null, foot: '' };
+    }
+    if (c.tab === 'caixao') {
+      const cost = { cost: ZOMBIE.caixa.custo };
+      return { icon: '⚰️', label: t('pmTabCoffin'), sub: t('pmTabCoffinSub'), title: t('zArsenalTitle'), hint: t(online ? 'pmCoffinHintOnline' : 'pmCoffinHintSolo', cost), badge: null, foot: t('pmCoffinFoot') };
+    }
+    const ro = c.readOnly;
+    return {
+      icon: '🎒',
+      label: t('arsenal'),
+      sub: t(ro ? 'pmArsenalSubReadOnly' : 'pmArsenalSubEditable'),
+      title: t('arsenal'),
+      hint: t(ro ? 'pmArsenalHintReadOnly' : 'pmArsenalHintEditable'),
+      badge: ro ? 'readOnly' : 'editable',
+      // Without an account nothing levels up: the footer says why.
+      foot: t(!progress.signedIn ? 'pmArsenalFootGuest' : ro ? 'pmArsenalFootReadOnly' : 'pmArsenalFootEditable'),
+    };
+  };
+  /** What the mode's tab last drew (it is drawn again only when that changes). */
+  let modeTabKey = '';
+  const drawModeTab = (force: boolean) => {
+    const el = screens.modeBody;
+    if (arsenalPanel) {
+      // Points and choices redraw it themselves (Progress.onChange).
+      if (force) arsenalPanel.render();
+      return;
+    }
+    if (gunGame) {
+      const players = net ? net.info.values() : (bots?.standings() ?? []);
+      const round = roundOver && { title: roundOver.title, next: t('roundNext', { s: Math.max(0, Math.ceil(roundOver.restartAt - clock())) }) };
+      const view = { pos: myLadder() ?? { step: 0, kills: 0 }, leader: ladderLeader(players, me), round };
+      const key = JSON.stringify(view);
+      if (force || key !== modeTabKey) renderLadderTab(el, view);
+      modeTabKey = key;
+    } else if (zombieMode) {
+      const items = zItems();
+      const key = JSON.stringify(items);
+      if (force || key !== modeTabKey) renderCoffinTab(el, items);
+      modeTabKey = key;
+    }
+  };
+  const refreshMenu = () => {
+    if (!screens.visible) return;
+    const c = pauseNow();
+    screens.setContext(c, mapName);
+    screens.setModeTab(modeTabMeta(c));
+    if (screens.openedTab === 'mode') drawModeTab(false);
+  };
+  screens.onTab((tab) => tab === 'mode' && drawModeTab(true));
   screens.onPlay(() => {
     sfx.unlock();
     sfx.ui();
@@ -1596,7 +1641,8 @@ async function boot() {
       () => touch.resetLayout(),
     );
   }
-  screens.onExit(t('exitToHome'), () => {
+  // The exit (after its confirmation): back to the home screen.
+  screens.onExit(() => {
     conn?.close();
     location.reload();
   });
@@ -1625,13 +1671,15 @@ async function boot() {
     } else {
       pausedAt = performance.now();
       screens.showMenu('pause');
+      refreshMenu();
     }
   };
-  // Computer: Esc opens and closes the pause menu.
+  // Computer: Esc opens the pause menu and, inside it, goes back one level: the exit's confirmation, then the
+  // open tab, then the game (a key being bound takes its Esc first: it listens before this).
   // - In fullscreen the game keeps Esc (keepEscape): it pauses by letting go of the mouse itself, which the
   //   browser lets it take back without a click, so closing the menu has the mouse aiming at once.
   // - Elsewhere the browser takes the Esc that pauses and only gives the mouse back on a click or another key:
-  //   the next Esc closes the menu and play resumes, the mouse coming back with the first key or click.
+  //   the last Esc closes the menu and play resumes, the mouse coming back with the first key or click.
   // The Esc that opened the menu may be seen after it did (its time is earlier): never a second press.
   if (!IS_MOBILE)
     window.addEventListener('keydown', (e) => {
@@ -1643,7 +1691,13 @@ async function boot() {
         }
         return;
       }
-      if (pausedAt === null || e.timeStamp <= pausedAt) return;
+      if (pausedAt !== null && e.timeStamp <= pausedAt) return;
+      // The start card has tabs too: Esc closes them, but never starts the match.
+      if (screens.visible && screens.back()) {
+        e.preventDefault();
+        return;
+      }
+      if (pausedAt === null) return;
       e.preventDefault();
       sfx.ui();
       void input.lock().then((got) => {
@@ -2251,6 +2305,8 @@ async function boot() {
       const l = myLadder();
       hud.setLadder(l && { step: l.step, total: FINAL_STEP + 1, name: stepName(l.step), kills: l.kills, need: killsForStep(l.step), final: l.step === FINAL_STEP });
       if (roundOver) hud.showRoundEnd(roundOver.title, t('roundNext', { s: Math.max(0, Math.ceil(roundOver.restartAt - clock())) }), roundOver.won);
+      // The menu over a running match follows it (the wave, the players, the ladder, the coffin).
+      refreshMenu();
       if (showDebug) {
         const info = ctx.renderer.info;
         const pos = cam.position;
@@ -2294,6 +2350,7 @@ async function boot() {
   render(1, 0);
   mark('firstFrame');
   screens.showMenu('start');
+  refreshMenu();
   // Every handler exists now: messages that arrived while the map was being built go through.
   conn?.release();
   startLoop(step, render);
