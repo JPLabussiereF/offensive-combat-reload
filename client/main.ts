@@ -55,6 +55,7 @@ import { Sfx } from './audio/sfx';
 import { BodySounds, OCCLUSION_WEIGHT, type Vec, type Walker } from './audio/spatial';
 import { Chat } from './ui/chat';
 import { Hud, type Buff, type FeedIcon, type HitKind } from './ui/hud';
+import { DamageNumbers, damageTier, ShotDamage } from './ui/damageNumbers';
 import { Screens, type ModeTabMeta } from './ui/menu';
 import { ladderLeader, pauseContext, previewMapName, type PauseContext } from './ui/pauseMenu';
 import { closeReason, gameModeName, showHome } from './ui/home';
@@ -211,6 +212,11 @@ async function boot() {
   const grenades = new GrenadeProjectiles(physics, ctx.scene, grenadeData, (s, at, duck) => sfx.at(at, 'normal', (x) => (duck ? x.quack() : x.grenadeBounce(s))));
   const taunt = new Taunt();
   const hud = new Hud();
+  const damageNumbers = new DamageNumbers<HTMLDivElement>({
+    root: document.getElementById('dmg-numbers')!,
+    create: () => document.createElement('div'),
+    size: () => ({ w: window.innerWidth, h: window.innerHeight }),
+  });
   // Corrida armada orders it by the ladder, with a column for each player's weapon.
   const scoreboard = new Scoreboard(gunGame ? 'ladder' : zombieMode ? 'zombie' : 'plain');
   const input = new Input(ctx.renderer.domElement);
@@ -742,6 +748,8 @@ async function boot() {
         if (kind === null) markedElsewhere = true;
         else if (!mark || kind === 'kill' || (kind === 'head' && mark === 'hit')) mark = kind;
       };
+      // The floating damage numbers (only we see them): one per target, whatever its pellets did.
+      const dealt = new ShotDamage<object>();
       // Eight pellets on a wall make one impact sound, not eight.
       const impact = (at: THREE.Vector3, material: SurfaceMaterial) => {
         if (heardImpact) return;
@@ -776,11 +784,13 @@ async function boot() {
           const region: HitRegion = entity.refineRegion(hit.point, hit.target.region);
           const groin = region === 'virilha';
           const head = region === 'cabeca';
+          const crit = potionKind === 'critico';
+          const tier = damageTier(region, crit);
           tmp.copy(dir).negate();
           if (zombies?.isZombie(entity)) {
             // A zombie: reported to the match (the server online), which decides the damage and the kill.
             if (entity.dead) return;
-            zombies.shot(entity, region, hit.distance, weapon.data, keep);
+            dealt.add(entity, hit.point, zombies.shot(entity, region, hit.distance, weapon.data, keep, crit), tier, zombies.healthOf(entity));
             effects.burst(head || groin ? 'star' : 'debris', hit.point, tmp, head || groin ? 10 : 7, 0x6f8a3a);
             land(hit.distance, head || groin, head ? 'head' : 'hit');
             return;
@@ -788,7 +798,10 @@ async function boot() {
           if (net) {
             // Online: report the hit, show feedback now; the server confirms damage and kills.
             if (entity.dead) return;
-            conn!.send({ t: 'hit', target: (entity as RemotePlayer).id, region, dist: +hit.distance.toFixed(2), w: weapon.data.arma, ...(keep < 1 ? { keep: +keep.toFixed(3) } : {}) });
+            const remote = entity as RemotePlayer;
+            conn!.send({ t: 'hit', target: remote.id, region, dist: +hit.distance.toFixed(2), w: weapon.data.arma, ...(keep < 1 ? { keep: +keep.toFixed(3) } : {}) });
+            // The server's sum (same formula), up to the health its last snapshot gave them.
+            dealt.add(entity, hit.point, computeDamage(weapon.data, hit.distance, critRegion(region, crit), keep), tier, remote.health);
             effects.burst(head || groin ? 'star' : 'confetti', hit.point, tmp, head || groin ? 10 : 6);
             land(hit.distance, head || groin, head ? 'head' : 'hit');
             return;
@@ -797,15 +810,17 @@ async function boot() {
             // Against bots: same rules as online; kills and popups come back through the bot hooks.
             if (entity.dead) return;
             const kind: KillKind = head ? 'head' : groin ? 'groin' : 'gun';
-            const res = bots.hit(entity, playerTarget, computeDamage(weapon.data, hit.distance, critRegion(region, potionKind === 'critico'), keep), { kind, region, dist: hit.distance, w: weapon.data.arma });
+            const res = bots.hit(entity, playerTarget, computeDamage(weapon.data, hit.distance, critRegion(region, crit), keep), { kind, region, dist: hit.distance, w: weapon.data.arma });
             if (res.dealt <= 0) return;
+            dealt.add(entity, hit.point, res.dealt, tier);
             effects.burst(head || groin ? 'star' : 'confetti', hit.point, tmp, head || groin ? 10 : 6);
             land(hit.distance, head || groin, res.killed ? null : head ? 'head' : 'hit');
             return;
           }
           const dummy = entity as Dummy;
-          const res = dummy.applyHit(computeDamage(weapon.data, hit.distance, critRegion(region, potionKind === 'critico'), keep), region, simTime, dir, groin ? 'forward' : 'back');
+          const res = dummy.applyHit(computeDamage(weapon.data, hit.distance, critRegion(region, crit), keep), region, simTime, dir, groin ? 'forward' : 'back');
           if (res.damage <= 0) return;
+          dealt.add(entity, hit.point, res.damage, tier);
           effects.burst(res.headshot || groin ? 'star' : 'confetti', hit.point, tmp, res.headshot || groin ? 10 : 6);
           land(hit.distance, res.headshot || groin, res.killed ? 'kill' : res.headshot ? 'head' : 'hit');
           if (res.killed) {
@@ -828,6 +843,7 @@ async function boot() {
           }
         }
       });
+      for (const d of dealt.values()) damageNumbers.show(d.at, d.amount, d.tier);
       if (!landed) return;
       // One shot, one hit for the accuracy count; a bot's kill already marked itself.
       hits++;
@@ -2328,6 +2344,7 @@ async function boot() {
     if (showBoard && bots && botMode) scoreboard.update(bots.standings(), me, t('botsSubtitle', { n: botMode.count, mode: gameModeName(botMode.game) }));
 
     hud.update(frameDt);
+    damageNumbers.update(frameDt, ctx.camera);
     // Every frame (the bar and the ring move): the reload, and what the touch buttons show.
     hud.setReload(weapon.reloadProgress);
     touch?.setStatus(thrower.count, weapon.reloadProgress, weapon.mag <= weapon.data.pente * 0.3 && weapon.reserve > 0, thrower.rechargeProgress);
