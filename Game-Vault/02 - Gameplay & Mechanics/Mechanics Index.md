@@ -14,7 +14,7 @@ tags:
   - game
   - gameplay
   - index
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Mechanics Index
@@ -51,7 +51,7 @@ flowchart LR
 |---|---|
 | [[Movement]] | andar 5,5 / correr 8 / agachar 2,8 m/s, pulo 1,1 m, slide até 10,5 m/s, degraus 0,4 m, dano de queda acima de 6 m |
 | [[Combat]] | visão geral, prioridades por tick (tiro > sprint/granada), autoridade por modo |
-| [[Weapons]] | rifle (primária) + pistola ou submetralhadora (secundária), hitscan, dispersão em 4 estados, recuo semi-determinístico, ADS, penetração, troca de arma com tempo de saque, melhorias por nível |
+| [[Weapons]] | rifle (primária) + uma das sete secundárias (rajada no grampeador, bagos na garrucha), hitscan, dispersão em 4 estados, recuo semi-determinístico, ADS, penetração, troca de arma com tempo de saque, melhorias por nível |
 | [[Damage System]] | **fonte única das fórmulas**: queda por distância, multiplicadores por região, virilha/faca instantâneas, explosão, validação no servidor |
 | [[Health System]] | 100 HP, regeneração 25/s após 4 s, vida máxima dinâmica (até 200) |
 | [[Interaction System]] | tecla de contexto E (Oprimir / Beber Poção), encostar, atirar em objetos |

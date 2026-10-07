@@ -11,7 +11,7 @@
 // with a lag tolerance.
 import type { ServerWebSocket } from 'bun';
 import { BISCUIT, CHERRY, HEALTH, HUMILIATION, KOI, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
-import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, HIT_REGIONS, LETHAL_DAMAGE, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
+import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, HIT_REGIONS, hitsPerSecond, LETHAL_DAMAGE, minPenetrationKeep, type GrenadeLevel, type HitRegion, type WeaponData } from '@shared/weapons';
 import { ACCOUNT_XP } from '@shared/accountLevel';
 import { bodyStats } from '@shared/appearance';
 import { CHECKED_PROPS, FISH, PICKUPS, PROP_RANGE, PROPS, RATS, WITCHES, type MapId, type PickupKind } from '@shared/maps';
@@ -357,7 +357,8 @@ export class Session {
         if (finite(msg.c)) conn.send({ t: 'pong', c: msg.c, s: now });
         return;
       case 'shot': {
-        // Cosmetic relay (tracer + sound for others), rate-limited to the fire rate of the gun in hand.
+        // Cosmetic relay (tracer + sound for others), rate-limited to the fire rate of the gun in hand (one per
+        // trigger pull: a scattergun's pellets are a single shot here).
         const gun = this.gunOf(p, p.held);
         if (!p.alive || !gun || !vec(msg.o) || !vec(msg.e) || now - p.lastShotRelay < (60000 / gun.cadencia) * 0.7) return;
         p.lastShotRelay = now;
@@ -560,11 +561,12 @@ export class Session {
 
   /**
    * Fire-rate check: no more confirmed hits per second than the gun can fire (+ slack for jitter), whatever
-   * they hit (players and the mode's enemies). Records the hit when it passes.
+   * they hit (players and the mode's enemies). A scattergun's pellets are each a hit of their own: its limit is
+   * that many times bigger. Records the hit when it passes.
    */
-  private fireRate(p: SPlayer, gun: { cadencia: number }, now: number): boolean {
+  private fireRate(p: SPlayer, gun: Pick<WeaponData, 'cadencia' | 'bagos'>, now: number): boolean {
     p.hitTimes = p.hitTimes.filter((t) => now - t < 1000);
-    if (p.hitTimes.length >= Math.ceil(gun.cadencia / 60) + 2) return false;
+    if (p.hitTimes.length >= hitsPerSecond(gun)) return false;
     p.hitTimes.push(now);
     return true;
   }

@@ -54,9 +54,11 @@ client/
 ├── styles.css              Todo o CSS (HUD, menus, home, editor, toque)
 ├── ai/
 │   ├── bot.ts              Bot: jogador dirigido por código (percepção, decisão, mira, gatilho)
+│   ├── botGuns.ts          pickGun: a arma que um bot sorteia a cada vida (puro, testável)
 │   ├── bots.ts             BotManager: mata-mata offline contra bots (dano, prêmios, corpos, respawn)
 │   └── navmesh.ts          NavMap: navmesh Recast a partir dos colisores estáticos
 ├── audio/
+│   ├── gunVoices.ts        SHOT_VOICES: a voz de tiro de cada arma (dados puros, testáveis)
 │   ├── sfx.ts              Sons procedurais em Web Audio (barramentos de mixagem)
 │   └── spatial.ts          Matemática de som espacial (distância, oclusão, eco), testável
 ├── character/              Sistema modular de personagens
@@ -106,8 +108,8 @@ client/
 │   ├── springs.ts          Molas amortecidas da 1ª pessoa
 │   ├── viewmodel.ts        Braços + arma em 1ª pessoa (cena própria)
 │   ├── viewmodelArms.ts    Braços da 1ª pessoa
-│   └── weaponModels.ts     Modelos das armas de fogo com as melhorias e a pintura de cada rifle (gunParts), as sete facas e a mina
-├── tests/                  Testes bun:test de lógica pura do cliente (aimAssist, arsenalText, arsenalTree, arsenalCanvasLayout, keybinds, offlineModes, pauseMenu, spatial)
+│   └── weaponModels.ts     Modelos das armas de fogo com as melhorias e a pintura de cada rifle (gunParts, GUN_MODELS: um construtor por secundária), as sete facas e a mina
+├── tests/                  Testes bun:test de lógica pura do cliente (aimAssist, arsenalText, arsenalTree, arsenalCanvasLayout, keybinds, offlineModes, pauseMenu, spatial, weapon)
 ├── ui/
 │   ├── home.ts             Home: conta, lobby online, bots, treino (HomeChoice)
 │   ├── auth.ts             Formulários de login/cadastro/senha
@@ -179,7 +181,7 @@ server/
 │   ├── password.ts         Cadastro, login com limites, recuperação de senha
 │   └── discord.ts          OAuth Discord (PKCE, arctic)
 ├── migrations/             001_contas.sql, 002_aparencia.sql, 003_melhorias.sql (+ .down.sql manuais)
-└── tests/                  bun:test de integração (auth, game, appearance), unitário (arsenal) + helpers, preload, env
+└── tests/                  bun:test de integração (auth, game, appearance), unitário (arsenal; secondaries, que também sobe um servidor) + helpers, preload, env
 ```
 
 ## `shared/`
@@ -201,7 +203,7 @@ shared/
 └── data/
     ├── progression.json    Melhorias de cada arma por nível
     ├── nivel_conta.json    Curva do nível da conta
-    └── weapons/            rifle_padrao.json e rifle_{fita,tia,natal,chama,vovo,ouro}.json, pistola.json, smg.json, faca.json e {colher,frango,baguete,peixe,macarrao,sabre}.json, granada_frag.json
+    └── weapons/            rifle_padrao.json e rifle_{fita,tia,natal,chama,vovo,ouro}.json, pistola.json, smg.json, {grampeador,revolver,furadeira,garrucha,pistolao}.json, faca.json e {colher,frango,baguete,peixe,macarrao,sabre}.json, granada_frag.json
 ```
 
 ## Demais pastas

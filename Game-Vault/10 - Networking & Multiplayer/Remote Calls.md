@@ -23,7 +23,7 @@ tags:
   - game
   - networking
   - protocol
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Remote Calls
@@ -64,8 +64,8 @@ Convenções:
 |---|---|---|---|---|
 | `state` | `s: NetState` | **20 Hz** enquanto vivo | `p` Vec3 finito, `yaw/pitch/f` finitos; ignorado se morto; pitch limitado a ±1,6; `f` truncado a inteiro | Atualiza a posição usada nos `snap` e nas validações |
 | `ping` | `c`, `rtt?` | 1 Hz | `rtt` limitado a 0–9999 ms | `pong {c, s}`; `rtt` vira o `ping` do placar |
-| `shot` | `o`, `e` (Vec3) | por disparo | vivo, vetores finitos, intervalo ≥ 70 % do intervalo da cadência da arma em mãos (com as melhorias) | broadcast `shot {id, o, e}` (exceto o autor) — **cosmético** |
-| `hit` | `target`, `region`, `dist`, `w` (`GunId` da arma que atirou, um rifle antigo com o próprio id), `keep?` | por acerto | ver [[Anti Cheat]]: `w` em mãos ou guardada há < 1 s e no loadout, ambos vivos, região em `HIT_REGIONS`, máx. `ceil(cadência/60)+2` acertos/s, distância vs servidor | `damage` (+ `kill`) para todos |
+| `shot` | `o`, `e` (Vec3) | por disparo (um só para os 8 bagos da garrucha; um por grampo na rajada) | vivo, vetores finitos, intervalo ≥ 70 % do intervalo da cadência da arma em mãos (com as melhorias) | broadcast `shot {id, o, e}` (exceto o autor) — **cosmético** |
+| `hit` | `target`, `region`, `dist`, `w` (`GunId` da arma que atirou, um rifle antigo ou uma secundária com o próprio id), `keep?` | por acerto (na garrucha, um por bago que acerta) | ver [[Anti Cheat]]: `w` em mãos ou guardada há < 1 s e no loadout, ambos vivos, região em `HIT_REGIONS`, máx. `(ceil(cadência/60)+2) × bagos` acertos/s (`hitsPerSecond`; ×8 só na garrucha), distância vs servidor | `damage` (+ `kill`) para todos |
 | `swing` | — | por golpe | vivo | broadcast `swing {id}` (cosmético) |
 | `stab` | `target`, `behind` | por facada | ambos vivos; intervalo ≥ 75 % do `intervalo` da faca do jogador (`loadoutKnife`: a faca do loadout com as melhorias); distância horizontal ≤ `alcanceInvestida` dela `+ 1,5 m` | `damage` (55 ou letal se a faca do nível for `letal`) |
 | `grenade` | `id`, `p`, `v`, `fuse`, `impact?`, `mine?`, `duck?` | por lançamento | o modo tem granadas (não na corrida armada), vivo, campos finitos; id não repetido; máx. **4 granadas** e **3 minas** vivas; mina só se o nível da granada for do tipo `mina`; `fuse` limitado a `[0, pavio]` (ou `[0, tempoMaximoVoo]` se impacto) | broadcast `grenade {owner, ...}` (exceto o autor) |
@@ -101,7 +101,7 @@ Convenções:
 | `scores` | `players: PlayerInfo[]` | **1 Hz** | sala |
 | `shot`, `swing` | `id`, (`o`, `e`) | retransmissão | sala, exceto autor |
 | `damage` | `target`, `attacker`, `amount`, `health`, `from` | dano aplicado | sala |
-| `kill` | `victim`, `attacker`, `kind`, `arma?` (`WeaponId`: o rifle ou a secundária que atirou, `faca` numa facada, `granada`; os pontos vão para a progressão dela, `progOf`), `awards`, `corpse`, `players` | morte | sala; o nome da faca no kill feed sai do loadout de quem matou |
+| `kill` | `victim`, `attacker`, `kind`, `arma?` (`WeaponId`: o rifle ou a secundária que atirou — inclusive `grampeador`, `revolver`, `furadeira`, `garrucha`, `pistolao` —, `faca` numa facada, `granada`; os pontos vão para a progressão dela, `progOf`), `awards`, `corpse`, `players` | morte | sala; o nome da faca no kill feed sai do loadout de quem matou |
 | `spawned` | `id`, `p`, `yaw` | respawn aceito | sala |
 | `grenade`, `boom` | `owner`, `id`, ... | lançamento / explosão | sala, exceto autor |
 | `taunt`, `tauntEnd` | `id`, `corpse`, (`done`, `awards`, `players`) | humilhação | sala |

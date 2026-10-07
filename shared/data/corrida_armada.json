@@ -9,6 +9,8 @@
     { "id": "smgTurbo", "arma": "smg", "melhorias": ["motor", "holo", "coronha"] },
     { "id": "rifleLuneta", "arma": "rifle", "melhorias": ["empunhadura", "luneta"] },
     { "id": "rifleSilenciado", "arma": "rifle", "melhorias": ["silenciador"] },
+    { "id": "garrucha", "arma": "garrucha", "melhorias": [] },
+    { "id": "grampeador", "arma": "grampeador", "melhorias": [] },
     { "id": "pistolaRapida", "arma": "pistola", "melhorias": ["gatilho", "pontoVermelho", "coldre"] },
     { "id": "pistolaBatata", "arma": "pistola", "melhorias": ["batata"] },
     { "id": "sabre", "arma": "faca", "faca": "sabre", "melhorias": [] }

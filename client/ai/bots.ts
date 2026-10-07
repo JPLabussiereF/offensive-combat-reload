@@ -15,10 +15,11 @@ import type { NavMap } from './navmesh';
 import { Corpse, groundBelow } from '../gameplay/corpse';
 import { pickSafeSpawn } from '../gameplay/spawnPicker';
 import type { HitboxRegistry } from '../gameplay/targets';
-import { applySpread, traceShot } from '../weapons/hitscan';
+import { applySpread, offsetDir, traceShot } from '../weapons/hitscan';
+import type { Pellet } from '../weapons/weapon';
 import type { Effects } from '../render/effects';
 import type { Sfx } from '../audio/sfx';
-import type { Physics } from '../world/physics';
+import type { Physics, SurfaceMaterial } from '../world/physics';
 import type { SpawnPoint } from '../world/blockoutMap';
 
 const RESPAWN = 5;
@@ -91,7 +92,7 @@ export class BotManager {
     for (let i = 0; i < o.count; i++) {
       const [name, sex] = names[i % names.length];
       const bot = new Bot(i + 1, name, sex, BOT_SKILLS[o.skill], o.physics.world, o.scene, o.registry);
-      bot.onShoot = (spread) => this.fire(bot, spread);
+      bot.onShoot = (spread, pellets) => this.fire(bot, spread, pellets);
       this.bots.push(bot);
     }
     this.ladder = o.game === 'corrida-armada' ? new Map() : null;
@@ -109,7 +110,7 @@ export class BotManager {
       nav: o.nav,
       combatants: () => this.combatants().filter((c) => !this.isProtected(c)),
       corpses: () => this.corpses.values(),
-      fire: (bot, spread) => this.fire(bot, spread),
+      fire: (bot, spread, pellets) => this.fire(bot, spread, pellets),
       stab: (bot, target) => this.stab(bot, target),
       tauntStarted: (bot, corpse) => o.hooks.tauntStarted(bot, corpse),
       tauntFinished: (bot, corpse) => this.finishTaunt(bot, corpse),
@@ -287,40 +288,50 @@ export class BotManager {
     this.o.hooks.humiliation(dancer, corpse, [{ label: 'humiliation', value: SCORE.humiliation }]);
   }
 
-  private fire(bot: Bot, spread: number) {
+  /** A bot's shot: one ray, or one per pellet of a scattergun (each pellet that lands is a hit of its own). */
+  private fire(bot: Bot, spread: number, pellets: Pellet[] | null) {
     this.unprotect(bot);
     const eye = bot.eye(new THREE.Vector3());
     const p = bot.pitch + bot.weapon.recoilPitch * DEG;
     const y = bot.yaw - bot.weapon.recoilYaw * DEG;
     const aim = new THREE.Vector3(-Math.sin(y) * Math.cos(p), Math.sin(p), -Math.cos(y) * Math.cos(p));
-    const dir = applySpread(aim, spread, new THREE.Vector3());
+    const center = applySpread(aim, spread, new THREE.Vector3());
     const gun = bot.weapon.data;
-    const { hit, through, keep, end } = traceShot(this.o.physics, this.o.registry, eye, dir, gun.alcanceMaximo, bot.rig.body, gun.penetracao);
     const muzzle = bot.muzzle(new THREE.Vector3());
     bot.fired();
     this.o.sfx.at(muzzle, gun.silenciador ? 'step' : 'gun', (s) => s.gunshot(1, gun.silenciador ? 'silenciado' : bot.gun));
-    if (Math.random() < 0.5) this.o.effects.tracer(muzzle, end);
-    for (const p of through) {
-      this.o.effects.decal(p.point, p.normal);
-      this.o.effects.decal(p.exit, p.exitNormal);
-      this.o.effects.burst('debris', p.exit, dir, 3, 0x9a6a3a);
-      this.o.sfx.at(p.point, 'normal', (s) => s.impact(p.surface.material));
-      p.surface.onShot?.(p.point);
-    }
-    if (!hit) return;
-    if (hit.target) {
-      const victim = hit.target.entity as Combatant;
-      if (!('id' in victim)) return; // dummies aren't in bot matches
-      const region = victim.refineRegion(hit.point, hit.target.region);
-      const kind: KillKind = region === 'cabeca' ? 'head' : region === 'virilha' ? 'groin' : 'gun';
-      this.o.effects.burst(region === 'cabeca' || region === 'virilha' ? 'star' : 'confetti', hit.point, dir.clone().negate(), 6);
-      this.hit(victim, bot, computeDamage(gun, hit.distance, region, keep), { kind, region, dist: hit.distance, w: bot.gun });
-    } else {
-      this.o.effects.decal(hit.point, hit.normal);
-      this.o.effects.burst('debris', hit.point, hit.normal, 3, 0x9a8f80);
-      const surface = hit.surface;
-      if (surface) this.o.sfx.at(hit.point, 'normal', (s) => s.impact(surface.material));
-      hit.surface?.onShot?.(hit.point);
+    const tracer = Math.random() < 0.5;
+    let heard = false;
+    const impact = (at: THREE.Vector3, material: SurfaceMaterial) => {
+      if (heard) return;
+      heard = true;
+      this.o.sfx.at(at, 'normal', (s) => s.impact(material));
+    };
+    for (const dir of pellets ? pellets.map((q) => offsetDir(center, q.theta, q.phi, new THREE.Vector3())) : [center]) {
+      const { hit, through, keep, end } = traceShot(this.o.physics, this.o.registry, eye, dir, gun.alcanceMaximo, bot.rig.body, gun.penetracao);
+      if (tracer) this.o.effects.tracer(muzzle, end);
+      for (const p of through) {
+        this.o.effects.decal(p.point, p.normal);
+        this.o.effects.decal(p.exit, p.exitNormal);
+        this.o.effects.burst('debris', p.exit, dir, 3, 0x9a6a3a);
+        impact(p.point, p.surface.material);
+        p.surface.onShot?.(p.point);
+      }
+      if (!hit) continue;
+      if (hit.target) {
+        const victim = hit.target.entity as Combatant;
+        if (!('id' in victim)) continue; // dummies aren't in bot matches
+        const region = victim.refineRegion(hit.point, hit.target.region);
+        const kind: KillKind = region === 'cabeca' ? 'head' : region === 'virilha' ? 'groin' : 'gun';
+        this.o.effects.burst(region === 'cabeca' || region === 'virilha' ? 'star' : 'confetti', hit.point, dir.clone().negate(), 6);
+        this.hit(victim, bot, computeDamage(gun, hit.distance, region, keep), { kind, region, dist: hit.distance, w: bot.gun });
+      } else {
+        this.o.effects.decal(hit.point, hit.normal);
+        this.o.effects.burst('debris', hit.point, hit.normal, 3, 0x9a8f80);
+        const surface = hit.surface;
+        if (surface) impact(hit.point, surface.material);
+        hit.surface?.onShot?.(hit.point);
+      }
     }
   }
 

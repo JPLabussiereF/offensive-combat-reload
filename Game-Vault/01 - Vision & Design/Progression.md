@@ -11,6 +11,8 @@ source_paths:
   - shared/arsenal.ts
   - shared/data/progression.json
   - shared/data/weapons/smg.json
+  - shared/data/weapons/grampeador.json
+  - shared/data/weapons/furadeira.json
   - shared/data/weapons/rifle_tia.json
   - shared/data/weapons/sabre.json
   - shared/weapons.ts
@@ -31,14 +33,14 @@ tags:
   - game
   - design
   - progression
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Progression
 
 Existem **duas progressões independentes**, ambas guardadas **na conta** (no servidor) e alimentadas **só por eventos online validados pelo servidor**:
 
-1. **Progressão de arma**: rifle, pistola, submetralhadora, faca e granada evoluem separadamente, cada uma com os pontos dos próprios abates; cada nível libera uma **melhoria** com atributos reais. Os sete rifles dividem a progressão do rifle e as sete facas a da faca.
+1. **Progressão de arma**: rifle, pistola, submetralhadora, faca e granada evoluem separadamente, cada uma com os pontos dos próprios abates; cada nível libera uma **melhoria** com atributos reais. Os sete rifles dividem a progressão do rifle e as sete facas a da faca; o grampeador, o revólver, a garrucha e o pistolão dividem a da pistola, e a furadeira a da submetralhadora.
 2. **Nível da conta**: XP próprio, ganho com tempo vivo, abates, opressões e carpas.
 
 Não há moeda, loja nem desbloqueio comprado ([[Economy Design]]).
@@ -52,7 +54,7 @@ Não há moeda, loja nem desbloqueio comprado ([[Economy Design]]).
 
 | Tipo de morte (`KillKind`) | Arma que recebe os pontos |
 | --- | --- |
-| `gun`, `head`, `groin` | a progressão da arma de fogo que atirou (`kill.arma`: qualquer rifle → rifle, pistola, submetralhadora) |
+| `gun`, `head`, `groin` | a progressão da arma de fogo que atirou (`kill.arma`: qualquer rifle → rifle; pistola, grampeador, revólver, garrucha, pistolão → pistola; submetralhadora, furadeira → submetralhadora) |
 | `knife` | faca (qualquer faca) |
 | `grenade` (inclui a mina) | granada |
 | `fall`, `void`, `explosion`, `dog` | nenhuma |
@@ -76,10 +78,10 @@ Uma arma pode esperar pontos de uma progressão (`libera: { arma, pontos }` no J
 | Espaço | Arma | Libera com |
 |---|---|---|
 | Primária | Remendado com Fita · da Tia do Zap · Pisca-Pisca de Natal · Tunado com Adesivo de Chama · do Vovô · Dourado Ostentação | 1.000 · 2.500 · 4.500 · 7.000 · 10.000 · 16.000 pts de **rifle** (os pontos dos níveis 2 a 6 e 8) |
-| Secundária | Submetralhadora Liquidificador | 1.800 pts de **pistola** (o nível 3) |
+| Secundária | Grampeador do RH · Submetralhadora Liquidificador · Revólver do Delegado da Quadrilha · Furadeira do Vizinho de Domingo · Garrucha do Cangaceiro · Pistolão do Marombeiro | 700 · 1.800 · 3.200 · 5.200 · 7.000 · 9.000 pts de **pistola** (os níveis 2 a 5 da pistola, e dois além do último); a furadeira também libera com os de pistola, embora evolua com os da submetralhadora |
 | Faca | Colher de Pau · Frango de Borracha · Baguete · Peixe Congelado · Macarrão de Piscina · Sabre de Luz | 600 · 1.500 · 2.800 · 4.500 · 6.500 · 9.000 pts de **faca** |
 
-Quem **já fez algum ponto com a submetralhadora** fica com ela liberada (contas de antes da trava). Sem conta tudo fica no nível 1, então as armas com trava aparecem trancadas. Os bots não têm trava (sorteiam qualquer rifle e qualquer faca). O Arsenal mostra quantos pontos faltam ("faltam 600 pts de faca"), e quando uma arma libera aparece "… liberada: equipe no Arsenal" (ela não entra sozinha no espaço). Ver [[ADR - Rifles e facas antigos como armas próprias]].
+Quem **já fez algum ponto com a submetralhadora** fica com ela liberada (contas de antes da trava). Sem conta tudo fica no nível 1, então as armas com trava aparecem trancadas. Os bots não têm trava (sorteiam qualquer rifle, qualquer secundária e qualquer faca). O Arsenal mostra quantos pontos faltam ("faltam 600 pts de faca"), e quando uma arma libera aparece "… liberada: equipe no Arsenal" (ela não entra sozinha no espaço). Ver [[ADR - Rifles e facas antigos como armas próprias]] e [[ADR - Secundárias novas no Arsenal]].
 
 #### Rifle (primária, os sete rifles) — 9 níveis
 
@@ -96,7 +98,7 @@ Quem **já fez algum ponto com a submetralhadora** fica com ela liberada (contas
 
 As miras dos níveis 7 a 9 voltaram das primeiras versões do jogo (PF-8). Nenhuma melhoria muda a pintura do rifle: cada rifle tem a sua ([[Weapon Models]]).
 
-#### Pistola do Porteiro (secundária) — 5 níveis
+#### Pistola do Porteiro (secundária; também o grampeador, o revólver, a garrucha e o pistolão) — 5 níveis
 
 | Nv | XP | Melhoria | Efeito | Tipo |
 |---|---|---|---|---|
@@ -105,7 +107,7 @@ As miras dos níveis 7 a 9 voltaram das primeiras versões do jogo (PF-8). Nenhu
 | 4 | 3200 | Coldre de Velcro | tempo de saque −50%, recarga −20% | comum |
 | 5 | 5200 | Silenciador de Batata | tiro abafado, sem traçante, recuo −15%; **troca**: dano −8% | opcional |
 
-#### Submetralhadora Liquidificador (secundária) — 5 níveis
+#### Submetralhadora Liquidificador (secundária; também a furadeira) — 5 níveis
 
 | Nv | XP | Melhoria | Efeito | Tipo |
 |---|---|---|---|---|

@@ -17,7 +17,7 @@ tags:
   - game
   - design
   - loop
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Core Loop
@@ -43,7 +43,7 @@ flowchart TD
 
 1. **Nascer**: o cliente escolhe um ponto de nascimento seguro ([[Respawn]]).
 2. **Procurar briga**: andar, correr, deslizar ([[Movement]]). No caminho há coletáveis e gags ([[Objectives]], [[Map Gags]]).
-3. **Combater**: rifle ou a secundária (pistola ou submetralhadora, trocadas com 1/2/roda), todas hitscan; faca que mata com um golpe; granada de impacto ou mina ([[Combat]], [[Weapons]]).
+3. **Combater**: rifle ou a secundária (uma das sete, trocadas com 1/2/roda), todas hitscan; faca que mata com um golpe; granada de impacto ou mina ([[Combat]], [[Weapons]]).
 4. **Abater**: o abate vale 100 pontos, mais os bônus (cabeça, virilha, faca, pelas costas, longa distância) ([[Scoring]]).
 5. **Oprimir (opcional, risco × recompensa)**: o corpo fica oprimível por 6 s. Dançar sobre ele dura 3,2 s, o jogador não pode atirar e só a morte interrompe a dança. Ao completar, ganha +150 pontos ([[Humiliation]]).
 6. **Morrer e voltar**: online, o respawn leva 5 s, tempo para a vítima assistir à própria opressão.

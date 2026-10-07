@@ -127,6 +127,32 @@ describe('trava das armas', () => {
     expect(pointsToUnlock('sabre', { ...NO_XP, faca: 6000 })).toBe(3000);
   });
 
+  it('as secundárias novas liberam com os pontos de pistola, em ordem: 700, 1.800 (a submetralhadora), 3.200, 5.200, 7.000 e 9.000', () => {
+    const locks = { grampeador: 700, smg: 1800, revolver: 3200, furadeira: 5200, garrucha: 7000, pistolao: 9000 } as const;
+    expect(SECONDARIES.slice(1)).toEqual(Object.keys(locks) as (keyof typeof locks)[]);
+    for (const [g, pts] of Object.entries(locks) as [keyof typeof locks, number][]) {
+      expect({ g, lock: lockOf(g) }).toEqual({ g, lock: { arma: 'pistola', pontos: pts } });
+      expect(weaponUnlocked(g, { ...NO_XP, pistola: pts - 1 })).toBe(false);
+      expect(weaponUnlocked(g, { ...NO_XP, pistola: pts })).toBe(true);
+      expect(pointsToUnlock(g, { ...NO_XP, pistola: 500 })).toBe(pts - 500);
+    }
+    // Points with the SMG don't unlock the drill (it unlocks with the pistol's, though it levels up with the SMG's).
+    expect(weaponUnlocked('furadeira', { ...NO_XP, smg: 99999 })).toBe(false);
+    // The pistol's last level is at 5.200: the garrucha and the hand cannon ask for more points than that.
+    expect(xpForLevel('pistola', levelCount('pistola'))).toBe(5200);
+    expect(SECONDARIES.filter((g) => !weaponUnlocked(g, { ...NO_XP, pistola: 5200 }))).toEqual(['garrucha', 'pistolao']);
+  });
+
+  it('uma secundária trancada volta para a pistola (escolha limpa com os pontos)', () => {
+    for (const g of ['grampeador', 'revolver', 'furadeira', 'garrucha', 'pistolao'] as const) {
+      expect(sanitizeChoice({ secundaria: g }, NO_XP).secundaria).toBe('pistola');
+      expect(sanitizeChoice({ secundaria: g }, { ...NO_XP, pistola: lockOf(g)!.pontos - 1 }).secundaria).toBe('pistola');
+      expect(sanitizeChoice({ secundaria: g }, { ...NO_XP, pistola: lockOf(g)!.pontos }).secundaria).toBe(g);
+      // A secondary never goes into the primary slot.
+      expect(sanitizeChoice({ primaria: g, secundaria: g }, { ...NO_XP, pistola: 99999 }).primaria).toBe('rifle');
+    }
+  });
+
   it('com os pontos, a submetralhadora trancada volta para a pistola; sem os pontos, só o formato é conferido', () => {
     expect(sanitizeChoice({ secundaria: 'smg' }, NO_XP).secundaria).toBe('pistola');
     expect(sanitizeChoice({ secundaria: 'smg' }, { ...NO_XP, pistola: smgXp }).secundaria).toBe('smg');
@@ -203,9 +229,10 @@ describe('escolha do Arsenal', () => {
 
   it('as armas de cada espaço vêm dos dados, na ordem em que liberam', () => {
     expect(PRIMARIES).toEqual(['rifle', 'rifleFita', 'rifleTia', 'rifleNatal', 'rifleChama', 'rifleVovo', 'rifleOuro']);
-    expect(SECONDARIES).toEqual(['pistola', 'smg']);
+    expect(SECONDARIES).toEqual(['pistola', 'grampeador', 'smg', 'revolver', 'furadeira', 'garrucha', 'pistolao']);
     expect(KNIVES).toEqual(['faca', 'colher', 'frango', 'baguete', 'peixe', 'macarrao', 'sabre']);
     for (const g of PRIMARIES) expect(progOf(g)).toBe('rifle');
+    expect(SECONDARIES.map((g) => progOf(g))).toEqual(['pistola', 'pistola', 'smg', 'pistola', 'smg', 'pistola', 'pistola']);
     for (const k of KNIVES) expect(progOf(k)).toBe('faca');
   });
 

@@ -1,0 +1,96 @@
+{
+  "id": "grampeador",
+  "nome": "Grampeador do RH",
+  "icone": "📎",
+  "categoria": "grampeador",
+  "slot": "secundaria",
+  "libera": {
+    "arma": "pistola",
+    "pontos": 700
+  },
+  "dano": {
+    "max": 24,
+    "min": 15,
+    "distMax": 10,
+    "distMin": 28
+  },
+  "multiplicadores": {
+    "cabeca": 2.5,
+    "pescoco": 1.5,
+    "peito": 1,
+    "abdomen": 1,
+    "quadril": 0.9,
+    "bracos": 0.75,
+    "maos": 0.5,
+    "coxas": 0.75,
+    "canelas": 0.6
+  },
+  "cadencia": 1100,
+  "modo": "rajada",
+  "rajada": {
+    "tiros": 3,
+    "pausa": 0.2
+  },
+  "pente": 18,
+  "reserva": 72,
+  "recarga": {
+    "tatica": 1.5,
+    "vazia": 1.8
+  },
+  "dispersao": {
+    "mirando": 0.15,
+    "parado": 0.7,
+    "andando": 1.4,
+    "noAr": 3.2,
+    "porTiro": 0.3,
+    "decaimento": 9
+  },
+  "recuo": {
+    "vertical": 0.9,
+    "horizontal": [
+      -0.4,
+      0.4
+    ],
+    "retorno": 12
+  },
+  "ads": {
+    "tempo": 0.14,
+    "zoom": 0.9
+  },
+  "movimento": 1.06,
+  "troca": 0.3,
+  "alcanceMaximo": 200,
+  "penetracao": {
+    "maxSuperficies": 1,
+    "materiais": {
+      "wood": {
+        "dano": 0.5,
+        "espessuraMax": 0.3
+      },
+      "glass": {
+        "dano": 0.85,
+        "espessuraMax": 0.1
+      },
+      "paper": {
+        "dano": 0.9,
+        "espessuraMax": 0.1
+      }
+    }
+  },
+  "tracanteACada": 2,
+  "desbloqueioNivel": 1,
+  "preco": {
+    "moedaJogo": 0,
+    "premium": 0
+  },
+  "slotsAcessorio": [
+    "mira",
+    "cano"
+  ],
+  "modelo": "weapons/grampeador.glb",
+  "sons": {
+    "tiro": "grampeador_fire",
+    "recarga": "grampeador_reload",
+    "vazio": "dry_fire"
+  }
+}

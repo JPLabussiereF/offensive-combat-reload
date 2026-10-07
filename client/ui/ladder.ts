@@ -4,22 +4,21 @@
 // with the countdown.
 import { FINAL_STEP, GUN_GAME, killsForStep, LADDER, type LadderPos } from '@shared/gunGame';
 import { gunStats } from '@shared/arsenal';
-import { isGun, progOf, PROGRESSION, upgradeOf } from '@shared/progression';
-import { MELEE } from '@shared/weapons';
-import { esc } from './arsenal';
+import { isGun, progOf, upgradeOf } from '@shared/progression';
+import { esc, weaponIcon } from './arsenal';
 import type { Leader } from './pauseMenu';
 import { t, type StringKey } from './strings';
 
 /** A step's name ("Rifle com Luneta", "Sabre de Luz"). */
 export const stepName = (step: number) => t(`ladder_${LADDER[Math.min(Math.max(0, step), FINAL_STEP)].id}` as StringKey);
 
-/** The step's icon: the knife's (the lightsaber), a scope's or a silencer's, or the gun's own. */
+/** The step's icon: the knife's (the lightsaber), a scope's or a silencer's, or the gun's own (as the Arsenal shows it). */
 function stepIcon(step: number): string {
   const s = LADDER[step];
-  if (s.arma === 'faca') return MELEE[s.faca ?? 'faca']?.icone ?? PROGRESSION.faca.icone;
+  if (s.arma === 'faca') return weaponIcon(s.faca ?? 'faca');
   const prog = progOf(s.arma);
   const form = s.melhorias.map((id) => upgradeOf(prog, id)).find((u) => u?.efeitos.mira?.startsWith('luneta') || u?.efeitos.silenciador);
-  return form?.icone ?? PROGRESSION[prog].icone;
+  return form?.icone ?? weaponIcon(s.arma);
 }
 
 /** The step's gun with its upgrades (null on the lightsaber). */
