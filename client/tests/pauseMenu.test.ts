@@ -65,8 +65,17 @@ describe('menu de pausa: o que o trilho diz em cada lugar e modo', () => {
   it('zumbi solo: sozinho, jogo pausado, o dinheiro não fica', () => {
     const c = pauseContext({ place: 'bots', mode: 'zumbi', wave: 0 });
     expect(c.case).toBe('zumbi-solo');
-    expect([c.line, c.live, c.banner, c.tab]).toEqual([`Onda 0/${WAVES} · sozinho`, false, 'Jogo pausado.', 'caixao']);
+    expect([c.line, c.live, c.banner, c.tab]).toEqual(['A HORDA VEM AÍ · sozinho', false, 'Jogo pausado.', 'caixao']);
     expect([c.exit, c.confirm]).toEqual(['Sair da partida', 'A partida acaba e o dinheiro não fica.']);
+    expect(pauseContext({ place: 'bots', mode: 'zumbi', wave: 3 }).line).toBe(`Onda 3/${WAVES} · sozinho`);
+  });
+
+  it('zumbi antes da primeira onda: o título da contagem do HUD no lugar de "Onda 0/12"', () => {
+    const team = pauseContext({ place: 'online', mode: 'zumbi', session: { ...session, players: 3 }, wave: 0 });
+    const alone = pauseContext({ place: 'online', mode: 'zumbi', session: { ...session, players: 1 } });
+    expect([team.line, alone.line]).toEqual([`${t('zCountdown')} · 3 jogadores`, `${t('zCountdown')} · 1 jogador`]);
+    setLang('en');
+    expect(pauseContext({ place: 'bots', mode: 'zumbi', wave: 0 }).line).toBe('THE HORDE IS COMING · alone');
   });
 
   it('campo de tiro: treino offline, Arsenal editável e "Sair do treino"', () => {
@@ -111,8 +120,17 @@ describe('menu de pausa: quem está na frente da corrida armada', () => {
   it('o primeiro do placar: degrau, abates no degrau, depois pontos', () => {
     const list = [player(1, 'Você', 2, 1), player(2, 'Sargento Pastel', 4, 0), player(3, 'Tia do Zap', 4, 2)];
     expect(ladderLeader(list, 1)).toEqual({ you: false, name: 'Tia do Zap', step: 4 });
-    const tie = [player(1, 'Você', 3, 1, 100), player(2, 'Sargento Pastel', 3, 1, 900)];
-    expect(ladderLeader(tie, 1)).toEqual({ you: false, name: 'Sargento Pastel', step: 3 });
+    // A tie further down doesn't matter: only the first and the second.
+    const below = [player(1, 'Você', 2, 1), player(2, 'Sargento Pastel', 5, 0), player(3, 'Tia do Zap', 2, 1)];
+    expect(ladderLeader(below, 1)).toEqual({ you: false, name: 'Sargento Pastel', step: 5 });
+  });
+
+  it('some com o primeiro empatado com o segundo (mesmo degrau e mesmos abates), mesmo com pontos diferentes', () => {
+    expect(ladderLeader([player(1, 'Você', 3, 1, 100), player(2, 'Sargento Pastel', 3, 1, 900)], 1)).toBeNull();
+    // The start of a round: everyone on the first step with no kills.
+    expect(ladderLeader([player(1, 'Você', 0, 0), player(2, 'Bot', 0, 0), player(3, 'Bot 2', 0, 0)], 1)).toBeNull();
+    // Same step, one more kill: not a tie.
+    expect(ladderLeader([player(1, 'Você', 3, 2), player(2, 'Sargento Pastel', 3, 1)], 1)).toEqual({ you: true });
   });
 
   it('"Você está na frente" quando é o jogador', () => {

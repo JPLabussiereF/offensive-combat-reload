@@ -81,13 +81,13 @@ describe('textos do menu de pausa', () => {
     'pmExitMatch', 'pmExitRace', 'pmExitRange', 'pmExitSession', 'pmHintBack', 'pmHintPick', 'pmHintResume', 'pmKeyPress', 'pmLadderFinal',
     'pmLadderFinalMany', 'pmLadderFinalOne', 'pmLadderGun', 'pmLadderHint', 'pmLadderNext', 'pmLadderNow', 'pmLadderSilenced', 'pmLadderToGo',
     'pmLadderToGoOne', 'pmLadderToWin', 'pmLadderToWinOne', 'pmLadderYou', 'pmLeader', 'pmLeaderOther', 'pmLeaderYou', 'pmLeave', 'pmLineBots',
-    'pmLineRange', 'pmLineSession', 'pmLineWaveAlone', 'pmLineWaveSolo', 'pmLineWaveTeam', 'pmLiveHorde', 'pmLiveOnline', 'pmMoreUpgrade',
+    'pmLineRange', 'pmLineSession', 'pmLineWave', 'pmLineWaveAlone', 'pmLineWaveSolo', 'pmLineWaveTeam', 'pmLiveHorde', 'pmLiveOnline', 'pmMoreUpgrade',
     'pmMoreUpgrades', 'pmNextMatch', 'pmNoUpgrades', 'pmOff', 'pmOn', 'pmPadNote', 'pmPaused', 'pmPausedBots', 'pmPreview', 'pmRuleClimb',
     'pmRuleFinalMany', 'pmRuleFinalOne', 'pmRuleStab', 'pmStay', 'pmStayHint', 'pmSubAim', 'pmSubAudio', 'pmSubKeys', 'pmSubPad', 'pmSubTouch',
     'pmSubVideo', 'pmTabCoffin', 'pmTabCoffinSub', 'pmTabLadder', 'pmTabLadderSub', 'pmUpgradesUnlocked', 'pmWeaponsUnlocked', 'keyGroupMove',
     'keyGroupCombat', 'keyGroupOther',
   ];
-  const PARAMS = { name: 'Rua', n: 3, max: 10, skill: 'Normal', total: 12, players: 3, file: 'a.glb', upgrade: 'X', xp: '1.000', prog: 'rifle', k: 1, need: 3, mag: 30, rpm: 700, weapon: 'Sabre', cost: 950, m: '1,4' };
+  const PARAMS = { name: 'Rua', n: 3, max: 10, skill: 'Normal', total: 12, players: 3, file: 'a.glb', upgrade: 'X', xp: '1.000', prog: 'rifle', k: 1, need: 3, mag: 30, rpm: 700, weapon: 'Sabre', cost: 950, m: '1,4', wave: 'Onda 2/12' };
   for (const lang of ['pt-BR', 'en'] as Lang[]) {
     it(`todo texto existe e preenche os parâmetros em ${lang}`, () => {
       setLang(lang);

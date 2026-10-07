@@ -83,7 +83,9 @@ export function pauseContext(f: PauseFacts): PauseContext {
   const sessionLine = t('pmLineSession', { name: s.name, n: s.players, max: s.max });
   const botsLine = t('pmLineBots', { n: f.bots?.count ?? 0, skill: t(SKILL[f.bots?.skill ?? 'normal']) });
   if (f.mode === 'zumbi') {
-    const wave = { n: f.wave ?? 0, total: WAVES };
+    // Before the first wave: the HUD's countdown title ("A HORDA VEM AÍ") rather than "Onda 0/12".
+    const n = f.wave ?? 0;
+    const wave = { wave: n > 0 ? t('pmLineWave', { n, total: WAVES }) : t('zCountdown') };
     const tab = { tab: 'caixao' as const, exit: t('pmExitMatch') };
     if (!online) return { ...base, ...tab, case: 'zumbi-solo', line: t('pmLineWaveSolo', wave), banner: t('pmPaused'), confirm: t('pmConfirmZombieSolo') };
     if (s.players > 1) {
@@ -122,14 +124,19 @@ export function standingsOrder(players: Iterable<PlayerInfo>, ladder: boolean): 
   return [...players].sort((a, b) => (ladder ? step(b) - step(a) : 0) || b.score - a.score || b.kills - a.kills || a.deaths - b.deaths);
 }
 
-/** Who leads the corrida armada (the scoreboard's first): us, someone else, or nobody else in the match. */
+/**
+ * Who leads the corrida armada (the scoreboard's first): us, someone else, or nobody (no one else in the match, or
+ * the first tied with the second: same step and same kills on it).
+ */
 export type Leader = { you: true } | { you: false; name: string; step: number } | null;
 
 export function ladderLeader(players: Iterable<PlayerInfo>, me: number): Leader {
   const list = [...players];
   if (!list.some((p) => p.id !== me)) return null;
-  const top = standingsOrder(list, true)[0];
-  return top.id === me ? { you: true } : { you: false, name: top.name, step: top.ladder?.step ?? 0 };
+  const [top, second] = standingsOrder(list, true);
+  const pos = (p: PlayerInfo) => p.ladder ?? { step: 0, kills: 0 };
+  if (second && pos(top).step === pos(second).step && pos(top).kills === pos(second).kills) return null;
+  return top.id === me ? { you: true } : { you: false, name: top.name, step: pos(top).step };
 }
 
 /**
