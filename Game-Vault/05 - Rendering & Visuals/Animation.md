@@ -18,7 +18,7 @@ tags:
   - game
   - rendering
   - animation
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Animation
@@ -41,7 +41,7 @@ Esqueleto canônico (`BONES` em `client/character/rig.ts`): `root → hips → s
 
 ### `CharacterAnimator` (duas camadas)
 
-- **Parte de baixo (locomoção):** cada pé tem um alvo no chão; na fase de apoio fica parado enquanto o corpo passa, na fase de balanço levanta e vai à frente. Resolvido com **IK de dois ossos**. A passada acompanha a velocidade em qualquer direção (o comentário chama de "blend de 8 direções de graça"). Agachar dobra os joelhos com os pés no chão; deslizar estica as pernas à frente. As pernas só giram no lugar depois que o tronco torce **60°**.
+- **Parte de baixo (locomoção):** cada pé tem um alvo no chão; na fase de apoio fica parado enquanto o corpo passa, na fase de balanço levanta e vai à frente. Resolvido com **IK de dois ossos**. A passada acompanha a velocidade em qualquer direção (o comentário chama de "blend de 8 direções de graça"). Agachar dobra os joelhos com os pés no chão; deslizar põe o personagem **de joelhos**: os tornozelos vão para trás do quadril, os joelhos encostam no chão logo à frente dele (o esquerdo um pouco mais), as canelas ficam deitadas e os pés esticados para trás, apoiados no peito do pé (`ANIM.slide`). Até 07/10/2026 o deslize esticava as pernas à frente, e o personagem parecia deslizar sentado. As pernas só giram no lugar depois que o tronco torce **60°**.
 - **Parte de cima:** o pitch da visão é dividido em coluna 30%, peito 40%, cabeça 30% (limite ±70°). A arma de fogo fica nas duas mãos por IK (mão direita no punho; a esquerda sob o guarda-mão do rifle, na empunhadura da submetralhadora ou envolvendo o punho da pistola — `AvatarPose.hold`, `ANIM.leftGrip[hold]`) em três poses: quadril, ADS e corrida. Com a secundária na mão (`AvatarPose.secondary`), o rifle fica nas costas.
 - **Uma mão só (PCD):** o animador lê as partes que faltam (`Posable.missing`). Sem a mão ou o braço direito, a mão esquerda segura o rifle pela empunhadura (`LEFT_GRIP`, o espelho de `RIFLE_GRIP` por `mirrorGrip` em `registry.ts`), do lado esquerdo do peito, em poses próprias espelhadas (`ANIM.rifleOneHand`: `hip`, `ads`, `sprint`, ajustáveis no F6), e o braço ou coto direito fica pendurado. Sem a mão ou o braço esquerdo, o rifle fica como com duas mãos e o coto apoia o guarda-mão. Com uma mão: a recarga apoia o rifle no corpo (`ANIM.rifleOneHand.reload`, espelhada para a direita) enquanto a mão vai ao carregador e à bolsa (`CharacterAnimator.rifleOffset`, que o `Avatar` aplica ao rifle); a granada é preparada e jogada pela mão que sobra com o rifle nas costas (`rifleAway`); a faca vai na mão que sobra (golpe espelhado sem a direita) e o outro braço fica pendurado. Faca e granada na outra mão espelham posição e rotação. As hitboxes (`entities/rig.ts`) recebem as mesmas partes e fazem a mesma pose.
 - **Camadas aditivas curtas:** recuo a cada tiro, recarga (ciclo 1,6 s), faca, granada (arremesso de 0,5 s, solta aos 45%), reação a tiro (o tronco "dá um tranco" na direção da bala), pouso.
@@ -51,10 +51,11 @@ Números principais de `ANIM`:
 
 | Grupo | Valores |
 | --- | --- |
-| Altura do quadril | em pé 0,925; agachado 0,56; deslizando 0,36 |
+| Altura do quadril | em pé 0,925; agachado 0,56; deslizando de joelhos 0,5 |
+| Deslize de joelhos (`ANIM.slide`) | tornozelos E (−0,13; 0,1; 0,25) e D (0,13; 0,1; 0,3) m; pé girado −2,9 rad (deitado no peito do pé); inclinação do quadril −0,05 rad |
 | Meia passada | `0,1 + 0,105 × velocidade`, até 0,72 m |
 | Elevação do pé | andar 0,09; correr 0,17; agachado 0,06 |
-| Inclinação do tronco | correr −0,16; agachado −0,3; deslizar 0,38 rad |
+| Inclinação do tronco | correr −0,16; agachado −0,3; deslizar 0,12 rad (um pouco para trás) |
 | Giro | limite 60°, 7 rad/s |
 | Suavização (1/s) | agachar 10, ADS 12, corrida 8, marcha 6, ar 12 |
 

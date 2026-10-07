@@ -2,7 +2,7 @@
 // - lower body: locomotion with planted feet. Each foot has a target on the ground (stance: it stays put
 //   while the body moves over it; swing: it lifts and moves ahead), solved with two-bone IK, so the stride
 //   matches the speed in any direction (forward, back, strafe, diagonals: an 8-way blend for free), the
-//   crouch bends the knees with the feet on the ground, and the slide stretches the legs ahead. The lower
+//   crouch bends the knees with the feet on the ground, and the slide goes down on the knees. The lower
 //   body turns in place only after the torso has twisted 60° (turn in place);
 // - upper body: the view pitch spread over spine 30%, chest 40%, head 30% (aim offset, ±70°), the gun in
 //   both hands by IK (right hand on the grip, left under the handguard, or cupping a pistol's grip) for hip
@@ -88,8 +88,13 @@ export interface ZombiePose {
 
 /** Every "feel" parameter of the animation, in one place (tunable live with F6). */
 export const ANIM = {
-  /** Hips height standing, crouched, sliding (m). */
-  hips: { stand: 0.925, crouch: 0.56, slide: 0.36, crouchBack: 0.07 },
+  /** Hips height standing, crouched, sliding on the knees (m). */
+  hips: { stand: 0.925, crouch: 0.56, slide: 0.5, crouchBack: 0.07 },
+  /**
+   * Knee slide: the ankles behind the hips (the shins flat on the ground, the knees on it just ahead of the
+   * hips, the left one a little further ahead), the feet stretched back on their tops, the hips' tilt (rad).
+   */
+  slide: { ankleL: [-0.13, 0.1, 0.25], ankleR: [0.13, 0.1, 0.3], foot: -2.9, hipTilt: -0.05 },
   /** Ankle height and stance width. */
   foot: { y: 0.08, x: 0.1 },
   /** Half stride (m) = min + perSpeed × speed, up to max. */
@@ -98,8 +103,8 @@ export const ANIM = {
   lift: { walk: 0.09, run: 0.17, crouch: 0.06 },
   /** Hips bob per step (m). */
   bob: 0.025,
-  /** Torso lean (rad): running forward, crouched forward, sliding back. */
-  lean: { run: -0.16, crouch: -0.3, slide: 0.38 },
+  /** Torso lean (rad): running forward, crouched forward, sliding a little back. */
+  lean: { run: -0.16, crouch: -0.3, slide: 0.12 },
   /** Aim offset: share of the pitch on spine, chest and head; limit. */
   pitch: { spine: 0.3, chest: 0.4, head: 0.3, limit: (70 * Math.PI) / 180 },
   /** The torso twists up to this much before the feet turn (rad), and the turn speed (rad/s). */
@@ -457,14 +462,14 @@ export class CharacterAnimator {
     const mx = speed > 0.01 ? vx / speed : 0;
     const mz = speed > 0.01 ? vz / speed : -1;
 
-    // Hips: height (crouch, slide, bob, landing), sitting back when crouched, yaw of the lower body.
+    // Hips: height (crouch, knee slide, bob, landing), sitting back when crouched, yaw of the lower body.
     const bob = A.bob * Math.abs(Math.cos(this.phase * Math.PI * 2)) * this.gait;
     let hy = THREE.MathUtils.lerp(A.hips.stand, A.hips.crouch, this.crouchT) - bob - 0.03 * run * this.gait - A.land.depth * this.land;
     hy = THREE.MathUtils.lerp(hy, A.hips.slide, this.slideT);
     const hips = this.bone('hips');
     if (hips) {
       hips.position.set(0, hy, A.hips.crouchBack * this.crouchT);
-      hips.quaternion.setFromEuler(e.set(-0.18 * this.crouchT - 0.25 * this.slideT, this.legYaw, 0.04 * Math.sin(this.phase * Math.PI * 2) * this.gait));
+      hips.quaternion.setFromEuler(e.set(-0.18 * this.crouchT + A.slide.hipTilt * this.slideT, this.legYaw, 0.04 * Math.sin(this.phase * Math.PI * 2) * this.gait));
     }
 
     // Feet: planted (stance) or stepping (swing), in the lower body's frame, then IK.
@@ -488,15 +493,17 @@ export class CharacterAnimator {
       target.x += mx * off * this.gait;
       target.z += mz * off * this.gait;
       target.y += up * stepW + 0.26 * this.airT * (side === 'L' ? 1 : 0.7);
-      // Sliding: legs stretched ahead.
-      target.lerp(new THREE.Vector3(sx * 0.13, A.foot.y + 0.02, side === 'L' ? -0.62 : -0.44), this.slideT);
+      // Knee slide: the ankles go behind, so the knees (bending forward, toward the pole) land on the ground.
+      target.lerp(vA.fromArray(side === 'L' ? A.slide.ankleL : A.slide.ankleR), this.slideT);
       target.applyQuaternion(legQ);
       const pole = new THREE.Vector3(sx * 0.15, 0, -1).applyQuaternion(legQ);
-      // The foot stays flat (its toe lifts a little in the swing).
+      // The foot stays flat (its toe lifts a little in the swing); in the knee slide it lies on its top,
+      // stretched back along the shin.
       const footQ = legQ.clone().multiply(q.setFromEuler(e.set(ph >= 0.5 ? 0.25 * Math.sin(Math.PI * ((ph - 0.5) / 0.5)) * stepW : 0, 0, 0)));
+      if (this.slideT > 0.001) footQ.slerp(qB.setFromEuler(e.set(A.slide.foot, 0, 0)).premultiply(legQ), this.slideT);
       this.ik(side === 'L' ? LIMBS.legL : LIMBS.legR, target, pole, footQ);
     }
-    // Torso lean: forward running and crouched, back when sliding; the walk twists the spine a little.
+    // Torso lean: forward running and crouched, a little back in the knee slide; the walk twists the spine a little.
     return A.lean.run * run * this.gait * (0.5 + 0.5 * this.sprintT) + A.lean.crouch * this.crouchT + A.lean.slide * this.slideT;
   }
 
@@ -511,8 +518,8 @@ export class CharacterAnimator {
     const sway = 0.06 * Math.sin(this.phase * Math.PI * 2) * this.gait;
     const hx = this.hitX * A.hit.angle;
     const hz = this.hitZ * A.hit.angle;
-    // The hips are tilted forward when crouched/back when sliding: the spine takes the rest of the lean.
-    const hipTilt = -0.18 * this.crouchT - 0.25 * this.slideT;
+    // The hips are tilted when crouched and in the knee slide: the spine takes the rest of the lean.
+    const hipTilt = -0.18 * this.crouchT + ANIM.slide.hipTilt * this.slideT;
     this.turn('spine', p * A.pitch.spine + (lean - hipTilt) * 0.5 + hx * 0.6, twist * 0.5 + sway, hz * 0.6);
     this.turn('chest', p * A.pitch.chest + (lean - hipTilt) * 0.5 + hx * 0.4 + breathe - A.recoil.chest * this.recoil, twist * 0.5 - sway * 0.5, hz * 0.4);
     // The head keeps the eyes on the view: it takes back the lean.
