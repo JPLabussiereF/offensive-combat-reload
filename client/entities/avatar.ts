@@ -7,7 +7,7 @@ import { sanitizeFace, type Appearance, type ItemChoice } from '@shared/appearan
 import { catalogItem, type Slot } from '@shared/catalog';
 import type { Sex } from '@shared/protocol';
 import { bodyStats } from '@shared/appearance';
-import { DEFAULT_LOADOUT, meleeStats, slotStats, type Loadout } from '@shared/arsenal';
+import { DEFAULT_LOADOUT, knifeOf, slotStats, type Loadout } from '@shared/arsenal';
 import { CharacterAnimator, type AvatarPose, type ZombiePose } from '../character/animator';
 import { Character, type CharacterConfig } from '../character/character';
 import { mirrorGrip } from '../character/registry';
@@ -157,7 +157,7 @@ export class Avatar {
     // mirrored, position and rotation, as the swing and the throw are (animator.ts).
     const knifeHand = missing.handR || missing.armR ? 'hand_L' : 'hand_R';
     const grenadeHand = missing.handL || missing.armL ? 'hand_R' : 'hand_L';
-    this.knife = heldKnife(meleeStats(lo.ativas.faca).forma);
+    this.knife = heldKnife(knifeOf(lo));
     holdIn(this.knife, 0.01, 0, knifeHand !== 'hand_R');
     this.character.sockets[knifeHand].add(this.knife);
     this.grenade = heldGrenade();

@@ -1,4 +1,4 @@
-// Home screen (section 5, flow steps 2-4). Signed in: a header with tabs (Play, Arsenal, Profile, Settings) and
+// Home screen (section 5, flow steps 2-4). Signed in: a header with tabs (Play, Arsenal, Album, Profile, Settings) and
 // the account, beside the character card; Play picks online (quick join or a session from the list), bots or
 // the training range, and the match type (mata-mata or corrida armada) for online and bots. Signed out: a
 // landing page with the account form and a quick game against bots. Resolves with the chosen mode.
@@ -23,11 +23,14 @@ import { showManagement } from './management';
 import { Progress } from '../gameplay/progress';
 import { api, fetchMe, fetchProfile } from '../net/api';
 import { Connection } from '../net/connection';
-import { Arsenal, weaponIcon } from './arsenal';
-import type { ProgWeapon } from '@shared/progression';
+import { weaponIcon } from './arsenal';
+import { ArsenalCanvas } from './arsenalCanvas';
+import { progOf, type WeaponId } from '@shared/progression';
+import { knifeOf } from '@shared/arsenal';
 import { errorText, showAuth, type AuthView } from './auth';
 import { renderPortrait, showCustomizer, Stage } from './customize';
 import { showProfile } from './profile';
+import { showAlbum } from './album';
 import { t, type StringKey } from './strings';
 
 export type BotSkillName = 'facil' | 'normal' | 'dificil';
@@ -48,8 +51,8 @@ export type HomeChoice = { name: string; sex: Sex; account: ProfileResponse | nu
 );
 
 type PlayMode = 'online' | 'bots' | 'treino';
-type Tab = 'play' | 'maps' | 'management' | 'arsenal' | 'profile' | 'settings' | 'auth';
-const TABS: Tab[] = ['play', 'maps', 'management', 'arsenal', 'profile', 'settings', 'auth'];
+type Tab = 'play' | 'maps' | 'arsenal' | 'album' | 'profile' | 'settings' | 'management' | 'auth';
+const TABS: Tab[] = ['play', 'maps', 'arsenal', 'album', 'profile', 'settings', 'management', 'auth'];
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -182,7 +185,8 @@ export function showHome(): Promise<HomeChoice> {
   createInput.placeholder = t('sessionNamePlaceholder');
   createInput.maxLength = NET.sessionNameMax;
 
-  // The menu's controls and settings live in the Settings tab while the home is open (given back on leaving).
+  // The pause menu's settings (its sub-tabs: aim, video, audio, keys or the controller, touch on phones) live in
+  // the Settings tab while the home is open (given back on leaving).
   const settingsPanel = $('menu-settings');
   const settingsHome = { parent: settingsPanel.parentElement!, next: settingsPanel.nextSibling };
   $('tab-settings').appendChild(settingsPanel);
@@ -236,11 +240,18 @@ export function showHome(): Promise<HomeChoice> {
   let me: MeResponse | null = null;
   let profile: ProfileResponse | null = null;
   let progress: Progress | null = null;
+  /** The Arsenal tab's canvas: one for the whole page, so its camera stays where the player left it. */
+  let canvas: ArsenalCanvas | null = null;
   let discord = false;
   /** The character's body comes from the profile; without an account it is the default one. */
   let sex: Sex = 'm';
   const guestName = FUNNY_NAMES[(Math.random() * FUNNY_NAMES.length) | 0];
   let tab: Tab = 'play';
+  /**
+   * The header's tabs only: the panes hold tab bars of their own (the borrowed settings' sub-tabs, the
+   * customizer's), and a click on one of those must not be taken for a home tab (it hid every pane).
+   */
+  const homeTabs = () => home.querySelectorAll<HTMLElement>('.home-tabs [role="tab"]');
 
   /** The Mapas and Gerenciamento tabs, wired once the online part below exists (they play and open the editor). */
   let openMaps = () => {};
@@ -250,20 +261,24 @@ export function showHome(): Promise<HomeChoice> {
     if (next === 'management' && !(me && isEquipe(me))) next = 'play';
     tab = next;
     for (const id of TABS) $(`tab-${id}`).classList.toggle('hidden', id !== next);
-    for (const b of home.querySelectorAll<HTMLElement>('.home-tabs [role="tab"]')) b.setAttribute('aria-selected', String(b.dataset.tab === next));
+    for (const b of homeTabs()) b.setAttribute('aria-selected', String(b.dataset.tab === next));
     // The lists want the room the character card takes.
     home.querySelector('.home-panel')!.classList.toggle('wide', next === 'maps' || next === 'management');
+    // The Arsenal takes the screen's height (the canvas pans and zooms instead of the page scrolling).
+    $('home-in').classList.toggle('arsenal-open', next === 'arsenal');
+    if (next === 'arsenal') canvas?.shown();
     if (next === 'profile') openProfile();
     else if (next === 'maps') openMaps();
     else if (next === 'management') openManagement();
+    else if (next === 'album') void showAlbum($('tab-album'), { setStatus, onBack: () => showTab('play') });
   };
 
   const renderEquipped = () => {
     if (!progress) return;
-    // What goes into a match: the primary, the chosen secondary, the knife and the grenade (as their upgrades make them).
+    // What goes into a match: the chosen rifle, secondary and knife, and the grenade (as its upgrades make it).
     const lo = progress.loadout;
-    const carried: (ProgWeapon | null)[] = [lo.primaria, lo.secundaria, 'faca', 'granada'];
-    const icons = carried.flatMap((w) => (w ? [weaponIcon(w, lo.ativas[w])] : [])).join(' ');
+    const carried: (WeaponId | null)[] = [lo.primaria, lo.secundaria, knifeOf(lo), 'granada'];
+    const icons = carried.flatMap((w) => (w ? [weaponIcon(w, lo.ativas[progOf(w)])] : [])).join(' ');
     $('char-equipped').textContent = t('equippedLine', { icons });
   };
 
@@ -305,13 +320,13 @@ export function showHome(): Promise<HomeChoice> {
     const r = await fetchMe();
     me = r.me;
     profile = me ? await fetchProfile().catch(() => null) : null;
-    // The Arsenal tab edits the account's Arsenal choice; a fresh grid drops the old listeners.
+    // The Arsenal tab edits the account's Arsenal choice (a new Progress for every load of the account).
     progress = profile ? new Progress(profile) : null;
-    const grid = $('home-arsenal');
-    const fresh = grid.cloneNode(false) as HTMLElement;
-    grid.replaceWith(fresh);
+    canvas ??= new ArsenalCanvas($('home-arsenal'));
+    canvas.attach(progress);
     if (progress) {
-      new Arsenal(progress, () => {}, fresh);
+      // A change the server didn't save is already undone on screen; say so.
+      progress.onSaveError(() => setStatus(t('arsenalSaveFailed'), true));
       progress.onChange(renderEquipped);
       renderEquipped();
     }
@@ -371,7 +386,7 @@ export function showHome(): Promise<HomeChoice> {
     });
   };
 
-  for (const b of home.querySelectorAll<HTMLElement>('.home-tabs [role="tab"]')) b.onclick = () => showTab(b.dataset.tab as Tab);
+  for (const b of homeTabs()) b.onclick = () => showTab(b.dataset.tab as Tab);
   $('acct-chip').onclick = () => showTab('profile');
   $('char-customize').onclick = () => {
     if (!profile) return;

@@ -132,7 +132,7 @@ const DEFS: Record<string, Def> = {
   // --- Structures -------------------------------------------------------------------------------------
   corrimao: { categoria: 'estrutura', nome: { pt: 'Corrimão', en: 'Railing' }, ...linear, params: { eixo, fixo: num(), de: num(), ate: num(), y: num(0), altura: o(pos(1)), cor: o(cor()), colide: o(bool(true)) } },
   grade: { categoria: 'estrutura', nome: { pt: 'Grade de ferro', en: 'Iron fence' }, ...linear, params: { eixo, fixo: num(), de: num(), ate: num(), vaos: list(v2(), 20), altura: o(pos(1.9)) } },
-  sebe: { categoria: 'estrutura', nome: { pt: 'Sebe', en: 'Hedge' }, ...linear, params: { eixo, fixo: num(), de: num(), ate: num(), vaos: list(v2(), 20), altura: o(pos(2.6)), espessura: o(pos(1.1)) } },
+  sebe: { categoria: 'estrutura', nome: { pt: 'Sebe', en: 'Hedge' }, ...linear, params: { eixo, fixo: num(), de: num(), ate: num(), vaos: list(v2(), 20), altura: o(pos(2.6)), espessura: o(pos(1.1)), espinhos: o(bool()) } },
   arcoPortao: { categoria: 'estrutura', nome: { pt: 'Arco de portão', en: 'Gate arch' }, ...linear, params: { eixo, fixo: num(), de: num(), ate: num(), texto: text(40) } },
   coluna: { categoria: 'estrutura', nome: { pt: 'Coluna laqueada', en: 'Lacquered column' }, ...livre(false), params: { topo: num(3), raio: o(pos(0.17)) } },
   paredePapel: { categoria: 'estrutura', nome: { pt: 'Parede de papel', en: 'Paper wall' }, ...linear, params: { eixo, fixo: num(), de: num(), ate: num(), altura: pos(2.8), y0: num(0), portas: list(num(), 10), larguraPorta: o(pos(1.8)) } },

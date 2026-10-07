@@ -30,6 +30,12 @@ updated: 2026-10-06
 > [!info] Substitui
 > Esta decisão substitui a parte "cada nível é uma arma diferente" de [[ADR - Progressão de XP por arma]]. A regra de XP por arma (os pontos do abate vão só para a arma que matou, só de eventos validados pelo servidor) continua valendo.
 
+> [!warning] Substituída em parte (06/10/2026)
+> [[ADR - Árvore do Arsenal e armas liberadas por nível]] mudou dois pontos desta decisão: as melhorias **comuns** também ligam e desligam no Arsenal (o item 3 abaixo vale para o estado inicial e para a regra de grupo), e a **submetralhadora** só libera com a pistola no nível 3 (o item 1 dizia que as duas secundárias vêm livres). A escolha guardada (item 6) ganhou `desligadas`.
+
+> [!warning] Substituída em parte (06/10/2026, PF-8)
+> [[ADR - Rifles e facas antigos como armas próprias]] trouxe de volta os rifles e as facas antigos como **armas próprias**, que usam os pontos e as melhorias do rifle e da faca. Com isso: o Frango de Borracha e o Sabre de Luz **deixaram de ser formas** da faca (item 4; `meleeStats(['sabre'])` agora é `meleeStats('sabre', [])`), a árvore da faca ficou só com Afiador e Tênis, o rifle ganhou as miras dos níveis 7 a 9, a pintura deixou de vir das melhorias e a consequência "os modelos cômicos que não viraram melhoria saíram do jogo" foi desfeita. A migração (item 7) continua como está; quem tinha o frango ou o sabre ligado fica com a faca correspondente se os pontos de faca a liberam.
+
 ## Contexto
 
 Até aqui, cada nível de arma era uma **arma diferente com nome próprio** (rifle: Remendado com Fita, da Tia do Zap, Pisca-Pisca de Natal… até o Dourado Ostentação; faca: Colher de Pau, Frango de Borracha, Baguete, Peixe, Macarrão, Sabre de Luz). O jogador **equipava um nível** no Arsenal; os atributos subiam um pouco a cada nível, quase sem diferença sentida, e os níveis vinham rápido (rifle completo com ~5.500 pontos). Só existia uma arma de fogo.

@@ -13,7 +13,8 @@ const TRACER_LENGTH = 6;
 
 export type ParticleKind = 'debris' | 'spark' | 'confetti' | 'star';
 
-const CONFETTI_COLORS = [0xff4f9a, 0xffd23f, 0x3fd3ff, 0x7dff5a, 0xb27dff, 0xff7a1a].map((c) => new THREE.Color(c));
+/** The confetti's colors (also the sticker studio's, client/dev/studio). */
+export const CONFETTI_COLORS = [0xff4f9a, 0xffd23f, 0x3fd3ff, 0x7dff5a, 0xb27dff, 0xff7a1a].map((c) => new THREE.Color(c));
 
 export class Effects {
   private decals: THREE.InstancedMesh;

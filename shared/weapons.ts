@@ -1,10 +1,40 @@
 // Weapon data schema (section 7 of the design doc), loaded by the client and the server. These are the base
 // stats of each weapon; what a player actually holds (base + unlocked upgrades) comes from shared/arsenal.ts.
+// The old rifles and knives (back from the first versions of the game) have JSONs of their own, with the lock
+// that keeps them out of reach until enough points are earned (`libera`), and so do the secondaries that came
+// after the pistol and the SMG (PF-10: the stapler, the revolver, the drill, the garrucha and the hand cannon).
 import riflePadrao from './data/weapons/rifle_padrao.json';
+import rifleFita from './data/weapons/rifle_fita.json';
+import rifleTia from './data/weapons/rifle_tia.json';
+import rifleNatal from './data/weapons/rifle_natal.json';
+import rifleChama from './data/weapons/rifle_chama.json';
+import rifleVovo from './data/weapons/rifle_vovo.json';
+import rifleOuro from './data/weapons/rifle_ouro.json';
 import pistola from './data/weapons/pistola.json';
 import smg from './data/weapons/smg.json';
+import grampeador from './data/weapons/grampeador.json';
+import revolver from './data/weapons/revolver.json';
+import furadeira from './data/weapons/furadeira.json';
+import garrucha from './data/weapons/garrucha.json';
+import pistolao from './data/weapons/pistolao.json';
 import faca from './data/weapons/faca.json';
+import colher from './data/weapons/colher.json';
+import frango from './data/weapons/frango.json';
+import baguete from './data/weapons/baguete.json';
+import peixe from './data/weapons/peixe.json';
+import macarrao from './data/weapons/macarrao.json';
+import sabre from './data/weapons/sabre.json';
 import granadaFrag from './data/weapons/granada_frag.json';
+import type { GunLook, ProgWeapon } from './progression';
+
+/**
+ * Locked until `pontos` points are earned with `arma` (a progression: usually the one this weapon uses; every
+ * secondary unlocks with the pistol's, the drill too although it levels up with the SMG's).
+ */
+export interface WeaponLock {
+  arma: ProgWeapon;
+  pontos: number;
+}
 
 /**
  * Hit zones (style guide, "Hitboxes"): 15 shapes on the bones, the same for every body, grouped in 9 zones
@@ -22,13 +52,29 @@ export const LETHAL_DAMAGE = 9999;
 export interface WeaponData {
   id: string;
   nome: string;
+  /** Shown in the Arsenal, the HUD and the kill feed (the guns that have one: every rifle, the newer secondaries). */
+  icone?: string;
   categoria: string;
   slot: 'primaria' | 'secundaria' | 'corpo';
+  /** Paint job of a rifle (each old rifle has its own; the upgrades don't change it). Absent: 'padrao'. */
+  visual?: GunLook;
+  libera?: WeaponLock;
   dano: { max: number; min: number; distMax: number; distMin: number };
   multiplicadores: Record<BodyRegion, number>;
   /** Rounds per minute. */
   cadencia: number;
   modo: 'auto' | 'semi' | 'rajada';
+  /**
+   * 'rajada' (burst): `tiros` shots per click at `cadencia` (rounds per minute inside the burst), then at least
+   * `pausa` seconds before the next burst. Holding the trigger doesn't fire another one.
+   */
+  rajada?: { tiros: number; pausa: number };
+  /**
+   * Pellets per shot (a scattergun): each one is its own ray inside a fixed cone of `cone` degrees (half-angle)
+   * around where the shot goes, and each one that hits is a hit of its own. `dano` is per pellet. Absent: 1.
+   */
+  bagos?: number;
+  cone?: number;
   pente: number;
   reserva: number;
   /** Seconds. "tatica" = mag not empty, "vazia" = empty mag (needs chambering). */
@@ -37,6 +83,8 @@ export interface WeaponData {
   dispersao: { mirando: number; parado: number; andando: number; noAr: number; porTiro: number; decaimento: number };
   /** Degrees per shot; retorno is the exponential recovery rate (1/s). */
   recuo: { vertical: number; horizontal: [number, number]; retorno: number };
+  /** How much harder the gun jumps on screen per shot (the first-person kick only, not the aim). Absent: 1. */
+  coiceVisual?: number;
   ads: { tempo: number; zoom: number };
   movimento: number;
   /** Seconds to draw it when switching weapons (nothing fires or aims meanwhile). */
@@ -64,6 +112,15 @@ export interface PenetrationData {
   materiais: Record<string, { dano: number; espessuraMax: number }>;
 }
 
+/** Rays per shot: the pellets of a scattergun, 1 for every other gun. */
+export const pelletsOf = (w: Pick<WeaponData, 'bagos'>): number => Math.max(1, Math.round(w.bagos ?? 1));
+
+/**
+ * The most hits a second the server takes from a gun (server-side sanity bound): its fire rate plus slack for
+ * jitter, times its pellets (each pellet that lands is a hit; the shot itself stays one per trigger pull).
+ */
+export const hitsPerSecond = (w: Pick<WeaponData, 'cadencia' | 'bagos'>): number => (Math.ceil(w.cadencia / 60) + 2) * pelletsOf(w);
+
 /** The lowest damage fraction a bullet of this weapon can arrive with (server-side sanity bound). */
 export function minPenetrationKeep(w: WeaponData): number {
   const p = w.penetracao;
@@ -72,10 +129,36 @@ export function minPenetrationKeep(w: WeaponData): number {
   return worst ** p.maxSuperficies;
 }
 
+/**
+ * A knife's own trait, besides its numbers (each knife has one, in its JSON). It only works with the account's
+ * knife (modes whose weapons come from the Arsenal, the training range, against bots), never with a knife a mode
+ * hands out (corrida armada's ladder, zumbi's coffin): see knifePassive in shared/arsenal.ts. The kitchen knife's
+ * quiet swing is the exception: it's how the knife sounds, in every mode.
+ */
+export type KnifePassive =
+  /** The swing is heard only nearby. */
+  | { id: 'discreta' }
+  /** Each kill with it gives back `vida` health. */
+  | { id: 'coloDeVo'; vida: number }
+  /** After a kill with it, `velocidade`× speed for `segundos`. */
+  | { id: 'fugaEscandalosa'; velocidade: number; segundos: number }
+  /** Each kill with it fills the magazine of the gun in hand. */
+  | { id: 'lanche' }
+  /** A stab in the back is worth `costas` points instead of SCORE.backstab. */
+  | { id: 'tapaGelado'; costas: number }
+  /** No fall damage while it's equipped. */
+  | { id: 'boia' }
+  /** The swing hits everyone in reach and in the cone, not only one. */
+  | { id: 'vuuum' };
+
+export type KnifePassiveId = KnifePassive['id'];
+
 /** Melee weapon (section 6). In the original, a knife hit is always a one-hit kill. */
 export interface MeleeData {
   id: string;
   nome: string;
+  icone?: string;
+  libera?: WeaponLock;
   letal: boolean;
   /** Hit range in meters, from the eye to the target's body surface. */
   alcance: number;
@@ -90,6 +173,7 @@ export interface MeleeData {
   /** Minimum time between swings. */
   intervalo: number;
   velocidadeInvestida: number;
+  passiva: KnifePassive;
 }
 
 /** A grenade's blast (the JSON keeps it in `niveis`; level 1 is the base, upgrades scale it in shared/arsenal.ts). */
@@ -139,12 +223,30 @@ export interface GrenadeData {
 
 export const WEAPONS: Record<string, WeaponData> = {
   rifle_padrao: riflePadrao as unknown as WeaponData,
+  rifle_fita: rifleFita as unknown as WeaponData,
+  rifle_tia: rifleTia as unknown as WeaponData,
+  rifle_natal: rifleNatal as unknown as WeaponData,
+  rifle_chama: rifleChama as unknown as WeaponData,
+  rifle_vovo: rifleVovo as unknown as WeaponData,
+  rifle_ouro: rifleOuro as unknown as WeaponData,
   pistola: pistola as unknown as WeaponData,
   smg: smg as unknown as WeaponData,
+  grampeador: grampeador as unknown as WeaponData,
+  revolver: revolver as unknown as WeaponData,
+  furadeira: furadeira as unknown as WeaponData,
+  garrucha: garrucha as unknown as WeaponData,
+  pistolao: pistolao as unknown as WeaponData,
 };
 
+/** Every knife, keyed by its id (KnifeId in shared/progression.ts). */
 export const MELEE: Record<string, MeleeData> = {
   faca: faca as MeleeData,
+  colher: colher as unknown as MeleeData,
+  frango: frango as unknown as MeleeData,
+  baguete: baguete as unknown as MeleeData,
+  peixe: peixe as unknown as MeleeData,
+  macarrao: macarrao as unknown as MeleeData,
+  sabre: sabre as unknown as MeleeData,
 };
 
 export const GRENADES: Record<string, GrenadeData> = {
@@ -176,6 +278,12 @@ export function damageAtDistance(w: WeaponData, dist: number): number {
   const t = (dist - distMax) / (distMin - distMax);
   return max + (min - max) * t;
 }
+
+/**
+ * Where a hit does its damage under the witch's critical potion: every bullet as a head, but a groin hit keeps
+ * its own (an instant kill, already more than a head's).
+ */
+export const critRegion = (region: HitRegion, crit: boolean): HitRegion => (crit && region !== 'virilha' ? 'cabeca' : region);
 
 /**
  * `keep` is the damage fraction left after going through surfaces (1 = clean hit). A groin hit kills

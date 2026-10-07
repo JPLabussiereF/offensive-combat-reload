@@ -12,7 +12,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { GROUP, groups, type PotionKind } from '@shared/constants';
-import { mergeColoredParts, toon, toonGradient } from '../render/materials';
+import { mergeColoredParts, toon, toonGradient, type ColoredPart } from '../render/materials';
 import { MapBuilder, worldUVs } from './mapBuilder';
 import { surfaceMaterial, type SurfaceKey } from './surfaces';
 import { solidIntervals } from './oriental';
@@ -1261,6 +1261,17 @@ export class Scarecrows {
 }
 
 /**
+ * A shooting gallery target, its base at the origin: the bullseye (four rings, white and red, 0.44 m across)
+ * facing +Z with its center 0.32 m up, on the short iron post it flips down about. TargetRow's targets; the
+ * album's sticker studio straps the bare bullseye (`post` false) on a player.
+ */
+export function bullseyeGeometry(post = true): THREE.BufferGeometry {
+  const ring = (r: number, color: number, z: number): ColoredPart => ({ geo: new THREE.CylinderGeometry(r, r, 0.02, 20), color, pos: [0, 0.32, z], rot: [Math.PI / 2, 0, 0] });
+  const pole: ColoredPart[] = post ? [{ geo: new THREE.BoxGeometry(0.04, 0.3, 0.04), color: SPOOKY.iron, pos: [0, 0.15, 0] }] : [];
+  return mergeColoredParts([...pole, ring(0.22, 0xf2efe6, 0), ring(0.16, 0xd8342a, 0.006), ring(0.1, 0xf2efe6, 0.012), ring(0.045, 0xd8342a, 0.018)]);
+}
+
+/**
  * Shooting gallery targets on a rail: each flips down when hit ("alvo:N"); knocking all of them down
  * starts the celebration (`onAll`), and they pop back up a few seconds later.
  */
@@ -1276,11 +1287,7 @@ export class TargetRow {
 
   /** `spots`: each target's base; it stands on a pole down to the floor. `onAll(local)`: true when we knocked down the last one. */
   constructor(scene: THREE.Scene, b: MapBuilder, props: PropBus, spots: THREE.Vector3[], private onHit: (at: THREE.Vector3) => void, private onAll: (local: boolean) => void, bulbAt: THREE.Vector3[] = []) {
-    const ring = (r: number, color: number, z: number) => ({ geo: new THREE.CylinderGeometry(r, r, 0.02, 20), color, pos: [0, 0.32, z] as [number, number, number], rot: [Math.PI / 2, 0, 0] as [number, number, number] });
-    const targetGeo = mergeColoredParts([
-      { geo: new THREE.BoxGeometry(0.04, 0.3, 0.04), color: SPOOKY.iron, pos: [0, 0.15, 0] },
-      ring(0.22, 0xf2efe6, 0), ring(0.16, 0xd8342a, 0.006), ring(0.1, 0xf2efe6, 0.012), ring(0.045, 0xd8342a, 0.018),
-    ]);
+    const targetGeo = bullseyeGeometry();
     const targetMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() });
     spots.forEach((at, i) => {
       b.box(at.x, at.y / 2, at.z - 0.06, 0.04, at.y, 0.04, 'metal', { tint: SPOOKY.iron, collide: false, castShadow: false });

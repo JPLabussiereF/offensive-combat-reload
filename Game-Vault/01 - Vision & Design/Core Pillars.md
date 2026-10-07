@@ -35,7 +35,7 @@ O jogo recompensa provocar o adversário, não só eliminá-lo.
 - A [[Humiliation]] (Opressão) vale **150 pontos**, mais que o abate (100). O comentário em `shared/constants.ts` diz que o valor foi **triplicado** porque dançar deixa o jogador exposto. Ver [[ADR - Pontuação da Opressão triplicada]].
 - O respawn online demora **5 s**, "o bastante para ver a própria humilhação" (`shared/protocol.ts`). Ver [[ADR - Atraso de respawn de 5 s online]].
 - O bônus "No pássaro!" (tiro na virilha) mata na hora e mostra uma faixa na tela.
-- As melhorias de arma são piadas: Frango de Borracha que grita, Sabre de Luz Paraguaio, Silenciador de Garrafa PET, Mira Holográfica da Tia do Zap (nomes em `client/ui/strings.ts`).
+- As armas e as melhorias são piadas: Rifle da Tia do Zap, Rifle Dourado Ostentação, Frango de Borracha que grita, Macarrão de Piscina, Sabre de Luz Paraguaio, Silenciador de Garrafa PET, Mira Holográfica da Tia do Zap (nomes em `client/ui/strings.ts`).
 
 ## 2. Tiro de habilidade, guiado por dados
 

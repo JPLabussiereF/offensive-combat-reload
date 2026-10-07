@@ -138,7 +138,9 @@ export class Player {
       const timer = setTimeout(() => {
         const i = this.waiters.indexOf(waiter);
         if (i >= 0) this.waiters.splice(i, 1);
-        reject(new Error(`sem mensagem ${t}`));
+        // What did come meanwhile (the last few types): tells a slow server from a message that never comes.
+        const seen = this.msgs.slice(-8).map((m) => m.t).join(', ') || 'nenhuma';
+        reject(new Error(`sem mensagem ${t} em ${timeout} ms (últimas: ${seen})`));
       }, timeout);
       this.waiters.push(waiter);
     });

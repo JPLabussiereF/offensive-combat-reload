@@ -20,7 +20,7 @@ tags:
   - networking
   - security
   - anti-cheat
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Anti Cheat
@@ -40,11 +40,14 @@ Não há anti-cheat no cliente (nenhuma ofuscação, detecção de memória ou d
 | Alvo | existe, não é o atirador, ambos vivos |
 | Arma (`w`) | precisa ser a arma em mãos (pela `FLAG.secondary` do último `state`) ou a guardada há menos de 1 s (`SWITCH_GRACE_MS`, tiros em voo), e estar no loadout; senão o acerto é ignorado |
 | Região | precisa estar em `HIT_REGIONS` (`cabeca`, `pescoco`, `peito`, `abdomen`, `quadril`, `bracos`, `maos`, `coxas`, `canelas`, `virilha`) |
-| Cadência | no máx. `ceil(cadência/60) + 2` acertos confirmados por segundo, com a cadência da arma que atirou (rifle 700 rpm → 14/s; pistola 400 → 9/s, 11/s com o Gatilho; submetralhadora 950 → 18/s, 20/s com o Motor) |
-| Alcance | distância do servidor (olho 1,6 m → peito 1,1 m) ≤ `alcanceMaximo` da arma (rifle 300 m; pistola e submetralhadora 200 m) |
+| Cadência | no máx. `(ceil(cadência/60) + 2) × bagos` acertos confirmados por segundo (`hitsPerSecond` em `shared/weapons.ts`), com a cadência da arma que atirou (rifle 700 rpm → 14/s; pistola 400 → 9/s, 11/s com o Gatilho; submetralhadora 950 → 18/s, 20/s com o Motor; grampeador 1.100 (dentro da rajada) → 21/s; revólver 150 → 5/s; furadeira 1.200 → 22/s; pistolão 170 → 5/s; **garrucha 300 com 8 bagos → 56/s**, 72/s com o Gatilho). Cada bago que acerta conta como um acerto; o `shot` cosmético continua um por disparo |
+| Alcance | distância do servidor (olho 1,6 m → peito 1,1 m) ≤ `alcanceMaximo` da arma (rifle 300 m; pistola, submetralhadora, grampeador, revólver e pistolão 200 m; furadeira 120 m; garrucha 40 m) |
 | Distância | `|dist servidor − dist informada| ≤ 4 m (LAG_SLACK) + 10 %` |
 | Penetração | `keep` limitado a `[mínimo da arma, 1]` — nunca mais que um acerto limpo |
 | Dano | calculado no servidor (`computeDamage` com `gunStats` da arma e das melhorias) com a distância informada limitada ao alcance; o XP do abate vai para essa arma |
+
+> [!warning] Secundárias da PF-10 e a região confiada ao cliente
+> O revólver mata com **um tiro na cabeça** até 10 m e o pistolão até ~27 m, e a região do acerto continua só checada contra a lista: um cliente trapaceiro que diga `cabeca` sempre mata com um tiro nessa distância. A garrucha aceita 8× mais acertos por segundo. Ver [[Problem - Lacunas de validação de gameplay online]] e [[ADR - Secundárias novas no Arsenal]].
 
 ### Facada (`stab`)
 - Ambos vivos; intervalo ≥ 75 % do `intervalo` da faca com as melhorias (`meleeStats`); distância horizontal ≤ `alcanceInvestida + 1,5 m`.

@@ -249,10 +249,10 @@ export function pieces(r: Recorder) {
   }
   for (const [x, z] of [[-30, -26], [29.6, 25.4], [-29.5, 18.5], [30, -12]] as const) r.place('arvoreMorta', {}, { p: [x, 0, z], escala: 1 + rand() * 0.3 });
   // The hedge around the field, and dead woods beyond it (the skyline; nothing to walk into).
-  r.place('sebe', { eixo: 'x', fixo: -EDGE_Z, de: -EDGE_X - 0.55, ate: EDGE_X + 0.55, vaos: [] });
-  r.place('sebe', { eixo: 'x', fixo: EDGE_Z, de: -EDGE_X - 0.55, ate: EDGE_X + 0.55, vaos: [] });
-  r.place('sebe', { eixo: 'z', fixo: -EDGE_X, de: -EDGE_Z, ate: EDGE_Z, vaos: [] });
-  r.place('sebe', { eixo: 'z', fixo: EDGE_X, de: -EDGE_Z, ate: EDGE_Z, vaos: [] });
+  r.place('sebe', { eixo: 'x', fixo: -EDGE_Z, de: -EDGE_X - 0.55, ate: EDGE_X + 0.55, vaos: [], espinhos: true });
+  r.place('sebe', { eixo: 'x', fixo: EDGE_Z, de: -EDGE_X - 0.55, ate: EDGE_X + 0.55, vaos: [], espinhos: true });
+  r.place('sebe', { eixo: 'z', fixo: -EDGE_X, de: -EDGE_Z, ate: EDGE_Z, vaos: [], espinhos: true });
+  r.place('sebe', { eixo: 'z', fixo: EDGE_X, de: -EDGE_Z, ate: EDGE_Z, vaos: [], espinhos: true });
   for (let i = 0; i < 40; i++) {
     const a = (i / 40) * Math.PI * 2 + rand() * 0.1;
     const rr = 1.12 + rand() * 0.15;

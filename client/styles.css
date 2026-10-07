@@ -171,6 +171,36 @@ body {
   height: 4px;
 }
 
+/* Floating damage numbers (client/ui/damageNumbers.ts): rounded type with a thick dark outline. */
+#dmg-numbers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.dmg-num {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-family: var(--body);
+  font-weight: 900;
+  font-size: 26px;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--warn);
+  -webkit-text-stroke: 6px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0 2px 0 var(--ink);
+  will-change: transform, opacity;
+}
+.dmg-num.crit {
+  color: #ff8c1a;
+  font-size: 30px;
+}
+.dmg-num.bird {
+  color: var(--bad);
+  font-size: 36px;
+}
+
 #popups {
   position: absolute;
   left: 50%;
@@ -1131,9 +1161,13 @@ html:not(.mobile) #chat-close {
 #loading {
   background: radial-gradient(circle at 50% 35%, #8fd4ff, #2f7fd6);
 }
+/* The start card and the pause menu: the rail and the panel sit over the game (see "Pause menu" below). */
 #menu {
+  display: block;
+  padding: 0;
   background: rgba(27, 21, 48, 0.55);
   backdrop-filter: blur(3px);
+  --mode: var(--team-a);
 }
 .logo {
   font-family: var(--display);
@@ -1149,12 +1183,6 @@ html:not(.mobile) #chat-close {
 }
 .logo span {
   color: var(--team-a);
-}
-.logo.small {
-  font-size: clamp(30px, 5vw, 46px);
-  -webkit-text-stroke: 2px var(--ink);
-  text-shadow: 4px 4px 0 var(--ink);
-  margin-bottom: 4px;
 }
 .progress {
   width: min(420px, 90vw);
@@ -1180,18 +1208,6 @@ html:not(.mobile) #chat-close {
   max-width: 520px;
 }
 
-.menu-card {
-  width: min(880px, 100%);
-  max-height: calc(100vh - 32px);
-  overflow: auto;
-  padding: 22px 28px;
-  text-align: center;
-}
-.subtitle {
-  margin: 0 0 16px;
-  font-weight: 800;
-  opacity: 0.7;
-}
 .big-btn {
   font-family: var(--display);
   font-size: 34px;
@@ -1217,57 +1233,6 @@ html:not(.mobile) #chat-close {
   opacity: 0.65;
   font-size: 13px;
 }
-/* --- Arsenal (weapon progression) in the menu ------------------------------------------------------- */
-.arsenal {
-  margin-top: 16px;
-  text-align: left;
-}
-.arsenal h3 {
-  margin-bottom: 2px;
-}
-.arsenal .hint {
-  margin: 0 0 10px;
-}
-.arsenal-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-@media (max-width: 760px) {
-  .arsenal-grid {
-    grid-template-columns: 1fr;
-  }
-}
-.arsenal-card {
-  border: 3px solid var(--ink);
-  border-radius: 14px;
-  background: #fff;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-.arsenal-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.arsenal-icon {
-  font-size: 30px;
-  line-height: 1;
-}
-.arsenal-weapon {
-  font-weight: 900;
-  font-size: 12px;
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-.arsenal-name {
-  font-family: var(--display);
-  font-size: 18px;
-  line-height: 1.05;
-}
 .xp-bar {
   height: 10px;
   border: 2px solid var(--ink);
@@ -1278,211 +1243,6 @@ html:not(.mobile) #chat-close {
 .xp-fill {
   height: 100%;
   background: linear-gradient(90deg, #ffb13d, #ff7a1a);
-}
-.xp-text {
-  font-size: 12px;
-  font-weight: 800;
-}
-/* A secondary not taken is dimmed; its button puts it in the slot. */
-.arsenal-card.spare {
-  background: #f6f1e8;
-}
-.arsenal-card.spare .arsenal-head,
-.arsenal-card.spare .gun-stats {
-  opacity: 0.7;
-}
-.take-secondary {
-  align-self: flex-start;
-  padding: 4px 10px;
-  border: 2px solid var(--ink);
-  border-radius: 9px;
-  background: var(--warn);
-  font: 900 12px var(--body);
-  color: var(--ink);
-  cursor: pointer;
-  box-shadow: 0 2px 0 var(--ink);
-}
-.take-secondary:hover {
-  background: #ffe27a;
-}
-.in-secondary {
-  align-self: flex-start;
-  padding: 2px 9px;
-  border-radius: 9px;
-  background: var(--team-a);
-  color: #fff;
-  font: 900 11px var(--body);
-  text-transform: uppercase;
-}
-/* The gun's stats as they are now (upgrades included): a label and a bar each. */
-.gun-stats {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 2px 8px;
-  font: 800 11px var(--body);
-}
-.gun-stats small {
-  grid-column: 1 / -1;
-  font-size: 11px;
-  opacity: 0.7;
-}
-.stat-bar {
-  height: 7px;
-  border: 1.5px solid var(--ink);
-  border-radius: 4px;
-  background: #eee7da;
-  overflow: hidden;
-}
-.stat-bar > div {
-  height: 100%;
-  background: var(--team-b);
-}
-/* Upgrades: one row each (icon, level, name, state or switch), what it changes as chips under it. */
-.upgrades {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.upg {
-  padding: 4px 6px;
-  border: 2px solid var(--ink);
-  border-radius: 9px;
-  background: #fff8ec;
-}
-.upg.locked {
-  background: #e9e4dc;
-  border-style: dashed;
-  opacity: 0.65;
-}
-.upg.locked .upg-icon {
-  filter: grayscale(1);
-}
-.upg.active,
-.upg.on {
-  background: #fff1df;
-  box-shadow: inset 4px 0 0 var(--team-a);
-}
-.upg.replaced {
-  opacity: 0.6;
-}
-.upg-top {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font: 900 12px var(--body);
-}
-.upg-icon {
-  font-size: 15px;
-}
-.upg-lvl {
-  display: inline-grid;
-  place-items: center;
-  min-width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  background: var(--ink);
-  color: #fff;
-  font-size: 10px;
-}
-.upg-name {
-  flex: 1;
-  min-width: 0;
-  line-height: 1.15;
-}
-.upg-state {
-  font-size: 10px;
-  font-weight: 900;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.upg.active .upg-state {
-  color: var(--team-a);
-}
-.upg-toggle {
-  min-width: 74px;
-  padding: 2px 8px;
-  border: 2px solid var(--ink);
-  border-radius: 999px;
-  background: #fff;
-  font: 900 10px var(--body);
-  text-transform: uppercase;
-  color: var(--ink);
-  cursor: pointer;
-}
-.upg-toggle[aria-pressed='true'] {
-  background: var(--team-a);
-  color: #fff;
-  box-shadow: 0 2px 0 var(--ink);
-}
-/* Read-only Arsenal (a match with a locked loadout): the switches show their state but don't move. */
-.upg-toggle:disabled {
-  cursor: default;
-  opacity: 0.7;
-}
-
-/* Corrida armada's ladder in the pause menu: one row per step, the player's own lit. */
-.ladder-list {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.ladder-list li {
-  display: grid;
-  grid-template-columns: 34px 30px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border: 2px solid var(--ink);
-  border-radius: 12px;
-  background: #fff;
-  font: 800 14px var(--body);
-  color: var(--ink);
-}
-.ladder-list .rung {
-  font-family: var(--display);
-  font-size: 18px;
-  text-align: center;
-}
-.ladder-list .icon {
-  font-size: 20px;
-  text-align: center;
-}
-.ladder-list small {
-  font: 800 11px var(--body);
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-.ladder-list li.final {
-  background: #ffe3f1;
-}
-.zars-title {
-  grid-column: 1 / -1;
-  margin: 8px 0 2px;
-  font: 800 12px var(--body);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  opacity: 0.75;
-}
-.ladder-list li.me {
-  background: var(--warn);
-  box-shadow: 3px 3px 0 var(--ink);
-}
-.upg-fx {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  margin-top: 3px;
-}
-.upg-fx:empty {
-  display: none;
 }
 .fx {
   padding: 0 6px;
@@ -1502,10 +1262,1321 @@ html:not(.mobile) #chat-close {
   background: #fff0b8;
   color: #6b5200;
 }
-.upg-detail {
-  font-size: 12.5px;
+
+/* --- Pause menu (client/ui/menu.ts, PF-11; measures and colors of the design "Menu de Pausa") -------------- */
+/* The rail: where we are, back to the game, the two tabs, the exit, the button hints. */
+.pm-rail {
+  position: absolute;
+  left: calc(24px + var(--safe-l));
+  top: 24px;
+  bottom: 24px;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 16px 14px;
+  overflow-y: auto;
+  background: var(--paper);
+  border: 4px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 5px 5px 0 var(--ink);
+}
+.pm-logo {
+  margin: 2px 0;
+  font: 400 34px var(--display);
+  line-height: 0.9;
+  color: #fff;
+  -webkit-text-stroke: 2px var(--ink);
+  text-shadow: 3px 3px 0 var(--ink);
+  transform: rotate(-3deg);
+  text-align: center;
+}
+.pm-logo span {
+  color: var(--team-a);
+}
+.pm-where {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.pm-chip-row {
+  display: flex;
+}
+.pm-chip {
+  padding: 2px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--mode);
+  color: #fff;
+  font: 900 11px var(--body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(27, 21, 48, 0.45);
+}
+.pm-map {
+  font: 400 22px var(--display);
+  line-height: 1.05;
+}
+.pm-line {
+  font: 800 13px var(--body);
+  opacity: 0.65;
+}
+/* Offline the world waits (green, "II"); online it goes on (red, a dot). Not on the start card. */
+.pm-banner {
+  margin-top: 4px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: #dff5d3;
+  font: 800 12px var(--body);
+  line-height: 1.3;
+}
+.pm-banner-mark {
+  font: 900 11px var(--body);
+}
+.pm-banner.live {
+  align-items: flex-start;
+  background: #ffe1dc;
+}
+.pm-banner.live .pm-banner-mark {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  margin-top: 3px;
+  border-radius: 50%;
+  background: var(--bad);
+  box-shadow: 0 0 0 2px var(--ink);
+}
+#menu.start .pm-banner {
+  display: none;
+}
+.pm-rail .gpu-warning {
+  margin: 4px 0 0;
+  padding: 7px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: #ffe1dc;
+  font: 800 12px var(--body);
+  line-height: 1.3;
+}
+.big-btn.pm-resume {
+  width: 100%;
+  flex: 0 0 auto;
+  font-size: 26px;
+  padding: 8px 0;
+  border-radius: 16px;
+  box-shadow: 0 5px 0 var(--ink);
+  -webkit-text-stroke: 1.2px var(--ink);
+}
+.big-btn.pm-resume:active {
+  box-shadow: 0 1px 0 var(--ink);
+}
+.pm-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pm-nav-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.pm-nav-item:hover {
+  background: #fff1df;
+}
+.pm-nav-item.sel {
+  background: var(--warn);
+  box-shadow: 0 3px 0 var(--ink);
+}
+.pm-nav-icon {
+  font-size: 22px;
+  line-height: 1;
+  text-align: center;
+}
+.pm-nav-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.pm-nav-label {
+  font: 400 19px var(--display);
+  line-height: 1.05;
+}
+.pm-nav-sub {
+  font: 800 11.5px var(--body);
+  opacity: 0.65;
+}
+.pm-nav-item.sel .pm-nav-sub {
+  opacity: 0.75;
+}
+.pm-nav-arrow {
+  font: 400 22px var(--display);
+  opacity: 0.4;
+}
+.pm-nav-item.sel .pm-nav-arrow {
+  opacity: 1;
+}
+.pm-spacer {
+  flex: 1;
+}
+.pm-exit {
+  width: 100%;
+  padding: 9px 12px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: transparent;
+  color: #c0271b;
+  font: 900 13px var(--body);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.pm-exit:hover {
+  background: #ffe1dc;
+}
+.pm-hints {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 12px;
+  font: 800 12px var(--body);
+  opacity: 0.75;
+}
+.pm-hints span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+#menu kbd,
+.pm-settings kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  border: 2px solid var(--ink);
+  border-bottom-width: 4px;
+  border-radius: 6px;
+  background: #fff;
+  font: 800 12px var(--body);
+  text-align: center;
+}
+
+/* The panel of the open tab: title, hint, badge and close; the tab's page; an optional footer. */
+.pm-panel {
+  position: absolute;
+  left: calc(340px + var(--safe-l));
+  top: 24px;
+  right: calc(24px + var(--safe-r));
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border: 4px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 5px 5px 0 var(--ink);
+  overflow: hidden;
+}
+.pm-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px 12px 20px;
+  border-bottom: 2px dashed rgba(27, 21, 48, 0.2);
+}
+.pm-head-text {
+  flex: 1;
+  min-width: 0;
+}
+.pm-title {
+  font: 400 30px var(--display);
+  line-height: 1;
+}
+.pm-hint {
+  margin-top: 3px;
+  font: 800 13px var(--body);
+  opacity: 0.65;
+}
+.pm-badge {
+  padding: 4px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #fff0b8;
+  color: #6b5200;
+  font: 900 11px var(--body);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.pm-badge.editable {
+  background: #dff5d3;
+  color: #24601a;
+}
+.pm-close {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 10px;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: 900 12px var(--body);
+  cursor: pointer;
+}
+.pm-close:hover {
+  background: #fff1df;
+}
+#menu .pm-close kbd {
+  background: var(--paper);
+}
+.pm-close-narrow {
+  display: none;
+}
+.pm-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 20px 18px;
+}
+.pm-foot {
+  padding: 10px 20px;
+  border-top: 2px dashed rgba(27, 21, 48, 0.2);
+  font: 800 12.5px var(--body);
   line-height: 1.35;
-  min-height: 52px;
+  opacity: 0.8;
+}
+
+/* The exit's confirmation: what leaving costs in this mode; FICAR is the safe answer. */
+.pm-confirm {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(27, 21, 48, 0.5);
+}
+.pm-dialog {
+  width: min(460px, 100%);
+  padding: 22px 26px 18px;
+  text-align: center;
+  background: var(--paper);
+  border: 4px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 5px 5px 0 var(--ink);
+}
+.pm-dialog-title {
+  font: 400 30px var(--display);
+  line-height: 1;
+}
+.pm-dialog-body {
+  margin: 10px 0 18px;
+  font: 800 14px var(--body);
+  line-height: 1.4;
+  opacity: 0.8;
+}
+.pm-dialog-btns {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+.pm-dialog .big-btn {
+  font-size: 22px;
+  padding: 6px 28px;
+  border-radius: 14px;
+  box-shadow: 0 5px 0 var(--ink);
+  -webkit-text-stroke: 1px var(--ink);
+}
+.pm-dialog .big-btn:hover,
+.pm-dialog .big-btn:active {
+  transform: none;
+  box-shadow: 0 5px 0 var(--ink);
+}
+.big-btn.pm-stay {
+  background: var(--team-b);
+}
+.big-btn.pm-leave {
+  background: var(--bad);
+}
+.pm-dialog-hint {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  font: 800 12px var(--body);
+  opacity: 0.65;
+}
+
+/* Arsenal tab: the four slots in use, and the slot's card (level, points, stats, upgrades, what's left). */
+.pa {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.pa-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pa-slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.pa-slot:hover {
+  background: #fff1df;
+}
+.pa-slot.sel {
+  background: var(--warn);
+  box-shadow: 0 3px 0 var(--ink);
+}
+.pa-slot-icon {
+  width: 34px;
+  font-size: 28px;
+  line-height: 1;
+  text-align: center;
+}
+.pa-slot-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.pa-slot-kind {
+  font: 900 10.5px var(--body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.pa-slot-name {
+  font: 400 16px var(--display);
+  line-height: 1.05;
+}
+.pa-slot-lvl {
+  font: 900 11px var(--body);
+  opacity: 0.7;
+}
+.pa-slot.sel .pa-slot-lvl {
+  color: #b4520a;
+  opacity: 1;
+}
+.pa-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: #fff;
+}
+.pa-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pa-icon {
+  font-size: 40px;
+  line-height: 1;
+}
+.pa-title {
+  flex: 1;
+  min-width: 0;
+}
+.pa-kicker {
+  font: 900 12px var(--body);
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.pa-name {
+  font: 400 24px var(--display);
+  line-height: 1.05;
+}
+.pa-equipped {
+  padding: 2px 9px;
+  border-radius: 9px;
+  background: var(--team-a);
+  color: #fff;
+  font: 900 11px var(--body);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.pa-xp {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: 800 12px var(--body);
+}
+.pa-desc {
+  font: 600 12.5px var(--body);
+  line-height: 1.35;
+  opacity: 0.85;
+}
+.pa-stats {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 5px 10px;
+  font: 800 11px var(--body);
+}
+.pa-bar {
+  height: 7px;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  background: #eee7da;
+  overflow: hidden;
+}
+.pa-bar > div {
+  height: 100%;
+  background: var(--team-b);
+}
+.pa-stats small {
+  grid-column: span 2;
+  font-size: 11px;
+  opacity: 0.7;
+}
+/* A phone held upright: one bar per line, so the longer labels (a knife's "Alcance do golpe") leave the bar room. */
+@media (max-width: 420px) {
+  .pa-stats {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+/* A knife's passive: its name, what it does and where it works. */
+.pa-passive {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 9px;
+  background: #dff5d3;
+  font: 600 12.5px var(--body);
+  line-height: 1.35;
+}
+.pa-passive-name {
+  font: 900 12.5px var(--body);
+  line-height: 1.2;
+}
+.pa-passive-where {
+  font: 800 11px var(--body);
+  opacity: 0.65;
+}
+.pa-section {
+  margin-top: 2px;
+  font: 800 12px var(--body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.pa-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pa-upg {
+  display: grid;
+  grid-template-columns: 22px 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 9px;
+  background: var(--paper);
+  opacity: 0.8;
+}
+.pa-upg.on {
+  background: #fff1df;
+  box-shadow: inset 4px 0 0 var(--team-a);
+  opacity: 1;
+}
+.pa-upg-icon {
+  font-size: 16px;
+  text-align: center;
+}
+.pa-upg-lvl {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font: 900 10px var(--body);
+}
+.pa-upg-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.pa-upg-name {
+  font: 900 12.5px var(--body);
+  line-height: 1.15;
+}
+.pa-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+/* Ligada / Desligada: a label in a match, a button on the range (and Equipar beside a weapon). */
+.pa-state {
+  min-width: 74px;
+  padding: 2px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font: 900 10px var(--body);
+  text-transform: uppercase;
+  text-align: center;
+}
+.pa-state.on {
+  background: var(--team-a);
+  color: #fff;
+}
+button.pa-state {
+  cursor: pointer;
+}
+button.pa-state.on {
+  box-shadow: 0 2px 0 var(--ink);
+}
+.pa-weapon {
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+}
+.pa-weapon-lvl {
+  font: 900 11px var(--body);
+  opacity: 0.7;
+}
+.pa-none {
+  font: 800 12px var(--body);
+  opacity: 0.65;
+}
+.pa-locked {
+  padding: 6px 10px;
+  border: 2px dashed var(--ink);
+  border-radius: 9px;
+  background: #e9e4dc;
+  font: 800 12px var(--body);
+  line-height: 1.35;
+  opacity: 0.85;
+}
+
+/* Escada tab (corrida armada): the rungs on a line, now and next, the rules, the leader. */
+.pl {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.pl-round {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: var(--warn);
+  box-shadow: 0 3px 0 var(--ink);
+}
+.pl-round b {
+  font: 400 22px var(--display);
+  line-height: 1;
+}
+.pl-round span {
+  font: 800 12px var(--body);
+}
+.pl-rungs {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--rungs), minmax(0, 1fr));
+  gap: 6px;
+  padding: 26px 4px 4px;
+}
+.pl-line {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 60px;
+  height: 3px;
+  background: var(--ink);
+}
+.pl-rung {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+.pl-you {
+  position: absolute;
+  top: -24px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font: 900 10.5px var(--body);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.pl-dot {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  margin-top: 7px;
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: #fff;
+  font-size: 26px;
+  line-height: 1;
+}
+.pl-rung.done .pl-dot {
+  background: #dff5d3;
+}
+.pl-rung.final .pl-dot {
+  background: #ffe3f1;
+}
+.pl-rung.me .pl-dot {
+  width: 70px;
+  height: 70px;
+  margin-top: 0;
+  background: var(--warn);
+  box-shadow: 0 4px 0 var(--ink);
+  font-size: 32px;
+}
+.pl-n,
+.pl-check {
+  position: absolute;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font: 900 11px var(--body);
+}
+.pl-n {
+  left: -6px;
+  top: -6px;
+  background: var(--ink);
+  color: #fff;
+}
+.pl-check {
+  right: -6px;
+  bottom: -4px;
+  border: 2px solid var(--ink);
+  background: var(--good);
+  color: var(--ink);
+}
+.pl-name {
+  font: 400 14px var(--display);
+  line-height: 1.05;
+}
+.pl-rung.ahead .pl-name {
+  opacity: 0.7;
+}
+.pl-sub {
+  font: 800 10.5px var(--body);
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.pl-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.pl-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: #fff;
+}
+.pl-card.now {
+  background: var(--warn);
+  box-shadow: 0 3px 0 var(--ink);
+}
+.pl-card-icon {
+  font-size: 38px;
+  line-height: 1;
+}
+.pl-card-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+.pl-kicker {
+  font: 900 11px var(--body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.pl-card-name {
+  font: 400 22px var(--display);
+  line-height: 1;
+}
+.pl-card-sub {
+  font: 800 12px var(--body);
+  opacity: 0.7;
+}
+.pl-pips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 800 12px var(--body);
+}
+.pl-pips i {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #fff;
+}
+.pl-pips i.on {
+  background: var(--good);
+}
+.pl-rules {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.pl-rule {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  font: 800 13px var(--body);
+  line-height: 1.35;
+}
+.pl-rule.final {
+  background: #ffe3f1;
+}
+.pl-rule-icon {
+  font-size: 20px;
+}
+.pl-leader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 800 13px var(--body);
+}
+.pl-leader-chip {
+  padding: 2px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #1fb5a8;
+  color: #fff;
+  font: 900 11px var(--body);
+  text-transform: uppercase;
+}
+
+/* Caixão tab (zumbi): what we carry (rarity color, flaws), and every rarity's odds. */
+.pz {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 18px;
+  align-items: start;
+}
+.pz-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pz-title {
+  font: 800 12px var(--body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.pz-carry,
+.pz-odds {
+  padding: 8px 10px;
+  border: 2px solid var(--ink);
+  border-left: 8px solid var(--rarity);
+  border-radius: 12px;
+  background: #fff;
+}
+.pz-carry {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.pz-icon {
+  font-size: 24px;
+  text-align: center;
+}
+.pz-what {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pz-slot {
+  font: 900 10.5px var(--body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+.pz-name,
+.pz-rar,
+.pz-chance {
+  font: 400 17px var(--display);
+  line-height: 1.05;
+}
+.pz-what .fx {
+  align-self: flex-start;
+}
+.pz-carry-rar {
+  font: 900 11px var(--body);
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.pz-odds {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.pz-odds-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pz-rar {
+  flex: 0 0 72px;
+}
+.pz-bar {
+  flex: 1;
+  height: 8px;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  background: #eee7da;
+  overflow: hidden;
+}
+.pz-bar > div {
+  height: 100%;
+  background: var(--rarity);
+}
+.pz-chance {
+  min-width: 38px;
+  text-align: right;
+}
+.pz-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.pz-chips .fx {
+  white-space: nowrap;
+}
+.pz-items {
+  flex-basis: 100%;
+  font: 700 11px var(--body);
+  line-height: 1.35;
+  opacity: 0.65;
+}
+
+/* Settings (#menu-settings, here and lent to the home's Settings tab): sub-tabs and their rows. */
+.pm-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+.pm-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.pm-subtabs button {
+  padding: 6px 16px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font: 400 17px var(--display);
+  cursor: pointer;
+}
+.pm-subtabs button:hover {
+  background: #fff1df;
+}
+.pm-subtabs button[aria-selected='true'] {
+  background: var(--team-a);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--ink);
+  -webkit-text-stroke: 0.6px var(--ink);
+}
+.pm-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px 64px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 2px dashed rgba(27, 21, 48, 0.12);
+}
+.pm-row-toggle {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.pm-sub > .pm-row:last-child {
+  border-bottom: 0;
+}
+/* The visibility classes (device.ts, gamepad.ts) show these rows as grids. */
+.pm-row.pad-only,
+.pm-row.assist-only {
+  display: none;
+}
+.has-pad .pm-row.pad-only,
+.mobile .pm-row.assist-only,
+.has-pad .pm-row.assist-only {
+  display: grid;
+}
+.pm-row-text {
+  display: flex;
+  flex-direction: column;
+}
+.pm-row-text > span {
+  font: 800 15px var(--body);
+}
+.pm-row-text > small {
+  font: 800 12px var(--body);
+  opacity: 0.6;
+}
+.pm-row input[type='range'] {
+  width: 100%;
+}
+.pm-row output {
+  justify-self: end;
+  min-width: 56px;
+  padding: 2px 8px;
+  border: 2px solid var(--ink);
+  border-bottom-width: 4px;
+  border-radius: 8px;
+  background: #fff;
+  font: 800 13px var(--body);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.pm-toggle {
+  min-width: 96px;
+  padding: 4px 12px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 2px 0 var(--ink);
+  font: 900 11px var(--body);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.pm-toggle[aria-pressed='true'] {
+  background: var(--team-a);
+  color: #fff;
+}
+.pm-seg {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.pm-seg button {
+  padding: 4px 12px;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: 900 12px var(--body);
+  cursor: pointer;
+}
+.pm-seg button[aria-pressed='true'] {
+  background: var(--team-a);
+  color: #fff;
+  box-shadow: 0 2px 0 var(--ink);
+}
+/* Keys: the groups in two columns, the notes after them; with a controller, its fixed layout. */
+.pm-keys-page {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 24px;
+  align-items: start;
+}
+.pm-keys {
+  display: contents;
+}
+.pm-keygroup {
+  display: flex;
+  flex-direction: column;
+}
+.pm-keyhead,
+.pm-keyrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 120px;
+  gap: 8px;
+}
+.pm-keyhead {
+  padding: 4px 0;
+  font: 900 11px var(--body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.pm-keyrow {
+  align-items: center;
+  padding: 3px 0;
+  font: 700 13.5px var(--body);
+}
+.pm-keyrow.unbound > span:first-child {
+  color: var(--bad);
+}
+.bind {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.bind-key {
+  min-width: 34px;
+  max-width: 100px;
+  padding: 1px 6px;
+  border: 2px solid var(--ink);
+  border-bottom-width: 4px;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font: 800 12px var(--body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.bind-key:hover {
+  background: var(--paper);
+}
+.bind-key.empty {
+  border-style: dashed;
+  opacity: 0.5;
+}
+.bind-key.capturing {
+  background: var(--warn);
+  font-size: 11px;
+  opacity: 1;
+}
+.bind-clear {
+  border: 0;
+  padding: 0 3px;
+  background: none;
+  color: var(--ink);
+  font: 800 14px var(--body);
+  opacity: 0.45;
+  cursor: pointer;
+}
+.bind-clear:hover {
+  color: var(--bad);
+  opacity: 1;
+}
+.pm-key-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+}
+.keys-notice {
+  margin: 0;
+  font: 800 13px var(--body);
+  color: #c0271b;
+}
+.pm-esc {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 800 12px var(--body);
+  opacity: 0.65;
+}
+.pm-key-notes .link-btn {
+  align-self: flex-start;
+  margin: 0;
+  padding: 0;
+}
+.pm-debug-hint {
+  margin: 0;
+  font: 800 11.5px var(--body);
+  opacity: 0.5;
+}
+.pm-pad-note {
+  display: none;
+  grid-column: 1 / -1;
+  margin: 10px 0 0;
+  font: 800 12px var(--body);
+  opacity: 0.6;
+}
+.pm-keys-page.pad {
+  gap: 2px 24px;
+}
+.pm-keys-page.pad .pm-key-notes {
+  display: none;
+}
+.pm-keys-page.pad .pm-pad-note {
+  display: block;
+}
+.pm-padrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 2px dashed rgba(27, 21, 48, 0.1);
+  font: 700 13.5px var(--body);
+}
+#menu .pm-padrow kbd,
+.pm-settings .pm-padrow kbd {
+  padding: 1px 8px;
+}
+.pm-touch-help {
+  margin: 8px 0 0;
+  font: 800 12px var(--body);
+  line-height: 1.35;
+  opacity: 0.65;
+}
+
+/* Narrow screens (under 900 × 560 px) and phones: the rail takes the width, a tab is a page over it with
+   Voltar (one level at a time, like Esc); bigger touch targets. */
+.menu-narrow .pm-rail {
+  left: calc(12px + var(--safe-l));
+  right: calc(12px + var(--safe-r));
+  top: calc(12px + var(--safe-t));
+  bottom: calc(12px + var(--safe-b));
+  width: auto;
+}
+.menu-narrow .pm-panel {
+  left: calc(12px + var(--safe-l));
+  right: calc(12px + var(--safe-r));
+  top: calc(12px + var(--safe-t));
+  bottom: calc(12px + var(--safe-b));
+}
+/* Wide enough for two columns (a phone lying down): where we are on the left, the buttons on the right, so
+   everything fits a short screen without scrolling. */
+@media (min-width: 640px) {
+  .menu-narrow .pm-rail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas: 'logo resume' 'where nav' 'where exit' 'hints exit';
+    gap: 10px 18px;
+    align-content: start;
+  }
+  .menu-narrow .pm-logo {
+    grid-area: logo;
+    align-self: center;
+  }
+  .menu-narrow .pm-where {
+    grid-area: where;
+  }
+  .menu-narrow .pm-resume {
+    grid-area: resume;
+  }
+  .menu-narrow .pm-nav {
+    grid-area: nav;
+  }
+  .menu-narrow .pm-exit {
+    grid-area: exit;
+    align-self: start;
+  }
+  .menu-narrow .pm-hints {
+    grid-area: hints;
+    justify-content: flex-start;
+  }
+  .menu-narrow .pm-spacer {
+    display: none;
+  }
+}
+.menu-narrow #menu.panel-open .pm-rail {
+  display: none;
+}
+.menu-narrow .pm-head {
+  padding: 10px 14px;
+}
+.menu-narrow .pm-close {
+  order: -1;
+}
+.menu-narrow .pm-close-wide {
+  display: none;
+}
+.menu-narrow .pm-close-narrow {
+  display: inline;
+}
+.menu-narrow .pm-close-narrow::before {
+  content: '‹ ';
+}
+.menu-narrow .pm-body {
+  padding: 12px 14px 14px;
+}
+.menu-narrow .pa {
+  grid-template-columns: 1fr;
+}
+.menu-narrow .pa-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+.menu-narrow .pl-rungs {
+  grid-template-columns: repeat(var(--rungs), minmax(64px, 1fr));
+  overflow-x: auto;
+}
+.menu-narrow .pl-cards,
+.menu-narrow .pl-rules {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.menu-narrow .pz {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.menu-narrow .pm-row {
+  grid-template-columns: minmax(0, 1fr) minmax(110px, 240px) 56px;
+  gap: 10px;
+}
+.menu-narrow .pm-row-toggle {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.menu-narrow .pm-keys-page {
+  grid-template-columns: 1fr;
+}
+.mobile .pm-nav-item,
+.mobile .pm-exit,
+.mobile .pm-close,
+.mobile .pa-slot,
+.mobile .pm-subtabs button {
+  min-height: 48px;
+}
+.mobile .pm-toggle,
+.mobile .pm-seg button,
+.mobile button.pa-state {
+  min-height: 40px;
+}
+.mobile .pm-row input[type='range'] {
+  height: 32px;
 }
 
 /* --- Scope overlay --------------------------------------------------------------------------------- */
@@ -1546,117 +2617,6 @@ html:not(.mobile) #chat-close {
   transform: translate(-50%, -50%);
 }
 
-.menu-columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-top: 18px;
-  text-align: left;
-}
-@media (max-width: 640px) {
-  .menu-columns {
-    grid-template-columns: 1fr;
-  }
-}
-.menu-columns h3 {
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: 22px;
-  margin: 0 0 8px;
-}
-#controls-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-  font-weight: 700;
-}
-#controls-table td {
-  padding: 3px 0;
-}
-#controls-table kbd {
-  display: inline-block;
-  min-width: 22px;
-  padding: 1px 6px;
-  border: 2px solid var(--ink);
-  border-bottom-width: 4px;
-  border-radius: 6px;
-  background: #fff;
-  font: 800 12px var(--body);
-  text-align: center;
-}
-/* Remappable keys (menu.ts renderKeys): each key is a button; click it, then press the new key. */
-#controls-table th {
-  padding: 0 0 4px;
-  font-size: 11px;
-  text-align: left;
-  text-transform: uppercase;
-  opacity: 0.6;
-}
-#controls-table tr.unbound td:first-child {
-  color: var(--bad);
-}
-.bind {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-.bind-key {
-  min-width: 34px;
-  padding: 1px 6px;
-  border: 2px solid var(--ink);
-  border-bottom-width: 4px;
-  border-radius: 6px;
-  background: #fff;
-  color: var(--ink);
-  font: 800 12px var(--body);
-  cursor: pointer;
-}
-.bind-key:hover {
-  background: var(--paper);
-}
-.bind-key.empty {
-  border-style: dashed;
-  opacity: 0.5;
-}
-.bind-key.capturing {
-  background: var(--warn);
-  opacity: 1;
-}
-.bind-clear {
-  border: 0;
-  padding: 0 3px;
-  background: none;
-  color: var(--ink);
-  font: 800 14px var(--body);
-  opacity: 0.45;
-  cursor: pointer;
-}
-.bind-clear:hover {
-  color: var(--bad);
-  opacity: 1;
-}
-.keys-notice {
-  margin: 8px 0 0;
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--bad);
-}
-.menu-columns label {
-  display: grid;
-  grid-template-columns: 1fr 1.2fr 40px;
-  align-items: center;
-  gap: 8px;
-  font-weight: 800;
-  font-size: 14px;
-  margin-bottom: 8px;
-}
-.menu-columns label.check {
-  grid-template-columns: auto 1fr;
-}
-.menu-columns output {
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
 input[type='range'] {
   accent-color: var(--team-a);
 }
@@ -1760,23 +2720,6 @@ input[type='range'] {
   background: linear-gradient(90deg, #ff6fb5, var(--warn));
 }
 
-.gpu-warning {
-  margin: 0 0 14px;
-  padding: 10px 14px;
-  border: 3px solid var(--ink);
-  border-radius: 12px;
-  background: #ffe1dc;
-  font-weight: 800;
-  font-size: 14px;
-  text-align: left;
-}
-.menu-columns select {
-  font: 800 14px var(--body);
-  border: 2px solid var(--ink);
-  border-radius: 8px;
-  padding: 3px 6px;
-  background: #fff;
-}
 
 /* ---------- Grenades ---------- */
 /* Pips left of the ammo count, a thin rule between them. */
@@ -2348,16 +3291,790 @@ input[type='range'] {
 #home-more {
   margin-top: 8px;
 }
-#tab-arsenal .hint {
-  margin: -6px 0 12px;
+/* --- Arsenal canvas (the home's Arsenal tab, client/ui/arsenalCanvas.ts) --------------------------------------- */
+/* The tab takes the screen's height: the canvas pans and zooms instead of the page scrolling. Narrow screens leave
+   the character out so the canvas has the room. */
+#home-in.arsenal-open {
+  height: 100vh;
+  height: 100dvh;
+  padding-bottom: 20px;
 }
-#home .arsenal-grid {
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+#home-in.arsenal-open .home-main {
+  flex: 1;
+  min-height: 0;
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+#home-in.arsenal-open .home-char {
+  flex: 0 0 300px;
+  max-width: 300px;
+  position: static;
+  align-self: flex-start;
+  max-height: 100%;
+  overflow-y: auto;
+}
+@media (max-width: 999px) {
+  #home-in.arsenal-open .home-char {
+    display: none;
+  }
+}
+#home-in.arsenal-open .home-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px 18px 18px;
+}
+#tab-arsenal {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cv-head {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 20px;
+}
+.cv-head-text {
+  min-width: 0;
+  flex: 1 1 360px;
+}
+#home .cv-head h3 {
+  margin: 0 0 2px;
+}
+#tab-arsenal .hint {
+  margin: 0;
+  font-weight: 800;
+  font-size: 13px;
+  opacity: 0.65;
+  text-wrap: pretty;
+}
+.mobile #tab-arsenal .hint-mouse,
+html:not(.mobile) #tab-arsenal .hint-touch {
+  display: none;
+}
+.cv-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  font: 800 12px var(--body);
+}
+.cv-legend > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cv-legend i {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+}
+.cv-legend i.on {
+  background: var(--team-a);
+}
+.cv-legend i.off {
+  background: #fff;
+}
+.cv-legend i.locked {
+  border-style: dashed;
+  border-color: rgba(27, 21, 48, 0.55);
+  background: #e9e4dc;
+}
+#home-arsenal {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.cv-viewport {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  background-color: #f3ead9;
+  background-image: radial-gradient(circle, rgba(27, 21, 48, 0.2) 1.3px, transparent 1.8px);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.cv-viewport.grabbing {
+  cursor: grabbing;
+}
+/* No will-change: a layer kept for the transform is drawn once and then stretched, which blurs the text when zoomed. */
+.cv-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  transform-origin: 0 0;
+}
+.cv-frame {
+  position: absolute;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 2px dashed rgba(27, 21, 48, 0.2);
+}
+.cv-frame-head {
+  position: absolute;
+  left: 22px;
+  top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+.cv-frame-label {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font: 900 12px var(--body);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cv-frame-sub {
+  font: 800 13px var(--body);
+  color: rgba(27, 21, 48, 0.6);
+}
+.cv-links {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.cv-link {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cv-link.on {
+  stroke: var(--team-a);
+  stroke-width: 4px;
+}
+.cv-link.locked {
+  stroke-dasharray: 2 8;
+  opacity: 0.5;
+}
+.cv-link.w.locked {
+  stroke-dasharray: none;
+  opacity: 0.45;
+}
+.cv-weapon {
+  position: absolute;
+  width: 256px;
+  height: 76px;
+  padding: 10px 14px 10px 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 3px 3px 0 var(--ink);
+  font-family: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    box-shadow 0.15s,
+    background 0.15s;
+}
+.cv-weapon.sel {
+  background: var(--warn);
+  box-shadow: 6px 6px 0 var(--ink);
+}
+.cv-weapon.locked {
+  background: #e9e4dc;
+  border-style: dashed;
+  box-shadow: none;
+  opacity: 0.82;
+}
+.cv-weapon.locked.sel {
+  box-shadow: 6px 6px 0 var(--ink);
+  opacity: 1;
+}
+.cv-tile {
+  width: 50px;
+  height: 50px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 2.5px solid var(--ink);
+  border-radius: 12px;
+  font-size: 26px;
+}
+.cv-weapon.locked .cv-tile,
+.cv-upg.locked .cv-upg-icon,
+.cv-p-tile.locked {
+  filter: grayscale(1);
+}
+.cv-wtext {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.cv-wname {
+  font-family: var(--display);
+  font-size: 16px;
+  line-height: 1.05;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cv-wsub {
+  font: 800 11.5px var(--body);
+  color: rgba(27, 21, 48, 0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cv-weapon.equipped:not(.locked) .cv-wsub {
+  color: #c75400;
+}
+.cv-row-label {
+  position: absolute;
+  padding: 2px 9px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 900 10px var(--body);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.cv-upg {
+  position: absolute;
+  width: 220px;
+  height: 74px;
+  padding: 8px 10px 9px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #fff;
+  border: 2.5px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 3px 3px 0 var(--ink);
+  cursor: pointer;
+  transition:
+    box-shadow 0.15s,
+    background 0.15s;
+}
+.cv-upg.on {
+  background: #fff1df;
+}
+.cv-upg.locked {
+  background: #e9e4dc;
+  border: 2.5px dashed rgba(27, 21, 48, 0.45);
+  box-shadow: none;
+  opacity: 0.82;
+}
+.cv-upg.sel {
+  box-shadow:
+    0 0 0 3px var(--paper),
+    0 0 0 6px var(--team-b);
+}
+.cv-upg-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.cv-upg-icon {
+  font-size: 17px;
+  line-height: 20px;
+}
+.cv-lvl {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font: 900 11px var(--body);
+}
+.cv-upg-name {
+  flex: 1;
+  min-width: 0;
+  font: 900 12.5px/1.2 var(--body);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cv-upg-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cv-pill {
+  padding: 2px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font: 900 10px var(--body);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.cv-pill.on {
+  background: var(--team-a);
+  color: #fff;
+  box-shadow: 0 2px 0 var(--ink);
+}
+.cv-pill.locked {
+  padding: 2px 0;
+  border-color: transparent;
+  background: transparent;
+  cursor: default;
+}
+.cv-opt {
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: #fff0b8;
+  color: #6b5200;
+  font: 800 10px/1.6 var(--body);
+}
+.cv-jumps {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  max-width: calc(100% - 28px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 4px;
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 3px 3px 0 var(--ink);
+  cursor: default;
+}
+.cv-jump {
+  padding: 6px 11px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: 900 12px var(--body);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.cv-jump:hover {
+  transform: translateY(-1px);
+}
+.cv-jump.on {
+  background: var(--ink);
+  color: var(--paper);
+}
+.cv-mini {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  width: 206px;
+  height: 130px;
+  padding: 8px;
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 3px 3px 0 var(--ink);
+  cursor: pointer;
+  touch-action: none;
+}
+.cv-mini-box {
+  position: relative;
+  width: 184px;
+  height: 108px;
+  overflow: hidden;
+}
+.cv-mini-rects i {
+  position: absolute;
+}
+.cv-mini-vp {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  border: 2px solid var(--team-a);
+  background: rgba(255, 122, 26, 0.14);
+  border-radius: 4px;
+  pointer-events: none;
+}
+.cv-tools {
+  position: absolute;
+  left: 232px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 3px 3px 0 var(--ink);
+  cursor: default;
+}
+.cv-tools.alone {
+  left: 14px;
+}
+.cv-tool {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font: 900 20px/1 var(--body);
+  color: var(--ink);
+  cursor: pointer;
+}
+.cv-tool:hover {
+  background: #fff1df;
+}
+.cv-tool.cv-fit {
+  width: auto;
+  padding: 0 12px;
+  font: 900 12px var(--body);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.cv-zoom {
+  min-width: 50px;
+  text-align: center;
+  font: 900 13px var(--body);
+  font-variant-numeric: tabular-nums;
+}
+.cv-sep {
+  width: 2px;
+  height: 22px;
+  margin: 0 4px;
+  background: rgba(27, 21, 48, 0.15);
+}
+/* The details panel slides in from the right; once out, it is hidden (out of reach of the keyboard and a pad). */
+.cv-panel {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  bottom: 14px;
+  width: 340px;
+  max-width: calc(100% - 28px);
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 18px;
+  box-shadow: 5px 5px 0 var(--ink);
+  overflow: hidden;
+  cursor: default;
+  user-select: text;
+  transform: translateX(calc(100% + 30px));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.08),
+    opacity 0.2s;
+}
+.cv-panel.open {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.cv-panel[hidden] {
+  display: flex;
+  visibility: hidden;
+}
+.cv-p-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px 12px 16px;
+  border-bottom: 2px dashed rgba(27, 21, 48, 0.2);
+}
+.cv-p-tile {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  font-size: 30px;
+}
+.cv-p-title {
+  flex: 1;
+  min-width: 0;
+}
+.cv-p-kicker {
+  font: 900 11px var(--body);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+.cv-p-name {
+  font-family: var(--display);
+  font-size: 21px;
+  line-height: 1.05;
+  text-wrap: pretty;
+}
+.cv-close {
+  align-self: flex-start;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: 2.5px solid var(--ink);
+  border-radius: 10px;
+  background: #fff;
+  font: 900 14px var(--body);
+  color: var(--ink);
+  cursor: pointer;
+}
+.cv-close:hover {
+  background: #ffe2b8;
+}
+.cv-p-body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 14px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  touch-action: pan-y;
+}
+.cv-equip {
+  padding: 10px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: var(--warn);
+  font: 900 15px var(--body);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  box-shadow: 0 4px 0 var(--ink);
+  cursor: pointer;
+}
+.cv-equip:hover {
+  background: #ffe27a;
+}
+.cv-equip:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--ink);
+}
+.cv-equipped {
+  padding: 9px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: var(--team-a);
+  color: #fff;
+  font: 900 14px var(--body);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.cv-lock {
+  padding: 9px 14px;
+  border: 2.5px dashed rgba(27, 21, 48, 0.5);
+  border-radius: 12px;
+  background: #e9e4dc;
+  font: 900 14px var(--body);
+  text-align: center;
+}
+.cv-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cv-p-row {
+  display: flex;
+  justify-content: space-between;
+  font: 900 11px var(--body);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.cv-p-row .dim {
+  opacity: 0.6;
+}
+.cv-xp {
+  height: 14px;
+  border: 2.5px solid var(--ink);
+  border-radius: 8px;
+  background: #eee7da;
+  overflow: hidden;
+}
+.cv-xp > div {
+  height: 100%;
+  background: linear-gradient(90deg, #ffb13d, var(--team-a));
+}
+.cv-xp-text {
+  font: 800 12.5px var(--body);
+}
+.cv-stats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 7px 12px;
+  font: 800 12.5px var(--body);
+}
+.cv-bar {
+  height: 9px;
+  border: 2px solid var(--ink);
+  border-radius: 5px;
+  background: #eee7da;
+  overflow: hidden;
+}
+.cv-bar > div {
+  height: 100%;
+  background: var(--team-b);
+}
+.cv-stats small {
+  grid-column: 1 / -1;
+  font: 800 12px var(--body);
+  opacity: 0.65;
+}
+.cv-desc {
+  margin: 0;
+  font: 700 14px/1.45 var(--body);
+  text-wrap: pretty;
+}
+/* A knife's passive: its name, what it does and where it works. */
+.cv-passive {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 2.5px solid var(--ink);
+  border-radius: 14px;
+  background: #dff5d3;
+}
+.cv-passive-name {
+  font: 900 14px/1.2 var(--body);
+}
+.cv-passive-desc {
+  font: 700 13px/1.4 var(--body);
+  text-wrap: pretty;
+}
+.cv-passive-where {
+  font: 800 11.5px/1.35 var(--body);
+  opacity: 0.65;
+}
+.cv-p-upgrades {
+  border-top: 2px dashed rgba(27, 21, 48, 0.2);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cv-su {
+  padding: 12px;
+  border: 2.5px solid var(--ink);
+  border-radius: 14px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.cv-su-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cv-su-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+.cv-su-head b {
+  flex: 1;
+  min-width: 0;
+  font: 900 14px/1.2 var(--body);
+}
+.cv-su p {
+  margin: 0;
+  font: 700 13px/1.4 var(--body);
+  text-wrap: pretty;
+}
+.cv-fxs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cv-fx {
+  padding: 0 7px;
+  border-radius: 6px;
+  font: 800 11px/1.7 var(--body);
+}
+.cv-fx.good {
+  background: #dff5d3;
+  color: #24601a;
+}
+.cv-fx.bad {
+  background: #fbdcd8;
+  color: #9b1d12;
+}
+.cv-fx.opt {
+  background: #fff0b8;
+  color: #6b5200;
+}
+.cv-su-toggle {
+  padding: 8px 12px;
+  border: 2.5px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 3px 0 var(--ink);
+  font: 900 12px var(--body);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.cv-su-toggle.on {
+  background: var(--team-a);
+  color: #fff;
+}
+.cv-su-lock {
+  padding: 7px 12px;
+  border: 2px dashed rgba(27, 21, 48, 0.45);
+  border-radius: 999px;
+  background: #e9e4dc;
+  font: 900 12px var(--body);
+  text-align: center;
+}
+.cv-hint {
+  margin: 0;
+  font: 700 13px/1.4 var(--body);
+  opacity: 0.7;
 }
 /* The settings borrowed from the menu: no layout editor here (the touch controls only exist in a match). */
-#tab-settings .menu-columns {
-  margin-top: 0;
-}
 #tab-settings #touch-edit-btn {
   display: none;
 }
@@ -3059,6 +4776,397 @@ input[type='range'] {
   font-weight: 800;
   font-size: 13px;
 }
+/* --- Album (sticker achievements): one drawing, four finishes, all in CSS ------------------------------ */
+.album-pages {
+  margin: 6px 0 12px;
+}
+.album-pages small {
+  font-size: 11px;
+  opacity: 0.7;
+}
+.fig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 12px;
+}
+.fig {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 8px 10px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 3px 3px 0 var(--ink);
+  color: var(--ink);
+  font-family: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+.fig:hover {
+  transform: translateY(-2px) rotate(-1deg);
+}
+.fig[aria-pressed='true'] {
+  box-shadow: 4px 4px 0 var(--c);
+  transform: translateY(-2px);
+}
+.fig-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--c);
+  overflow: hidden;
+}
+.fig-icon {
+  font-size: 40px;
+  line-height: 1;
+  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.35));
+}
+/* The sticker's baked picture (client/ui/stickerArt.ts) in place of the emoji: the die-cut PNG fills the box.
+   Size containment keeps the 400 x 300 file out of the grid's track sizing, so the box decides. */
+.fig-art > .fig-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  contain: size;
+  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.35));
+}
+.fig-rep {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  right: 4px;
+  padding: 0 6px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: var(--warn);
+  font: 900 12px var(--body);
+}
+.fig-name {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.05;
+}
+.fig-pips {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+.fig-pips i {
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #fff;
+}
+.fig-pips i.on {
+  background: var(--c);
+}
+.fig-count {
+  font-weight: 800;
+  font-size: 12px;
+  opacity: 0.75;
+}
+/* Not stuck in yet: an empty, dashed slot with the drawing's shadow. */
+.fig-t0 {
+  border-style: dashed;
+  background: #f6f1e8;
+  box-shadow: none;
+}
+.fig-t0 .fig-art {
+  border-style: dashed;
+  background: #e4ddcf;
+}
+.fig-t0 .fig-icon {
+  filter: grayscale(1) brightness(0.3);
+  opacity: 0.35;
+}
+/* The empty slot shows the picture's silhouette (its die-cut shape). */
+.fig-t0 .fig-img {
+  filter: brightness(0);
+  opacity: 0.3;
+}
+/* Shiny, holographic and gold: a light sweeping across the picture. */
+.fig-t2 .fig-art::after,
+.fig-t3 .fig-art::after,
+.fig-t4 .fig-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.75) 50%, transparent 65%) 0 0 / 250% 100%;
+  animation: fig-sheen 3s ease-in-out infinite;
+}
+/* Holographic: a rainbow foil turning over it. */
+@property --fig-a {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.fig-t3 .fig-art::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(from var(--fig-a), #ff4a3d, #ffd23f, #7dff5a, #2fe0ff, #2f9bff, #b04aff, #ff4a3d);
+  mix-blend-mode: color-dodge;
+  opacity: 0.55;
+  animation: fig-spin 6s linear infinite;
+}
+/* Gold: gold leaf on the picture and the card. */
+.fig-t4 {
+  background: linear-gradient(135deg, #fff3c4, #ffd23f 45%, #e0a21a);
+}
+.fig-t4 .fig-art {
+  background: linear-gradient(135deg, #ffe680, #d99a10 50%, #fff1a8 70%, #c78a0a);
+}
+@keyframes fig-sheen {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+@keyframes fig-spin {
+  to {
+    --fig-a: 360deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fig-art::before,
+  .fig-art::after {
+    animation: none;
+  }
+}
+/* A small sticker as the others see it: scoreboard, death card, profile, the album's showcase. */
+.fig-mini {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-radius: 7px;
+}
+.fig-mini .fig-art {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border-width: 2px;
+  border-radius: 7px;
+}
+.fig-mini .fig-icon {
+  font-size: 17px;
+}
+.fig-mini .fig-img {
+  object-fit: cover;
+}
+.fig-mini.fig-t4 {
+  background: none;
+}
+.fig-mini.empty {
+  border: 2px dashed currentColor;
+  opacity: 0.35;
+}
+.sb-name {
+  white-space: nowrap;
+}
+.sb-title {
+  display: block;
+  margin-left: 36px;
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0.75;
+}
+#death-showcase {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+#death-showcase.hidden {
+  display: none;
+}
+#death-showcase .fig-mini {
+  width: 48px;
+  height: 48px;
+  margin: 0;
+}
+#death-showcase .fig-icon {
+  font-size: 28px;
+}
+.death-title {
+  font: 900 17px var(--body);
+  color: var(--warn);
+}
+.album-showcase {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+}
+.album-shown {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.album-shown .fig-mini {
+  width: 46px;
+  height: 46px;
+  margin: 0;
+}
+.album-shown .fig-icon {
+  font-size: 26px;
+}
+.album-shown b {
+  display: block;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 18px;
+}
+.album-title-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.album-titles {
+  margin: 0 0 10px;
+}
+.album-titles summary {
+  cursor: pointer;
+  font-weight: 900;
+}
+.album-titles ul {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.album-titles li {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 3px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  opacity: 0.7;
+}
+.album-titles li.done {
+  background: var(--good);
+  opacity: 1;
+}
+#al-feature {
+  margin-top: 10px;
+}
+.profile-showcase {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+.profile-showcase .fig-mini {
+  width: 40px;
+  height: 40px;
+}
+.profile-showcase .fig-icon {
+  font-size: 22px;
+}
+.profile-title {
+  font-family: var(--display);
+  font-size: 18px;
+}
+.fig-detail {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+}
+.fig-detail p {
+  margin: 0;
+  font-weight: 800;
+}
+.fig-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+/* The stickers' bars are spans: shown as blocks (or the fill has no size), green like the account's XP bar. */
+.fig-bar {
+  display: block;
+  margin-top: 0;
+}
+.fig-bar > .xp-fill {
+  display: block;
+  height: 100%;
+  background: var(--good);
+  transition: width 0.4s ease-out;
+}
+.fig-progress .fig-bar {
+  flex: 1;
+}
+.fig-progress b {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.fig-items {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.fig-items li {
+  display: grid;
+  grid-template-columns: minmax(90px, 140px) 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 12px;
+}
+.fig-tiers {
+  display: grid;
+  grid-template-columns: repeat(var(--n, 4), 1fr);
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.fig-tiers li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 12px;
+  opacity: 0.55;
+}
+.fig-tiers li.done {
+  background: var(--good);
+  opacity: 1;
+}
+@media (max-width: 560px) {
+  .fig-grid {
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  }
+  .fig-tiers {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 .part-table {
   width: 100%;
   margin-top: 8px;
@@ -3708,49 +5816,6 @@ input[type='range'] {
 .mobile #scoreboard {
   max-height: calc(100vh - 24px);
   overflow-y: auto;
-}
-
-/* The start/pause menu on a phone: compact, the touch settings right under the play button. */
-.mobile #menu {
-  padding: 6px;
-}
-.mobile .menu-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: min(820px, 100%);
-  max-height: calc(100vh - 12px);
-  padding: 8px 16px 12px;
-  -webkit-overflow-scrolling: touch;
-}
-.mobile .logo.small {
-  font-size: 24px;
-  -webkit-text-stroke: 1.5px var(--ink);
-  text-shadow: 3px 3px 0 var(--ink);
-  margin: 0;
-}
-.mobile #menu .subtitle {
-  margin: 2px 0 6px;
-  font-size: 13px;
-}
-.mobile #play-btn {
-  font-size: 24px;
-  padding: 6px 32px;
-}
-.mobile .menu-columns {
-  order: 2;
-  width: 100%;
-  text-align: left;
-}
-.mobile .arsenal {
-  order: 3;
-  width: 100%;
-}
-.mobile #menu-exit {
-  order: 4;
-}
-.mobile .gpu-warning {
-  font-size: 12px;
 }
 
 /* The character editor on a phone lying down (short screens): preview on the left at the screen's height,

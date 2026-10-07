@@ -18,7 +18,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { armGlove, armSleeve, bodyStats, type Appearance } from '@shared/appearance';
-import type { GrenadeKind, KnifeForm } from '@shared/progression';
+import type { GrenadeKind, KnifeId } from '@shared/progression';
 import { gunStats } from '@shared/arsenal';
 import type { Sex } from '@shared/protocol';
 import { toonGradient } from './materials';
@@ -291,8 +291,8 @@ export class Viewmodel {
     this.drawT = this.drawLen;
   }
 
-  /** Swaps what the melee hand swings (the knife, the rubber chicken, the lightsaber). */
-  setKnife(form: KnifeForm) {
+  /** Swaps what the melee hand swings (the kitchen knife, or a bigger one: the spoon, the chicken, the saber…). */
+  setKnife(form: KnifeId) {
     if (this.knifeItem) {
       this.knife.remove(this.knifeItem);
       this.knifeItem.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
@@ -340,12 +340,15 @@ export class Viewmodel {
     this.grenadeArm.add(item);
   }
 
-  /** A shot: visual kick back, up and a little sideways (the aim recoil is the weapon's, apart). */
-  kick() {
+  /**
+   * A shot: visual kick back, up and a little sideways (the aim recoil is the weapon's, apart). `mul` is the gun's
+   * on-screen kick (`coiceVisual`: the revolver, the garrucha and the hand cannon jump more).
+   */
+  kick(mul = 1) {
     const R = VM_FEEL.recoil;
-    if (this.kickBack.value < R.maxBack) this.kickBack.impulse(impulseFor(this.kickBack, R.back));
-    if (this.kickUp.value < R.maxUp) this.kickUp.impulse(impulseFor(this.kickUp, R.up));
-    this.kickSide.impulse(impulseFor(this.kickSide, (Math.random() * 2 - 1) * R.side));
+    if (this.kickBack.value < R.maxBack * mul) this.kickBack.impulse(impulseFor(this.kickBack, R.back * mul));
+    if (this.kickUp.value < R.maxUp * mul) this.kickUp.impulse(impulseFor(this.kickUp, R.up * mul));
+    this.kickSide.impulse(impulseFor(this.kickSide, (Math.random() * 2 - 1) * R.side * mul));
   }
 
   flash() {
@@ -597,7 +600,8 @@ function bakeStaticParts(group: THREE.Group, keep: THREE.Object3D[]) {
   if (merged) group.add(new THREE.Mesh(merged, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() })));
 }
 
-function flashTexture(): THREE.CanvasTexture {
+/** The muzzle flash's star (also the sticker studio's, client/dev/studio). */
+export function flashTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
   const g = c.getContext('2d')!;

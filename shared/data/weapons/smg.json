@@ -3,6 +3,10 @@
   "nome": "Submetralhadora Liquidificador",
   "categoria": "submetralhadora",
   "slot": "secundaria",
+  "libera": {
+    "arma": "pistola",
+    "pontos": 1800
+  },
   "dano": {
     "max": 22,
     "min": 12,

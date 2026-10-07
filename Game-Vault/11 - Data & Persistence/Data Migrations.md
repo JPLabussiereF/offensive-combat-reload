@@ -59,6 +59,9 @@ Os arquivos `.down.sql` são **rollbacks manuais** (não executados pelo código
 | `002_aparencia.sql` | `ALTER TABLE player_profile ADD COLUMN appearance jsonb` |
 | `004_mapas.sql` | Mapas como dados (PF-6): extensão `pg_trgm`; tabelas `map`, `map_version` (imutável por gatilho), `map_asset` e `map_version_asset` ([[Database]]); `auth_event.actor_id`; nova descrição do papel `moderador`; `session_participation.map_id`. Depois de `migrate()`, `seedOfficialMaps` (`server/maps.ts`) cria a versão 1 dos 4 mapas oficiais a partir de `shared/data/mapas/*.json` (ignorando os `*.golden.json`), com a navmesh do Cemitério, se ainda não existirem |
 | `003_melhorias.sql` | Progressão por melhorias e armas secundárias ([[ADR - Progressão por melhorias de arma]]): o CHECK de `weapon_progress.weapon` passa a aceitar `pistola` e `smg`; insere as linhas dessas armas para os perfis existentes; `ALTER TABLE player_profile ADD COLUMN loadout jsonb` (a escolha do Arsenal); **sobe o XP** de rifle, faca e granada para o limiar do nível novo equivalente ao antigo, para ninguém perder o que tinha (rifle e faca 2→2, 3–4→3, 5–6→4, 7→5; granada 2→2, 3→3; ex.: rifle com ≥ 5500 → 7000). A coluna `equipped_level` fica, só para leitura |
+| `006_destaque.sql` | Colunas `featured_sticker` e `title` em `player_profile` (figurinha em destaque e título do álbum). O `.down.sql` apaga as duas |
+| `005_figurinhas.sql` | Tabela `achievement_progress` (contadores próprios do álbum de figurinhas, uma linha por figurinha ou item de coleção). O `.down.sql` apaga a tabela; as figurinhas derivadas das estatísticas não são afetadas |
+| `004_estatisticas_zumbi.sql` | Tabela `zombie_stats` (totais do modo zumbi por perfil, à parte de `player_stats`). Contas antigas não precisam de nada: a linha nasce na primeira gravação. O `.down.sql` apaga a tabela |
 
 Schema detalhado em [[Database]].
 
@@ -75,7 +78,7 @@ A aparência (`player_profile.appearance`, jsonb) tem campo de versão `v`. `san
 
 Não há migration SQL para isso: o dado antigo continua no banco até a próxima gravação. Coberto por `server/tests/appearance.test.ts`. Ver [[Character Customization]].
 
-A escolha do Arsenal (`player_profile.loadout`) também é convertida na leitura: `NULL` (conta de antes das melhorias) vira a escolha mais parecida com o antigo `equipped_level` de cada arma (`legacyChoice` em `shared/progression.ts`: rifle 5–7 → luneta ligada; faca 3 → frango, 7 → sabre; granada 2 → mina, 3 → Dose Dupla), e todo valor lido ou gravado passa por `sanitizeChoice` contra os níveis. Coberto por `server/tests/arsenal.test.ts` (que também confere os limiares da migração 003).
+A escolha do Arsenal (`player_profile.loadout`) também é convertida na leitura: `NULL` (conta de antes das melhorias) vira a escolha mais parecida com o antigo `equipped_level` de cada arma (`legacyChoice` em `shared/progression.ts`: rifle 5–7 → luneta ligada; granada 2 → mina, 3 → Dose Dupla; desde a PF-8 a faca antiga não é mais convertida: todos começam no Rifle Padrão e na faca de cozinha), e todo valor lido ou gravado passa por `sanitizeChoice` contra os níveis. Uma escolha com o frango ou o sabre ligados como forma (de antes da PF-8) vira essa faca se os pontos de faca a liberam. Coberto por `server/tests/arsenal.test.ts` (que também confere os limiares da migração 003, fixados nos valores da época dela).
 
 ## Migração de dados locais (navegador)
 

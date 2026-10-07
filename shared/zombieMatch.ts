@@ -34,6 +34,7 @@ import {
   nailBoard,
   needsWork,
   smashesThrough,
+  thornsAt,
 } from './barricades';
 import {
   isBoss,
@@ -72,8 +73,8 @@ export interface ZombieHost {
   rng(): number;
   /** An event for every player. */
   emit(msg: ServerMsg): void;
-  /** A zombie hurts a standing player; if that takes them to 0, the host calls `lethal`. */
-  hurt(id: number, amount: number, from: Vec3): void;
+  /** A zombie (or the thorns, `kind`) hurts a standing player; if that takes them to 0, the host calls `lethal`. */
+  hurt(id: number, amount: number, from: Vec3, kind?: 'thorns'): void;
   /** Account XP (online only). */
   giveXp(id: number, xp: number): void;
   /** Other weapons in a player's hands. */
@@ -86,7 +87,24 @@ export interface ZombieHost {
   allowRespawn(id: number): void;
   /** A new match: everyone comes back at once with the starting weapons. */
   newMatch(ids: number[]): void;
+  /** Something for a player's zumbi stats (the server saves them; solo play has nowhere to). */
+  stat?(id: number, s: ZStat): void;
 }
+
+/** What counts toward a player's zumbi stats. */
+export type ZStat =
+  | { e: 'kill'; kind: ZKind; how: KillHow }
+  | { e: 'down' }
+  | { e: 'death' }
+  | { e: 'revive' }
+  | { e: 'wave' }
+  | { e: 'coffin' }
+  /** Zombies a bloater's burst took with it, credited to whoever killed the bloater. */
+  | { e: 'chain'; kills: number }
+  /** A barricade built or a board nailed back. */
+  | { e: 'board' }
+  /** The match ended; `dead`: the player was dead (not down) when it did. */
+  | { e: 'end'; won: boolean; wave: number; dead: boolean };
 
 /** A player as the host sees them each tick. */
 export interface ZombieInput {
@@ -117,6 +135,10 @@ interface Part {
   reviving: { target: number; since: number } | null;
   /** Money earned nailing boards since the last wave ended (capped by barricadas.reparoTetoOnda). */
   repairPaid: number;
+  /** Bleeding from the thorns until then (0: not bleeding), the next bleed tick, the next thorn hit. */
+  bleedUntil: number;
+  bleedNext: number;
+  thornNext: number;
 }
 
 type Act = 'swipe' | 'fuse' | 'spit' | 'slam' | 'summon' | 'scream' | 'blink' | 'chargeWindup' | 'charge' | 'pound' | 'smash';
@@ -255,6 +277,9 @@ export class ZombieMatch {
       items: startItems(),
       reviving: null,
       repairPaid: 0,
+      bleedUntil: 0,
+      bleedNext: 0,
+      thornNext: 0,
     });
     if (this.phase === 'waiting') this.countdown();
   }
@@ -310,6 +335,7 @@ export class ZombieMatch {
     if (!p || p.state !== 'up' || this.phase !== 'wave') return false;
     p.state = 'down';
     p.downs++;
+    this.host.stat?.(id, { e: 'down' });
     p.downUntil = this.now + ZOMBIE.jogador.caidoSegundos * 1000;
     p.reviving = null;
     for (const o of this.parts.values()) if (o.reviving?.target === id) o.reviving = null;
@@ -325,6 +351,7 @@ export class ZombieMatch {
     p.state = 'dead';
     p.alive = false;
     p.reviving = null;
+    this.host.stat?.(id, { e: 'death' });
     this.checkLoss();
   }
 
@@ -359,6 +386,7 @@ export class ZombieMatch {
     if (this.box.state === 'offer' && this.box.by === id) return this.takeBox(p);
     if (this.box.state !== 'idle' || p.money < ZOMBIE.caixa.custo) return;
     p.money -= ZOMBIE.caixa.custo;
+    this.host.stat?.(id, { e: 'coffin' });
     const rng = () => this.host.rng();
     const it = rollBox(rng, p.items);
     this.box.pending = it.id;
@@ -447,6 +475,7 @@ export class ZombieMatch {
         buildBarricade(b);
         this.updateGates();
         this.emitBar(w.gap, 'build', { by: id, money: p.money });
+        this.host.stat?.(id, { e: 'board' });
         this.stopWork(id);
         continue;
       }
@@ -459,6 +488,7 @@ export class ZombieMatch {
         p.repairPaid += award;
       }
       this.emitBar(w.gap, 'nail', { by: id, ...(award > 0 ? { award, money: p.money } : {}) });
+      this.host.stat?.(id, { e: 'board' });
       if (!needsWork(b)) this.stopWork(id);
       else {
         w.until = now + B.repararSegundos * 1000;
@@ -539,6 +569,7 @@ export class ZombieMatch {
       this.pay(killer, award);
       killer.kills++;
       if (how === 'head') killer.headshots++;
+      this.host.stat?.(killer.id, { e: 'kill', kind: z.kind, how });
       this.xp(killer, killXp(z.kind));
     }
     this.host.emit({ t: 'zdie', id: z.id, by: killer ? by : null, how, ...(killer ? { award, money: killer.money } : {}) });
@@ -589,10 +620,13 @@ export class ZombieMatch {
       const d = Math.hypot(p.feet[0] - z.pos[0], p.feet[1] - z.pos[1], p.feet[2] - z.pos[2]);
       if (d <= e.raio) this.host.hurt(p.id, Math.round(e.dano * (1 - (0.6 * d) / e.raio)), z.pos);
     }
+    let chain = 0;
     for (const o of [...this.zombies.values()]) {
       if (o.dead || dist2(o.pos, z.pos) > e.raio || Math.abs(o.pos[1] - z.pos[1]) > 2.5) continue;
       this.damage(o.id, credit, e.danoZumbi, 'blast');
+      if (o.dead) chain++;
     }
+    if (credit !== null && chain) this.host.stat?.(credit, { e: 'chain', kills: chain });
     // The blast blows boards off the barricades it reaches.
     this.map.barricadas.forEach((g, i) => {
       if (dist2(g.centro, z.pos) <= e.raio + g.largura / 2 && Math.abs(g.centro[1] - z.pos[1]) < 2.5) this.hurtBarricade(i, ZOMBIE.barricadas.dano.explosao);
@@ -633,6 +667,7 @@ export class ZombieMatch {
       if (p.state !== 'dead') {
         this.pay(p, ZOMBIE.dinheiro.onda);
         this.xp(p, ZOMBIE.xp.onda);
+        this.host.stat?.(p.id, { e: 'wave' });
         money.push([p.id, p.money]);
       }
       if (p.state === 'down') this.standUp(p, null);
@@ -671,6 +706,11 @@ export class ZombieMatch {
   private finish(won: boolean) {
     const now = this.now;
     if (won) for (const p of this.parts.values()) this.xp(p, ZOMBIE.xp.vitoria);
+    for (const p of this.parts.values()) {
+      // Lost with nobody left to revive them: whoever is still down never gets up, so it's a death.
+      if (!won && p.state === 'down') this.host.stat?.(p.id, { e: 'death' });
+      this.host.stat?.(p.id, { e: 'end', won, wave: this.wave, dead: p.state === 'dead' });
+    }
     this.phase = 'over';
     this.until = now + ZOMBIE.fimSegundos * 1000;
     this.clearZombies(true);
@@ -684,7 +724,7 @@ export class ZombieMatch {
   /** A new match for whoever is there: fresh money and weapons, no barricades, everyone back at once. */
   private restart() {
     for (const p of this.parts.values()) {
-      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0 });
+      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0, bleedUntil: 0, bleedNext: 0, thornNext: 0 });
       this.host.setLoadout(p.id, zombieLoadout(p.items));
     }
     this.resetBarricades(true);
@@ -867,10 +907,45 @@ export class ZombieMatch {
         break;
     }
     this.tickRevives(now);
+    this.tickThorns(now);
     this.tickWork(now);
     this.tickZombies(dt, now);
     this.tickProjectiles(now);
     if (this.phase === 'wave' && this.spawned >= this.spec.total && this.zombies.size === 0 && this.rising.length === 0) this.endWave();
+  }
+
+  /**
+   * The thorns: up on the wall's bars or the hedge, a hit every espinhos.intervaloSegundos while there, and
+   * bleeding for espinhos.sangraSegundos (touching again renews it, doesn't stack). Only standing players
+   * bleed: going down or dying stops it.
+   */
+  private tickThorns(now: number) {
+    const t = ZOMBIE.espinhos;
+    for (const p of this.parts.values()) {
+      if (p.state !== 'up' || !p.alive) {
+        if (p.bleedUntil) {
+          p.bleedUntil = 0;
+          this.host.emit({ t: 'zbleed', id: p.id, until: 0 });
+        }
+        continue;
+      }
+      if (thornsAt(this.map, p.feet) && now >= p.thornNext) {
+        p.thornNext = now + t.intervaloSegundos * 1000;
+        if (!p.bleedUntil) p.bleedNext = now + t.sangraTiqueSegundos * 1000;
+        p.bleedUntil = now + t.sangraSegundos * 1000;
+        this.host.emit({ t: 'zbleed', id: p.id, until: p.bleedUntil });
+        this.host.hurt(p.id, t.dano, p.feet, 'thorns');
+        if (p.state !== 'up') continue;
+      }
+      if (p.bleedUntil && now >= p.bleedNext) {
+        if (now > p.bleedUntil) {
+          p.bleedUntil = 0;
+          continue;
+        }
+        p.bleedNext += t.sangraTiqueSegundos * 1000;
+        this.host.hurt(p.id, t.sangraDano, p.feet, 'thorns');
+      }
+    }
   }
 
   private tickRevives(now: number) {
@@ -893,6 +968,7 @@ export class ZombieMatch {
       if (now - r.since < ZOMBIE.jogador.reanimarSegundos * 1000) continue;
       p.reviving = null;
       p.revives++;
+      this.host.stat?.(p.id, { e: 'revive' });
       this.pay(p, ZOMBIE.dinheiro.reanimar);
       this.xp(p, ZOMBIE.xp.reanimar);
       this.standUp(t, p.id);

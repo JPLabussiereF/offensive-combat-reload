@@ -37,7 +37,7 @@ Mensagens que avisam o jogador de algo que aconteceu. Não há sistema central d
 ## Kill feed
 
 - Ícones por tipo de morte (`KIND_ICON` em `main.ts`, `FEED_ICONS` em `hud.ts`): tiro na cabeça ✚, faca 🔪, virilha 🐦, humilhação 💃, granada/explosão 💣, cachorra 🐕; tiro comum, queda e vazio sem ícone.
-- O nome da "arma" é o da arma que matou (`kill.arma` online; o bot informa a sua): "Rifle Padrão", "Pistola do Porteiro", "Submetralhadora Liquidificador", "Faca de Cozinha", "Granada de Fragmentação" — ou o nome da forma ligada, quando há uma ("Frango de Borracha", "Sabre de Luz Paraguaio", "Mina Terrestre", "Dose Dupla"; `weaponLabel` em `client/ui/arsenal.ts`). "Dancinha da Vitória" para humilhações, "Mordida" para a cachorra Amora.
+- O nome da "arma" é o da arma que matou (`kill.arma` online; o bot informa a sua): "Rifle Padrão" ou o rifle antigo que atirou ("Rifle da Tia do Zap"…), "Pistola do Porteiro", "Submetralhadora Liquidificador", a faca de quem matou ("Faca de Cozinha", "Frango de Borracha", "Sabre de Luz Paraguaio"…: uma facada online só diz `faca`, e o nome sai do loadout do atacante), "Granada de Fragmentação" — ou o modo ligado da granada ("Mina Terrestre", "Dose Dupla"; `weaponLabel` em `client/ui/arsenal.ts`). "Dancinha da Vitória" para humilhações, "Mordida" para a cachorra Amora.
 - O próprio jogador aparece como "Você".
 - Mortes sem atacante (queda, vazio, explosão própria) aparecem como aviso "💀 {vítima}".
 
@@ -51,7 +51,7 @@ Exemplos confirmados em `main.ts`/`strings.ts`: "{nome} entrou", "{nome} saiu", 
 | --- | --- |
 | `bird` | "NO PÁSSARO!" (tiro na virilha) — ver [[Humiliation]] |
 | `taunt` | "OPRIMIDO!" (fim de uma humilhação) |
-| `level` | "{ícone} {arma} nível {n}: {melhoria}!" (ex.: "🔭 Rifle Padrão nível 4: Luneta do Vovô (3x)!"; chave `upgradeUnlocked`), seguido do aviso "Ligue no Arsenal" quando a melhoria é opcional (`upgradeTurnOn`); "🏅 Conta nível {n}!", biscoito Scooby, humanidade, efeito da poção, mira afiada (carpa dourada / tiro ao alvo) — ver [[Progression]] e [[Buffs & Debuffs]] |
+| `level` | "{ícone} {arma} nível {n}: {melhoria}!" (ex.: "🔭 Rifle Padrão nível 4: Luneta do Vovô (3x)!"; chave `upgradeUnlocked`), seguido do aviso "Ligue no Arsenal" quando a melhoria é opcional (`upgradeTurnOn`) e, quando o nível libera uma arma (a pistola no nível 3 libera a submetralhadora), do aviso "{arma} liberada: equipe no Arsenal" (`weaponUnlocked`; a arma não entra sozinha no espaço); "🏅 Conta nível {n}!", biscoito Scooby, humanidade, efeito da poção, mira afiada (carpa dourada / tiro ao alvo) — ver [[Progression]] e [[Buffs & Debuffs]] |
 
 ## Pop-ups de pontos
 
@@ -68,6 +68,6 @@ Não há notificações fora da partida (push, e-mail no jogo, convites de amigo
 ## Código relacionado
 
 - `client/ui/hud.ts` — `killfeed`, `notice`, `showBanner`, `popup`, `setNetStatus`, `showDeath`.
-- `client/main.ts` — `KIND_ICON`, `AWARD_TEXT`, `weaponNameFor`, handler de `progresso` (faixa de melhoria), chamadas de notificação.
+- `client/main.ts` — `KIND_ICON`, `AWARD_TEXT`, `weaponNameFor`, handler de `progresso` (faixa de melhoria), handler de `figurinha` (faixa "Figurinha Brilhante: Na Testa!", em fila de 2 s quando chegam várias, com o som de subir de nível; texto em `stickerUpText`, `client/ui/album.ts`), chamadas de notificação.
 - `client/ui/arsenal.ts` — `weaponName`, `upgradeName`, `weaponLabel`.
 - `client/ui/strings.ts` — textos.

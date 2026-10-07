@@ -7,7 +7,7 @@ import { DEFAULT_LOADOUT, gunStats } from '@shared/arsenal';
 import type { GameServer } from '../app';
 import { ticketKey } from '../api';
 import { ban, mute, resolveTag, unmute } from '../moderacao';
-import { Browser, enterMap, Player, sleep, startTestServer } from './helpers';
+import { Browser, enterMap, Player, setWeaponXp, sleep, startTestServer } from './helpers';
 
 let game: GameServer;
 beforeAll(async () => {
@@ -110,9 +110,11 @@ describe('progresso', () => {
   it('o abate validado pelo servidor dá pontos à arma, XP à conta e estatísticas, gravados ao sair', async () => {
     const a = await signedIn('Atirador');
     const v = await signedIn('Alvo');
+    // Already scored with the SMG: it stays unlocked for this account.
+    await setWeaponXp(a, { smg: 1 });
     // In the lobby, a locked upgrade is ignored: the server keeps the rifle without it.
     const A = await joinMain(a, [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: { rifle: ['silenciador'] } } }]);
-    expect((await A.p.next('progresso', (m) => m.escolha.secundaria === 'smg')).escolha).toEqual({ secundaria: 'smg', ligadas: {} });
+    expect((await A.p.next('progresso', (m) => m.escolha.secundaria === 'smg')).escolha).toEqual({ primaria: 'rifle', secundaria: 'smg', faca: 'faca', ligadas: {}, desligadas: {} });
     const V = await joinMain(v);
     const vId = V.joined.you;
     A.p.send({ t: 'respawn', p: [0, 0, 0], yaw: 0 });
@@ -143,6 +145,8 @@ describe('progresso', () => {
     expect(profileA.body.xp).toBe(25);
     expect(profileA.body.totais.abates).toBe(1);
     expect(profileA.body.totais.cabeca).toBe(1);
+    // Never played zumbi: no zombie_stats row yet, all zero.
+    expect(profileA.body.totais.zumbi).toMatchObject({ partidas: 0, abates: 0, melhorOnda: 0 });
     expect(profileA.body.participacoes[0]).toMatchObject({ sessao: 'Rua dos Vizinhos', abates: 1 });
     expect(profileA.body.participacoes[0].saida).not.toBeNull();
     const profileV = await v.req('GET', '/api/perfil');
@@ -203,7 +207,8 @@ describe('cereja do jardim', () => {
     B.p.send({ t: 'pickup', id: 'cereja' });
     const taken = await A.p.next('pickup');
     expect(taken).toMatchObject({ id: 'cereja', by: bId });
-    expect(taken.ready - taken.until).toBe((CHERRY.respawn - CHERRY.duration) * 1000);
+    // Server times are performance.now() (fractions of a ms): their difference can be off by a hair.
+    expect(taken.ready - taken.until).toBeCloseTo((CHERRY.respawn - CHERRY.duration) * 1000);
     await B.p.next('snap', (m) => m.players.find((x) => x.id === bId)?.h === HEALTH.max + CHERRY.extraHealth);
 
     // Gone until it grows back: walking up to it doesn't give it again.
@@ -332,7 +337,9 @@ describe('vila assombrada', () => {
 
 describe('armas vistas pelos outros', () => {
   it('o equipamento escolhido antes da partida chega validado aos outros, e não muda durante ela', async () => {
-    const a = await joinMain(await signedIn('Atirador'), [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: {} } }]);
+    const atirador = await signedIn('Atirador');
+    await setWeaponXp(atirador, { smg: 1 });
+    const a = await joinMain(atirador, [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: {} } }]);
     const b = await joinMain(await signedIn('Observador'));
     expect(b.joined.players.find((x) => x.id === a.joined.you)?.lo).toEqual({ ...DEFAULT_LOADOUT, secundaria: 'smg' });
     // Upgrades the account hasn't unlocked never reach the others; a primary isn't a secondary.
@@ -378,6 +385,13 @@ describe('armas vistas pelos outros', () => {
     expect(prog.armas.rifle.xp).toBe(0);
     A.p.close();
     V.p.close();
+  });
+
+  it('a submetralhadora trancada (pistola abaixo do nível 3) não entra: o servidor mantém a pistola', async () => {
+    const a = await joinMain(await signedIn('Apressado'), [{ t: 'loadout', lo: { secundaria: 'smg', ligadas: {}, desligadas: { rifle: ['pontoVermelho'] } } }]);
+    expect(a.joined.players.find((x) => x.id === a.joined.you)?.lo).toEqual(DEFAULT_LOADOUT);
+    expect(a.p.msgs.filter((m) => m.t === 'progresso').at(-1)).toMatchObject({ escolha: { secundaria: 'pistola', desligadas: {} } });
+    a.p.close();
   });
 
   it('quem entra recebe o loadout de quem já está na partida', async () => {

@@ -7,9 +7,9 @@ import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
 import type { PlayerInfo, ServerMsg, Vec3, ZBarricade, ZombieSync, ZPhase } from '@shared/protocol';
 import type { GunStats } from '@shared/arsenal';
-import type { HitRegion } from '@shared/weapons';
+import { critRegion, type HitRegion } from '@shared/weapons';
 import { emptyBarricade, inGap, inReach, insideWall, needsWork } from '@shared/barricades';
-import { itemOf, startItems, waveSpec, WAVES, withItem, ZF, ZOMBIE, type BossId, type KillHow, type ZFlaw, type ZItems, type ZombieMapData } from '@shared/zombies';
+import { gunDamageToZombie, isBoss, itemOf, startItems, waveSpec, WAVES, weaponMul, withItem, zombieHp, ZF, ZOMBIE, type BossId, type KillHow, type ZFlaw, type ZItems, type ZombieMapData } from '@shared/zombies';
 import type { Hud } from '../ui/hud';
 import type { Sfx } from '../audio/sfx';
 import type { Effects } from '../render/effects';
@@ -94,6 +94,8 @@ export class ZombieClient {
   private summary: Extract<ServerMsg, { t: 'zend' }> | null = null;
   private slowUntil = 0;
   private slowFactor = 1;
+  /** Bleeding from the thorns until then (server ms). */
+  private bleedUntil = 0;
   private heartbeatIn = 0;
   private markers = new Map<number, THREE.Sprite>();
   private markerTex: THREE.CanvasTexture | null = null;
@@ -214,6 +216,12 @@ export class ZombieClient {
       const f = g.feet();
       if (m.fx === 'pound' && Math.hypot(f.x - m.at[0], f.z - m.at[2]) < (m.r ?? 15)) g.hud.showBanner(t('zJump'), 'bird');
       if (m.fx === 'boom' && Math.hypot(f.x - m.at[0], f.z - m.at[2]) < 12) g.shake(0.5);
+    });
+    L.on('zbleed', (m) => {
+      if (m.id !== this.me) return;
+      // A new cut: the first time a banner says why (the bars and the hedge look climbable).
+      if (m.until && !this.bleedLeft()) g.hud.notice(t('zThorns'));
+      this.bleedUntil = m.until;
     });
     L.on('zhitfx', (m) => {
       if (m.id !== this.me) return;
@@ -374,8 +382,17 @@ export class ZombieClient {
     return target instanceof Zombie;
   }
 
-  shot(z: Zombie, region: HitRegion, dist: number, gun: GunStats, keep: number) {
+  /** Reports a hit; returns the damage the match should deal (the same formula), for the floating number. */
+  shot(z: Zombie, region: HitRegion, dist: number, gun: GunStats, keep: number, crit: boolean): number {
     this.link.send({ t: 'zhit', z: z.id, region, dist: +dist.toFixed(2), w: gun.arma, ...(keep < 1 ? { keep: +keep.toFixed(3) } : {}) });
+    return gunDamageToZombie(gun, Math.min(dist, gun.alcanceMaximo), critRegion(region, crit), keep, weaponMul(this.items, gun.arma), isBoss(z.kind));
+  }
+
+  /** The most a zombie can still lose: a boss's health reaches us, a common zombie's doesn't (taken as full). */
+  healthOf(z: Zombie): number {
+    if (isBoss(z.kind) && this.boss?.id === z.id) return this.boss.hp;
+    const players = this.game.teammates().length + 1;
+    return zombieHp(z.kind, waveSpec(Math.max(1, this.wave), players), players);
   }
 
   stab(z: Zombie) {
@@ -587,6 +604,11 @@ export class ZombieClient {
     return Math.max(0, (this.slowUntil - this.link.now()) / 1000);
   }
 
+  /** Seconds left bleeding from the thorns (0: none), for the buff panel. */
+  bleedLeft(): number {
+    return Math.max(0, (this.bleedUntil - this.link.now()) / 1000);
+  }
+
   // --- Per frame ---------------------------------------------------------------------------------------------
 
   update(dt: number) {
@@ -683,10 +705,16 @@ export class ZombieClient {
   }
 }
 
-function crossTexture(): THREE.CanvasTexture {
+/**
+ * The downed marker: a red cross on a dark disc, on a `size` px canvas. The game's is 64 px; the sticker studio
+ * (client/dev/studio) paints it bigger for the album, the same drawing scaled up.
+ */
+export function crossTexture(size = 64): THREE.CanvasTexture {
   const c = document.createElement('canvas');
-  c.width = c.height = 64;
+  c.width = c.height = size;
   const g = c.getContext('2d')!;
+  // Drawn on the 64 px grid (identity at the game's size).
+  g.scale(size / 64, size / 64);
   g.fillStyle = 'rgba(0,0,0,0.6)';
   g.beginPath();
   g.arc(32, 32, 30, 0, Math.PI * 2);

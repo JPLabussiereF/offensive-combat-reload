@@ -12,7 +12,7 @@ export interface Market {
 }
 
 /** Dó, ré, mi, fá, sol (C5 to G5), in Hz. */
-const NOTES = [523.25, 587.33, 659.25, 698.46, 783.99];
+export const NOTES = [523.25, 587.33, 659.25, 698.46, 783.99];
 
 /**
  * Bianzhong: five bronze bells of falling size on a lacquered frame, the biggest (dó) on the right of whoever

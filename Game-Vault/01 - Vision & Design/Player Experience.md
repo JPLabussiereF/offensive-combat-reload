@@ -17,7 +17,7 @@ tags:
   - game
   - design
   - ux
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Player Experience
@@ -62,7 +62,7 @@ O jogo dá um retorno claro a cada ação:
 ## 6. Evoluir jogando do seu jeito
 
 - Cada arma evolui com os próprios abates, e cada nível libera uma melhoria. A faixa mostra o ícone e o nome dela ("🔴 Rifle Padrão nível 2: Mira de Ponto Vermelho da Feira!"); se a melhoria é opcional, aparece também o aviso "Ligue no Arsenal". Ver [[Progression]] e [[Notifications]].
-- O Arsenal deixa escolher a secundária (pistola ou submetralhadora) e ligar ou desligar as melhorias opcionais já liberadas ([[Inventory UI]]).
+- O Arsenal deixa escolher a secundária (uma das sete) e ligar ou desligar as melhorias opcionais já liberadas ([[Inventory UI]]).
 
 ## 7. Conforto e acessibilidade
 

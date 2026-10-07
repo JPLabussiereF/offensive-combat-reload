@@ -25,3 +25,42 @@ export const isOfficialMap = (v: unknown): v is OfficialMapId => OFFICIAL_MAPS.i
 
 /** What a collectible does: the cherry (CHERRY, extra max health for a while) or the biscuit (BISCUIT, full health). */
 export type PickupKind = 'cereja' | 'biscoito';
+
+/**
+ * The map gags (props) the server checks on the official maps, where each is (its center): the ones album
+ * stickers count. A player's hit on one is taken only on its map, from someone alive within PROP_RANGE of it;
+ * every other prop (pumpkins, lamp posts, lanterns...) stays a cosmetic relay. The pieces are in the official
+ * maps' data (shared/data/mapas/*.json, built by client/world/catalog/); keep both in step. A community map
+ * (a copy of an official one too) has none: its checked props are refused, not relayed.
+ */
+export const PROPS: Record<OfficialMapId, { id: string; p: [number, number, number] }[]> = {
+  rua: [{ id: 'caminhao', p: [1, 1.5, 0] }],
+  jardim: [
+    { id: 'dragao', p: [39, 2.8, -14] },
+    { id: 'gongo', p: [-34.5, 2, -40.6] },
+    { id: 'tambor:0', p: [-26.6, 1.85, -6.4] },
+    { id: 'tambor:1', p: [-3.1, 1.15, 24.1] },
+    { id: 'tambor:2', p: [41.6, 0.9, 22.4] },
+    { id: 'tambor:3', p: [42.8, 0.9, 21.2] },
+    // The market's chime, from dó (0) to sol (4): x = 27.95 + 1.025 × i (client/world/jardim/lanternas.ts).
+    ...[0, 1, 2, 3, 4].map((i) => ({ id: `carrilhao:${i}`, p: [27.95 + 1.025 * i, 2.2, 43.9] as [number, number, number] })),
+  ],
+  halloween: [
+    { id: 'sinocapela', p: [-14.5, 10.1, -29.5] },
+    { id: 'buzina', p: [30, 1, -47] },
+    { id: 'fantasma', p: [5, 0.5, -20.4] },
+    { id: 'caldeirao', p: [-40, 0.8, -46] },
+    // The shooting gallery's seven targets (client/world/halloween.ts).
+    ...([[31.4, 1.0, 15.0], [32.5, 1.9, 14.7], [33.3, 1.25, 15.9], [34.6, 2.05, 15.2], [35.4, 0.95, 14.8], [36.5, 1.6, 16.2], [37.4, 1.15, 15.4]] as const).map((p, i) => ({ id: `alvo:${i}`, p: [...p] as [number, number, number] })),
+  ],
+  cemiterio: [],
+};
+
+/** The checked props of a map (none on a community map). */
+export const checkedPropsOf = (map: MapId) => (isOfficialMap(map) ? PROPS[map] : []);
+
+/** How far (m) a player can be from a checked prop to have hit it (a shot across most of a map). */
+export const PROP_RANGE = 80;
+
+/** Every checked prop id, of any map: one of these sent from another map is refused, not relayed. */
+export const CHECKED_PROPS: ReadonlySet<string> = new Set(Object.values(PROPS).flatMap((list) => list.map((s) => s.id)));

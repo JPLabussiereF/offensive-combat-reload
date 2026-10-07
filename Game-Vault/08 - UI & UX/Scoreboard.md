@@ -29,7 +29,7 @@ Tabela de classificação da partida (`#scoreboard`, classe `Scoreboard` em `cli
 
 ## Conteúdo
 
-Cabeçalho com "Placar" e o nome da sessão (online) ou "Contra N bots · {modo}". Colunas:
+Cabeçalho com "Placar" e o nome da sessão (online) ou "Contra N bots · {modo}". Na coluna do jogador aparecem também a **figurinha em destaque** do álbum (com o acabamento dela) e, embaixo do nome, o **título** (`PlayerInfo.fig`, `tit`; [[Achievements]]). Colunas:
 
 | # | Jogador | Nível | (Arma) | Pontos | Abates | Mortes | Opress. | Ping |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

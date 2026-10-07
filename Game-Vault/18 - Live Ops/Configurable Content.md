@@ -30,7 +30,7 @@ Conteúdo que pode ser ajustado **sem mexer na lógica**, editando arquivos de d
 
 | Conteúdo | Arquivo | O que controla | Nota principal |
 | --- | --- | --- | --- |
-| Armas | `shared/data/weapons/rifle_padrao.json`, `pistola.json`, `smg.json`, `faca.json`, `granada_frag.json` | Cadência, pente, dano, alcance, dispersão, recuo, penetração, tempo de saque (`troca`), espaço (`slot`: primária/secundária), pavio, impacto... | [[Weapons]] |
+| Armas | `shared/data/weapons/rifle_padrao.json` e os seis `rifle_*.json`, `pistola.json`, `smg.json`, `faca.json` e as seis facas antigas, `granada_frag.json` | Cadência, pente, dano, alcance, dispersão, recuo, penetração, tempo de saque (`troca`), espaço (`slot`: primária/secundária), pintura (`visual`), trava (`libera`, em pontos), pavio, impacto... | [[Weapons]] |
 | Melhorias das armas | `shared/data/progression.json` | Por arma: a melhoria de cada nível, os pontos para liberá-la, se é opcional, o grupo e os efeitos (multiplicadores, somas, mira, forma, tipo) | [[Progression]] |
 | Nomes e descrições de armas e melhorias | `client/ui/strings.ts` (`arma_*`, `armaDesc_*`, `upg_<arma>_<id>`, `upgDesc_*`, `fx_*`) | Textos em pt-BR e en; `client/tests/arsenalText.test.ts` acusa um texto faltando | [[Inventory UI]] |
 | Nível da conta | `shared/data/nivel_conta.json` | Curva de XP da conta | [[Progression]] |

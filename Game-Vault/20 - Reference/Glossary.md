@@ -37,7 +37,8 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 
 | Termo exibido | No código | Significado | Nota |
 |---|---|---|---|
-| Arsenal | `client/ui/arsenal.ts`, `ArsenalChoice` | Tela (menu de pausa e aba da home) para escolher a arma secundária e ligar/desligar as melhorias opcionais já liberadas; mostra o nível, o XP e os atributos de cada arma | [[Inventory UI]] · [[Progression]] · [[Menus]] |
+| Aba do modo | `ModeTab` (`'arsenal' \| 'escada' \| 'caixao'`), `pauseContext().tab`, `#pm-mode` | A primeira aba do menu de pausa, que muda com o modo: Arsenal, Escada (corrida armada) ou Caixão (zumbi) | [[Menus]] |
+| Arsenal | `client/ui/arsenal.ts` (`ArsenalPanel`, aba do menu de pausa), `client/ui/arsenalCanvas.ts` (canvas, aba da home), `ArsenalChoice` | Tela para escolher o rifle, a secundária e a faca e ligar/desligar qualquer melhoria já liberada; mostra o nível, os pontos que faltam e os atributos de cada arma. Na pausa mostra só o que está em uso (editável só no campo de tiro) | [[Inventory UI]] · [[Progression]] · [[Menus]] |
 | Banner | `hud.showBanner` | Texto grande animado (NO PÁSSARO!, OPRIMIDO!, nível) | [[Notifications]] |
 | Beber Poção | prompt `promptPotion` | Ação da tecla de contexto perto da bruxa | [[Interaction System]] |
 | Biscoito Scooby | `biscoito` | Coletável da Vila Assombrada: cura total; aparece com o armário da cozinha aberto | [[Pickups]] |
@@ -54,8 +55,8 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Investida | `lunge` | Avanço da faca até o alvo próximo | [[Melee]] |
 | Kill feed | `hud.killfeed` | Linhas "Matador [arma] ícone Vítima" | [[HUD]] |
 | Mata-mata (livre) | `'mata-mata'` (`GameModeId`), `DeathmatchMode` | Modo todos contra todos com o Arsenal da conta, escolhido antes e travado durante a partida | [[Free For All]] · [[Versus Bots]] |
-| Corrida armada (en: Gun game) | `'corrida-armada'`, `GunGameMode`, `shared/gunGame.ts` | Modo em que todos sobem a mesma escada de armas: 3 abates sobem, facada desce, abate com o Sabre de Luz vence a rodada | [[Gun Game]] |
-| Escada / degrau | `LADDER`, `LadderPos {step, kills}`, `PlayerInfo.ladder`, `ladder_<id>` | Sequência de 7 armas fixas da corrida armada e a posição de cada jogador nela ("ARMA N/7") | [[Gun Game]] |
+| Corrida armada (en: Gun game) | `'corrida-armada'`, `GunGameMode`, `shared/gunGame.ts` | Modo em que todos sobem a mesma escada de armas: 3 abates sobem, facada tira um abate, abate com o Sabre de Luz vence a rodada | [[Gun Game]] |
+| Escada / degrau | `LADDER`, `LadderPos {step, kills}`, `PlayerInfo.ladder`, `ladder_<id>` | Sequência de 9 armas fixas da corrida armada e a posição de cada jogador nela ("ARMA N/7") | [[Gun Game]] |
 | Zumbi (en: Zombies) | `'zumbi'`, `ZombieMode`, `ZombieMatch`, `shared/zombies.ts` | Modo cooperativo de 12 ondas de zumbis e 3 chefes no Cemitério da Capela (mapa só dele); dinheiro da partida, armas do caixão e barricadas | [[Zombie]] |
 | Onda / intervalo | `ZPhase` (`countdown`, `wave`, `break`, `over`), `zwave` | Uma leva de zumbis do modo zumbi; o intervalo de 20–25 s entre ondas (munição e granadas cheias, caídos levantam, mortos voltam) | [[Zombie]] |
 | Caixão Misterioso (en: Mystery Coffin) | `box`, `zbox`, `rollBox`, `client/zombies/coffin.ts` | A "caixa" do modo zumbi, num lugar fixo: $950 sorteiam uma arma (arma + melhorias fixas) de uma raridade, que às vezes vem **danificada** (o pato de borracha e a mudança de lugar de antes saíram) | [[Zombie]] |
@@ -71,7 +72,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Tipo de partida | `#home-game`, `GameModeId` | Seletor de modo de jogo na home (Mata-mata / Corrida armada / Zumbi) | [[Matchmaking UI]] |
 | Rodada | `roundEnd`, `roundStart` | Na corrida armada, do início até o abate com o sabre; 6 s de intervalo antes da próxima | [[Gun Game]] |
 | Melhoria (upgrade) | `Upgrade` em `progression.json` (`melhorias`), `upg_<arma>_<id>` | O que cada nível de arma ≥ 2 libera: muda atributos reais (e às vezes o visual). As **comuns** ficam ativas assim que liberadas | [[Weapons]] · [[Progression]] |
-| Melhoria opcional | `opcional: true`, `grupo`, `ArsenalChoice.ligadas` | Melhoria com troca (ganha algo, perde algo; ex.: silenciador, luneta, frango, sabre, mina). Vem desligada; o jogador liga no Arsenal. Num `grupo`, só uma fica ligada e ela substitui as comuns do grupo | [[Weapons]] · [[Inventory UI]] |
+| Melhoria opcional | `opcional: true`, `grupo`, `ArsenalChoice.ligadas` | Melhoria com troca (ganha algo, perde algo; ex.: silenciador, lunetas, mina). Vem desligada; o jogador liga no Arsenal. Num `grupo`, só uma fica ligada e ela substitui as comuns do grupo | [[Weapons]] · [[Inventory UI]] |
 | Mina Terrestre | melhoria opcional da granada (nível 2, grupo `modo`), `tipo: 'mina'` | Mina plantada com G; arma em 1 s, no máximo 3 por jogador | [[Land Mines]] |
 | Modo PCD | membro ausente na aparência | Sem um membro: recarga ×1,3 ou velocidade ×0,75, e o membro não tem hitbox | [[Character Customization]] |
 | No pássaro! | região `virilha`, kind `groin` | Tiro na virilha: morte instantânea, +100 pontos | [[Damage System]] · [[Scoring]] |
@@ -80,11 +81,23 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Poções da bruxa | `POTION`, `pato`/`veloz`/`lerdo`/`critico`/`bebado` | Efeito sorteado, uma poção por minuto | [[Buffs & Debuffs]] |
 | Prompt | `hud.setPrompt` | Dica de ação ("Oprimir {nome}", "Beber Poção") | [[HUD]] |
 | Sala / Sessão | `Session` | Uma partida online; ≠ sessão de login (cookie `oc_sessao`) | [[Sessions]] |
-| Primária | `primaria`, `PRIMARIES`, tecla `weapon1` | Espaço da arma de fogo principal: o Rifle Padrão. Toda vida começa com ela na mão | [[Weapons]] |
+| Primária | `primaria`, `PRIMARIES`, tecla `weapon1` | Espaço da arma de fogo principal: um dos sete rifles (padrão: o Rifle Padrão). Toda vida começa com ela na mão | [[Weapons]] |
+| Rifles antigos / facas antigas | `rifleFita`…`rifleOuro`, `colher`…`sabre` | As armas das primeiras versões do jogo, de volta como armas próprias (PF-8): cada uma com uma troca, usando os pontos e as melhorias do rifle ou da faca | [[Weapons]] · [[Melee]] · [[ADR - Rifles e facas antigos como armas próprias]] |
+| Progressão (de uma arma) | `ProgWeapon`, `progOf` | Onde ficam os pontos, o nível e as melhorias: `rifle` (os sete rifles), `pistola` (pistola, grampeador, revólver, garrucha, pistolão), `smg` (submetralhadora, furadeira), `faca` (as sete facas), `granada` | [[Progression]] |
+| Trava | `libera: { arma, pontos }`, `weaponUnlocked` | No JSON de uma arma: os pontos de uma progressão que a liberam (ex.: Sabre com 9.000 de faca) | [[Progression]] |
+| Pintura | `visual`, `GunLook`, `LOOKS` | As cores e enfeites de um rifle (`padrao`, `fita`, `tia`, `natal`, `chamas`, `vovo`, `ouro`); vem do JSON do rifle | [[Weapon Models]] |
 | Sala sob demanda | `play {map, mode}` | Sala aberta quando alguém joga um mapa, numa versão dele, e fechada quando esvazia (as salas permanentes, como `principal`, saíram na PF-6) | [[Sessions]] · [[Matchmaking]] |
 | Versão de mapa | `map_version`, `SessionInfo.versao` | Cada salvamento de um mapa; imutável; a sala joga a mesma até o fim | [[Maps Index]] |
 | Equipe | papéis `admin` e `moderador` | Quem usa o Gerenciamento e mantém os mapas oficiais (`shared/roles.ts`) | [[Moderation]] |
-| Secundária | `secundaria`, `SECONDARIES`, `FLAG.secondary`, tecla `weapon2` | Segundo espaço de arma de fogo: Pistola do Porteiro (padrão) ou Submetralhadora Liquidificador, escolhida no Arsenal; troca com 1/2/roda | [[Weapons]] · [[Inventory]] |
+| Secundária | `secundaria`, `SECONDARIES`, `FLAG.secondary`, tecla `weapon2` | Segundo espaço de arma de fogo: uma das sete secundárias (Pistola do Porteiro, padrão; Grampeador do RH; Submetralhadora Liquidificador; Revólver do Delegado da Quadrilha; Furadeira do Vizinho de Domingo; Garrucha do Cangaceiro; Pistolão do Marombeiro), escolhida no Arsenal; troca com 1/2/roda | [[Weapons]] · [[Inventory]] |
+| Grampeador do RH (en: HR Stapler) | `grampeador`, `grampeador.json` | Secundária de **rajada** (3 grampos por clique); usa a progressão da pistola, libera com 700 pts de pistola | [[Weapons#Secundárias]] |
+| Revólver do Delegado da Quadrilha (en: Square Dance Sheriff's Revolver) | `revolver`, `revolver.json` | Secundária semi de 6 balas, tiro único na cabeça até 10 m; progressão da pistola, 3.200 pts | [[Weapons#Secundárias]] |
+| Furadeira do Vizinho de Domingo (en: Neighbor's Sunday Drill) | `furadeira`, `furadeira.json` | Secundária automática de 1.200/min e alcance curto; usa a progressão da **submetralhadora**, mas libera com 5.200 pts de **pistola** | [[Weapons#Secundárias]] |
+| Garrucha do Cangaceiro (en: Cangaceiro's Double-Barrel) | `garrucha`, `garrucha.json` | Secundária de dois canos com **8 bagos** por tiro; progressão da pistola, 7.000 pts | [[Weapons#Secundárias]] |
+| Pistolão do Marombeiro (en: Gym Bro's Hand Cannon) | `pistolao`, `pistolao.json` | Secundária semi de 7 balas que bate como rifle, tiro único na cabeça até ~27 m; progressão da pistola, 9.000 pts | [[Weapons#Secundárias]] |
+| Rajada (en: burst) | `modo: 'rajada'`, `rajada: { tiros, pausa }` | Um clique dispara `tiros` na cadência, depois uma pausa mínima; segurar não repete (o grampeador) | [[Weapons]] |
+| Bagos (en: pellets) | `bagos`, `cone`, `pelletSpread`, `Pellet`, `pelletsOf` | Os projéteis de um tiro de garrucha: cada um é um raio próprio num cone fixo, e cada um que acerta é um acerto (`hit`) próprio | [[Weapons]] · [[Damage System]] |
+| Coice na tela | `coiceVisual`, `viewmodel.kick(mul)` | Multiplicador do tranco visual da arma em 1ª pessoa (revólver ×1,6, garrucha ×2, pistolão ×2,5); não muda a mira | [[Weapon Models]] |
 
 ## Mapas
 
@@ -167,7 +180,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `Conn` / `Peer` / `SPlayer` | Conexão de socket / dados presos ao socket / jogador dentro de uma sala (servidor) | [[Server Architecture]] |
 | `HomeChoice` | O que a tela inicial devolve: `offline`, `bots` (com `game`, o modo de jogo) ou `online` (o modo vem da sessão) | [[Client Architecture]] |
 | `SessionMode` / `MODE_RULES` | Lado do servidor de um modo de jogo (ganchos chamados pela `Session`) / regras declaradas de cada modo | [[ADR - Modos de jogo com regras declaradas e ganchos no servidor]] |
-| `soFaca` | Campo do `Loadout`: só a faca, sempre na mão, o tiro golpeia (Sabre de Luz da corrida armada) | [[Melee]] · [[Gun Game]] |
+| `soFaca` | Campo do `Loadout`: só a faca, sempre na mão, o tiro golpeia (a faca `sabre` da corrida armada) | [[Melee]] · [[Gun Game]] |
 | `GameMap` / `MapFrame` | Contrato que todo mapa devolve / informações por quadro passadas ao mapa | [[World Structure]] |
 | `MapBuilder` / célula | Construtor de mapas que funde geometria por (material, célula de 40/45/60 m) e cria colisores | [[ADR - Lotes estáticos por material e célula]] |
 | `PropBus` | Registro que sincroniza piadas de mapa (gatilho local → mensagem `prop` → `remote`) | [[Map Gags]] · [[Events & Messaging]] |
@@ -175,10 +188,10 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `BotManager` / `Bot` / `BOT_SKILLS` / `NavMap` | Gerente da partida contra bots / um bot / tabela de dificuldades / navmesh Recast | [[AI Overview]] |
 | Modos do bot (`roam`, `engage`, `chase`, `flee`, `toTaunt`, `taunt`) | Estados de comportamento dos bots | [[States]] |
 | `GrenadeThrower` | A mão do jogador como máquina de estados (cozinhar, arremessar, recarga) | [[Controllers]] |
-| `ArsenalChoice` | O que o jogador escolheu no Arsenal e a conta guarda: `{ secundaria, ligadas }` (melhorias opcionais ligadas por arma); sempre limpo por `sanitizeChoice` | [[Shared Systems]] · [[Player Data]] |
+| `ArsenalChoice` | O que o jogador escolheu no Arsenal e a conta guarda: `{ primaria, secundaria, faca, ligadas, desligadas }` (rifle, secundária e faca; opcionais ligadas e comuns desligadas por progressão); sempre limpo por `sanitizeChoice` | [[Shared Systems]] · [[Player Data]] |
 | `Loadout` | O que o jogador leva na partida: `{ primaria, secundaria, ativas }` (arma de cada espaço e melhorias em efeito por arma), resolvido por `resolveLoadout(choice, níveis)` e replicado em `playerLoadout` | [[Shared Systems]] · [[Inventory]] |
 | `gunStats` / `meleeStats` / `grenadeStats` | Atributos efetivos de uma arma com uma lista de melhorias (`shared/arsenal.ts`); cliente e servidor usam as mesmas funções | [[Shared Systems]] · [[Weapons]] |
-| `GunId` / `ProgWeapon` | Armas de fogo (`rifle`, `pistola`, `smg`) / todas as armas com progressão (+ `faca`, `granada`) | [[Shared Systems]] |
+| `GunId` / `KnifeId` / `WeaponId` / `ProgWeapon` | Armas de fogo (os sete rifles, `pistola`, `grampeador`, `smg`, `revolver`, `furadeira`, `garrucha`, `pistolao`) / as sete facas / qualquer arma (+ `granada`) / as cinco progressões (`rifle`, `pistola`, `smg`, `faca`, `granada`) | [[Shared Systems]] |
 | `SIM` | Passo fixo da simulação (1/60 s, até 5 passos por quadro) | [[ADR - Simulação em passo fixo com render interpolado]] |
 | `FLAG` | Bits de animação enviados junto com o estado | [[Replication]] |
 | `HttpError` / `ApiError` / `ApiErrorCode` | Códigos de erro estáveis em snake_case português | [[Error Handling]] |
@@ -186,6 +199,9 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `__oc` | Handle de depuração no `window`, só em dev (perf, stats, trace) | [[Troubleshooting]] |
 | F3 / F4 / F6 | Overlay de depuração / hitboxes e navmesh / painel de ajuste | [[Troubleshooting]] |
 | PadNav | Navegação dos menus pelo controle | [[Input & Controls]] |
+| Trilho / painel do menu de pausa | O trilho (`.pm-rail`: onde se está, voltar, as duas abas, a saída) e o painel da aba aberta (`#pm-panel`) do menu de pausa e do cartão de início; `pauseContext` diz o que o trilho mostra em cada lugar × modo | [[Menus]] · [[ADR - Menu de pausa com trilho e abas]] |
+| `data-pad-back` / `data-pad-explicit` / `data-pad-subtabs` | Marcas para o `PadNav`: o botão que ◯/B aperta / tela que marca o seu voltar em cada nível (sem chutar pelo texto) / subabas que L1/R1 só trocam quando não há outra barra | [[Menus]] |
+| Canvas do Arsenal | `ArsenalCanvas`, `canvasLayout`, `data-pad-pan` | A aba Arsenal da tela inicial: quadros por espaço, armas e melhorias ligadas, câmera com arrastar e zoom, painel de detalhes | [[Inventory UI]] · [[ADR - Arsenal da tela inicial em canvas]] |
 | Primária / Alternativa | Os dois espaços de tecla de cada ação | [[ADR - Teclas remapeáveis com primária e alternativa]] |
 
 ## Renderização e arte

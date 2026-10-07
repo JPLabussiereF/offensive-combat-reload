@@ -1,0 +1,14 @@
+{
+  "_doc": "Gerado por tools/bake-figurinhas.ts (bun run figurinhas); não edite. Por figurinha deste domínio: v e vm, o hash dos bytes de public/figurinhas/<id>.png (400 x 300) e <id>-mini.png (128 x 128), que vão na URL (?v=); px e pxm, o hash dos pixels (o bake só regrava a imagem quando eles mudam); kb, os tamanhos em KB (card, mini).",
+  "chutando-cachorro-morto": {"v":"4ec8bfe5","vm":"36a0db17","px":"8d3364d5ead4e90d","pxm":"77a9d0b97c1b76ba","kb":[59.9,13.4]},
+  "combo": {"v":"a5b02199","vm":"597564f1","px":"de207ed8cccc39a4","pxm":"aa128a9173cb4c68","kb":[63.7,14.3]},
+  "davi-contra-golias": {"v":"eee481d5","vm":"88d0e24d","px":"3f1a5a2118110272","pxm":"8a81db0d132b8732","kb":[66.7,10.4]},
+  "embalado": {"v":"661e625a","vm":"61176855","px":"5af22898a3b6a5cb","pxm":"ee730e10e0a24a4d","kb":[36.6,10.4]},
+  "na-testa": {"v":"fad1b16f","vm":"c2f5a00d","px":"26c826d5d7b0a7e7","pxm":"fadbce8358d7c4f0","kb":[44.9,11.4]},
+  "no-passaro": {"v":"06619d75","vm":"5b32def8","px":"0e7392ceba903290","pxm":"1a75a189f26b79f6","kb":[59.8,15.9]},
+  "no-ultimo-segundo": {"v":"e0604fd5","vm":"226217c5","px":"2dc0050222a48183","pxm":"a4f73bf56c287996","kb":[55.2,11.4]},
+  "oportunista": {"v":"56800bb3","vm":"9a588765","px":"a4ca7b704493c5dc","pxm":"7d15046ba9694320","kb":[79.1,16]},
+  "opressor": {"v":"8e11138e","vm":"7f8e8b24","px":"72ef612f1c40a355","pxm":"ac0640c76ba18a67","kb":[56.4,12.9]},
+  "oprimido": {"v":"7fea7c7d","vm":"beee305d","px":"82a80b58f10ace1a","pxm":"f36c57b5d8ed9228","kb":[61.2,14.1]},
+  "troco": {"v":"5e209cba","vm":"42d4a5c7","px":"e0b839f3a963980a","pxm":"5aab3c6e33901dc8","kb":[74.5,13.9]}
+}

@@ -28,7 +28,7 @@ tags:
   - architecture
   - modules
   - dependencies
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Modules
@@ -84,7 +84,8 @@ flowchart LR
 | `net/connection.ts` | `Connection` | WebSocket, despacho por tipo, relógio, ping | `net/api` |
 | `net/remote.ts` | `RemoteWorld`, `RemotePlayer` | Jogadores remotos interpolados e corpos online | `entities`, `gameplay` |
 | `ui/hud.ts` | `Hud` | HUD em DOM por referência direta | `core/device`, `core/gamepad` |
-| `ui/menu.ts` | `Screens` | Carregamento, menu inicial/pausa, configurações | `core/*` |
+| `ui/menu.ts` | `Screens` | Carregamento, cartão de início e menu de pausa (trilho, abas, painel, janela de saída, Esc por nível), configurações em subabas | `core/*`, `ui/pauseMenu`, `ui/arsenal` |
+| `ui/pauseMenu.ts` | `pauseContext`, `backStep`, `standingsOrder`, `ladderLeader`, `moreUpgradesText`, `KEY_GROUPS`, `previewMapName` | Regras puras do menu de pausa (sem DOM, testadas) | `@shared/*`, `ui/strings` |
 | `ui/strings.ts` | `t`, `pick`, `getLang`, `DEATH_MESSAGES` | Todas as strings (pt-BR e en) | — |
 
 ## Módulos do servidor

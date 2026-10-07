@@ -81,7 +81,7 @@ Regras de jogo e de rede são **constantes TypeScript `as const`** em `shared/`,
 
 ## 3. Dados em JSON (data-driven)
 
-`shared/data/weapons/*.json` (rifle, pistola, submetralhadora, faca, granada), `shared/data/progression.json` (melhorias de cada arma por nível; aplicadas por `shared/arsenal.ts`) e `shared/data/nivel_conta.json` (curva da conta). As chaves estão em português (`dano`, `cadencia`, `pente`, `recarga`, `quantidade`, `recargaSegundos`, `pavio`...) e alguns arquivos têm um campo `_doc` com a explicação. São importados como módulos (não há carregamento em tempo de execução). Ver [[Configuration Data]] e [[Weapons]].
+`shared/data/weapons/*.json` (os sete rifles, pistola, submetralhadora, as sete facas, granada; cada arma com a sua trava `libera`), `shared/data/progression.json` (melhorias de cada arma por nível; aplicadas por `shared/arsenal.ts`) e `shared/data/nivel_conta.json` (curva da conta). As chaves estão em português (`dano`, `cadencia`, `pente`, `recarga`, `quantidade`, `recargaSegundos`, `pavio`...) e alguns arquivos têm um campo `_doc` com a explicação. São importados como módulos (não há carregamento em tempo de execução). Ver [[Configuration Data]] e [[Weapons]].
 
 ## 4. Constantes locais de módulo
 

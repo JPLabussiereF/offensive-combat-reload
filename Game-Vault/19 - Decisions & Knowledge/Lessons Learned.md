@@ -17,6 +17,8 @@ source_paths:
   - client/render/renderer.ts
   - server/app.ts
   - server/session.ts
+  - client/ui/home.ts
+  - client/ui/menu.ts
 tags:
   - game
   - decisions
@@ -39,6 +41,10 @@ O que o projeto aprendeu fazendo, com a evidência no código ou no histórico. 
 - **Toques guardados até serem consumidos** evitam perder cliques curtos em monitores de 144 Hz ou mais (`client/core/input.ts`; [[Input & Controls]]).
 - **Mensagens do servidor seguradas enquanto o mapa carrega** (`hold()`/`release()`) evitam perder eventos no início da partida (`client/net/connection.ts`; [[Events & Messaging]]).
 - **Lógica pura sem DOM é testável no Bun:** a matemática espacial e as regras de keybind ficaram em funções puras e ganharam testes (`client/audio/spatial.ts`, `client/core/keybinds.ts`; [[Unit Tests]]).
+
+## Interface
+
+- **Um bloco emprestado leva junto os seus `role="tab"`.** A tela inicial ligava as abas com `home.querySelectorAll('[role="tab"]')` depois de receber `#menu-settings` do menu de pausa (PF-11); as subabas (Mira, Vídeo, Áudio, Teclas) entravam no seletor, e clicar numa delas chamava `showTab(undefined)`, que escondia todas as abas e obrigava a reabrir as Configurações. A correção limita o seletor ao cabeçalho (`.home-tabs [role="tab"]`, `homeTabs()` em `client/ui/home.ts`). Seletores de uma tela que recebe blocos de outra devem ter escopo no próprio container ([[Menus]], [[Settings]]).
 
 ## Rede e servidor
 

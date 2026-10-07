@@ -16,13 +16,15 @@ source_paths:
   - shared/protocol.ts
   - shared/data/weapons/pistola.json
   - shared/data/weapons/smg.json
+  - shared/data/weapons/garrucha.json
   - shared/arsenal.ts
+  - client/ui/damageNumbers.ts
 tags:
   - game
   - gameplay
   - combat
   - damage
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Damage System
@@ -49,12 +51,13 @@ Transformar um acerto (bala, faca, explosão, queda, mapa) em perda de vida de f
 | `fall` | queda > 6 m | `round((h − 6) × 15 + 10)` |
 | `void` | cair abaixo do `killY` do mapa | 9999 |
 | `dog` | mordida da Amora ([[Map - Rua dos Vizinhos]]) | 9999 |
+| `thorns` | espinhos da grade e da sebe do [[Map - Cemitério da Capela]] (modo [[Zombie]]): o golpe e o sangramento | `espinhos.dano` (10) e `espinhos.sangraDano` (2 por segundo) |
 
 `LETHAL_DAMAGE = 9999`.
 
 ## Arma de fogo: fórmula
 
-A mesma fórmula vale para o rifle, a pistola e a submetralhadora. Os números saem de `gunStats(arma, melhorias)` (`shared/arsenal.ts`): o JSON da arma com as melhorias ativas aplicadas (o silenciador, por exemplo, multiplica o dano por 0,9). Valores de cada arma em [[Weapons]]; os exemplos abaixo são do rifle sem melhorias.
+A mesma fórmula vale para o rifle e todas as secundárias. Na **garrucha** (`bagos: 8`), a fórmula vale **por bago**: cada bago é um raio próprio, com a sua distância, região e `keep`, e cada um que acerta é um acerto (e um dano) separado; `dano` no JSON é o de um bago (20 → 4, queda entre 5 e 15 m). Ver [[Weapons#Secundárias]]. Os números saem de `gunStats(arma, melhorias)` (`shared/arsenal.ts`): o JSON da arma com as melhorias ativas aplicadas (o silenciador, por exemplo, multiplica o dano por 0,9). Valores de cada arma em [[Weapons]]; os exemplos abaixo são do rifle sem melhorias.
 
 ```
 dano = max(1, round( danoPorDistância(dist) × multiplicador[região] × keep ))
@@ -76,9 +79,9 @@ dano = max(1, round( danoPorDistância(dist) × multiplicador[região] × keep )
 | `canelas` | 0,6 | 18 |
 | `virilha` | — | 9999 (instantâneo) |
 
-3. **`keep`** (penetração): produto das frações de cada superfície atravessada (madeira 0,6, vidro 0,9, papel 0,95; até 2 superfícies). Menor `keep` possível do rifle = 0,6² = 0,36; da pistola e da submetralhadora (1 superfície, madeira 0,5) = 0,5.
+3. **`keep`** (penetração): produto das frações de cada superfície atravessada (madeira 0,6, vidro 0,9, papel 0,95; até 2 superfícies). Menor `keep` possível do rifle = 0,6² = 0,36; da pistola e das outras secundárias (1 superfície, madeira 0,5) = 0,5; a garrucha não atravessa nada (sem `penetracao`, `keep` = 1).
 4. **Virilha ignora tudo**: mata mesmo atravessando madeira.
-5. **Poção do crítico**: enquanto ativa, todo tiro do jogador é calculado como `cabeca` (o acerto continua contando onde caiu para pontos). Ver [[Buffs & Debuffs]].
+5. **Poção do crítico**: enquanto ativa, todo tiro do jogador é calculado como `cabeca` (o acerto continua contando onde caiu para pontos), **exceto a virilha**, que continua morte instantânea. A regra é `critRegion` (`shared/weapons.ts`), usada no servidor (jogadores e zumbis) e no jogo offline (bots e campo de tiro). Até 2026-10-06 a virilha também virava cabeça: o abate contava "No pássaro" mas com dano de cabeça. Ver [[Buffs & Debuffs]].
 
 ## Hitboxes
 
@@ -145,7 +148,11 @@ Não há rewind de hitboxes nem checagem de linha de visão no servidor ("Not ye
 
 - Dano mínimo de bala é 1.
 - Offline (campo de tiro) o boneco recebe o dano direto; contra bots o `BotManager` aplica as mesmas regras do servidor.
-- Online o cliente só **mostra** hitmarker na hora; vida e morte vêm do servidor.
+- Online o cliente só **mostra** hitmarker e o número de dano na hora; vida e morte vêm do servidor.
+
+## Número de dano na tela
+
+Cada tiro que acerta mostra, só para quem atirou, o dano causado num número flutuante: amarelo no acerto comum, laranja quando o dano usa o multiplicador da cabeça (tiro na cabeça ou poção do crítico, a regra de `critRegion`) e vermelho no pássaro (virilha). O valor é o desta nota, limitado à vida que o alvo tinha. Detalhes (de onde sai cada valor, previsão online e no zumbi) em [[HUD#Números de dano]].
 
 ## Código relacionado
 
@@ -158,4 +165,4 @@ Não há rewind de hitboxes nem checagem de linha de visão no servidor ("Not ye
 
 ## Configurações relacionadas
 
-`dano`, `multiplicadores`, `penetracao` (`rifle_padrao.json`, `pistola.json`, `smg.json`); efeitos das melhorias (`progression.json`); `niveis` (`granada_frag.json`); `letal` (`faca.json`); `MOVE.fallDamageHeight/fallDamagePerMeter`. Ver [[Constants Reference]].
+`dano`, `multiplicadores`, `penetracao` (`rifle_padrao.json`, `pistola.json`, `smg.json` e os das outras armas), `bagos` (`garrucha.json`); efeitos das melhorias (`progression.json`); `niveis` (`granada_frag.json`); `letal` (`faca.json`); `MOVE.fallDamageHeight/fallDamagePerMeter`. Ver [[Constants Reference]].

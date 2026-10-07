@@ -26,7 +26,7 @@ tags:
   - bots
   - npc
   - index
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # AI Overview
@@ -88,7 +88,7 @@ flowchart LR
 
 ## Decisões importantes
 
-- Bots são **jogadores completos**, sem atalhos (sem "aimbot" perfeito, sem atravessar paredes): [[ADR - Bots como jogadores completos]].
+- Bots são **jogadores completos**, sem atalhos (sem "aimbot" perfeito, sem atravessar paredes): [[ADR - Bots como jogadores completos]]. A facada deles segue a regra do jogador, com um golpe por aproximação: [[ADR - Facada dos bots com uma chance por aproximação]].
 - A navmesh vem dos **colisores**, não da malha visual, e funciona para mapas em código e glTF (`client/ai/navmesh.ts`). Ver [[Navigation]].
 
 ## Limitações conhecidas (código/README)

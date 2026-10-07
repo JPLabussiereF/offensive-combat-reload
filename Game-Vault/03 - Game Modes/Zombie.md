@@ -46,7 +46,7 @@ tags:
   - online
   - coop
   - zombies
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Zombie
@@ -84,9 +84,9 @@ Um só time: todos os jogadores da sessão contra os zumbis. **Não há fogo ami
 
 | Item | No modo zumbi |
 |---|---|
-| Primária | **Rifle Padrão sem melhorias**, o mesmo para todos: as melhorias e a secundária do Arsenal da conta **não valem** aqui (`startItems`, `zombieLoadout`) |
+| Primária | **Rifle Padrão sem melhorias**, o mesmo para todos: as armas (rifle, secundária, faca) e as melhorias do Arsenal da conta **não valem** aqui (`startItems`, `zombieLoadout`) |
 | Secundária | vazia até sair uma do caixão |
-| Faca | a comum (golpe rápido `F`/`V`): **120 de dano** contra zumbis (mata um zumbi da onda 1, depois só ajuda); o Sabre de Luz do caixão multiplica pela raridade |
+| Faca | a faca de cozinha (golpe rápido `F`/`V`): **120 de dano** contra zumbis (mata um zumbi da onda 1, depois só ajuda); o Sabre de Luz do caixão multiplica pela raridade |
 | Granadas | 2 granadas de fragmentação básicas (sem mina nem Dose Dupla), **devolvidas só no intervalo** entre ondas (não recarregam com o tempo). Contra zumbis o dano cresce 25% por onda (`armas.granadaPorOnda`) |
 | Munição | reserva **×3** (`armas.municaoReserva`), cheia de novo em todo intervalo (uma arma danificada por munição tem menos: ver o caixão) |
 
@@ -184,16 +184,21 @@ Um caixão velho com um "?" brilhando e um **feixe de luz** que se vê de longe,
 
 - `E` perto dele (2,2 m): paga **$950** e gira (3,5 s, as armas passam piscando). Para numa arma, que fica flutuando, na cor da raridade, por **8 s** só para quem pagou: `E` de novo pega. Não pegou, perdeu (é assim que se recusa uma arma).
 - O sorteio é **no servidor** online (`rollBox` e `rollFlaw`, `Math.random` do servidor): a raridade pelo peso, uma arma dela e, por cima, **se vem danificada**. **Nunca sai a arma que você já tem intacta naquele lugar** (uma cópia danificada pode sair de novo).
-- A arma nova vai para o **lugar dela** (rifle → primária; pistola/submetralhadora → secundária; sabre → faca) e a que estava lá **é jogada fora**.
+- A arma nova vai para o **lugar dela** (rifle → primária; qualquer secundária → secundária; sabre → faca; `itemSlot` usa `PRIMARIES`) e a que estava lá **é jogada fora**.
 - **A raridade multiplica o dano contra zumbis** (não muda o comportamento da arma).
 
 | Raridade | Chance | Dano × | Vem danificada | Armas (arma + melhorias fixas) |
 |---|---|---|---|---|
 | Inicial | — | 1,0 | nunca | Rifle Padrão (só no começo) |
-| Comum | 50% | 1,4 | 25% | Rifle com Ponto Vermelho; Rifle Silencioso (ponto vermelho + silenciador); Pistola do Porteiro; Pistola da Batata; Liquidificador |
-| Rara | 32% | 1,9 | 18% | Rifle Firme (ponto vermelho + empunhadura); Rifle do Vovô (empunhadura + luneta); Pistola Ligeira (gatilho + ponto vermelho + coldre); Liquidificador com Motor (motor + holográfica) |
-| Épica | 14% | 2,6 | 12% | Rifle Remendado (empunhadura + pente); Liquidificador Turbo (motor + holo + coronha); Liquidificador Pipoqueiro (motor + holo + tambor) |
-| Lendária | 4% | 3,5 | **6%** | Rifle Completo (ponto vermelho + empunhadura + pente); Liquidificador Supremo (as 4); **Sabre de Luz Paraguaio** (a faca vira sabre: 420 por golpe) |
+| Comum | 50% | 1,4 | 25% | Rifle com Ponto Vermelho; Rifle Silencioso (ponto vermelho + silenciador); Pistola do Porteiro; Pistola da Batata; Liquidificador; **Grampeador do RH**; **Revólver do Delegado da Quadrilha** |
+| Rara | 32% | 1,9 | 18% | Rifle Firme (ponto vermelho + empunhadura); Rifle do Vovô (empunhadura + luneta); Pistola Ligeira (gatilho + ponto vermelho + coldre); Liquidificador com Motor (motor + holográfica); **Furadeira do Vizinho de Domingo**; **Garrucha do Cangaceiro** |
+| Épica | 14% | 2,6 | 12% | Rifle Remendado (empunhadura + pente); Liquidificador Turbo (motor + holo + coronha); Liquidificador Pipoqueiro (motor + holo + tambor); **Pistolão do Marombeiro** |
+| Lendária | 4% | 3,5 | **6%** | Rifle Completo (ponto vermelho + empunhadura + pente); Liquidificador Supremo (as 4); **Sabre de Luz Paraguaio** (o item `{ "arma": "faca", "faca": "sabre" }`: a faca vira o sabre, 420 por golpe) |
+
+As cinco secundárias da PF-10 entram no caixão **sem melhorias**, com o nome da própria arma ([[ADR - Secundárias novas no Arsenal]]). Uma garrucha danificada com menos munição fica com 1 cartucho no pente (`zombieGunData` nunca deixa menos de 1).
+
+> [!warning] Nomes dos itens × armas do Arsenal (PF-8)
+> Os itens do caixão continuam sendo o **Rifle Padrão** com melhorias fixas, mesmo os que levam o nome de um rifle antigo ("Rifle do Vovô", "Rifle Remendado"). Desde que as melhorias deixaram de mudar a pintura ([[ADR - Rifles e facas antigos como armas próprias]]), esses itens aparecem com a pintura do Rifle Padrão, e o "Rifle do Vovô" do caixão não é o `rifleVovo` do Arsenal. Pôr os rifles antigos no caixão ficou fora do escopo da PF-8.
 
 **Armas danificadas** (`caixa.danificada`, [[ADR - Caixão fixo com armas danificadas]]):
 
@@ -208,6 +213,15 @@ Um caixão velho com um "?" brilhando e um **feixe de luz** que se vê de longe,
 - **Sem conserto**: para se livrar dela, girar de novo (a oferta seguinte que cair no mesmo lugar a substitui, e o defeito vai embora com ela).
 - Como aparece: a arma flutua torta, piscando, com brilho avermelhado e a placa "DANIFICADA" com uma rachadura; acorde azedo; faixa "Saiu DANIFICADA: menos munição" para quem pagou; o prompt diz o defeito antes de pegar; no HUD o nome da arma ganha a etiqueta com o ícone de rachadura; na pausa, a arma carregada mostra o defeito com os números e cada raridade, a chance de vir danificada.
 - Não existe mais o **pato de borracha** nem o caixão que voa para outro lugar (substituídos por este azar).
+
+### Espinhos na grade e na sebe (`espinhos`)
+
+A base do muro deixava uma beirada para subir nas grades, e dava para subir na sebe. As duas agora têm espinhos:
+
+- **Quem sobe** (pés a 0,3 m do chão ou mais, em cima da grade do muro fora das brechas ou da sebe; `thornsAt` em `shared/barricades.ts`) leva **10 de dano** a cada segundo que fica lá.
+- E fica **sangrando por 10 s**: perde **2 de vida por segundo** (um tique por segundo). Encostar de novo **renova** os 10 s, sem somar.
+- O sangramento pode **derrubar** durante a onda (vira caído, como um golpe de zumbi) e para quando o jogador cai ou morre. Fora da onda, zerar a vida é a morte comum (`thorns` nas mensagens de morte).
+- Decidido pelo motor (`ZombieMatch.tickThorns`): no servidor online, com a posição dos pés que ele já recebe, e no navegador no jogo solo. Evento `zbleed` (`{ id, until }`) para o HUD: o painel de efeitos mostra **🩸 Sangrando** com a contagem, e o primeiro corte avisa "Espinhos!".
 
 ### Caído, reanimar, morrer
 
@@ -243,7 +257,8 @@ Ver "Caído, reanimar, morrer". Na troca de partida todos renascem na hora. O po
 - **Placar** (`Tab`, [[Scoreboard]]): abates de zumbi, dinheiro atual, vezes caído, reanimações e ping; quem está caído aparece com "✚". O número "Pontos" do HUD é o dinheiro ganho na partida.
 - **XP de conta** (só online, sempre do servidor, [[Progression]]): por abate 3–8 XP conforme o tipo, chefe (50 a quem mata, 100–150 ao time), onda vencida +10, reanimar +10, vitória +250, além do XP por minuto vivo que vale em todo modo. Barricadas não dão XP.
 - **Sem XP de arma** (`weaponXp: false`): as armas são do caixão, não do Arsenal do jogador (mesmo motivo da [[Gun Game]]), e o PvE não vira atalho para as melhorias do PvP.
-- **Sem estatística de abates/mortes da conta**: zumbis não são jogadores, e morrer para eles não mexe no K/D.
+- **Sem estatística de abates/mortes da conta** (`player_stats`): zumbis não são jogadores, e morrer para eles não mexe no K/D.
+- **Estatísticas próprias do modo** (só online, tabela `zombie_stats`, aba Perfil em "Modo zumbi"): partidas até o fim, vitórias, melhor onda alcançada, ondas sobrevividas, zumbis abatidos (e quantos na cabeça, no pássaro, na faca e com granada), golpe final em cada chefe, quedas, reanimações feitas, mortes (sangrar até o fim, cair no vazio, ou estar caído quando a partida é perdida, já que ninguém vai reanimar) e giros no caixão. O motor avisa cada evento pelo gancho opcional `ZombieHost.stat` (`ZStat`); no servidor, `addZombieStat` soma no delta da conta e o flush grava ([[Save System]]). O jogo solo não implementa o gancho.
 - Sozinho (offline) não há XP, como em todo modo offline.
 
 ## Limites de tempo
@@ -269,10 +284,13 @@ Tudo em `shared/data/zumbi.json`, menos os dados do mapa, que ficam no campo `zu
 | `caixa` | $950, gira 3,5 s, oferta 8 s, alcance 2,5 m | |
 | `caixa.danificada` | chance por raridade 25/18/12/6%; defeitos 45/45/10%; pente ×0,6, reserva ×0,5, dano ×0,75 | armas danificadas |
 | `barricadas` | 5 tábuas × 150, $300, erguer 2,5 s, repregar 0,8 s, +$10 até $150/onda, alcance 2,4 m, `dano` por tipo | barricadas |
+| `espinhos` | 10 a cada 1 s em cima; sangra 10 s, 2 por tique de 1 s; conta com os pés a 0,3 m ou mais, até 0,5 m do muro e 0,8 m da sebe | grade e sebe |
 | `raridades`, `itens`, `inicial` | | o caixão |
-| `zumbi` (em `shared/data/mapas/cemiterio.json`) | `dentro` (o muro), 24 pontos de surgimento (fora do muro), o lugar do caixão, onde cada chefe surge, as 5 brechas (`barricadas`: eixo, centro, largura) | o mapa (o muro foi cortado nas brechas na conversão; `ZOMBIE.mapas.cemiterio`; `checkZombieMap`) |
-| `MODE_RULES.zumbi` | `weapons: 'mode'`, `lockedLoadout`, `grenades`, sem XP de arma, `rounds`, `bots` (jogo solo), `coop`, `maps: ['cemiterio']` | `shared/modes.ts` |
-| Sala fixa | `zumbi-cemiterio` | `server/app.ts` |
+| `zumbi` (em `shared/data/mapas/cemiterio.json`) | `dentro` (o muro), `sebe` (a sebe em volta do campo, com espinhos), 24 pontos de surgimento (fora do muro), o lugar do caixão, onde cada chefe surge, as 5 brechas (`barricadas`: eixo, centro, largura) | o mapa (o muro foi cortado nas brechas na conversão; `ZOMBIE.mapas.cemiterio`; `checkZombieMap`) |
+| `MODE_RULES.zumbi` | `weapons: 'mode'`, `lockedLoadout`, `grenades`, sem XP de arma, `rounds`, `bots` (jogo solo), `coop`, `ownMaps: true` | `shared/modes.ts` |
+| Sala | sob demanda, aberta pelo `play` num mapa do modo (as salas fixas, como `zumbi-cemiterio`, saíram na PF-6) | `server/app.ts` |
+
+> [!info] A `sebe` (espinhos) fica no campo `zumbi` do mapa (`shared/data/mapas/cemiterio.json`, `zumbi.sebe`), validada por `checkZombieMap`; `ZOMBIE.mapas.cemiterio` lê esse campo. Na main ela ficava em `mapas.cemiterio` de `shared/data/zumbi.json`, que não tem mais `mapas` (merge de 07/10/2026). Ver [[Map - Cemitério da Capela]].
 
 ## Sistemas utilizados
 
@@ -295,7 +313,7 @@ Tudo em `shared/data/zumbi.json`, menos os dados do mapa, que ficam no campo `zu
 - [[HUD]]: "ONDA 3/12 · 14 zumbis" (ou a contagem, ou o intervalo) sob o placar, barra do chefe, dinheiro sobre a vida, "+$100 Tiro na cabeça" nos pop-ups, nomes das armas na cor da raridade com a etiqueta "Danificada", **setas das brechas** em volta da mira, faixas de onda, de chefe e de arma danificada, "PULE A ONDA!", tela de caído, prompts do caixão, das barricadas ("Segure para erguer a barricada: Brecha Oeste ($300)", "Segure para pregar tábuas (2/5)", "Passagem ocupada") e de reanimar, cartão de resumo.
 - [[Scoreboard]]: colunas do modo.
 - [[Matchmaking UI]]: "Zumbi" no tipo de partida (online e contra bots: "ENCARAR A HORDA SOZINHO"), só o Cemitério da Capela nos mapas; o cemitério não aparece nos outros modos nem no campo de tiro.
-- [[Menus]]: a página do Caixão Misterioso na pausa.
+- [[Menus]]: a aba **Caixão** na pausa ("Você carrega" ao lado das "Chances · $950" por raridade); online o aviso diz "a horda não espera" e a saída avisa que o dinheiro da partida não é guardado (com equipe, "Sua equipe continua sem você"; sozinho online, a partida recomeça para o próximo que entrar; no solo, ela acaba). A linha do trilho diz "Onda X/12 · …" e, antes da primeira onda, o mesmo título da contagem do HUD ("A HORDA VEM AÍ · …").
 
 ## Limites e próximos passos
 

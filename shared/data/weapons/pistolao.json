@@ -1,0 +1,93 @@
+{
+  "id": "pistolao",
+  "nome": "Pistolão do Marombeiro",
+  "icone": "💪",
+  "categoria": "pistola",
+  "slot": "secundaria",
+  "libera": {
+    "arma": "pistola",
+    "pontos": 9000
+  },
+  "dano": {
+    "max": 60,
+    "min": 40,
+    "distMax": 15,
+    "distMin": 40
+  },
+  "multiplicadores": {
+    "cabeca": 2,
+    "pescoco": 1.5,
+    "peito": 1,
+    "abdomen": 1,
+    "quadril": 0.9,
+    "bracos": 0.75,
+    "maos": 0.5,
+    "coxas": 0.75,
+    "canelas": 0.6
+  },
+  "cadencia": 170,
+  "modo": "semi",
+  "pente": 7,
+  "reserva": 28,
+  "recarga": {
+    "tatica": 2,
+    "vazia": 2.5
+  },
+  "dispersao": {
+    "mirando": 0.15,
+    "parado": 1,
+    "andando": 2,
+    "noAr": 3.2,
+    "porTiro": 1.2,
+    "decaimento": 9
+  },
+  "recuo": {
+    "vertical": 4,
+    "horizontal": [
+      -0.4,
+      0.4
+    ],
+    "retorno": 12
+  },
+  "coiceVisual": 2.5,
+  "ads": {
+    "tempo": 0.2,
+    "zoom": 0.9
+  },
+  "movimento": 1,
+  "troca": 0.5,
+  "alcanceMaximo": 200,
+  "penetracao": {
+    "maxSuperficies": 1,
+    "materiais": {
+      "wood": {
+        "dano": 0.5,
+        "espessuraMax": 0.3
+      },
+      "glass": {
+        "dano": 0.85,
+        "espessuraMax": 0.1
+      },
+      "paper": {
+        "dano": 0.9,
+        "espessuraMax": 0.1
+      }
+    }
+  },
+  "tracanteACada": 2,
+  "desbloqueioNivel": 1,
+  "preco": {
+    "moedaJogo": 0,
+    "premium": 0
+  },
+  "slotsAcessorio": [
+    "mira",
+    "cano"
+  ],
+  "modelo": "weapons/pistolao.glb",
+  "sons": {
+    "tiro": "pistolao_fire",
+    "recarga": "pistolao_reload",
+    "vazio": "dry_fire"
+  }
+}

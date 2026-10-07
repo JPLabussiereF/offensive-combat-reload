@@ -15,11 +15,12 @@ source_paths:
   - client/ai/bots.ts
   - client/ai/bot.ts
   - client/render/viewmodel.ts
+  - client/ui/strings.ts
 tags:
   - game
   - decision
   - modes
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # ADR - Corrida armada
@@ -48,8 +49,8 @@ Definir a escada, como as regras ficam iguais online e offline, o que acontece c
 ## Decisão
 
 1. **Escada** (`shared/data/corrida_armada.json`): 6 degraus de arma de fogo e o sabre — Rifle Completo, Liquidificador Turbo, Rifle com Luneta, Rifle Silenciado, Pistola Ligeira, Pistola da Batata, Sabre de Luz. Das armas mais fáceis às mais difíceis. 3 abates por degrau, 1 com o sabre. Ver [[Gun Game]].
-2. **Abate que conta**: só com a arma do degrau (no último, a facada do sabre). A faca comum (golpe rápido) nos outros degraus **não conta** para quem esfaqueia — só derruba a vítima.
-3. **Facada**: a vítima desce um degrau e perde os abates do degrau; no primeiro degrau, só perde os abates. Vale para faca e sabre.
+2. **Abate que conta** (revisado em 2026-10-07, ver abaixo): com a arma do degrau ou **com a faca** (no último, a facada do sabre). Originalmente a faca comum (golpe rápido) nos outros degraus **não contava** para quem esfaqueava — só derrubava a vítima.
+3. **Facada** (revisada em 2026-10-06, ver abaixo): a vítima **perde um abate**. Sem abates no degrau, volta à arma anterior com um abate a menos que o necessário para subir de novo; no primeiro degrau sem abates, nada muda. Vale para faca e sabre.
 4. **Sabre na mão**: novo campo `Loadout.soFaca` (só a escada o entrega). O cliente mostra a lâmina sempre na mão e o tiro golpeia; o servidor recusa tiros de armas de fogo desse loadout.
 5. **Sem granadas** neste modo (`MODE_RULES.grenades = false`): um abate de granada nunca contaria, e minas/explosões estragariam a corrida.
 6. **Rodadas**: vitória → `roundEnd` → 6 s sem dano → `roundStart`: degraus, abates, mortes e pontos zerados, todos renascem já. É o primeiro modo com fim de partida ([[Problem - Partidas sem fim]]).
@@ -57,6 +58,24 @@ Definir a escada, como as regras ficam iguais online e offline, o que acontece c
 8. **Entrada no meio**: começa no primeiro degrau.
 9. **Sessões**: cada mapa tinha uma sala fixa de corrida armada (`corrida-armada-<mapa>`) e sempre uma com vaga; desde a PF-6 as salas abrem sob demanda ([[Matchmaking]], [[ADR - Sessões sob demanda por versão do mapa]]).
 10. **Bots**: o `BotManager` aplica a mesma escada; o bot recebe as armas do degrau (`Bot.arm`) e, com o sabre, corre para esfaquear em vez de atirar ([[ADR - Bots como jogadores completos]]).
+
+## Revisão 2026-10-06: a facada tira um abate
+
+A regra original (descer o degrau inteiro e zerar os abates) foi achada punitiva demais jogando: uma facada desfazia até 5 abates de progresso. A pedido de um jogador do grupo (JPLabussiereF), a facada passa a tirar **um abate**, cruzando para a arma anterior só quando não há abates no degrau. A figurinha **Esfaqueador** do álbum conta cada abate tirado na faca.
+
+Alternativas consideradas: manter a regra (descartada pelo pedido); tirar um abate sem nunca voltar de arma (descartada: a facada ficaria inútil contra quem acabou de subir).
+
+## Revisão 2026-10-07: a facada conta como abate
+
+A pedido do usuário ("na corrida armada, matar com a faca deve contar como uma kill para a progressão de arma"), o abate com a faca de cozinha num degrau de arma de fogo passa a valer **um abate** do degrau, exatamente como um abate com a arma da vez: o terceiro abate do degrau, com a faca, sobe de arma. A regra da vítima não muda: morrer por facada ainda tira um abate dela, então a facada agora vale dos dois lados (o atacante ganha um, a vítima perde um).
+
+- **Último degrau**: o sabre já vencia com uma facada; nada muda.
+- **Penúltimo degrau**: a facada que completa os abates leva ao sabre, como um tiro; não pula o sabre nem vence direto (a vitória continua exigindo o abate com o sabre na mão).
+- Outros tipos de abate (granada, mina, queda, cachorro) continuam sem contar.
+
+Alternativas consideradas: a facada subir um degrau inteiro (como em alguns gun games) — descartada: o pedido fala de "uma kill", e subir direto deixaria a corrida curta demais com a faca sempre à mão; manter a faca fora da progressão — descartada pelo pedido.
+
+Código: `killCounts` em `shared/gunGame.ts` (servidor e `BotManager` usam a mesma função, então online e offline mudam juntos); texto da regra na pausa (`pmRuleClimb` em `client/ui/strings.ts`); testes em `server/tests/modes.test.ts` e `client/tests/offlineModes.test.ts`.
 
 ## Motivo
 

@@ -7,13 +7,13 @@
 // Adding a mode: its rules in shared/modes.ts, a class here implementing SessionMode, and a case in createMode.
 import { FLAG, NET, type ClientMsg, type KillKind, type PlayerInfo, type ServerMsg, type Vec3 } from '@shared/protocol';
 import { MODE_RULES, type GameModeId, type ModeRules } from '@shared/modes';
-import { meleeStats, type GunStats, type Loadout } from '@shared/arsenal';
-import type { ProgWeapon } from '@shared/progression';
-import { explosionDamage, HIT_REGIONS, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
+import { loadoutKnife, type GunStats, type Loadout } from '@shared/arsenal';
+import type { WeaponId } from '@shared/progression';
+import { critRegion, explosionDamage, HIT_REGIONS, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
 import { afterDeath, afterKill, GUN_GAME, ladderLoadout, ladderStart, type LadderPos } from '@shared/gunGame';
 import { grenadeDamageToZombie, gunDamageToZombie, isBoss, kindScale, knifeDamageToZombie, startItems, weaponMul, zombieLoadout, type ZKind } from '@shared/zombies';
 import { ZombieMatch, type ZombieHost } from '@shared/zombieMatch';
-import { loadoutOf } from './progress';
+import { addZombieStat, loadoutOf, stickerAdd } from './progress';
 import { loadNavmesh } from './navmesh';
 import type { MapRuntime } from './maps';
 import { EYE, LAG_SLACK, type SPlayer } from './session';
@@ -39,7 +39,7 @@ export interface ModeHost {
   kill(p: SPlayer, kind: KillKind): void;
   /** The gun a hit says it came from, if the player could have fired it (see Session.firedGun). */
   firedGun(p: SPlayer, w: unknown, now: number): GunStats | null;
-  /** The shared fire-rate check (counts every hit the player lands); records the hit when it passes. */
+  /** The shared fire-rate check (counts every hit the player lands, each pellet of a scattergun too); records the hit when it passes. */
   fireRate(p: SPlayer, gun: GunStats, now: number): boolean;
 }
 
@@ -58,7 +58,7 @@ export interface SessionMode {
    * A player died (`attacker` null for falls, the dog, their own grenade; `weapon`: what got the kill). Runs
    * before the kill is announced, so the players in it carry the new state; returns what to send after it.
    */
-  onKill(victim: SPlayer, attacker: SPlayer | null, kind: KillKind, weapon: ProgWeapon | null): ServerMsg[];
+  onKill(victim: SPlayer, attacker: SPlayer | null, kind: KillKind, weapon: WeaponId | null): ServerMsg[];
   tick(now: number): void;
   /** Messages the Session doesn't handle itself (zumbi: shots at zombies, the coffin, revives). */
   handle?(p: SPlayer, msg: ClientMsg, now: number): void;
@@ -141,13 +141,15 @@ class GunGameMode implements SessionMode {
     this.ladder.delete(p.id);
   }
 
-  onKill(victim: SPlayer, attacker: SPlayer | null, kind: KillKind, weapon: ProgWeapon | null): ServerMsg[] {
+  onKill(victim: SPlayer, attacker: SPlayer | null, kind: KillKind, weapon: WeaponId | null): ServerMsg[] {
     if (!this.combatOpen()) return [];
     const before = this.pos(victim);
     const down = afterDeath(before, kind);
     this.ladder.set(victim.id, down);
     if (down.step !== before.step) this.host.setLoadout(victim, ladderLoadout(down.step));
     if (!attacker || attacker === victim) return [];
+    // A kill taken away with the knife (album: Esfaqueador).
+    if (down.step < before.step || down.kills < before.kills) stickerAdd(attacker.conn.account, 'esfaqueador');
     const from = this.pos(attacker);
     const { pos, event } = afterKill(from, kind, weapon);
     this.ladder.set(attacker.id, pos);
@@ -156,6 +158,8 @@ class GunGameMode implements SessionMode {
     // The last kill of the ladder: the round is over.
     this.restartAt = this.host.now() + GUN_GAME.restartSeconds * 1000;
     this.host.giveAccountXp(attacker, GUN_GAME.winXp);
+    stickerAdd(attacker.conn.account, 'corredor');
+    if (attacker.deaths === 0) stickerAdd(attacker.conn.account, 'volta-olimpica');
     return [{ t: 'roundEnd', mode: this.id, winner: attacker.id, name: attacker.name, restartAt: this.restartAt }];
   }
 
@@ -215,13 +219,17 @@ class ZombieMode implements SessionMode {
       now: () => host.now(),
       rng: Math.random,
       emit: (m) => host.broadcast(m),
-      hurt: (id, amount, from) => {
+      hurt: (id, amount, from, kind) => {
         const p = this.player(id);
-        if (p) host.damage(p, amount, 'zombie', from);
+        if (p) host.damage(p, amount, kind ?? 'zombie', from);
       },
       giveXp: (id, xp) => {
         const p = this.player(id);
         if (p) host.giveAccountXp(p, xp);
+      },
+      stat: (id, s) => {
+        const p = this.player(id);
+        if (p) addZombieStat(p.conn.account, s);
       },
       setLoadout: (id, lo) => {
         const p = this.player(id);
@@ -359,14 +367,14 @@ class ZombieMode implements SessionMode {
     const k = typeof keep === 'number' && Number.isFinite(keep) ? Math.min(1, Math.max(minPenetrationKeep(gun), keep)) : 1;
     const crit = p.potion?.kind === 'critico' && p.potion.until > now;
     const r = region as HitRegion;
-    const dmg = gunDamageToZombie(gun, Math.min(dist, gun.alcanceMaximo), crit && r !== 'virilha' ? 'cabeca' : r, k, weaponMul(m.itemsOf(p.id), gun.arma), isBoss(z.kind));
+    const dmg = gunDamageToZombie(gun, Math.min(dist, gun.alcanceMaximo), critRegion(r, crit), k, weaponMul(m.itemsOf(p.id), gun.arma), isBoss(z.kind));
     m.damage(z.id, p.id, dmg, r === 'cabeca' ? 'head' : r === 'virilha' ? 'groin' : 'gun');
   }
 
   private onStab(m: ZombieMatch, p: SPlayer, zid: unknown, now: number) {
     const z = typeof zid === 'number' ? m.hittable(zid) : null;
     if (!z || !p.alive || p.downed) return;
-    const knife = meleeStats(p.loadout.ativas.faca);
+    const knife = loadoutKnife(p.loadout);
     if (now - p.lastStab < knife.intervalo * 1000 * 0.75) return;
     const d = Math.hypot(p.state.p[0] - z.pos[0], p.state.p[2] - z.pos[2]);
     if (d > knife.alcanceInvestida + 1.5 + 0.4 * kindScale(z.kind)) return;

@@ -55,6 +55,37 @@ export function insideWall(map: ZombieMapData, p: Vec3): boolean {
   return p[0] > x0 && p[0] < x1 && p[2] > z0 && p[2] < z1;
 }
 
+/**
+ * Where a player is up on the thorns: on the wall's ledge or bars (off the gaps) or on the hedge. The capsule
+ * (radius 0.35) keeps anyone standing on the ground farther than the bands from both center lines, so only
+ * climbing counts.
+ */
+export function thornsAt(map: ZombieMapData, p: Vec3): 'muro' | 'sebe' | null {
+  const t = ZOMBIE.espinhos;
+  if (p[1] < t.alturaMinima) return null;
+  const [x0, z0, x1, z1] = map.dentro;
+  const lines: [axis: 'x' | 'z', fixed: number, from: number, to: number][] = [
+    ['x', z0, x0, x1],
+    ['x', z1, x0, x1],
+    ['z', x0, z0, z1],
+    ['z', x1, z0, z1],
+  ];
+  for (const [axis, fixed, from, to] of lines) {
+    const across = Math.abs((axis === 'x' ? p[2] : p[0]) - fixed);
+    const along = axis === 'x' ? p[0] : p[2];
+    if (across > t.faixaMuro || along < from - t.faixaMuro || along > to + t.faixaMuro) continue;
+    const inGapHere = map.barricadas.some((g) => g.eixo === axis && (axis === 'x' ? g.centro[2] : g.centro[0]) === fixed && Math.abs(along - (axis === 'x' ? g.centro[0] : g.centro[2])) < g.largura / 2);
+    if (!inGapHere) return 'muro';
+  }
+  if (map.sebe) {
+    const [hx0, hz0, hx1, hz1] = map.sebe;
+    const near = (v: number, a: number, b: number) => Math.min(Math.abs(v - a), Math.abs(v - b)) <= t.faixaSebe;
+    const within = (v: number, a: number, b: number) => v >= a - t.faixaSebe && v <= b + t.faixaSebe;
+    if ((near(p[0], hx0, hx1) && within(p[2], hz0, hz1)) || (near(p[2], hz0, hz1) && within(p[0], hx0, hx1))) return 'sebe';
+  }
+  return null;
+}
+
 /** Standing in the gap itself (within the wall's thickness), `margin` metres around it counted. */
 export function inGap(g: BarricadeSpot, p: Vec3, margin = 0): boolean {
   const f = gapFrame(g, p);

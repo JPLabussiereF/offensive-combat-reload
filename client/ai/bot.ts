@@ -6,8 +6,10 @@
 //             shoots it
 //   roam      walk/sprint to random points of the navmesh
 //   engage    reaction delay, aim that converges on the target (turn speed + tracking error), bursts to
-//             control recoil, strafing, keeps a preferred distance, knife when very close; with only a
-//             blade in hand (corrida armada's lightsaber) it runs straight at the target to stab it
+//             control recoil, strafing, keeps a preferred distance; the knife like a player's (only at a
+//             target in reach and in front, so it has to turn first) and one swing per approach (see
+//             botKnife.ts); with only a blade in hand (corrida armada's lightsaber) it runs straight at the
+//             target to stab it, and backs off after each swing
 //   chase     go to the last known position, then give up
 //   flee      low health: run away while health regenerates
 //   taunt     after a kill, sometimes walk to the corpse and dance (vulnerable, like a human)
@@ -16,8 +18,11 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { GROUP, groups, HEALTH, HUMILIATION, MOVE } from '@shared/constants';
 import { configureController, CONTROLLER_OFFSET, createMoveState, eyeHeight, HALF_STAND, stepMovement, type MoveBody, type MoveInput, type MoveState } from '@shared/movement';
 import type { HitRegion } from '@shared/weapons';
-import { DEFAULT_LOADOUT, gunStats, meleeStats, type Loadout, type MeleeStats } from '@shared/arsenal';
-import type { GunId } from '@shared/progression';
+import { DEFAULT_LOADOUT, gunStats, knifeOf, meleeStats, type Loadout, type MeleeStats } from '@shared/arsenal';
+import type { KnifePassive } from '@shared/weapons';
+import { KNIVES, PRIMARIES, progOf, type GunId, type KnifeId } from '@shared/progression';
+import { pickGun } from './botGuns';
+import { BotKnife } from './botKnife';
 import type { Sex } from '@shared/protocol';
 import { bodyStats, randomAppearance, type Appearance, type BodyStats } from '@shared/appearance';
 import { Avatar } from '../entities/avatar';
@@ -25,7 +30,8 @@ import { isBehind } from '../entities/hitboxes';
 import { CharacterRig, type HitPose } from '../entities/rig';
 import type { HitboxRegistry, Target } from '../gameplay/targets';
 import type { Corpse } from '../gameplay/corpse';
-import { Weapon } from '../weapons/weapon';
+import { Weapon, type Pellet } from '../weapons/weapon';
+import { findMeleeTarget } from '../weapons/melee';
 import { holdOf } from '../render/weaponModels';
 import type { SpawnPoint } from '../world/gameMap';
 import type { NavMap } from './navmesh';
@@ -59,14 +65,16 @@ export interface BotSkill {
   /** Field of view (rad). */
   fov: number;
   tauntChance: number;
+  /** Seconds it hesitates with a target in knife reach, in front of it, before swinging. */
+  knifeDelay: number;
 }
 
 export type BotSkillName = 'facil' | 'normal' | 'dificil';
 
 export const BOT_SKILLS: Record<BotSkillName, BotSkill> = {
-  facil: { reaction: 0.55, turnSpeed: 2.6, aimError: 6 * DEG, recoilControl: 0.3, burst: [0.2, 0.35], pause: [0.45, 0.8], headshotChance: 0.05, fov: 100 * DEG, tauntChance: 0.35 },
-  normal: { reaction: 0.35, turnSpeed: 4.2, aimError: 3.5 * DEG, recoilControl: 0.6, burst: [0.3, 0.5], pause: [0.3, 0.55], headshotChance: 0.15, fov: 115 * DEG, tauntChance: 0.5 },
-  dificil: { reaction: 0.2, turnSpeed: 6.5, aimError: 1.8 * DEG, recoilControl: 0.85, burst: [0.45, 0.7], pause: [0.2, 0.35], headshotChance: 0.3, fov: 130 * DEG, tauntChance: 0.65 },
+  facil: { reaction: 0.55, turnSpeed: 2.6, aimError: 6 * DEG, recoilControl: 0.3, burst: [0.2, 0.35], pause: [0.45, 0.8], headshotChance: 0.05, fov: 100 * DEG, tauntChance: 0.35, knifeDelay: 0.3 },
+  normal: { reaction: 0.35, turnSpeed: 4.2, aimError: 3.5 * DEG, recoilControl: 0.6, burst: [0.3, 0.5], pause: [0.3, 0.55], headshotChance: 0.15, fov: 115 * DEG, tauntChance: 0.5, knifeDelay: 0.2 },
+  dificil: { reaction: 0.2, turnSpeed: 6.5, aimError: 1.8 * DEG, recoilControl: 0.85, burst: [0.45, 0.7], pause: [0.2, 0.35], headshotChance: 0.3, fov: 130 * DEG, tauntChance: 0.65, knifeDelay: 0.12 },
 };
 
 /** What the manager offers a bot each tick. */
@@ -76,8 +84,9 @@ export interface BotWorld {
   nav: NavMap;
   combatants(): Combatant[];
   corpses(): Iterable<Corpse>;
-  /** Resolve one bullet fired by `bot` (spread in radians). */
-  fire(bot: Bot, spread: number): void;
+  /** Resolve one shot fired by `bot` (spread in radians): its bullet, or each of its pellets. */
+  fire(bot: Bot, spread: number, pellets: Pellet[] | null): void;
+  /** A bot's swing at its impact moment: lands only if `target` is still in reach, in front and in sight. */
   stab(bot: Bot, target: Combatant): void;
   tauntStarted(bot: Bot, corpse: Corpse): void;
   tauntFinished(bot: Bot, corpse: Corpse): void;
@@ -87,11 +96,8 @@ type Mode = 'roam' | 'engage' | 'chase' | 'flee' | 'toTaunt' | 'taunt';
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
-/** The gun a bot takes for a life: mostly the rifle, sometimes a secondary (no upgrades, like a new account). */
-function pickGun(): GunId {
-  const r = Math.random();
-  return r < 0.6 ? 'rifle' : r < 0.85 ? 'smg' : 'pistola';
-}
+const pick = <T>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)];
+
 const angleDiff = (a: number, b: number) => {
   let d = b - a;
   while (d > Math.PI) d -= Math.PI * 2;
@@ -179,6 +185,14 @@ export class Bot implements Combatant {
   private pauseLeft = 0;
   private knifeCooldown = 0;
   private knifeAnim = 0;
+  private knifeBrain = new BotKnife();
+  /** The swing under way: who it's aimed at and its time (it lands at the knife's `impacto`). */
+  private swingTarget: Combatant | null = null;
+  private swingT = 0;
+  private knifeEye = new THREE.Vector3();
+  /** The rubber chicken's getaway: faster until then. */
+  private rushUntil = -99;
+  private rushMul = 1;
   private lastKillAt = -99;
   private tauntCorpse: Corpse | null = null;
   tauntT = 0;
@@ -205,7 +219,7 @@ export class Bot implements Combatant {
     this.rig = new CharacterRig(world, this, registry, this.bodyStats.missing);
     this.mb = { world, body, collider, controller, ignoreBody: this.rig.body };
     this.weapon = new Weapon(gunStats('rifle'), {
-      shoot: (spread) => this.onShoot?.(spread),
+      shoot: (spread, _shot, pellets) => this.onShoot?.(spread, pellets),
       dryFire: () => {},
       reloadStart: () => {},
       reloadEnd: () => {},
@@ -218,8 +232,8 @@ export class Bot implements Combatant {
     this.avatar.root.add(this.plate, this.rig.debug);
   }
 
-  /** Set by the manager: resolves the bullet (needs the world services). */
-  onShoot: ((spread: number) => void) | null = null;
+  /** Set by the manager: resolves the bullet, or each pellet of a scattergun's shot (needs the world services). */
+  onShoot: ((spread: number, pellets: Pellet[] | null) => void) | null = null;
 
   get position(): THREE.Vector3 {
     return this.curr;
@@ -272,6 +286,11 @@ export class Bot implements Combatant {
     this.path = [];
     this.tauntCorpse = null;
     this.lastAttacker = null;
+    this.knifeBrain.reset();
+    this.rushUntil = -99;
+    this.swingTarget = null;
+    this.knifeCooldown = 0;
+    this.knifeAnim = 0;
   }
 
   /** The mode's weapons from now on (null: back to a random gun each life); a living bot takes them at once. */
@@ -281,17 +300,21 @@ export class Bot implements Combatant {
   }
 
   /**
-   * The weapons of this life: the mode's, or a random gun without upgrades (a secondary is held as one, with
-   * the rifle on the back). Full magazine either way.
+   * The weapons of this life: the mode's, or a random gun and a random knife without upgrades (a secondary is
+   * held as one, with the Standard Rifle on the back). Full magazine either way.
    */
   private equip() {
     const lo = this.fixed;
     this.gun = lo ? lo.primaria : pickGun();
     this.bladeOnly = !!lo?.soFaca;
-    this.knife = meleeStats(lo?.ativas.faca ?? []);
-    this.weapon.setData(gunStats(this.gun, lo?.ativas[this.gun] ?? []));
+    const knife: KnifeId = lo ? knifeOf(lo) : pick(KNIVES);
+    this.knife = meleeStats(knife, lo?.ativas.faca ?? []);
+    this.weapon.setData(gunStats(this.gun, lo?.ativas[progOf(this.gun)] ?? []));
     this.weapon.refill();
-    this.avatar.setLoadout(lo ?? { ...DEFAULT_LOADOUT, secundaria: this.gun === 'rifle' ? DEFAULT_LOADOUT.secundaria : this.gun });
+    const primary = PRIMARIES.includes(this.gun);
+    this.avatar.setLoadout(
+      lo ?? { ...DEFAULT_LOADOUT, primaria: primary ? this.gun : DEFAULT_LOADOUT.primaria, secundaria: primary ? DEFAULT_LOADOUT.secundaria : this.gun, faca: knife },
+    );
   }
 
   die(time: number) {
@@ -300,6 +323,7 @@ export class Bot implements Combatant {
     this.health = 0;
     if (this.tauntCorpse && this.tauntCorpse.claimedBy === this.id) this.tauntCorpse.claimedBy = null;
     this.tauntCorpse = null;
+    this.swingTarget = null;
     this.mode = 'roam';
     this.rig.follow(this.curr, this.yaw, false, this.currentPose(), 0);
     this.avatar.visible = false;
@@ -307,6 +331,15 @@ export class Bot implements Combatant {
 
   notifyKill(time: number) {
     this.lastKillAt = time;
+  }
+
+  /** A kill with its knife: the knife's passive (null where the mode handed the knife out), see knifePassive. */
+  knifeKill(p: KnifePassive | null, time: number) {
+    if (p?.id === 'coloDeVo') this.health = Math.min(this.bodyStats.maxHealth, this.health + p.vida);
+    else if (p?.id === 'fugaEscandalosa') {
+      this.rushUntil = time + p.segundos;
+      this.rushMul = p.velocidade;
+    } else if (p?.id === 'lanche') this.weapon.fillMag();
   }
 
   get dancing() {
@@ -466,6 +499,15 @@ export class Bot implements Combatant {
     this.reactionLeft -= dt;
     this.knifeCooldown -= dt;
     this.knifeAnim -= dt;
+    // A swing under way lands (or misses) at the knife's impact moment.
+    if (this.swingTarget) {
+      this.swingT += dt;
+      if (this.swingT >= this.knife.impacto) {
+        const struck = this.swingTarget;
+        this.swingTarget = null;
+        w.stab(this, struck);
+      }
+    }
 
     // Where to move, and where to look.
     let moveDir: THREE.Vector3 | null = null;
@@ -486,13 +528,23 @@ export class Bot implements Combatant {
       }
     } else if (engaging && target) {
       const dist = target.position.distanceTo(this.curr);
+      const flat = Math.hypot(target.position.x - this.curr.x, target.position.z - this.curr.z);
       lookAt = this.tmp2.copy(target.position).setY(target.position.y + (this.aimHead ? 1.6 : 1.15));
-      // The knife when very close; a blade-only bot strikes as soon as it's in reach.
-      if (dist < (this.bladeOnly ? this.knife.alcance + 0.3 : 2.2) && this.knifeCooldown <= 0) {
-        this.knifeCooldown = this.knife.intervalo + 0.3;
-        this.knifeAnim = 0.35;
-        w.stab(this, target);
+      // The knife: after the reaction delay, with the target in reach and in front (the player's cone, so a bot
+      // with its back turned has to turn first), a short hesitation, then one swing per approach.
+      const canSwing =
+        this.knifeCooldown <= 0 &&
+        this.reactionLeft <= 0 &&
+        !this.swingTarget &&
+        flat < this.knife.alcance + 0.6 &&
+        !!findMeleeTarget(w.physics, [target], this.eye(this.knifeEye), this.yaw, this.knife.alcance, this.knife.anguloGraus);
+      if (this.knifeBrain.shouldSwing(t, target.id, flat, canSwing, this.skill.knifeDelay * rand(0.8, 1.3))) {
+        this.swingTarget = target;
+        this.swingT = 0;
+        this.knifeCooldown = this.knife.intervalo;
+        this.knifeAnim = this.knife.duracao;
       }
+      const knifeChance = this.knifeBrain.hasChance(target.id, flat);
       const toTarget = new THREE.Vector3(target.position.x - this.curr.x, 0, target.position.z - this.curr.z).normalize();
       if (t > this.strafeUntil) {
         this.strafeSign = Math.random() < 0.5 ? -1 : 1;
@@ -500,18 +552,22 @@ export class Bot implements Combatant {
         if (Math.random() < 0.18) this.crouchUntil = t + rand(0.6, 1.4);
       }
       const side = new THREE.Vector3(-toTarget.z, 0, toTarget.x).multiplyScalar(this.strafeSign);
-      if (this.bladeOnly) {
-        // Only a blade: straight at them (along the navmesh when far), weaving a little, sprinting in.
-        if (dist > 6) {
+      if (this.swingTarget) {
+        moveDir = toTarget; // follow through until the blade lands
+      } else if (this.bladeOnly) {
+        // Only a blade: straight at them (along the navmesh when far), weaving a little, sprinting in; after a
+        // swing, hit or miss, it backs off (facing them) until its next chance.
+        if (!knifeChance) moveDir = toTarget.clone().negate().add(side.multiplyScalar(0.6)).normalize();
+        else if (dist > 6) {
           if (t > this.repathAt) this.setGoal(w, target.position.clone());
           moveDir = this.followPath() ?? toTarget;
         } else moveDir = toTarget.clone().add(side.multiplyScalar(0.3)).normalize();
-        sprint = dist > 3;
+        sprint = knifeChance && dist > 3;
       } else if (dist > 24) {
         // Close the distance along the navmesh.
         if (t > this.repathAt) this.setGoal(w, target.position.clone());
         moveDir = this.followPath() ?? toTarget;
-      } else if (dist < 3.5) {
+      } else if (dist < 3.5 && knifeChance) {
         moveDir = toTarget.clone().add(side.multiplyScalar(0.5)).normalize(); // rush for the knife
       } else if (dist < 7) {
         moveDir = toTarget.clone().negate().add(side).normalize();
@@ -590,7 +646,7 @@ export class Bot implements Combatant {
       sprint: sprint && this.mode !== 'taunt',
       ads,
       yaw: this.yaw,
-      speedMul: (this.bladeOnly ? 1 : this.weapon.data.movimento) * this.bodyStats.speedMul,
+      speedMul: (this.bladeOnly ? 1 : this.weapon.data.movimento) * this.bodyStats.speedMul * (t < this.rushUntil ? this.rushMul : 1),
       lunge: null,
     };
     this.jumpNext = false;
@@ -614,7 +670,8 @@ export class Bot implements Combatant {
       }
     }
     const reload = this.weapon.mag === 0 || (!this.targetVisible && this.weapon.mag < this.weapon.data.pente * 0.4 && !this.weapon.reloading);
-    // Semi-automatic: let go of the trigger every other tick so each press fires.
+    // Semi-automatic and burst: let go of the trigger every other tick so each press fires (a burst then runs by
+    // itself, and the next press waits out its pause).
     this.triggerUp = fire && this.weapon.data.modo !== 'auto' ? !this.triggerUp : false;
     this.weapon.update(dt, {
       fireHeld: fire && !this.triggerUp,
@@ -625,6 +682,7 @@ export class Bot implements Combatant {
       grounded: this.move.grounded,
       crouched: this.move.crouched,
       speed: Math.hypot(this.move.vel.x, this.move.vel.z),
+      holdFire: this.knifeAnim > 0,
     });
   }
 
@@ -657,8 +715,8 @@ export class Bot implements Combatant {
         knife: this.knifeAnim > 0,
         blade: this.bladeOnly,
         cook: false,
-        // A random secondary is held as one (the rifle on the back); the mode's gun is a primary.
-        secondary: !this.fixed && this.gun !== 'rifle',
+        // A random secondary is held as one (a rifle on the back); the mode's gun is a primary.
+        secondary: !this.fixed && !PRIMARIES.includes(this.gun),
         hold: holdOf(this.gun),
       },
     };

@@ -60,8 +60,8 @@ updated: 2026-10-06
 | `roles.ts` | Regras dos papéis da equipe: `podeAgirSobre`, `podePunir`, `podeConceder`, `podePromover`, `podeRebaixar` ([[ADR - Papéis da equipe conferidos no servidor]]) | sim (`isEquipe`: aba Gerenciamento só para a equipe, botões da aba Mapas e do editor; o painel do Gerenciamento segue as permissões que o servidor calcula com estas regras) | sim (`server/gestao.ts`) |
 | `weapons.ts` | Esquema `WeaponData`/`MeleeData`/`GrenadeData` (atributos **base**), carrega os JSON (`WEAPONS`: rifle, pistola, smg), `HIT_REGIONS`, `computeDamage`, `explosionDamage`, `clampExplosionDamage`, `idealTtk`, `minPenetrationKeep` | sim | sim |
 | `movement.ts` | `stepMovement` (passo de movimento em primeira pessoa sobre o Rapier), `createMoveState`, `configureController`, `eyeHeight` | sim (jogador e bots) | não (ainda) |
-| `progression.ts` | Ids das armas (`GunId`, `ProgWeapon`, `PRIMARIES`, `SECONDARIES`), árvores de melhorias de `data/progression.json` (`PROGRESSION`), níveis (`levelForXp`, `xpForLevel`, `levelCount`), melhorias em efeito (`activeUpgrades`), escolha do Arsenal (`ArsenalChoice`, `sanitizeChoice`, `legacyChoice`), `weaponOfKill` | sim | sim |
-| `arsenal.ts` | O que o jogador leva e os atributos **efetivos** (base + melhorias): `Loadout` (com `soFaca?`: só a faca na mão; `danificadas?`: armas danificadas do caixão do zumbi, por arma), `WeaponFlaw`, `resolveLoadout`, `gunStats`, `meleeStats`, `grenadeStats`, `slotStats`, `gunIn`, `sanitizeLoadout`, `DEFAULT_LOADOUT` | sim | sim |
+| `progression.ts` | Ids das armas (`GunId`, `KnifeId`, `WeaponId`, `ProgWeapon`, `PRIMARIES`, `SECONDARIES`, `KNIVES`; `progOf`: a progressão de cada arma; travas `lockOf`/`weaponUnlocked`), árvores de melhorias de `data/progression.json` (`PROGRESSION`), níveis (`levelForXp`, `xpForLevel`, `levelCount`), melhorias em efeito (`activeUpgrades`), escolha do Arsenal (`ArsenalChoice`, `sanitizeChoice`, `legacyChoice`), `weaponOfKill` | sim | sim |
+| `arsenal.ts` | O que o jogador leva e os atributos **efetivos** (base + melhorias): `Loadout` (com `soFaca?`: só a faca na mão; `danificadas?`: armas danificadas do caixão do zumbi, por arma), `WeaponFlaw`, `resolveLoadout`, `gunStats`, `meleeStats`, `grenadeStats`, `slotStats`, `gunIn`, `knifeOf`, `loadoutKnife`, `sanitizeLoadout`, `DEFAULT_LOADOUT` | sim | sim |
 | `modes.ts` | Modos de jogo: `GameModeId` (`mata-mata`, `corrida-armada`, `zumbi`), `MODE_RULES` (armas do Arsenal ou do modo, `lockedLoadout`, granadas, XP de arma, rodadas, bots, `coop`, `ownMaps`), `isGameModeId`, `modeAllowsMap(modo, exclusivo)` | sim (home, regras do cliente) | sim (`server/modes.ts`, lobby) |
 | `mapData.ts` | Os mapas como dados: `MapData`, `Peca`, `MAP_FORMAT`, `MAP_BUDGET` (400 chamadas de desenho, 750 mil triângulos) e `validateMapData` (pura). Os oficiais estão em `data/mapas/*.json` | sim (`mapLoader.ts`) | ainda não (fase 2 da PF-6) |
 | `mapCatalog.ts` | O esquema de cada tipo de peça (`MAP_CATALOG`: parâmetros com tipo, faixa e padrão, transformação, limite por mapa, prefixo do `PropBus`), `SUPERFICIES`, `checkParam`, `checkPieceParams` | sim | ainda não |
@@ -83,7 +83,7 @@ updated: 2026-10-06
 | Chamada | Uso |
 | --- | --- |
 | `gunStats(arma: GunId, melhorias?: string[]): GunStats` | Arma de fogo com as melhorias (ids da árvore dela; desconhecidos são ignorados). `GunStats` = `WeaponData` + `arma`, `melhorias`, `mira`, `visual`, `silenciador`. Cacheado e compartilhado: **não mutar**. |
-| `meleeStats(melhorias?): MeleeStats` | Faca com as melhorias; `forma` (`faca`/`frango`/`sabre`). `meleeStats(['sabre'])` é o **Sabre de Luz Paraguaio**. |
+| `meleeStats(faca?, melhorias?): MeleeStats` | Uma das sete facas (`KnifeId`, padrão `faca`) com as melhorias da faca; `forma` = o id da faca. `meleeStats('sabre', [])` é o **Sabre de Luz Paraguaio**. `loadoutKnife(lo)` = a faca de um loadout. |
 | `grenadeStats(melhorias?): GrenadeStats` | Granada: `tipo` (`granada`/`mina`/`dupla`), `quantidade`, `recargaSegundos`, `velocidadeLancamento`, `explosao` (raios e dano). |
 | `resolveLoadout(escolha, níveis): Loadout` | A escolha do Arsenal (`ArsenalChoice`) nos níveis da conta → `{ primaria, secundaria, ativas }`, com as comuns liberadas e as opcionais ligadas (`activeUpgrades`). |
 | `slotStats(loadout, 'primaria' \| 'secundaria')` | Atributos da arma de um espaço; `null` se o espaço está vazio (`Loadout.secundaria` pode ser `null`). |
@@ -92,7 +92,7 @@ updated: 2026-10-06
 Exemplos (inferência de uso para os próximos modos, não implementados ainda):
 - Loadout travado sem melhorias: `{ ...DEFAULT_LOADOUT }`; com tudo liberado: `resolveLoadout(escolha, MAX_LEVELS)`.
 - Começar só com a primária: `{ ...DEFAULT_LOADOUT, secundaria: null }`.
-- Arma sorteada: `gunStats('smg')`; a arma final de uma corrida armada: `meleeStats(['sabre'])`.
+- Arma sorteada: `gunStats('smg')`; a arma final de uma corrida armada: `meleeStats('sabre', [])`; um rifle antigo com as melhorias do rifle: `gunStats('rifleVovo', ['empunhadura'])`.
 
 No cliente, `Weapon.setData(gunStats(...))` troca a arma de um espaço; no servidor, `Session` resolve o loadout pela conta (`loadoutOf`) e usa `gunStats`/`meleeStats`/`grenadeStats` em `onHit`, `onStab` e nas granadas.
 

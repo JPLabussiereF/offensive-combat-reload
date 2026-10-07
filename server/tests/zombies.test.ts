@@ -11,7 +11,7 @@ import { importNavMesh, init, type NavMesh } from 'recast-navigation';
 import nav from '@shared/data/navmesh/cemiterio.json';
 import { gunStats, resolveLoadout } from '@shared/arsenal';
 import { modeAllowsMap, MODE_RULES } from '@shared/modes';
-import { MAX_LEVELS, PROG_WEAPONS, xpForLevel, type ArsenalChoice, type ProgWeapon } from '@shared/progression';
+import { MAX_LEVELS, progOf, PROG_WEAPONS, xpForLevel, type ArsenalChoice, type ProgWeapon } from '@shared/progression';
 import { FLAG, type ServerMsg, type Vec3 } from '@shared/protocol';
 import {
   BOX_ITEMS,
@@ -30,6 +30,7 @@ import {
   withItem,
   Z_KINDS,
   ZOMBIE,
+  zombieGunData,
   zombieLoadout,
   zombieProblems,
   type BossId,
@@ -37,7 +38,9 @@ import {
   type ZItems,
   type ZKind,
 } from '@shared/zombies';
-import { ZombieMatch, type ZombieHost } from '@shared/zombieMatch';
+import { ZombieMatch, type ZombieHost, type ZStat } from '@shared/zombieMatch';
+import { emptyDelta } from '../accounts';
+import { addZombieStat, deltaIsEmpty, mergeDelta, type LiveAccount } from '../progress';
 import { LETHAL_DAMAGE } from '@shared/weapons';
 import type { GameServer } from '../app';
 import { Browser, Player, setWeaponXp, sleep, startTestServer } from './helpers';
@@ -75,7 +78,9 @@ describe('regras do modo zumbi', () => {
   });
 
   it('todo mundo começa com o rifle sem melhorias e a faca comum', () => {
-    expect(zombieLoadout(startItems())).toEqual({ primaria: 'rifle', secundaria: null, ativas: { rifle: [], pistola: [], smg: [], faca: [], granada: [] } });
+    expect(zombieLoadout(startItems())).toEqual({ primaria: 'rifle', secundaria: null, faca: 'faca', ativas: { rifle: [], pistola: [], smg: [], faca: [], granada: [] } });
+    // The coffin's saber is the saber knife.
+    expect(zombieLoadout({ ...startItems(), faca: 'sabre' })).toMatchObject({ faca: 'sabre', ativas: { faca: [] } });
   });
 
   it('as ondas crescem, escalam com os jogadores e têm chefes nas ondas marcadas', () => {
@@ -102,6 +107,24 @@ describe('regras do modo zumbi', () => {
     expect(count.epico).toBeGreaterThan(count.lendario);
     expect(count.lendario).toBeGreaterThan(50);
     expect(BOX_ITEMS.every((i) => itemSlot(i) === (i.arma === 'rifle' ? 'primaria' : i.arma === 'faca' ? 'faca' : 'secundaria'))).toBe(true);
+  });
+
+  it('as secundárias novas no caixão, sem melhorias: grampeador e revólver comuns, furadeira e garrucha raras, pistolão épico', () => {
+    const want = { grampeador: 'comum', revolver: 'comum', furadeira: 'raro', garrucha: 'raro', pistolao: 'epico' } as const;
+    for (const [id, raridade] of Object.entries(want) as [keyof typeof want, (typeof want)[keyof typeof want]][]) {
+      const it = itemOf(id)!;
+      expect({ id, it }).toEqual({ id, it: { id, arma: id, melhorias: [], raridade } });
+      expect(itemSlot(it)).toBe('secundaria');
+      // In the hand: the secondary slot, the rifle kept as the primary.
+      expect(zombieLoadout(withItem(startItems(), it, null))).toMatchObject({ primaria: 'rifle', secundaria: id });
+    }
+    // The coffin hands each of them out.
+    const rng = seeded(11);
+    const seen = new Set<string>();
+    for (let i = 0; i < 6000; i++) seen.add(rollBox(rng, startItems()).id);
+    for (const id of Object.keys(want)) expect({ id, seen: seen.has(id) }).toEqual({ id, seen: true });
+    // A damaged garrucha with fewer rounds still has one shell in the barrels.
+    expect(zombieGunData(gunStats('garrucha'), 'municao').pente).toBe(1);
   });
 
   it('a virilha mata um zumbi comum na hora, mas só dobra o dano num chefe; a raridade multiplica', () => {
@@ -139,6 +162,8 @@ interface Fake {
   xp: Map<number, number>;
   loadouts: Map<number, unknown>;
   feet: Map<number, Vec3>;
+  /** What the match reported for each player's zumbi stats. */
+  stats: Map<number, ZStat[]>;
   step(seconds: number, each?: () => void): void;
   /** Steps until `done` (at most 10 minutes of game time). */
   until(done: () => boolean, each?: () => void): void;
@@ -147,7 +172,7 @@ interface Fake {
 
 /** A match with players standing at `spots`, on a fake clock; damage takes host-side health like Session does. */
 function fakeMatch(spots: Vec3[], seed = 1): Fake {
-  const f = { t: 0, events: [] as ServerMsg[], hp: new Map<number, number>(), xp: new Map<number, number>(), loadouts: new Map<number, unknown>(), feet: new Map<number, Vec3>() } as Fake;
+  const f = { t: 0, events: [] as ServerMsg[], hp: new Map<number, number>(), xp: new Map<number, number>(), loadouts: new Map<number, unknown>(), feet: new Map<number, Vec3>(), stats: new Map<number, ZStat[]>() } as Fake;
   const dead = new Set<number>();
   const host: ZombieHost = {
     now: () => f.t,
@@ -173,6 +198,7 @@ function fakeMatch(spots: Vec3[], seed = 1): Fake {
       f.hp.set(id, 100);
     },
     newMatch: (ids) => ids.forEach((id) => (dead.delete(id), f.hp.set(id, 100))),
+    stat: (id, s) => f.stats.set(id, [...(f.stats.get(id) ?? []), s]),
   };
   f.match = new ZombieMatch(host, navMesh, ZOMBIE.mapas.cemiterio!);
   spots.forEach((p, i) => {
@@ -239,6 +265,62 @@ describe('partida zumbi (motor, relógio falso)', () => {
     expect(f.match.info(1)).toMatchObject({ money: ZOMBIE.dinheiroInicial, kills: 0, state: 'up' });
   });
 
+  it('as estatísticas de cada jogador: abates, onda sobrevivida, queda e o fim da partida', () => {
+    quick();
+    const f = fakeMatch([STREET]);
+    f.until(() => f.match.phase === 'break', killAll(f));
+    const mine = () => f.stats.get(1) ?? [];
+    expect(mine().filter((s) => s.e === 'kill')).toHaveLength(waveSpec(1, 1).total);
+    expect(mine()).toContainEqual({ e: 'kill', kind: 'comum', how: 'head' });
+    expect(mine().filter((s) => s.e === 'wave')).toHaveLength(1);
+    // Wave 2 with nobody shooting: down, and alone nobody revives them: a death, and the end.
+    f.until(() => f.of('zend').length > 0);
+    expect(mine().slice(-3)).toEqual([{ e: 'down' }, { e: 'death' }, { e: 'end', won: false, wave: 2, dead: false }]);
+  });
+
+  it('a conta soma os eventos: chefe pelo nome, abate pelo golpe e a melhor onda como máximo', () => {
+    const a = { delta: emptyDelta() } as LiveAccount;
+    const events: ZStat[] = [
+      { e: 'kill', kind: 'comum', how: 'groin' },
+      { e: 'kill', kind: 'noiva', how: 'knife' },
+      { e: 'kill', kind: 'inchado', how: 'blast' },
+      { e: 'revive' },
+      { e: 'coffin' },
+      { e: 'death' },
+      { e: 'end', won: false, wave: 5, dead: false },
+      { e: 'end', won: true, wave: 12, dead: false },
+    ];
+    for (const s of events) addZombieStat(a, s);
+    expect(a.delta.zumbi).toMatchObject({ kills: 3, groinKills: 1, knifeKills: 1, headshots: 0, bosses: 1, noivaKills: 1, coveiroKills: 0, revives: 1, coffinRolls: 1, deaths: 1, matches: 2, wins: 1, bestWave: 12 });
+    // Zombies aren't players: the player-vs-player numbers don't move.
+    expect(a.delta.kills).toBe(0);
+    // A write that failed comes back: the totals add up, the best wave stays the highest.
+    const retry = emptyDelta();
+    expect(deltaIsEmpty(retry)).toBe(true);
+    addZombieStat({ delta: retry } as LiveAccount, { e: 'end', won: false, wave: 3, dead: false });
+    expect(deltaIsEmpty(retry)).toBe(false);
+    mergeDelta(a.delta, retry);
+    expect(a.delta.zumbi).toMatchObject({ matches: 3, wins: 1, bestWave: 12 });
+  });
+
+  it('as figurinhas do zumbi: Voto Nulo, Divórcio, Churrasco Coletivo, Marceneiro e Vitória do Além', () => {
+    const a = { delta: emptyDelta() } as LiveAccount;
+    const events: ZStat[] = [
+      { e: 'kill', kind: 'prefeito', how: 'groin' },
+      { e: 'kill', kind: 'prefeito', how: 'head' },
+      { e: 'kill', kind: 'noiva', how: 'knife' },
+      { e: 'chain', kills: 6 },
+      { e: 'chain', kills: 2 },
+      { e: 'board' },
+      { e: 'board' },
+      { e: 'end', won: true, wave: 12, dead: true },
+      { e: 'end', won: false, wave: 4, dead: true },
+    ];
+    for (const s of events) addZombieStat(a, s);
+    expect(a.delta.album.add).toEqual({ 'voto-nulo': 1, divorcio: 1, marceneiro: 2, 'vitoria-do-alem': 1 });
+    expect(a.delta.album.max).toEqual({ 'churrasco-coletivo': 6 });
+  });
+
   it('em dupla, quem cai é reanimado pelo outro (que ganha dinheiro), ou sangra até morrer e volta no intervalo', () => {
     quick();
     Object.assign(ZOMBIE.jogador, { caidoSegundos: 5 });
@@ -262,6 +344,10 @@ describe('partida zumbi (motor, relógio falso)', () => {
     f.step(ZOMBIE.jogador.caidoSegundos + 0.2);
     expect(f.match.info(1)!.state).toBe('dead');
     expect(f.match.phase).toBe('wave');
+    // Stats: two downs and a death for 1, a revive for 2.
+    expect(f.stats.get(1)!.filter((s) => s.e === 'down')).toHaveLength(2);
+    expect(f.stats.get(1)!.filter((s) => s.e === 'death')).toHaveLength(1);
+    expect(f.stats.get(2)).toContainEqual({ e: 'revive' });
     f.step(90, killAll(f, 2));
     expect(f.match.wave).toBeGreaterThanOrEqual(2);
     // Came back for the break with the starting weapons.
@@ -333,7 +419,10 @@ describe('partida zumbi (motor, relógio falso)', () => {
     if (!bloater) return; // the horde spread out this time: nothing to check
     f.match.damage(bloater.id, 1, 1e9, 'gun');
     expect(f.of('zfx').some((e) => e.fx === 'boom')).toBe(true);
-    expect(f.of('zdie').filter((d) => d.how === 'blast' && d.by === 1).length).toBeGreaterThan(0);
+    const chained = f.of('zdie').filter((d) => d.how === 'blast' && d.by === 1).length;
+    expect(chained).toBeGreaterThan(0);
+    // The album hears how many the burst took, for whoever killed the uncle.
+    expect(f.stats.get(1)).toContainEqual({ e: 'chain', kills: chained });
   });
 
   it('quem sai libera o que segurava; sem ninguém, a partida volta a esperar', () => {
@@ -381,9 +470,9 @@ async function enter(name: string, session = CEMETERY, lobby: object[] = []) {
   for (const m of lobby) p.send(m);
   p.send(session === CEMETERY ? { t: 'play', map: CEMETERY, mode: 'zumbi' } : { t: 'join', session });
   const joined = await p.next('joined');
-  return { p, joined, id: joined.you };
+  return { b, p, joined, id: joined.you };
 }
-type In = Awaited<ReturnType<typeof enter>>;
+type In = Omit<Awaited<ReturnType<typeof enter>>, 'b'>;
 
 /** Respawns at `at` and keeps reporting that position (standing, on the ground). */
 async function stand(who: In, at: Vec3) {
@@ -470,6 +559,12 @@ describe('modo zumbi no servidor', () => {
     // The Arsenal can't change mid-match.
     a.p.send({ t: 'loadout', lo: { secundaria: 'pistola', ligadas: {} } });
     await expect(a.p.next('playerLoadout', (m) => m.id === a.id, 300)).rejects.toThrow();
+    // Leaving writes the zumbi stats on the profile, apart from the player-vs-player ones.
+    a.p.send({ t: 'leave' });
+    await sleep(300);
+    const profile = await a.b.req('GET', '/api/perfil');
+    expect(profile.body.totais.zumbi).toMatchObject({ abates: 1, passaro: 1, cabeca: 0, chefes: 0 });
+    expect(profile.body.totais.abates).toBe(0);
     a.p.close();
     await sleep(100);
   }, 40_000);
@@ -545,6 +640,12 @@ describe('modo zumbi no servidor', () => {
     expect(end.players.find((p) => p.id === a.id)).toMatchObject({ downs: 2 });
     const start = await a.p.next('roundStart', () => true, 10_000);
     expect(start.players.find((p) => p.id === a.id)).toMatchObject({ alive: false, zumbi: { money: ZOMBIE.dinheiroInicial, state: 'up' } });
+    // On the profiles: both were down when the match was lost, so each counts a death.
+    a.p.send({ t: 'leave' });
+    b.p.send({ t: 'leave' });
+    await sleep(300);
+    expect((await a.b.req('GET', '/api/perfil')).body.totais.zumbi).toMatchObject({ partidas: 1, vitorias: 0, quedas: 2, reanimacoes: 0, mortes: 1 });
+    expect((await b.b.req('GET', '/api/perfil')).body.totais.zumbi).toMatchObject({ partidas: 1, quedas: 1, reanimacoes: 1, mortes: 1 });
     a.p.close();
     b.p.close();
     await sleep(100);
@@ -680,7 +781,7 @@ describe('modo zumbi no servidor: progressão de armas, chefes e quem entra no m
     // The coffin's weapon: in its slot, with its own fixed upgrades, never the account's.
     const { item, lo } = await buyFromCoffin(a);
     expect(lo).toEqual(zombieLoadout({ ...startItems(), [itemSlot(item)]: item.id }));
-    expect(lo.ativas[item.arma]).toEqual(item.melhorias);
+    expect(lo.ativas[item.arma === 'faca' ? 'faca' : progOf(item.arma)]).toEqual(item.melhorias);
     expect(lo.ativas.granada).toEqual([]);
     // And its damage on the boss: that weapon with those upgrades, times its rarity.
     if (item.arma === 'faca') {
@@ -711,7 +812,7 @@ describe('modo zumbi no servidor: progressão de armas, chefes e quem entra no m
       // A blade has no rounds to lose: its flaw is always less damage.
       expect(got).toBe(item.arma === 'faca' ? 'dano' : flaw);
       // (the loadout lists every damaged weapon in hand: an earlier roll's may still be there in its own slot)
-      expect(lo.danificadas?.[item.arma]).toBe(got!);
+      expect(lo.danificadas?.[item.arma === 'faca' ? 'faca' : progOf(item.arma)]).toBe(got!);
       const mul = rarityMul(item.raridade) * (got === 'municao' ? 1 : ZOMBIE.caixa.danificada.dano);
       if (item.arma === 'faca') {
         a.p.send({ t: 'state', s: { p: close, yaw: 0, pitch: 0, f: FLAG.grounded } });

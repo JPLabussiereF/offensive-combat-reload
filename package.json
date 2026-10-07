@@ -21,7 +21,8 @@
     "admin": "bun tools/admin.ts",
     "offensive": "bun tools/offensive.ts",
     "test": "bun test",
-    "navmesh": "bun tools/bake-navmesh.ts"
+    "navmesh": "bun tools/bake-navmesh.ts",
+    "figurinhas": "bun tools/bake-figurinhas.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",
@@ -38,6 +39,7 @@
     "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",
     "@types/three": "^0.186.0",
+    "playwright-core": "^1.63.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.1"
   }

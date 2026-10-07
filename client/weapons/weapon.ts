@@ -1,7 +1,8 @@
 // Data-driven firearm logic (section 6/7): fire rate, magazine, reloads, four-state spread with bloom,
 // semi-deterministic recoil pattern, ADS and the sprint-out delay. Pure game logic, no rendering. One per gun
 // slot: each keeps its own magazine while the other is in hand. Its data is the gun with its upgrades
-// (shared/arsenal.ts gunStats).
+// (shared/arsenal.ts gunStats). Three trigger modes: automatic (hold), semi (a click, a shot) and burst (a click,
+// `rajada.tiros` shots, then a pause); a scattergun's shot (`bagos`) carries its pellets' spread.
 import type { GunStats } from '@shared/arsenal';
 
 export interface WeaponInput {
@@ -14,11 +15,27 @@ export interface WeaponInput {
   grounded: boolean;
   crouched: boolean;
   speed: number;
+  /** Hands busy (a knife swing, a dance, a grenade, drawing): a burst under way stops there. */
+  holdFire?: boolean;
+}
+
+/** One pellet of a scattergun's shot: how far off the shot's direction (radians) and around it (radians). */
+export interface Pellet {
+  theta: number;
+  phi: number;
+}
+
+/** `count` pellets spread uniformly over a cone of half-angle `cone` (radians) around the shot. */
+export function pelletSpread(count: number, cone: number, rand: () => number = Math.random): Pellet[] {
+  return Array.from({ length: count }, () => ({ theta: cone * Math.sqrt(rand()), phi: rand() * Math.PI * 2 }));
 }
 
 export interface WeaponHooks {
-  /** Called once per bullet with the spread offset (radians) to apply around the aim direction. */
-  shoot(spreadRad: number, shotIndex: number): void;
+  /**
+   * Called once per shot with the spread offset (radians) to apply around the aim direction. A scattergun's
+   * shot also brings its pellets, each one a ray of its own around where the shot goes (null: a single bullet).
+   */
+  shoot(spreadRad: number, shotIndex: number, pellets: Pellet[] | null): void;
   dryFire(): void;
   reloadStart(duration: number, empty: boolean): void;
   reloadEnd(): void;
@@ -48,6 +65,8 @@ export class Weapon {
   private sinceShot = 99;
   private shotIndex = 0;
   private semiLatch = false;
+  /** Shots left in the burst under way (burst mode). */
+  private burstLeft = 0;
 
   constructor(
     public data: GunStats,
@@ -67,6 +86,7 @@ export class Weapon {
       this.mag = Math.round((this.mag / this.data.pente) * d.pente);
       this.reserve = Math.round((this.reserve / this.data.reserva) * d.reserva);
       this.reloading = false;
+      this.burstLeft = 0;
     }
     this.data = d;
     this.mag = Math.min(this.mag, d.pente);
@@ -95,14 +115,22 @@ export class Weapon {
   /** Put away for the other gun: no reload carries on, no aim, no recoil left over when it comes back. */
   holster() {
     this.reloading = false;
+    this.burstLeft = 0;
     this.ads = 0;
     this.recoilPitch = this.recoilYaw = this.bloom = 0;
+  }
+
+  /** A full magazine at once, without touching the reserve (the baguette's passive). */
+  fillMag() {
+    this.mag = this.data.pente;
+    this.reloading = false;
   }
 
   refill() {
     this.mag = this.data.pente;
     this.reserve = this.data.reserva;
     this.reloading = false;
+    this.burstLeft = 0;
     this.recoilPitch = this.recoilYaw = this.bloom = 0;
   }
 
@@ -138,14 +166,25 @@ export class Weapon {
     if (!input.fireHeld) this.semiLatch = false;
     // Shots have priority: pulling the trigger ends the sprint, so only a sprint still active blocks it.
     const sprintBlocked = input.sprinting;
-    if (trigger && !sprintBlocked && !this.reloading) {
+    const interval = 60 / d.cadencia;
+    if (this.burstLeft > 0) {
+      // A burst under way ends by itself (letting go of the trigger doesn't stop it), unless shooting can't go on.
+      if (sprintBlocked || this.reloading || input.holdFire || this.mag <= 0) this.burstLeft = 0;
+      else this.fireBurst(input, interval);
+    } else if (trigger && !sprintBlocked && !this.reloading && !input.holdFire) {
       if (this.mag <= 0) {
         if (input.firePressed) {
           if (this.reserve > 0) this.startReload();
           else this.hooks.dryFire();
         }
+      } else if (d.modo === 'rajada' && d.rajada) {
+        // A click starts a burst once the pause after the last one is over; holding doesn't start another.
+        if (this.cooldown <= 0) {
+          this.burstLeft = d.rajada.tiros;
+          this.semiLatch = true;
+          this.fireBurst(input, interval);
+        }
       } else {
-        const interval = 60 / d.cadencia;
         let guard = 0;
         while (this.cooldown <= 0 && this.mag > 0 && guard++ < 4) {
           this.fireOne(input);
@@ -166,10 +205,28 @@ export class Weapon {
     this.recoilYaw *= recover;
   }
 
+  /** The burst's next shots, at the fire rate; after the last one, at least the burst's pause. */
+  private fireBurst(input: WeaponInput, interval: number) {
+    const pause = Math.max(interval, this.data.rajada?.pausa ?? 0);
+    let guard = 0;
+    while (this.cooldown <= 0 && this.burstLeft > 0 && this.mag > 0 && guard++ < 4) {
+      this.fireOne(input);
+      this.burstLeft--;
+      this.cooldown += this.burstLeft > 0 ? interval : pause;
+    }
+    // Out of rounds mid-burst: the rest of it is lost, the pause still applies.
+    if (this.burstLeft > 0 && this.mag <= 0) {
+      this.burstLeft = 0;
+      this.cooldown = Math.max(this.cooldown, pause);
+    }
+  }
+
   private fireOne(input: WeaponInput) {
     const d = this.data;
-    // The shot uses the aim before this shot's kick: the first bullet goes where the crosshair is.
-    this.hooks.shoot(this.spreadDeg(input) * DEG, this.shotIndex);
+    // The shot uses the aim before this shot's kick: the first bullet goes where the crosshair is. A scattergun's
+    // pellets spread in their own fixed cone around it.
+    const pellets = d.bagos && d.bagos > 1 ? pelletSpread(d.bagos, (d.cone ?? 0) * DEG) : null;
+    this.hooks.shoot(this.spreadDeg(input) * DEG, this.shotIndex, pellets);
     this.mag--;
     this.sinceShot = 0;
     this.bloom = Math.min(this.bloom + d.dispersao.porTiro, d.dispersao.noAr);

@@ -23,7 +23,7 @@ tags:
   - game
   - networking
   - protocol
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Remote Calls
@@ -54,7 +54,7 @@ Convenções:
 | `list` | — | sob demanda | — | `sessions {list}` |
 | `play` | `map`, `mode` | sob demanda | Exige `hello` antes. O mapa tem de existir, estar visível (nem oculto nem apagado) e aceitar o modo (`modeAllowsMap`), senão `error` ("Esse mapa não está disponível." / "Esse modo não é jogado nesse mapa."). Entra numa sala da versão atual do mapa nesse modo com vaga, ou abre uma (PF-6) | sai da sala atual e entra → `joined` (com `session.versao`) |
 | `create` | `name`, `map?`, `mode?` | sob demanda | Exige `hello` antes; `sanitizeName(name, 24)` ou "Sala de <nome>"; modo inválido → `mata-mata`; mapa inexistente, oculto ou onde o modo não é jogado → o primeiro mapa oficial do modo (zumbi: o cemitério; os outros modos: a rua) | sai da sala atual, cria e entra → `joined` |
-| `loadout` | `lo` (`ArsenalChoice`) | antes de `join`/`create` (a home sempre manda) | só fora de sessão; `equip` → `sanitizeChoice` com os níveis da conta | `progresso` (com a `escolha` guardada). A escolha vale para a próxima sessão em que entrar |
+| `loadout` | `lo` (`ArsenalChoice {primaria?, secundaria, faca?, ligadas, desligadas?}`) | antes de `join`/`create` (a home sempre manda) | só fora de sessão; `equip` → `sanitizeChoice` com o XP de cada progressão da conta (arma trancada volta à padrão do espaço: Rifle Padrão, pistola, faca de cozinha; sem `primaria`/`faca`/`desligadas`, cliente antigo, valem os padrões e nenhuma comum desligada) | `progresso` (com a `escolha` guardada). A escolha vale para a próxima sessão em que entrar |
 | `join` | `session` | sob demanda | Exige `hello`; sessão existe e não está cheia | `joined`, ou `error` ("Diga olá primeiro.", "Essa sessão não existe mais.", "Sessão lotada.") |
 | `leave` | — | sob demanda | — | `sessions {list}`; grava o progresso |
 | `ping` | `c` (relógio do cliente), `rtt?` | 1 Hz | `Number(c)` | `pong {c, s}` |
@@ -65,13 +65,13 @@ Convenções:
 |---|---|---|---|---|
 | `state` | `s: NetState` | **20 Hz** enquanto vivo | `p` Vec3 finito, `yaw/pitch/f` finitos; ignorado se morto; pitch limitado a ±1,6; `f` truncado a inteiro | Atualiza a posição usada nos `snap` e nas validações |
 | `ping` | `c`, `rtt?` | 1 Hz | `rtt` limitado a 0–9999 ms | `pong {c, s}`; `rtt` vira o `ping` do placar |
-| `shot` | `o`, `e` (Vec3) | por disparo | vivo, vetores finitos, intervalo ≥ 70 % do intervalo da cadência da arma em mãos (com as melhorias) | broadcast `shot {id, o, e}` (exceto o autor) — **cosmético** |
-| `hit` | `target`, `region`, `dist`, `w` (`GunId` da arma que atirou), `keep?` | por acerto | ver [[Anti Cheat]]: `w` em mãos ou guardada há < 1 s e no loadout, ambos vivos, região em `HIT_REGIONS`, máx. `ceil(cadência/60)+2` acertos/s, distância vs servidor | `damage` (+ `kill`) para todos |
+| `shot` | `o`, `e` (Vec3) | por disparo (um só para os 8 bagos da garrucha; um por grampo na rajada) | vivo, vetores finitos, intervalo ≥ 70 % do intervalo da cadência da arma em mãos (com as melhorias) | broadcast `shot {id, o, e}` (exceto o autor) — **cosmético** |
+| `hit` | `target`, `region`, `dist`, `w` (`GunId` da arma que atirou, um rifle antigo ou uma secundária com o próprio id), `keep?` | por acerto (na garrucha, um por bago que acerta) | ver [[Anti Cheat]]: `w` em mãos ou guardada há < 1 s e no loadout, ambos vivos, região em `HIT_REGIONS`, máx. `(ceil(cadência/60)+2) × bagos` acertos/s (`hitsPerSecond`; ×8 só na garrucha), distância vs servidor | `damage` (+ `kill`) para todos |
 | `swing` | — | por golpe | vivo | broadcast `swing {id}` (cosmético) |
-| `stab` | `target`, `behind` | por facada | ambos vivos; intervalo ≥ 75 % do `intervalo` da faca; distância horizontal ≤ `alcanceInvestida + 1,5 m` | `damage` (55 ou letal se a faca do nível for `letal`) |
+| `stab` | `target`, `behind` | por facada | ambos vivos; intervalo ≥ 75 % do `intervalo` da faca do jogador (`loadoutKnife`: a faca do loadout com as melhorias); distância horizontal ≤ `alcanceInvestida` dela `+ 1,5 m` | `damage` (55 ou letal se a faca do nível for `letal`) |
 | `grenade` | `id`, `p`, `v`, `fuse`, `impact?`, `mine?`, `duck?` | por lançamento | o modo tem granadas (não na corrida armada), vivo, campos finitos; id não repetido; máx. **4 granadas** e **3 minas** vivas; mina só se o nível da granada for do tipo `mina`; `fuse` limitado a `[0, pavio]` (ou `[0, tempoMaximoVoo]` se impacto) | broadcast `grenade {owner, ...}` (exceto o autor) |
 | `boom` | `id`, `p`, `hits[] {target, dist}`, `zs?[] {z, dist}` (zumbi) | por explosão | granada registrada; mina: `p` a ≤ 1,5 m da origem; impacto: dentro do alcance físico possível; pavio: não antes de `fuse − 0,5 s`; cada alvo: `dist` informada vs servidor ≤ 3 m e dentro de `raioDano + 3` | broadcast `boom` + `damage`/`kill` |
-| `loadout` | `lo` (`ArsenalChoice {secundaria, ligadas}`) | — (o cliente não manda mais em partida) | **recusado** em modos com `lockedLoadout` (todos os online): nada muda | só `progresso` para o autor, com a escolha que ficou ([[ADR - Equipamento travado no mata-mata]]) |
+| `loadout` | `lo` (`ArsenalChoice {primaria?, secundaria, faca?, ligadas, desligadas?}`) | — (o cliente não manda mais em partida) | **recusado** em modos com `lockedLoadout` (todos os online): nada muda | só `progresso` para o autor, com a escolha que ficou ([[ADR - Equipamento travado no mata-mata]]) |
 | `selfDamage` | `amount`, `cause` (`fall`/`void`/`dog`) | por evento | vivo, `amount > 0`, limitado a `LETHAL_DAMAGE` | `damage` no próprio jogador |
 | `taunt` | `corpse` | ao começar a dançar | corpo existe, não humilhado, livre, dentro da janela, não é o próprio, distância ≤ raio + 1,5 m | broadcast `taunt {id, corpse}` |
 | `tauntEnd` | `corpse`, `done` | ao parar/terminar | dança ativa nesse corpo; `done` só vale se durou ≥ duração − 400 ms | broadcast `tauntEnd {..., awards, players}` |
@@ -102,11 +102,11 @@ Convenções:
 | `scores` | `players: PlayerInfo[]` | **1 Hz** | sala |
 | `shot`, `swing` | `id`, (`o`, `e`) | retransmissão | sala, exceto autor |
 | `damage` | `target`, `attacker`, `amount`, `health`, `from` | dano aplicado | sala |
-| `kill` | `victim`, `attacker`, `kind`, `arma?` (a arma que matou e recebe os pontos), `awards`, `corpse`, `players` | morte | sala |
+| `kill` | `victim`, `attacker`, `kind`, `arma?` (`WeaponId`: o rifle ou a secundária que atirou — inclusive `grampeador`, `revolver`, `furadeira`, `garrucha`, `pistolao` —, `faca` numa facada, `granada`; os pontos vão para a progressão dela, `progOf`), `awards`, `corpse`, `players` | morte | sala; o nome da faca no kill feed sai do loadout de quem matou |
 | `spawned` | `id`, `p`, `yaw` | respawn aceito | sala |
 | `grenade`, `boom` | `owner`, `id`, ... | lançamento / explosão | sala, exceto autor |
 | `taunt`, `tauntEnd` | `id`, `corpse`, (`done`, `awards`, `players`) | humilhação | sala |
-| `playerLoadout` | `id`, `lo` (`Loadout {primaria, secundaria, ativas, soFaca?}`) | o modo trocou as armas de alguém no meio da partida (corrida armada: outro degrau, ou a rodada nova) | sala, **inclusive o próprio jogador** (são as armas que o servidor valida) |
+| `playerLoadout` | `id`, `lo` (`Loadout {primaria, secundaria, faca, ativas, soFaca?}`) | o modo trocou as armas de alguém no meio da partida (corrida armada: outro degrau, ou a rodada nova) | sala, **inclusive o próprio jogador** (são as armas que o servidor valida) |
 | `roundEnd` | `mode`, `winner`, `name`, `restartAt` (hora do servidor) | fim de rodada (corrida armada: abate com o sabre) | sala |
 | `roundStart` | `players: PlayerInfo[]` | rodada nova: todos mortos com respawn liberado, placar zerado | sala |
 | `prop` | `id`, `by` | gag do mapa | sala, exceto autor |
@@ -115,11 +115,13 @@ Convenções:
 | `chatRefused` | `reason: 'muted' \| 'slow'` | fala recusada | conexão |
 | `pong` | `c`, `s` | resposta ao `ping` | conexão |
 | `progresso` | `armas` (`{xp, nivel}` por arma), `escolha` (`ArsenalChoice`), `conta`, `subiu?` | `hello`, ao mudar a escolha, e sempre que o progresso muda | conexão |
+| `figurinha` | `id` (da figurinha), `nivel` (1 Comum .. 4 Dourada) | quando o acabamento de uma figurinha do álbum sobe (conferido 1×/s no `tick` da sessão, `stickerUps`) | conexão (só o dono) |
 | `zsnap` | `time`, `z: ZNet[]` (`[id, tipo, x, y, z, yaw, flags]`), `left`, `boss?: [id, vida, máx]` | **20 Hz** logo depois do `snap`, durante a onda ou com zumbis vivos | sala |
 | `zwave` | `phase` (`waiting`/`countdown`/`wave`/`break`/`over`), `wave`, `until`, `total`, `boss?` | a partida muda de fase | sala |
 | `zdie` | `id`, `by`, `how`, `award?`, `money?` | zumbi morreu | sala |
 | `zfx` | `fx` (`slam`/`summon`/`scream`/`blink`/`charge`/`pound`/`spit`/`boom`/`intro`/`rise`), `id?`, `at`, `to?`, `r?`, `t0`, `t1` | golpe telegrafado ou efeito (o dano cai em `t1`); `rise`: um zumbi vai sair do chão em `at` em `t1` (0,9 s depois; um por surgimento) | sala |
 | `zhitfx` | `id`, `fx`, `v?` (empurrão), `slow?`, `until?` | um golpe empurrou ou deixou alguém lento | sala (o cliente do jogador aplica) |
+| `zbleed` | `id`, `until` (0: parou) | alguém subiu nos espinhos da grade ou da sebe e sangra até `until` | sala (o cliente do jogador mostra "Sangrando") |
 | `zbox` | `state` (`idle`/`rolling`/`offer`), `by`, `item`, `flaw` (`municao`/`dano`/`ambos` ou null), `until`, `money?` | o caixão mudou (o defeito só aparece na oferta) | sala |
 | `zbar` | `i`, `fx` (`build`/`nail`/`hit`/`break`/`reset`), `built`, `boards`, `hp`, `by?`, `award?`, `money?` | uma barricada mudou: erguida, tábua pregada, golpe da horda (~1 por golpe), arrombada, ou desfeita numa partida nova | sala |
 | `zbarwork` | `i`, `by`, `until` (0: parou) | alguém começou/parou de trabalhar numa barricada (próxima tábua em `until`) | sala |
@@ -127,7 +129,7 @@ Convenções:
 | `zdown`, `zrevive`, `zup` | `id`, (`until`), (`by`, `money?`) | caiu / reanimando / levantou | sala |
 | `zend` | `won`, `wave`, `secs`, `players: ZSummaryRow[]`, `restartAt` | fim da partida zumbi (resumo) | sala |
 
-`PlayerInfo` ganhou `ladder?: {step, kills}` (corrida armada) e `zumbi?: {money, kills, downs, revives, state, items}` (zumbi; `items.danificadas` diz quais estão danificadas); `SessionInfo` ganhou `mode`; `KillKind` ganhou `'zombie'` (sangrou caído); `Loadout` ganhou `danificadas?` (por arma: `municao`/`dano`/`ambos`, mantido por `sanitizeLoadout`). Ver [[Gun Game]] e [[Zombie]].
+`PlayerInfo` ganhou `fig?: [id, nivel]` e `tit?` (a figurinha do álbum em destaque, com o acabamento de agora, e o título; [[Achievements]]), `ladder?: {step, kills}` (corrida armada) e `zumbi?: {money, kills, downs, revives, state, items}` (zumbi; `items.danificadas` diz quais estão danificadas); `SessionInfo` ganhou `mode`; `KillKind` ganhou `'zombie'` (sangrou caído); `Loadout` ganhou `danificadas?` (por arma: `municao`/`dano`/`ambos`, mantido por `sanitizeLoadout`). Ver [[Gun Game]] e [[Zombie]].
 
 `KillKind`: `gun`, `head`, `groin`, `knife`, `grenade`, `fall`, `void`, `explosion`, `dog`. `AwardLabel`: `kill`, `headshot`, `groin`, `knife`, `backstab`, `longShot`, `humiliation`.
 

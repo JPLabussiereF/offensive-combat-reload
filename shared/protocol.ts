@@ -3,7 +3,7 @@
 // the game code.
 import type { HitRegion } from './weapons';
 import { HUMILIATION, type PotionKind } from './constants';
-import type { ArsenalChoice, GunId, ProgWeapon } from './progression';
+import type { ArsenalChoice, GunId, ProgWeapon, WeaponId } from './progression';
 import type { Loadout } from './arsenal';
 import type { Appearance } from './appearance';
 import type { MapId } from './maps';
@@ -101,6 +101,9 @@ export interface PlayerInfo {
   ladder?: LadderPos;
   /** Zumbi: the match's money, zombie kills, times downed and revives given, whether they're standing, what they carry. */
   zumbi?: ZombiePlayer;
+  /** The album sticker the player shows (its id and the targets it reached) and the title they wear (a page id). */
+  fig?: [id: string, nivel: number];
+  tit?: string;
 }
 
 /** A player in a zumbi match. */
@@ -173,7 +176,7 @@ export interface ZSummaryRow {
 }
 
 /** `zombie`: bled out after going down in the zumbi mode. */
-export type KillKind = 'gun' | 'head' | 'groin' | 'knife' | 'grenade' | 'fall' | 'void' | 'explosion' | 'dog' | 'zombie';
+export type KillKind = 'gun' | 'head' | 'groin' | 'knife' | 'grenade' | 'fall' | 'void' | 'explosion' | 'dog' | 'zombie' | 'thorns';
 export type AwardLabel = 'kill' | 'headshot' | 'groin' | 'knife' | 'backstab' | 'longShot' | 'humiliation';
 export interface Award {
   label: AwardLabel;
@@ -283,7 +286,7 @@ export type ServerMsg =
   | { t: 'swing'; id: number }
   | { t: 'damage'; target: number; attacker: number | null; amount: number; health: number; from: Vec3 | null }
   /** arma: the weapon that got the kill (and its points), when it was one. */
-  | { t: 'kill'; victim: number; attacker: number | null; kind: KillKind; arma?: ProgWeapon; awards: Award[]; corpse: CorpseInfo; players: PlayerInfo[] }
+  | { t: 'kill'; victim: number; attacker: number | null; kind: KillKind; /** The gun of a shot (an old rifle too), 'faca' for a stab, 'granada'. */ arma?: WeaponId; awards: Award[]; corpse: CorpseInfo; players: PlayerInfo[] }
   | { t: 'spawned'; id: number; p: Vec3; yaw: number }
   | { t: 'grenade'; owner: number; id: number; p: Vec3; v: Vec3; fuse: number; impact?: boolean; mine?: boolean; duck?: boolean }
   | { t: 'boom'; owner: number; id: number; p: Vec3 }
@@ -338,6 +341,8 @@ export type ServerMsg =
   | { t: 'zbarwork'; i: number; by: number; until: number }
   /** Zumbi: players' money changed (assists, the wave bonus, a boss's reward). */
   | { t: 'zmoney'; m: [id: number, money: number][]; why: 'assist' | 'wave' | 'boss' }
+  /** A player climbed the thorns (the wall's bars, the hedge) and bleeds until `until` (server ms; 0: stopped). */
+  | { t: 'zbleed'; id: number; until: number }
   /** Zumbi: a player went down; they bleed out at `until` unless someone revives them. */
   | { t: 'zdown'; id: number; until: number }
   /** Zumbi: `by` is reviving `id` (done at `until`; 0: they let go). */
@@ -347,7 +352,9 @@ export type ServerMsg =
   /** Zumbi: the match is over (won: the last wave survived); a new one starts at `restartAt`. */
   | { t: 'zend'; won: boolean; wave: number; secs: number; players: ZSummaryRow[]; restartAt: number }
   /** The account's progress changed (points only come from the server online); `escolha` is the Arsenal choice it kept. */
-  | { t: 'progresso'; armas: Record<ProgWeapon, { xp: number; nivel: number }>; escolha: ArsenalChoice; conta: { xp: number; nivel: number }; subiu?: { tipo: ProgWeapon | 'conta'; nivel: number } };
+  | { t: 'progresso'; armas: Record<ProgWeapon, { xp: number; nivel: number }>; escolha: ArsenalChoice; conta: { xp: number; nivel: number }; subiu?: { tipo: ProgWeapon | 'conta'; nivel: number } }
+  /** A sticker of the album went up to finish `nivel` (1 common .. 4 gold); only to its owner. */
+  | { t: 'figurinha'; id: string; nivel: number };
 
 /** WebSocket close codes sent by the server. */
 export const CLOSE = {

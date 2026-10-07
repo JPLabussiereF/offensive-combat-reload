@@ -10,6 +10,7 @@ import type { SpatialSfx } from '../../audio/spatial';
 import { railing, type Rect } from '../oriental';
 import { canvasTexture, deadTree, epitaph, gateArch, hedge, ironFence, signBoard, SPOOKY as C, staticPumpkin, tombstone, type TombKind } from '../halloween';
 import { at, P, scaleOf, V, yawOf, type Adapter, type BuildCtx } from './types';
+import { hedgeThorns } from './cemetery';
 
 export interface HauntedSfx extends SpatialSfx {
   ghostMoan(): void;
@@ -125,8 +126,10 @@ export const haunted: Record<string, Adapter> = {
   },
 
   sebe(c, p) {
-    const q = P<{ eixo: 'x' | 'z'; fixo: number; de: number; ate: number; vaos: [number, number][]; altura?: number; espessura?: number }>(p);
+    const q = P<{ eixo: 'x' | 'z'; fixo: number; de: number; ate: number; vaos: [number, number][]; altura?: number; espessura?: number; espinhos?: boolean }>(p);
     hedge(c.b, q.eixo, q.fixo, q.de, q.ate, q.vaos, q.altura, q.espessura);
+    // The zumbi cemetery's hedge: thorny (climbing it makes you bleed, ZOMBIE.espinhos).
+    if (q.espinhos) hedgeThorns(c.b, q.eixo, q.fixo, q.de, q.ate, q.vaos, q.altura, q.espessura);
   },
 
   aboboraEstatica(c, p) {

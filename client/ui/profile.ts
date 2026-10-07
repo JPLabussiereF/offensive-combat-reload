@@ -4,6 +4,8 @@ import { NAME_MAX, type ProfileResponse } from '@shared/account';
 import { api, fetchProfile } from '../net/api';
 import { errorText, formatDate } from './auth';
 import { showCustomizer } from './customize';
+import { album, sourcesFromProfile } from '@shared/achievements';
+import { stickerBadge, titleText } from './album';
 import { t, type StringKey } from './strings';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -42,6 +44,26 @@ export async function showProfile(root: HTMLElement, o: Options) {
     ['statTime', duration(p.totais.segundosJogados)],
     ['statMatches', String(p.totais.participacoes)],
   ];
+  const z = p.totais.zumbi;
+  const zstats: [StringKey, string][] = [
+    ['zstatMatches', String(z.partidas)],
+    ['zstatWins', String(z.vitorias)],
+    ['zstatBestWave', String(z.melhorOnda)],
+    ['zstatWaves', String(z.ondas)],
+    ['zstatKills', String(z.abates)],
+    ['statHead', String(z.cabeca)],
+    ['statGroin', String(z.passaro)],
+    ['statKnife', String(z.facadas)],
+    ['statGrenade', String(z.granadas)],
+    ['zboss_coveiro', String(z.coveiro)],
+    ['zboss_noiva', String(z.noiva)],
+    ['zboss_prefeito', String(z.prefeito)],
+    ['zstatDowns', String(z.quedas)],
+    ['zstatRevives', String(z.reanimacoes)],
+    ['statDeaths', String(z.mortes)],
+    ['zstatCoffin', String(z.caixao)],
+  ];
+  const grid = (list: [StringKey, string][]) => `<div class="stat-grid">${list.map(([k, v]) => `<div><span>${t(k)}</span><b>${v}</b></div>`).join('')}</div>`;
   const rows = p.participacoes
     .map(
       (x) =>
@@ -49,6 +71,10 @@ export async function showProfile(root: HTMLElement, o: Options) {
     )
     .join('');
   const linked = p.provedores.includes('discord');
+  // The album's showcase, as the others see it: the sticker with its finish now, and the title.
+  const shown = p.destaque ? album(sourcesFromProfile(p), p.album).find((s) => s.sticker.id === p.destaque) : undefined;
+  const badge = shown ? stickerBadge([shown.sticker.id, shown.tier]) : '';
+  const title = titleText(p.titulo);
   const pct = Math.round((p.xpNoNivel / p.xpProximo) * 100);
 
   root.innerHTML = `
@@ -57,6 +83,7 @@ export async function showProfile(root: HTMLElement, o: Options) {
         <b class="profile-tag">${esc(p.tag)}</b>
         <span class="level-badge">${t('levelShort', { level: p.nivel })}</span>
       </div>
+      ${badge || title ? `<div class="profile-showcase">${badge}${title ? `<span class="profile-title">${esc(title)}</span>` : ''}</div>` : ''}
       <div class="xp-bar" title="${p.xpNoNivel} / ${p.xpProximo} XP"><div style="width:${pct}%"></div></div>
       <p class="hint">${p.xpNoNivel} / ${p.xpProximo} XP</p>
       ${p.exclusaoEm ? `<p class="profile-warn">${t('deletionPending', { date: formatDate(p.exclusaoEm) })}</p><button id="pf-cancel-del" class="small-btn">${t('cancelDeletion')}</button>` : ''}
@@ -66,7 +93,8 @@ export async function showProfile(root: HTMLElement, o: Options) {
       </div>
       <button id="pf-customize" class="small-btn wide-btn">${t('customize')}</button>
       <h3>${t('statsTitle')}</h3>
-      <div class="stat-grid">${stats.map(([k, v]) => `<div><span>${t(k)}</span><b>${v}</b></div>`).join('')}</div>
+      ${grid(stats)}
+      ${z.partidas || z.abates ? `<h3>${t('zstatsTitle')}</h3>${grid(zstats)}` : ''}
       <h3>${t('recentTitle')}</h3>
       ${rows ? `<table class="part-table"><thead><tr><th></th><th></th><th>${t('statKills')}</th><th>${t('statDeaths')}</th><th>${t('points')}</th><th>XP</th></tr></thead><tbody>${rows}</tbody></table>` : `<p class="hint">${t('noParticipations')}</p>`}
       <h3>${t('changeName')}</h3>

@@ -1,6 +1,7 @@
 {
   "id": "faca",
   "nome": "Faca",
+  "icone": "🔪",
   "categoria": "corpo",
   "slot": "corpo",
   "letal": true,
@@ -10,5 +11,8 @@
   "duracao": 0.45,
   "impacto": 0.14,
   "intervalo": 0.6,
-  "velocidadeInvestida": 14
+  "velocidadeInvestida": 14,
+  "passiva": {
+    "id": "discreta"
+  }
 }

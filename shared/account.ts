@@ -60,6 +60,28 @@ export interface Totals {
   opressoes: number;
   segundosJogados: number;
   participacoes: number;
+  /** Zumbi mode, counted apart: zombies aren't players, co-op deaths aren't a player's kill. */
+  zumbi: ZombieTotals;
+}
+
+export interface ZombieTotals {
+  partidas: number;
+  vitorias: number;
+  melhorOnda: number;
+  ondas: number;
+  abates: number;
+  cabeca: number;
+  passaro: number;
+  facadas: number;
+  granadas: number;
+  chefes: number;
+  coveiro: number;
+  noiva: number;
+  prefeito: number;
+  quedas: number;
+  reanimacoes: number;
+  mortes: number;
+  caixao: number;
 }
 
 /** GET /api/perfil */
@@ -77,6 +99,11 @@ export interface ProfileResponse {
   /** The Arsenal choice (secondary gun, optional upgrades turned on), already checked against the levels. */
   arsenal: ArsenalChoice;
   totais: Totals;
+  /** The sticker album's own counters (shared/achievements.ts), by key; the rest of the album reads `totais`. */
+  album: Record<string, number>;
+  /** The sticker the player shows to the others (id) and the title they wear (a page id); null: none. */
+  destaque: string | null;
+  titulo: string | null;
   participacoes: Participation[];
   /** When the name can be changed again (ISO date), null = now. */
   nomeLiberaEm: string | null;
@@ -102,6 +129,7 @@ export type ApiErrorCode =
   | 'discord_indisponivel'
   | 'discord_ja_vinculado'
   | 'nivel_bloqueado'
+  | 'figurinha_bloqueada'
   | 'origem_invalida'
   | 'nao_encontrado'
   | 'json_invalido'

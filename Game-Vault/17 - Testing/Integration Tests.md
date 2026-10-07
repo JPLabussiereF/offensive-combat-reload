@@ -16,6 +16,7 @@ source_paths:
   - server/tests/zombies.test.ts
   - server/tests/modes.test.ts
   - server/tests/progression-modes.test.ts
+  - server/tests/knifePassives.test.ts
   - server/tests/zombieBarricades.test.ts
   - tools/bake-navmesh.ts
   - server/app.ts
@@ -24,7 +25,7 @@ source_paths:
 tags:
   - testes
   - integracao
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Integration Tests
@@ -37,7 +38,7 @@ Os testes de servidor sobem um **servidor de jogo real** (`startServer` de `serv
 | --- | --- |
 | `startTestServer()` | `startServer({ port: 0, host: '127.0.0.1', databaseUrl, redisUrl, jobs: false })` — um por arquivo (`beforeAll`), fechado no `afterAll`. Jobs desligados; testes chamam `anonymizeExpired` diretamente quando precisam. |
 | `Browser` | "Navegador mínimo": guarda cookies (pote de cookies a partir de `Set-Cookie`), manda `Origin` (o próprio site por padrão, ou outro para simular ataque) e um **IP próprio** em `X-Forwarded-For` (`uniqueIp()`, faixa `10.9.x.x`) para os limites por IP não vazarem entre testes. Atalhos `register()` e `ticket()`. |
-| `Player` | Conexão WebSocket que grava todas as mensagens; `next(tipo, filtro, timeout)` espera/consome uma mensagem; `waitClose()` devolve o código de fechamento. Uma mensagem atende **um** só `next` (o mais antigo que a quer), um `next` que estourou o tempo sai da fila (antes, ele ainda consumia mensagens e o `splice(-1)` apagava outra da fila), e a entrega acontece **na tarefa seguinte**, fora do evento de mensagem: o cliente de WebSocket do Bun corrompia os quadros (o servidor fechava com 1002, "control frame is fragmented") quando um teste enviava de dentro do evento enquanto os `zsnap` do modo zumbi chegavam. |
+| `Player` | Conexão WebSocket que grava todas as mensagens; `next(tipo, filtro, timeout)` espera/consome uma mensagem (ao estourar o tempo, o erro diz quanto esperou e os tipos das últimas mensagens que chegaram); `waitClose()` devolve o código de fechamento. Uma mensagem atende **um** só `next` (o mais antigo que a quer), um `next` que estourou o tempo sai da fila (antes, ele ainda consumia mensagens e o `splice(-1)` apagava outra da fila), e a entrega acontece **na tarefa seguinte**, fora do evento de mensagem: o cliente de WebSocket do Bun corrompia os quadros (o servidor fechava com 1002, "control frame is fragmented") quando um teste enviava de dentro do evento enquanto os `zsnap` do modo zumbi chegavam. |
 | `Player.refusal()` | Envia o pedido de *upgrade* manualmente via `fetch` para ler o **status HTTP** da recusa (um WebSocket só veria o código 1002). |
 | `uniqueEmail()` | E-mails únicos por execução. |
 | `outbox` (`server/email.ts`) | Sem SMTP, os e-mails ficam em memória — os testes leem o link de recuperação dali. |
@@ -57,7 +58,7 @@ Como o servidor confia em `X-Forwarded-For` só vindo de endereço privado, e os
 - Validação de e-mail, senha e nome; e-mail repetido (maiúsculas) → `email_em_uso`.
 - Sair revoga a sessão (cópia antiga do cookie não vale); cookie forjado recusado; pedido de outro site → `403 origem_invalida` (inclusive sem `Origin`).
 - Recuperação de senha e limite de 3 e-mails/hora — ver [[Scenario - Login, bloqueio e recuperação de senha]].
-- Perfil: número `#1234` não se repete para o mesmo nome; primeira troca de nome livre, segunda antes de 7 dias → `cooldown_nome`; `PATCH /api/perfil {arsenal}` com melhoria bloqueada → `nivel_bloqueado`, e a secundária escolhida (`smg`) é guardada e devolvida (`armas.smg` = `{xp: 0, nivel: 1}`).
+- Perfil: número `#1234` não se repete para o mesmo nome; primeira troca de nome livre, segunda antes de 7 dias → `cooldown_nome`; `PATCH /api/perfil {arsenal}` com melhoria bloqueada → `nivel_bloqueado`, e a secundária escolhida (`smg`) é guardada e devolvida (`armas.smg` = `{xp: 0, nivel: 1}`); um rifle ou uma faca antigos trancados → `nivel_bloqueado`, e com os pontos ficam salvos (`primaria: 'rifleOuro'`, `faca: 'sabre'`); uma escolha antiga com o sabre ligado como forma devolve a faca de cozinha com 6.000 pontos de faca e o sabre com 9.000.
 - Exclusão de conta — ver [[Scenario - Exclusão de conta e anonimização]].
 
 ### `game.test.ts` — conexão de jogo
@@ -130,16 +131,32 @@ Motor com relógio falso (`ZombieMatch` sobre a navmesh assada do cemitério), s
 
 ### `modes.test.ts` — modos online e progressão de armas
 
-- **Regras puras**: a escada da corrida armada (`ladderProblems`, sobe com 3 abates da arma do degrau, a facada desce, só o sabre vence) e `MODE_RULES` de todo modo.
+- **Regras puras**: a escada da corrida armada (`ladderProblems`, sobe com 3 abates da arma do degrau ou da faca — a facada conta como um abate em todo degrau e, no penúltimo, leva ao sabre sem vencer —, a facada tira um abate da vítima e só volta de arma sem abates no degrau, só o sabre vence) e `MODE_RULES` de todo modo.
 - **Mata-mata**: o Arsenal escolhido no saguão vale e a troca no meio é recusada; subir de nível não muda a arma na mão (vale na próxima sessão). Com uma **conta veterana**: o dano do rifle é o dele com o silenciador ligado (mais fraco a 30 m que o simples), a cadência aceita é a da pistola com o gatilho (11 acertos por segundo em vez de 9), G planta mina (a melhoria ligada) e o abate de pistola dá os pontos à pistola e 25 XP à conta. Um **cliente ganancioso** (secundária inexistente, opcionais não liberadas, um `Loadout` inteiro com o sabre) fica com a escolha limpa; acertos de armas fora do loadout são ignorados e a mina sem a melhoria vira granada comum.
-- **Corrida armada**: primeiro degrau para todos, sem granadas, subir/descer, vitória com o sabre e nova rodada. Com uma **conta no máximo** (silenciador, sabre e mina ligados): entra no primeiro degrau; o dano é o da arma do degrau com as melhorias do degrau; ao subir, tiros da arma anterior valem por 1 s com os atributos dela e a arma nova vale com os dela; nenhuma arma ganha pontos (nem no banco depois de sair) e a conta ganha 25 XP por abate.
+- **Rifles e facas antigos no mata-mata**: o servidor valida o acerto com os atributos do rifle escolhido (o da Tia tira 28 no peito a 10 m; um acerto "do Rifle Padrão" que não está na mão é ignorado), os outros recebem `primaria` e `faca` no loadout, o kill feed traz `rifleTia` e os pontos vão para o rifle; a facada vale até o alcance da investida da faca de cada um (a 5 m, com o Tênis: a baguete alcança, o macarrão não).
+- **Corrida armada**: primeiro degrau para todos, sem granadas, subir/descer (a facada derruba a vítima um abate e dá um ao atacante), três facadas sobem um degrau com a arma nova na hora, vitória com o sabre e nova rodada. Com uma **conta no máximo** (silenciador, sabre e mina ligados): entra no primeiro degrau; o dano é o da arma do degrau com as melhorias do degrau; ao subir, tiros da arma anterior valem por 1 s com os atributos dela e a arma nova vale com os dela; nenhuma arma ganha pontos (nem no banco depois de sair) e a conta ganha 25 XP por abate.
+
+### `secondaries.test.ts` — o limite de bagos da garrucha
+
+- Uma conta com 7.000 pontos de pistola leva a garrucha com o Gatilho desligado (300/min): o servidor aceita os 8 bagos de cada tiro como acertos próprios, até `(ceil(300/60) + 2) × 8` = 56 num segundo (o limite de uma bala, 7, cortaria até um disparo), e recusa o seguinte. A parte pura do arquivo (ficha, TTK, tiro único na cabeça) está em [[Unit Tests]].
+
+### `knifePassives.test.ts` — passivas das facas no servidor
+
+Cada caso numa sala nova de mata-mata, com contas que têm os pontos de faca para escolher qualquer faca ([[ADR - Passivas das facas e Mão Leve]]):
+
+- a faca escolhida chega no equipamento;
+- **Colo de Vó:** depois de levar dois tiros, o dono da colher esfaqueia alguém e o `snap` seguinte traz a vida +50 (até o máximo);
+- **Tapa Gelado:** pelas costas com o peixe, o prêmio `backstab` vale 100; com a faca de cozinha, 50;
+- **Boia:** com o macarrão, um `selfDamage` de queda não gera `damage` (a mordida do cachorro gera); com a faca de cozinha, a queda machuca;
+- **Vuuum:** dois `stab` do mesmo golpe do sabre matam os dois; com a faca de cozinha, o segundo é recusado até passar o intervalo;
+- um golpe do sabre 300 ms depois do primeiro já é outro golpe e espera o intervalo.
 
 ### `progression-modes.test.ts` — matriz progressão × modos
 
-Sem rede nem banco: uma `Session` real (com os ganchos reais de `server/modes.ts`) sobre sockets falsos e relógio falso, tudo síncrono (~0,3 s). Para **todo modo de `GAME_MODE_IDS`** (um modo novo entra sozinho) × contas com cada arma de `PRIMARIES`/`SECONDARIES` em cada nível, com as opcionais desligadas, cada uma ligada e todas ligadas (mais faca, granada, conta nova, conta no máximo e um cliente pedindo o que não tem):
+Sem rede nem banco: uma `Session` real (com os ganchos reais de `server/modes.ts`) sobre sockets falsos e relógio falso, tudo síncrono (~0,3 s). Para **todo modo de `GAME_MODE_IDS`** (um modo novo entra sozinho) × contas com cada arma de `PRIMARIES` (os sete rifles)/`SECONDARIES` em cada nível (com pontos para liberá-la), com as opcionais desligadas, cada uma ligada e todas ligadas (mais faca, granada, conta nova, conta no máximo e um cliente pedindo o que não tem):
 
 - o equipamento de entrada é válido (só ids conhecidos, `slotStats`/`meleeStats`/`grenadeStats` finitos e positivos, dano positivo em toda região e distância) e segue `MODE_RULES.weapons`: `'arsenal'` dá a escolha da conta nos níveis dela (só melhorias liberadas, opcionais só se pedidas, uma por grupo, comuns todas ligadas); `'mode'` ignora a conta (o mesmo equipamento para todas);
-- `lockedLoadout`: trocar o Arsenal na partida é recusado; `grenades`: a granada chega aos outros só no modo com granadas, e a mina só com a melhoria; `weaponXp`: abates com cada arma de fogo carregada e com a faca dão os pontos à arma só no modo que diz isso (a conta ganha 25 XP sempre), e em modo `coop` não há dano entre jogadores;
+- `lockedLoadout`: trocar o Arsenal na partida é recusado; `grenades`: a granada chega aos outros só no modo com granadas, e a mina só com a melhoria; `weaponXp`: abates com cada arma de fogo carregada e com a faca dão os pontos à progressão da arma (`progOf`; `kill.arma` é a arma na mão) só no modo que diz isso (a conta ganha 25 XP sempre), e em modo `coop` não há dano entre jogadores;
 - regras coerentes: modo com armas próprias nunca dá XP de arma e precisa registrar no teste tudo o que entrega no meio da partida (degraus da escada, toda combinação de itens do caixão, **inclusive danificados de todo jeito que cada item pode vir**: 2.475 equipamentos), e tudo isso é válido — o defeito atravessa a rede intacto e a arma que o cliente monta com menos munição continua válida; toda combinação de melhorias de toda arma dá atributos válidos.
 
 ### `appearance.test.ts` — blocos "perfil" e "no online"
@@ -154,6 +171,6 @@ Sem rede nem banco: uma `Session` real (com os ganchos reais de `server/modes.ts
 ## Código relacionado
 
 - `server/tests/helpers.ts`, `server/tests/preload.ts`, `server/tests/env.ts`
-- `server/tests/auth.test.ts`, `server/tests/game.test.ts`, `server/tests/appearance.test.ts`, `server/tests/modes.test.ts`, `server/tests/zombies.test.ts`, `server/tests/progression-modes.test.ts`
+- `server/tests/auth.test.ts`, `server/tests/game.test.ts`, `server/tests/appearance.test.ts`, `server/tests/modes.test.ts`, `server/tests/zombies.test.ts`, `server/tests/progression-modes.test.ts`, `server/tests/secondaries.test.ts`, `server/tests/knifePassives.test.ts`, `server/tests/zombieBarricades.test.ts`, `server/tests/maps.test.ts`, `server/tests/management.test.ts`, `server/tests/sessions.test.ts`
 
 Ver também: [[Testing Overview]], [[Authentication]], [[APIs]].

@@ -5,6 +5,7 @@ status: documented
 area: audio
 source_paths:
   - client/audio/sfx.ts
+  - client/audio/gunVoices.ts
   - client/main.ts
   - client/ai/bots.ts
   - client/world/gameMap.ts
@@ -25,7 +26,7 @@ tags:
   - game
   - audio
   - sfx
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # SFX
@@ -47,17 +48,17 @@ O comentário do arquivo diz que cada função "mapeia para uma futura entrada d
 
 | Método | Som | Disparado por |
 | --- | --- | --- |
-| `gunshot(volume, voz)` | 3 camadas: estalo (ruído passa-alta), corpo (ruído passa-baixa + seno 150→45 Hz) e cauda (passa-banda). ±5% de altura aleatória. Cada arma tem uma voz (`GunVoice`): `rifle` (estampido cheio), `pistola` (mais aguda e curta), `smg` (estalo leve e rápido) e `silenciado` (um "pff" abafado, para o silenciador). | Tiro do jogador (na cabeça); tiros de outros e de bots via `at(muzzle, 'gun')`. Um tiro silenciado de outro jogador toca como `step` (ouvido até ~34 m) e não desenha traçante. |
+| `gunshot(volume, voz)` | 3 camadas: estalo (ruído passa-alta), corpo (ruído passa-baixa + seno 150→45 Hz) e cauda (passa-banda). ±5% de altura aleatória. Cada arma tem uma voz (`GunVoice`; parâmetros em `SHOT_VOICES`, `client/audio/gunVoices.ts`: altura, duração do corpo, grave e uma camada extra): `rifle` (estampido cheio; os rifles antigos usam a dele), `pistola` (mais aguda e curta), `smg` (estalo leve e rápido), `grampeador` (**"tec" metálico** de grampo e a mola voltando), `revolver` (**estalo longo e grave** rolando nas paredes), `furadeira` (**zumbido do motor** em dente de serra sob cada tiro), `garrucha` (**POW grave** e largo de pólvora), `pistolao` (**o mais grave de todos**, um estrondo com cauda longa) e `silenciado` (um "pff" abafado, para o silenciador). | Tiro do jogador (na cabeça); tiros de outros e de bots via `at(muzzle, 'gun')`. Um tiro silenciado de outro jogador toca como `step` (ouvido até ~34 m) e não desenha traçante. |
 | `weaponSwitch()` | Pano e um clique metálico. | Troca entre primária e secundária. Ver [[Weapons]]. |
 | `dryFire()` | Clique seco. | Gatilho sem munição. |
-| `reload(duração, vazio)` | Linha do tempo: pente sai (20%), pente entra (55%) e, se vazio, ferrolho (80% e 86%). | Início da recarga; recargas de outros via [[Spatial Audio]] (`BodySounds`). |
+| `reload(duração, vazio, arma)` | Linha do tempo: pente sai (20%), pente entra (55%) e, se vazio, ferrolho (80% e 86%). Três armas têm a sua: o **revólver** (tambor abre, a catraca gira, seis cartuchos entram, fecha com um tapa), a **garrucha** (os canos abrem com um "clunc", dois cartuchos, fecha num estalo) e a **furadeira** (a bateria sai, a nova encaixa com um clique e o motor é testado). | Início da recarga (a arma na mão); recargas de outros via [[Spatial Audio]] (`BodySounds`), com a arma deles. |
 | `hitmarker(cabeça)` | Bip agudo (mais agudo e com segundo tom no tiro na cabeça/virilha). Barramento `ui`. | Acerto confirmado. |
 | `killDing()` | Acorde em seno (dó-sol-dó). Barramento `ui`. | Abate. |
 | `boing()` | "Boing" cartunesco com LFO. | Abate (junto com o ding e confete). |
 | `hurt()` | Dente de serra descendente + ruído. | Dano recebido. |
 | `sadTrombone()` | Trombone triste (4 notas descendentes). | Morte do próprio jogador. Ver [[Flow - Death and Respawn]]. |
 | `bird()` | Dois piados e apito descendente ("NO PÁSSARO!"). | Tiro na virilha. Ver [[Humiliation]]. |
-| `knifeSwing()` / `meleeSwing(forma)` / `knifeHit()` | Assobio de lâmina; cada forma da faca tem seu som (`faca` = `knifeSwing`, `frango` = guincho de borracha, `sabre` = "vuuum"); impacto. | [[Melee]]. O golpe de outro jogador toca o som da forma dele: a faca como `step`, o frango e o sabre como `normal` (ouvidos mais longe). |
+| `knifeSwing()` / `meleeSwing(faca)` / `knifeHit()` | Assobio de lâmina; cada faca tem seu som (`faca` = `knifeSwing`, `colher` = toque oco de madeira, `frango` = guincho de borracha, `baguete` = crocante, `peixe` = tapa molhado, `macarrao` = `boing()`, `sabre` = "vuuum"); impacto. | [[Melee]]. O golpe de outro jogador toca o som da faca dele: a faca de cozinha como `step`, as outras como `normal` (ouvidas mais longe). |
 | `levelUp()` | Fanfarra curta. | Novo nível de arma/conta. Ver [[Progression]]. |
 | `airHorn()` + `applause()` | Buzina de estádio e aplausos (ruído granulado). | Fim de uma humilhação ("OPRIMIDO!"). |
 

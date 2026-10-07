@@ -15,33 +15,42 @@ import { afterAll, describe, expect, it } from 'bun:test';
 import type { ServerWebSocket } from 'bun';
 import { ACCOUNT_XP } from '@shared/accountLevel';
 import { defaultAppearance } from '@shared/appearance';
-import { grenadeStats, gunStats, meleeStats, resolveLoadout, sanitizeLoadout, slotStats, type GunStats, type Loadout } from '@shared/arsenal';
+import { grenadeStats, gunStats, knifeOf, loadoutKnife, resolveLoadout, sanitizeLoadout, slotStats, type GunStats, type Loadout } from '@shared/arsenal';
 import { SCORE } from '@shared/constants';
 import { LADDER, ladderLoadout } from '@shared/gunGame';
 import { GAME_MODE_IDS, MODE_RULES, type GameModeId } from '@shared/modes';
 import {
   DEFAULT_CHOICE,
+  DEFAULT_KNIFE,
+  DEFAULT_PRIMARY,
   DEFAULT_SECONDARY,
   GUN_IDS,
   isGun,
+  isKnife,
+  KNIVES,
   levelCount,
   levelForXp,
   MAX_LEVELS,
   PRIMARIES,
+  progOf,
   PROG_WEAPONS,
   PROGRESSION,
   SECONDARIES,
   upgradeOf,
   weaponOfKill,
+  weaponUnlocked,
   xpForLevel,
   type GunId,
   type Levels,
   type ProgWeapon,
+  type WeaponId,
+  type WeaponXp,
 } from '@shared/progression';
 import { FLAG, NET, type ClientMsg, type ServerMsg } from '@shared/protocol';
 import { computeDamage, explosionDamage, HIT_REGIONS, idealTtk } from '@shared/weapons';
 import { BOX_ITEMS, flawAmmo, itemOf, itemSlot, startItems, Z_FLAWS, ZOMBIE, zombieGunData, zombieLoadout, type ZFlaw, type ZItems, type ZSlot } from '@shared/zombies';
-import { equip, levelsOf, liveAccount, loadoutOf, type LiveAccount } from '../progress';
+import { equip, levelsOf, liveAccount, loadoutOf, xpOf, type LiveAccount } from '../progress';
+import { emptyTotals } from '../accounts';
 import { officialRuntime } from '../maps';
 import { Session, type Conn } from '../session';
 
@@ -54,11 +63,14 @@ const CEMETERY = await officialRuntime('cemiterio');
 interface Acct {
   label: string;
   levels: Partial<Levels>;
+  /** Points of a progression beyond its levels (the old weapons unlock by points, not levels). */
+  xp?: Partial<WeaponXp>;
   /** What the client sends in the lobby ('loadout'), never trusted. */
   choice: unknown;
 }
 
 const optionals = (w: ProgWeapon) => PROGRESSION[w].melhorias.filter((u) => u.opcional).map((u) => u.id);
+const commons = (w: ProgWeapon) => PROGRESSION[w].melhorias.filter((u) => !u.opcional).map((u) => u.id);
 const toggleSets = (w: ProgWeapon) => {
   const opt = optionals(w);
   return [[], ...opt.map((id) => [id]), ...(opt.length > 1 ? [opt] : [])];
@@ -71,8 +83,23 @@ function accounts(): Acct[] {
     // A client asking for what it doesn't have: a primary as the secondary, every optional upgrade at level 1,
     // a whole Loadout (with the lightsaber in hand) where a choice goes.
     { label: 'cliente pedindo o que não tem', levels: {}, choice: { secundaria: PRIMARIES[0], ligadas: Object.fromEntries(PROG_WEAPONS.map((w) => [w, optionals(w)])), primaria: 'smg', soFaca: true, ativas: { rifle: ['silenciador'] } } },
+    // The SMG's lock: asked for before and after the pistol's level 3.
+    { label: 'pistola nível 2 pedindo a submetralhadora', levels: { pistola: 2 }, choice: { secundaria: 'smg', ligadas: {} } },
+    { label: 'pistola nível 3 pedindo a submetralhadora', levels: { pistola: 3 }, choice: { secundaria: 'smg', ligadas: {} } },
+    // Every common upgrade turned off (an account that wants the plain weapons back).
+    { label: 'tudo liberado e todas as comuns desligadas', levels: MAX_LEVELS, choice: { secundaria: 'pistola', ligadas: {}, desligadas: Object.fromEntries(PROG_WEAPONS.map((w) => [w, commons(w)])) } },
+    // The old rifles and knives, asked for with and without the points that unlock them.
+    { label: 'Dourado e sabre sem pontos', levels: {}, choice: { primaria: 'rifleOuro', secundaria: 'pistola', faca: 'sabre', ligadas: {} } },
+    { label: 'Frango ligado como forma (escolha antiga), com pontos', levels: {}, xp: { faca: 1500 }, choice: { secundaria: 'pistola', ligadas: { faca: ['frango'] } } },
+    { label: 'Sabre ligado como forma (escolha antiga), sem pontos', levels: {}, xp: { faca: 6000 }, choice: { secundaria: 'pistola', ligadas: { faca: ['sabre'] } } },
   ];
-  for (const gun of [...PRIMARIES, ...SECONDARIES]) {
+  for (const gun of PRIMARIES)
+    for (const [label, xp] of [['sem pontos', 0], ['liberado', 20000]] as const)
+      all.push({ label: `${gun} ${label}`, levels: {}, xp: { rifle: xp }, choice: { primaria: gun, secundaria: DEFAULT_SECONDARY, ligadas: { rifle: optionals('rifle') } } });
+  for (const knife of KNIVES)
+    for (const [label, xp] of [['sem pontos', 0], ['liberada', 9000]] as const)
+      all.push({ label: `${knife} ${label}`, levels: {}, xp: { faca: xp }, choice: { faca: knife, secundaria: DEFAULT_SECONDARY, ligadas: {} } });
+  for (const gun of ['rifle', 'pistola', 'smg'] as const) {
     const secundaria = SECONDARIES.includes(gun) ? gun : DEFAULT_SECONDARY;
     for (let lvl = 1; lvl <= levelCount(gun); lvl++)
       for (const on of toggleSets(gun)) all.push({ label: `${gun} nível ${lvl} ${on.join('+') || 'sem opcionais'}`, levels: { [gun]: lvl }, choice: { secundaria, ligadas: { [gun]: on } } });
@@ -84,11 +111,11 @@ function accounts(): Acct[] {
 }
 
 let accountSeq = 1;
-/** A signed-in account as the server keeps it, with weapon points for `levels`, after the lobby's 'loadout'. */
-function liveAt(levels: Partial<Levels>, choice: unknown): LiveAccount {
+/** A signed-in account as the server keeps it, with weapon points for `levels` (or `xp`), after the lobby's 'loadout'. */
+function liveAt(levels: Partial<Levels>, choice: unknown, xp: Partial<WeaponXp> = {}): LiveAccount {
   const n = accountSeq++;
-  const weapons = Object.fromEntries(PROG_WEAPONS.map((w) => [w, { xp: xpForLevel(w, levels[w] ?? 1) }])) as Record<ProgWeapon, { xp: number }>;
-  const a = liveAccount({ accountId: `conta-${n}`, profileId: `perfil-${n}`, tag: `Matriz${n}#0001`, sex: 'm', appearance: defaultAppearance('m'), xp: 0, weapons, arsenal: DEFAULT_CHOICE });
+  const weapons = Object.fromEntries(PROG_WEAPONS.map((w) => [w, { xp: xp[w] ?? xpForLevel(w, levels[w] ?? 1) }])) as Record<ProgWeapon, { xp: number }>;
+  const a = liveAccount({ accountId: `conta-${n}`, profileId: `perfil-${n}`, tag: `Matriz${n}#0001`, sex: 'm', appearance: defaultAppearance('m'), xp: 0, weapons, arsenal: DEFAULT_CHOICE, totals: emptyTotals(), album: {} });
   // What app.ts does with the lobby's 'loadout' message.
   equip(a, choice);
   return a;
@@ -182,7 +209,8 @@ function loadoutProblems(lo: Loadout): string[] {
   const sec = slotStats(lo, 'secundaria');
   if (lo.secundaria !== null && !sec) out.push('secundária sem atributos');
   if (sec) out.push(...gunProblems(sec));
-  const knife = meleeStats(lo.ativas.faca);
+  if (lo.faca !== undefined && !isKnife(lo.faca)) out.push(`faca desconhecida ${lo.faca}`);
+  const knife = loadoutKnife(lo);
   for (const [k, v] of Object.entries({ alcance: knife.alcance, alcanceInvestida: knife.alcanceInvestida, intervalo: knife.intervalo, velocidadeInvestida: knife.velocidadeInvestida }))
     if (!finitePositive(v)) out.push(`faca: ${k} = ${v}`);
   const nade = grenadeStats(lo.ativas.granada);
@@ -250,20 +278,24 @@ describe('matriz progressão × modos', () => {
   it('toda combinação de melhorias de toda arma de fogo dá atributos válidos', () => {
     const problems: string[] = [];
     for (const gun of GUN_IDS) {
-      const ids = PROGRESSION[gun].melhorias.map((u) => u.id);
+      // Every rifle takes the rifle's upgrades.
+      const prog = progOf(gun);
+      const ids = PROGRESSION[prog].melhorias.map((u) => u.id);
       for (let mask = 0; mask < 1 << ids.length; mask++) {
         const ups = ids.filter((_, i) => mask & (1 << i));
-        problems.push(...gunProblems(gunStats(gun, ups)).map((p) => `${ups.join('+')}: ${p}`));
+        problems.push(...gunProblems(gunStats(gun, ups)).map((p) => `${gun} ${ups.join('+')}: ${p}`));
         // In whichever slot it can go.
-        const lo = sanitizeLoadout({ primaria: PRIMARIES.includes(gun) ? gun : PRIMARIES[0], secundaria: SECONDARIES.includes(gun) ? gun : null, ativas: { [gun]: ups } });
-        expect(lo.ativas[gun]).toEqual(ups);
+        const lo = sanitizeLoadout({ primaria: PRIMARIES.includes(gun) ? gun : PRIMARIES[0], secundaria: SECONDARIES.includes(gun) ? gun : null, ativas: { [prog]: ups } });
+        expect(lo.ativas[prog]).toEqual(ups);
         problems.push(...loadoutProblems(lo));
       }
     }
-    for (const w of ['faca', 'granada'] as const) {
-      const ids = PROGRESSION[w].melhorias.map((u) => u.id);
-      for (let mask = 0; mask < 1 << ids.length; mask++) problems.push(...loadoutProblems(sanitizeLoadout({ ativas: { [w]: ids.filter((_, i) => mask & (1 << i)) } })));
-    }
+    // Every knife with every combination of the knife's upgrades; the grenade's.
+    const knifeIds = PROGRESSION.faca.melhorias.map((u) => u.id);
+    for (const faca of KNIVES)
+      for (let mask = 0; mask < 1 << knifeIds.length; mask++) problems.push(...loadoutProblems(sanitizeLoadout({ faca, ativas: { faca: knifeIds.filter((_, i) => mask & (1 << i)) } })));
+    const nadeIds = PROGRESSION.granada.melhorias.map((u) => u.id);
+    for (let mask = 0; mask < 1 << nadeIds.length; mask++) problems.push(...loadoutProblems(sanitizeLoadout({ ativas: { granada: nadeIds.filter((_, i) => mask & (1 << i)) } })));
     expect(problems).toEqual([]);
   });
 
@@ -283,7 +315,7 @@ describe('matriz progressão × modos', () => {
         for (const s of ['primaria', 'secundaria'] as const) {
           const g = slotStats(lo, s);
           if (!g) continue;
-          const flaw = lo.danificadas?.[g.arma];
+          const flaw = lo.danificadas?.[progOf(g.arma)];
           const held = zombieGunData(g, flaw);
           expect({ lo, s, problems: gunProblems(held) }).toEqual({ lo, s, problems: [] });
           expect(held.pente).toBe(Math.max(1, Math.round(g.pente * flawAmmo(flaw).pente)));
@@ -293,7 +325,8 @@ describe('matriz progressão × modos', () => {
       for (const it of BOX_ITEMS) {
         const items: ZItems = { ...startItems(), [itemSlot(it)]: it.id };
         const lo = zombieLoadout(items);
-        expect(lo.ativas[it.arma]).toEqual(it.melhorias);
+        expect(lo.ativas[it.arma === 'faca' ? 'faca' : progOf(it.arma)]).toEqual(it.melhorias);
+        if (it.arma === 'faca') expect(lo.faca).toBe(it.faca ?? 'faca');
         if (isGun(it.arma)) expect(slotStats(lo, itemSlot(it) as 'primaria' | 'secundaria')).toBe(gunStats(it.arma, it.melhorias));
       }
       expect(itemOf(ZOMBIE.inicial)?.melhorias).toEqual([]);
@@ -308,7 +341,7 @@ describe('matriz progressão × modos', () => {
       for (const acct of ACCOUNTS) {
         const room = new Room(mode);
         rooms.push(room);
-        const a = liveAt(acct.levels, acct.choice);
+        const a = liveAt(acct.levels, acct.choice, acct.xp);
         const s = room.join(a);
         const lo = room.player(s).loadout;
         // What everyone hears is what the server validates with.
@@ -322,11 +355,20 @@ describe('matriz progressão × modos', () => {
           expect(lo).toEqual(resolveLoadout(a.profile.arsenal, levels));
           expect(lo).toEqual(loadoutOf(a));
           expect(PRIMARIES).toContain(lo.primaria);
-          const asked = (acct.choice as { secundaria?: unknown }).secundaria;
-          expect(lo.secundaria).toBe(SECONDARIES.includes(asked as GunId) ? (asked as GunId) : DEFAULT_SECONDARY);
+          // A locked weapon (an old rifle or knife without the points, the SMG before the pistol's level 3 unless
+          // already scored with) stays out: the Standard Rifle, the pistol, the Kitchen Knife instead.
+          const xp = xpOf(a);
+          const choice = acct.choice as { primaria?: unknown; secundaria?: unknown; faca?: unknown; ligadas?: { faca?: string[] } };
+          const kept = <T extends WeaponId>(list: readonly T[], w: unknown, def: T): T => (list.includes(w as T) && weaponUnlocked(w as T, xp) ? (w as T) : def);
+          expect(lo.primaria).toBe(kept(PRIMARIES, choice.primaria, DEFAULT_PRIMARY));
+          expect(lo.secundaria).toBe(kept(SECONDARIES, choice.secundaria, DEFAULT_SECONDARY));
+          // An old choice with the chicken or the saber turned on as a form: that knife, if unlocked.
+          const askedKnife = choice.faca ?? [...(choice.ligadas?.faca ?? [])].reverse().find((id) => id === 'frango' || id === 'sabre');
+          expect({ acct: acct.label, faca: knifeOf(lo) }).toEqual({ acct: acct.label, faca: kept(KNIVES, askedKnife, DEFAULT_KNIFE) });
           for (const w of PROG_WEAPONS) {
             const level = levels[w];
             const asks = ((acct.choice as { ligadas?: Record<string, string[]> }).ligadas?.[w] ?? []) as string[];
+            const off = ((acct.choice as { desligadas?: Record<string, string[]> }).desligadas?.[w] ?? []) as string[];
             const groups = new Set<string>();
             for (const id of lo.ativas[w]) {
               const u = upgradeOf(w, id)!;
@@ -340,10 +382,11 @@ describe('matriz progressão × modos', () => {
                 }
               }
             }
-            // Every common upgrade unlocked is in effect, unless an optional one of its group replaced it.
+            // Every common upgrade unlocked is in effect, unless turned off or replaced by an optional one of its group.
             for (const u of PROGRESSION[w].melhorias) {
               if (u.opcional || u.nivel > level) continue;
-              if (!u.grupo || !groups.has(u.grupo)) expect({ acct: acct.label, w, id: u.id, on: lo.ativas[w].includes(u.id) }).toEqual({ acct: acct.label, w, id: u.id, on: true });
+              const on = !off.includes(u.id) && (!u.grupo || !groups.has(u.grupo));
+              expect({ acct: acct.label, w, id: u.id, on: lo.ativas[w].includes(u.id) }).toEqual({ acct: acct.label, w, id: u.id, on });
             }
           }
         } else {
@@ -361,10 +404,12 @@ describe('matriz progressão × modos', () => {
       const picks: Acct[] = [
         ...ACCOUNTS.slice(0, 3),
         ...[...PRIMARIES, ...SECONDARIES].flatMap((gun) => {
+          const prog = progOf(gun);
           const secundaria = SECONDARIES.includes(gun) ? gun : DEFAULT_SECONDARY;
+          const primaria = PRIMARIES.includes(gun) ? gun : DEFAULT_PRIMARY;
           return [
-            { label: `${gun} nível 1`, levels: { [gun]: 1 }, choice: { secundaria, ligadas: {} } },
-            { label: `${gun} no último nível, opcionais ligadas`, levels: { [gun]: levelCount(gun) }, choice: { secundaria, ligadas: { [gun]: optionals(gun) } } },
+            { label: `${gun} nível 1`, levels: { [prog]: 1 }, choice: { primaria, secundaria, ligadas: {} } },
+            { label: `${gun} no último nível, opcionais ligadas`, levels: { [prog]: levelCount(prog) }, choice: { primaria, secundaria, ligadas: { [prog]: optionals(prog) } } },
           ];
         }),
       ];
@@ -404,9 +449,13 @@ describe('matriz progressão × modos', () => {
 
         // weaponXp: a lethal shot with each gun the player carries, then a stab.
         const slots = (['primaria', 'secundaria'] as const).filter((sl) => slotStats(me.loadout, sl));
-        const kills: { kind: 'groin' | 'knife'; w: ProgWeapon; flag: number; at: [number, number, number] }[] = [
-          ...slots.map((sl) => ({ kind: 'groin' as const, w: slotStats(me.loadout, sl)!.arma as ProgWeapon, flag: sl === 'secundaria' ? FLAG.secondary : 0, at: [0, 0, 10] as [number, number, number] })),
-          { kind: 'knife', w: 'faca', flag: 0, at: [0, 0, 1.5] },
+        // `arma` is the weapon in hand (an old rifle, a knife of its own), `w` the progression its points go to.
+        const kills: { kind: 'groin' | 'knife'; arma: WeaponId; w: ProgWeapon; flag: number; at: [number, number, number] }[] = [
+          ...slots.map((sl) => {
+            const gun = slotStats(me.loadout, sl)!.arma;
+            return { kind: 'groin' as const, arma: gun, w: progOf(gun), flag: sl === 'secundaria' ? FLAG.secondary : 0, at: [0, 0, 10] as [number, number, number] };
+          }),
+          { kind: 'knife', arma: knifeOf(me.loadout), w: 'faca', flag: 0, at: [0, 0, 1.5] },
         ];
         for (const k of kills) {
           room.t += NET.respawnDelay * 1000 + 100;
@@ -418,7 +467,7 @@ describe('matriz progressão × modos', () => {
           const xpBefore = shooterAcct.profile.weapons[k.w].xp;
           const accountBefore = shooterAcct.profile.xp;
           if (k.kind === 'knife') room.send(shooter, { t: 'stab', target: victim.conn.id, behind: false });
-          else room.send(shooter, { t: 'hit', target: victim.conn.id, region: 'virilha', dist: 10, w: k.w });
+          else room.send(shooter, { t: 'hit', target: victim.conn.id, region: 'virilha', dist: 10, w: k.arma as GunId });
           const kill = room.take(victim, 'kill').find((m) => m.victim === victim.conn.id);
           if (rules.coop) {
             // Co-op: no damage between players at all, so no kill, no points.
@@ -426,7 +475,7 @@ describe('matriz progressão × modos', () => {
             expect(shooterAcct.profile.weapons[k.w].xp).toBe(xpBefore);
             continue;
           }
-          expect({ label, k: k.w, kill: kill?.arma }).toEqual({ label, k: k.w, kill: k.w });
+          expect({ label, k: k.w, kill: kill?.arma }).toEqual({ label, k: k.w, kill: k.arma });
           const points = kill!.awards.reduce((s, x) => s + x.value, 0);
           expect(points).toBe(SCORE.kill + (k.kind === 'knife' ? SCORE.knife : SCORE.groin));
           expect(weaponOfKill(kill!.kind, isGun(kill!.arma) ? kill!.arma : null)).toBe(k.w);
