@@ -4,13 +4,15 @@
 //
 // Who may do what: anyone signed in creates community maps and duplicates any map they can see; a map's author
 // edits, restores and deletes it; the staff (admin, moderator) does all of that to any map, creates and edits the
-// official ones and hides maps. Roles are read again on every request (server/roles.ts).
+// official ones and hides maps. The four original official maps (rua, jardim, halloween, cemiterio) are never
+// deleted nor hidden (P44, P45: 403 mapa_protegido). Roles are read again on every request (server/roles.ts).
 //
 // Saving checks the data (validateMapData), the models it names, and builds the map on the map builder thread
 // (server/mapWorker.ts): over MAP_BUDGET it isn't saved and the reply says what passed the limit.
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { MAP_BUDGET, MAP_FORMAT, validateMapData, type MapaResumo, type MapData, type TipoMapa, type VersaoMapa } from '@shared/mapData';
+import { isOfficialMap } from '@shared/maps';
 import { isEquipe, type Conta } from '@shared/roles';
 import { audit } from './accounts';
 import { CONFIG } from './config';
@@ -41,6 +43,14 @@ const IMMUTABLE = { 'cache-control': 'public, max-age=31536000, immutable' };
 // --- Who may do what ----------------------------------------------------------------------------------------
 
 const isAuthor = (m: MapRow, me: Conta | null) => !!me && m.author_id === me.id;
+/**
+ * The four original official maps (OFFICIAL_MAPS) are never deleted (P44) nor hidden (P45), by anyone: the default
+ * map and quick join depend on them. They are edited and restored like any official map; official maps made
+ * later can be deleted and hidden.
+ */
+const protectedMap = (m: Pick<MapRow, 'id'>) => isOfficialMap(m.id);
+/** Deleting: whoever edits it, unless it's one of the originals. */
+const canDelete = (m: MapRow, me: Conta | null) => canEdit(m, me) && !protectedMap(m);
 const canSee = (m: MapRow, me: Conta | null) => !m.deleted_at && (!m.hidden_at || isAuthor(m, me) || (!!me && isEquipe(me)));
 /** Saving, restoring and deleting: the staff any map, an author their community map. */
 const canEdit = (m: MapRow, me: Conta | null) => !!me && !m.deleted_at && (isEquipe(me) || (m.kind === 'community' && isAuthor(m, me)));
@@ -91,7 +101,7 @@ function summary(r: SummaryRow, me: Conta | null): MapaResumo {
     criadoEm: r.created_at.toISOString(),
     atualizadoEm: r.updated_at.toISOString(),
     oculto: r.hidden_at ? { em: r.hidden_at.toISOString(), motivo: r.hidden_reason } : null,
-    pode: { editar: canEdit(r, me), apagar: canEdit(r, me), ocultar: !!me && isEquipe(me), duplicar: !!me && canSee(r, me) },
+    pode: { editar: canEdit(r, me), apagar: canDelete(r, me), ocultar: !!me && isEquipe(me) && !protectedMap(r), duplicar: !!me && canSee(r, me) },
     meu: isAuthor(r, me),
   };
 }
@@ -321,6 +331,7 @@ export const mapRoutes: Record<string, Handler> = {
     if (!isEquipe(me)) throw new HttpError(403, 'sem_permissao');
     const m = await mapRow(ctx.deps.db, ctx.params.id);
     if (!m || m.deleted_at) throw new HttpError(404, 'nao_encontrado');
+    if (protectedMap(m)) throw new HttpError(403, 'mapa_protegido');
     const body = await readJson(ctx.req);
     const motivo = text(typeof body.motivo === 'string' ? body.motivo : null, 200) || null;
     await ctx.deps.db.query('UPDATE map SET hidden_at = now(), hidden_by = $2, hidden_reason = $3 WHERE id = $1', [m.id, me.id, motivo]);
@@ -344,6 +355,7 @@ export const mapRoutes: Record<string, Handler> = {
     const m = await mapRow(ctx.deps.db, ctx.params.id);
     if (!m || m.deleted_at) throw new HttpError(404, 'nao_encontrado');
     if (!canEdit(m, me)) throw new HttpError(403, 'sem_permissao');
+    if (protectedMap(m)) throw new HttpError(403, 'mapa_protegido');
     await ctx.deps.db.query('UPDATE map SET deleted_at = now() WHERE id = $1', [m.id]);
     if (!isAuthor(m, me)) void audit(ctx.deps.db, m.author_id, 'map_delete', info(ctx.req), m.id, me.id);
     return reply(ctx, 204);

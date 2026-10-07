@@ -185,6 +185,41 @@ describe('quem salva o quê', () => {
     expect((await list(user, '?tipo=oficial')).map((m) => m.id)).toContain(made.body.id);
     expect((await new Browser(game).req('POST', '/api/mapas', { dados: tinyMap() })).status).toBe(401);
   });
+
+  it('os 4 oficiais originais não são apagados nem ocultados por ninguém, mas são editados e restaurados; um oficial novo, sim (P44, P45)', async () => {
+    const admin = await signedIn('Zeladora');
+    await promote(admin, 'admin');
+    const mod = await signedIn('Vigia');
+    await promote(mod, 'moderador');
+    for (const id of ['rua', 'jardim', 'halloween', 'cemiterio']) {
+      for (const who of [admin, mod]) {
+        const r = await who.req('DELETE', `/api/mapas/${id}`);
+        expect(r.status).toBe(403);
+        expect(r.body).toEqual({ erro: 'mapa_protegido' });
+        const h = await who.req('POST', `/api/mapas/${id}/ocultar`, { motivo: 'teste' });
+        expect(h.status).toBe(403);
+        expect(h.body).toEqual({ erro: 'mapa_protegido' });
+      }
+      const seen = (await admin.req('GET', `/api/mapas/${id}`)).body as MapaResumo;
+      expect(seen.pode).toMatchObject({ editar: true, apagar: false, ocultar: false });
+      expect(seen.oculto).toBeNull();
+    }
+    // Still there and playable.
+    expect((await list(admin, '?tipo=oficial')).map((m) => m.id)).toEqual(expect.arrayContaining(['rua', 'jardim', 'halloween', 'cemiterio']));
+    // Still edited and restored: a new version of the street, then back to the one it had.
+    const rua = (await admin.req('GET', '/api/mapas/rua')).body as MapaResumo;
+    const data = (await admin.req('GET', `/api/mapas/rua/versoes/${rua.versao}`)).body as MapData;
+    const saved = await admin.req('PUT', '/api/mapas/rua', { dados: data, baseVersao: rua.versao });
+    expect(saved.status).toBe(200);
+    expect((await mod.req('POST', '/api/mapas/rua/restaurar', { versao: rua.versao })).body).toEqual({ id: 'rua', versao: rua.versao });
+    // A player gets the plain refusal (it isn't theirs to edit at all).
+    expect((await (await signedIn('Curioso')).req('DELETE', '/api/mapas/rua')).body).toEqual({ erro: 'sem_permissao' });
+    // An official map made later can be deleted by the staff.
+    const made = await create(admin, tinyMap('Arena Temporária'), 'oficial');
+    expect((await mod.req('GET', `/api/mapas/${made.body.id}`)).body.pode).toMatchObject({ apagar: true, ocultar: true });
+    expect((await mod.req('POST', `/api/mapas/${made.body.id}/ocultar`)).status).toBe(204);
+    expect((await mod.req('DELETE', `/api/mapas/${made.body.id}`)).status).toBe(204);
+  });
 });
 
 describe('mapas recusados', () => {

@@ -114,6 +114,8 @@ export type ApiErrorCode =
   | 'glb_invalido'
   | 'mapa_oculto'
   | 'cota_excedida'
+  /** One of the four original official maps (OFFICIAL_MAPS): never deleted (P44) nor hidden (P45). */
+  | 'mapa_protegido'
   | 'erro_interno';
 
 // --- Management (admin and moderator, PF-6) ----------------------------------------------------------------
