@@ -57,16 +57,16 @@ Os testes usam o executor nativo **`bun test`** (`bun:test`: `describe`, `it`, `
 | `client/tests/mapData.test.ts` | Unitário | 18 | formato dos mapas (`validateMapData`), esquema e adaptadores das peças, coerência com as tabelas do servidor |
 | `client/tests/budget.test.ts` | Unitário (monta os mapas sem tela) | 5 | orçamento de desenho (400 chamadas, 750 mil triângulos) e os números dos oficiais |
 | `client/tests/seeded.test.ts` | Unitário | 4 | `seeded()` e o estado exposto (`Peca.semente`) |
-| `server/tests/maps.test.ts` | Integração (HTTP) | 12 | API de mapas: criar, versões, 409, restaurar, ocultar, apagar, duplicar, busca, orçamento, GLB |
+| `server/tests/maps.test.ts` | Integração (HTTP) | 13 | API de mapas: criar, versões, 409, restaurar, ocultar, apagar, duplicar, busca, orçamento, GLB, os 4 originais protegidos (P44, P45) |
 | `server/tests/management.test.ts` | Integração (HTTP + WebSocket) | 8 | Gerenciamento: matriz de papéis, banimento derruba, silêncio e progresso na partida |
 | `server/tests/sessions.test.ts` | Integração (WebSocket) | 6 | sessões sob demanda, versões por sala, mapa da comunidade online |
 | `client/tests/roles.test.ts` | Unitário | 6 | regras dos papéis (`shared/roles.ts`) |
 | `client/tests/mapPose.test.ts` | Unitário (monta peças sem tela) | 10 | pose das peças (P32) e lanternas e recortes de lago levados pela pose (P42) |
 | `client/tests/editorHistory.test.ts` | Unitário | 20 | editor sem tela: desfazer e refazer, gizmo, peças novas, marcadores, pontas e vãos |
 | `client/tests/editorRecovery.test.ts` | Unitário | 5 | rascunho automático (P40), salvar sobre a versão atual após o 409 (P39), o que Testar abre (P41) |
-| `client/tests/mapsScreen.test.ts` | Unitário | 13 | abas Mapas (botões por papel e dono, modos, busca e ordem, ocultos, mapas da tela inicial) e Gerenciamento (painel pelas permissões, sanção, progresso) |
+| `client/tests/mapsScreen.test.ts` | Unitário | 15 | abas Mapas (botões por papel e dono, originais sem Excluir e Ocultar, contra bots e campo de tiro, modos, busca e ordem, ocultos, mapas da tela inicial) e Gerenciamento (painel pelas permissões, sanção, progresso) |
 
-(Contagem dos casos em 2026-10-06. Na branch da PF-6, depois da fase 4, `bun test` roda 297 testes em 25 arquivos em ~108 s; na fase 1 eram 218 em 17; antes era 178 casos em 13 arquivos em ~95 s, dos quais ~25 s são esperas reais dos testes do modo zumbi e da corrida armada. Os testes de motor com relógio falso, como os de barricada, simulam minutos de jogo em poucos décimos de segundo.)
+(Contagem dos casos em 2026-10-06. Na branch da PF-6, depois da fase 4, `bun test` roda 300 testes em 25 arquivos em ~107 s; na fase 1 eram 218 em 17; antes era 178 casos em 13 arquivos em ~95 s, dos quais ~25 s são esperas reais dos testes do modo zumbi e da corrida armada. Os testes de motor com relógio falso, como os de barricada, simulam minutos de jogo em poucos décimos de segundo.)
 
 ## Configuração (`bunfig.toml`)
 

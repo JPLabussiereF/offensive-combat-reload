@@ -80,8 +80,8 @@ Equipe = admin ou moderador. Ver [[World Structure]] e [[ADR - Sessões sob dema
 | `POST /api/mapas` | conta | `{ tipo, dados }`: cria o mapa com a versão 1. `oficial` só a equipe. | 201 `{ id, versao, drawCalls, triangulos }`; 403 `sem_permissao`; 400 `mapa_invalido` (+ `erros`) ou `orcamento_excedido` (+ `drawCalls`, `triangulos`, `limite`, `excedeu`) |
 | `PUT /api/mapas/:id` | autor (comunidade) ou equipe | `{ dados, baseVersao }`: salva uma versão nova. | 200 `{ id, versao, ... }`; 409 `versao_desatualizada` (+ `atual`); 403; 400 |
 | `POST /api/mapas/:id/restaurar` | autor ou equipe | `{ versao }`: volta a jogar uma versão antiga (só troca a versão atual). | 200; 404 |
-| `POST` / `DELETE /api/mapas/:id/ocultar` | equipe | Oculta (`{ motivo? }`) ou mostra de novo. | 204 |
-| `DELETE /api/mapas/:id` | autor ou equipe | Apaga (exclusão lógica). | 204 |
+| `POST` / `DELETE /api/mapas/:id/ocultar` | equipe | Oculta (`{ motivo? }`) ou mostra de novo. Os 4 oficiais originais (`rua`, `jardim`, `halloween`, `cemiterio`) não são ocultados (P45: `403 mapa_protegido`). | 204 |
+| `DELETE /api/mapas/:id` | autor ou equipe | Apaga (exclusão lógica). Os 4 oficiais originais não são apagados por ninguém (P44: `403 mapa_protegido`); oficiais criados depois, sim. | 204 |
 | `POST /api/mapas/:id/duplicar` | conta | Cópia da versão atual como mapa da comunidade da conta (`copiaDe`), chamada "Nome (cópia)" (P38). | 201 `{ id, versao: 1 }` |
 | `POST /api/mapas/:id/jogadas` | todos | Uma partida offline (treino, bots): conta uma jogada por conta (ou IP) e mapa por hora (Redis). | 204 |
 | `POST /api/mapas/arquivos?nome=` | conta | O modelo GLB no corpo (`model/gltf-binary`, até 10 MB): validado (`server/glb.ts`) e guardado pelo SHA-256 em `MAPAS_DIR`. Limite de envios por hora e cota por conta. | 201 `{ sha256, url, bytes, triangulos, primitivas }`; 413 `arquivo_grande_demais` / `cota_excedida`; 400 `glb_invalido` (+ `motivo`); 429 `muitas_tentativas` |

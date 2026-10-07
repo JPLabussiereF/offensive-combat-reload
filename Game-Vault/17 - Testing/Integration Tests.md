@@ -77,6 +77,7 @@ Como o servidor confia em `X-Forwarded-For` só vindo de endereço privado, e os
 - Busca por nome e por autor (nome e tag) e ordem por mais jogados (jogadas offline contadas uma vez por conta por hora) ou mais recentes; a lista é pública.
 - Mapa oculto pelo moderador some da lista, dá `mapa_oculto` a outros e `play` é recusado; com `?ocultos=1` a equipe o acha na lista, e para quem não é equipe (o autor, outro jogador, sem conta) o parâmetro não muda nada; o autor ainda o vê; mostrar de novo devolve; a equipe apaga qualquer mapa.
 - User recebe `sem_permissao` ao salvar oficial; admin cria oficial.
+- Os 4 oficiais originais: admin e moderador recebem `403 mapa_protegido` ao apagar e ao ocultar cada um (`pode.apagar` e `pode.ocultar` falsos), e eles continuam editáveis (versão nova) e restauráveis; um oficial criado depois é ocultado e apagado pela equipe (P44, P45).
 - `mapa_invalido` (tipo de peça desconhecido, modelo de fora do jogo, modelo nunca enviado) e `orcamento_excedido` (uma esfera de 1 milhão de triângulos, com os números e o limite).
 - GLB: envio guardado uma vez pelo SHA-256, download com `model/gltf-binary` e `nosniff`, mapa que o usa salvo (`map_version_asset`); recusa acima de 10 MB (`arquivo_grande_demais`), lixo, URI externa, Draco e o tipo errado (`glb_invalido`).
 - Os 4 oficiais semeados: montados headless a partir do que `GET /api/mapas/:id/versoes/1` entrega (o JSON passou pelo `jsonb`) e comparados ao golden (tolerância 1e-6); a navmesh do Cemitério guardada com o tamanho do arquivo pré-gerado; `map_version` recusa `UPDATE`.

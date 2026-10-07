@@ -75,6 +75,12 @@ Perguntas abertas pela fase 2, respondidas pelo dev:
 - **P37 — GLB com `EXT_meshopt_compression` e `EXT_texture_avif` continuam recusados** (o servidor não os lê nem mede com `@gltf-transform/core` sozinho).
 - **P38 — duplicar cria "Nome (cópia)"**, no registro e nos dados da versão, cortando o original para caber nos 60 caracteres (`copyName` em `server/mapRoutes.ts`). Feito.
 
+## Decisões do dev na fase 4 (P43 a P45)
+
+- **P43 — mapas abertos também contra bots e no campo de tiro:** na aba Mapas, o cartão de um mapa aberto (sem `exclusivo`) tem "Contra bots" e "Campo de tiro" além do Jogar online. O cliente baixa a versão atual (`fetchMapVersion`, `HomeChoice.versao`) e monta o mapa offline como faz online; o servidor só conta a jogada. Mapas exclusivos do zumbi continuam só no zumbi.
+- **P44 — os 4 oficiais originais não são apagados:** `DELETE /api/mapas/:id` responde `403 mapa_protegido` para `rua`, `jardim`, `halloween` e `cemiterio`, para qualquer papel; `pode.apagar` vem falso e a tela não mostra Excluir. Oficiais criados depois podem ser apagados pela equipe.
+- **P45 — nem ocultados:** `POST /api/mapas/:id/ocultar` responde `403 mapa_protegido` para os mesmos 4 (`pode.ocultar` falso, sem o botão Ocultar). O mapa padrão (`DEFAULT_MAP`), o mapa padrão de cada modo (`defaultMapFor`) e a entrada rápida dependem deles. Continuam editáveis e restauráveis; um que já estivesse oculto ainda pode ser desocultado.
+
 ## Código afetado
 
 - `server/app.ts` (`sessionFor`, `enter`, `opening`, `sessionsChanged`), `server/maps.ts` (`MapRuntime`, `MapStore`, `mapRow`, `playable`, `allows`, `defaultMapFor`), `server/session.ts`, `server/modes.ts`, `server/navmesh.ts`.
