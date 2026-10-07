@@ -1,12 +1,15 @@
 // The map editor inside the game (PF-6): opened instead of a match (boot() in client/main.ts calls runEditor and
 // returns: no input, player or HUD). It loads a saved version of a map (or starts a new one), builds it with the
-// game's own loader in its editor mode, and runs its own loop: a free camera, picking with a click, the gizmo
-// (move, turn, scale on a 0.5 m and 15° grid; Shift held for free moves), undo and redo, the palette, the
+// game's own loader in its editor mode, and runs its own loop: the Scene view's camera, picking with a click or a
+// box, the gizmo (move, turn, scale; Ctrl or the grid button snaps), undo and redo, the palette, the
 // properties panel, the markers, the ends and holes of walls, GLB models from the computer, the live budget
 // bar, testing the map (the training range, or the zumbi match on a zumbi-only map) and saving it.
 // Revisions 01 lays it out as Unity's editor: a toolbar with Play in the middle, dockable panels (Hierarchy
 // with groups, the Scene, the Inspector with its Transform, the Project) and a status bar; the pieces not
-// selected are drawn from batches (P46). Every edit
+// selected are drawn from batches (P46). Its etapa 3 brings Unity's Scene view: the camera (fly, orbit, pan,
+// dolly, frame, the orientation gizmo, perspective or orthographic), the Q W E R T tools (the Rect tool: client/
+// editor/rectTool.ts), Ctrl to snap and the grid button, Pivot/Center and Local/Global (client/editor/tools.ts),
+// box selection, copy and paste (client/editor/clipboard.ts) and Unity's keys (client/editor/shortcuts.ts). Every edit
 // keeps a draft in IndexedDB (P40), offered back when the map opens again; saving forgets it. Leaving reloads
 // the page.
 import * as THREE from 'three';
@@ -26,11 +29,17 @@ import { duplicateTree, linkedRest, makeGroup, moveInto, moveTree, removalOf, sc
 import { Hierarchy } from './hierarchy';
 import { DockView } from './dock';
 import { applyEdit, fieldsOf, matrixOf, type Fields } from './transformFields';
-import { historyKey } from './history';
 import { MapView } from './view';
-import { FlyCamera, typing } from './flyCamera';
+import { SceneCamera, typing } from './sceneCamera';
+import { ViewGizmo } from './viewGizmo';
 import { Selection, type Selected } from './selection';
-import { Gizmo, GRID } from './gizmo';
+import { Gizmo, type GizmoTarget } from './gizmo';
+import { gizmoFrame, gizmoSpace, MOVE_RANGE, parseStep, PREFS_KEY, readPrefs, snapSteps, snapTo, TURN_RANGE, writePrefs, type Tool, type ToolPrefs } from './tools';
+import { shortcutOf, type EditorAction } from './shortcuts';
+import { piecesInRect } from './boxSelect';
+import { clipAnchor, copyPieces, pastePieces, type Clip } from './clipboard';
+import { applyStretch, dropAxis, stretchable, stretchBox, type RectFrame } from './rectTool';
+import { RectOverlay } from './rectOverlay';
 import { Markers, addMarker, markerPlace, markerTurns, removeMarker, setMarkerPlace, type MarkerKind } from './markers';
 import { LinearHandles, hasHandles, moveHandle } from './linearHandles';
 import { Inspector, type TransformBinding } from './inspector';
@@ -145,16 +154,17 @@ function choose(host: HTMLElement, title: string, text: string, yes: string, no:
   });
 }
 
-const snap = (v: number) => Math.round(v / GRID) * GRID;
 const r4 = (v: number) => Math.round(v * 1e4) / 1e4;
 
 /** The toolbar's buttons and their texts (the full text is the tooltip; the button shows it without the key). */
 const LABEL: Record<string, EditorKey> = {
   undo: 'undo',
   redo: 'redo',
+  hand: 'hand',
   translate: 'move',
   rotate: 'rotate',
   scale: 'scale',
+  rect: 'rect',
   play: 'play',
   pause: 'pause',
   stop: 'stop',
@@ -171,16 +181,20 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   const { ctx, physics } = o;
   injectEditorStyle();
   // Unity's window (Revisions 01): the toolbar on top (Play in the middle), the dockable panels, the status bar.
-  // The empty slots hold what comes next: Pivot/Center and Local/Global, and the grid button.
+  // The slots: Pivot/Center and Local/Global, and the grid button with its steps.
   const root = document.createElement('div');
   root.id = 'editor';
   root.innerHTML = `
     <div class="ed-toolbar">
       <span class="ed-title"></span>
       <div class="ed-tgroup"><button data-a="undo"></button><button data-a="redo"></button></div>
-      <div class="ed-tgroup"><button data-a="translate"></button><button data-a="rotate"></button><button data-a="scale"></button></div>
-      <div class="ed-tgroup ed-slot" data-slot="pivo"></div>
-      <div class="ed-tgroup ed-slot" data-slot="grade"></div>
+      <div class="ed-tgroup"><button data-a="hand"></button><button data-a="translate"></button><button data-a="rotate"></button><button data-a="scale"></button><button data-a="rect"></button></div>
+      <div class="ed-tgroup ed-slot" data-slot="pivo"><button data-a="pivotMode"></button><button data-a="spaceMode"></button></div>
+      <div class="ed-tgroup ed-slot" data-slot="grade"><button data-a="grid"></button><button data-a="gridMenu" class="ed-caret">▾</button><div class="ed-menu ed-gridmenu" hidden>
+        <b class="ed-gridtitle"></b>
+        <label class="ed-row"><span class="ed-gridmove"></span><input type="text" inputmode="decimal" data-step="move"></label>
+        <label class="ed-row"><span class="ed-gridturn"></span><input type="text" inputmode="decimal" data-step="turn"></label>
+      </div></div>
       <span class="ed-spacer"></span>
       <div class="ed-tgroup ed-play"><button data-a="play"></button><button data-a="pause"></button><button data-a="stop"></button></div>
       <span class="ed-spacer"></span>
@@ -299,20 +313,28 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   await view.init();
   loading.remove();
 
-  const fly = new FlyCamera(camera, canvas);
+  // The Scene view's camera (Unity's) and its orientation gizmo in the corner.
+  const cam = new SceneCamera(camera, canvas);
   {
     const box = view.bounds();
     const sp = doc.data.spawns.ffa[0]?.p ?? [0, 0, 0];
-    if (box.isEmpty()) fly.place(new THREE.Vector3(sp[0], sp[1] + 12, sp[2] + 18), new THREE.Vector3(...sp));
+    if (box.isEmpty()) cam.place(new THREE.Vector3(sp[0], sp[1] + 12, sp[2] + 18), new THREE.Vector3(...sp));
     else {
       const c = box.getCenter(new THREE.Vector3());
-      fly.place(new THREE.Vector3(c.x, Math.min(60, box.max.y + 20), box.max.z + 10), c);
+      cam.place(new THREE.Vector3(c.x, Math.min(60, box.max.y + 20), box.max.z + 10), c);
     }
   }
+  const viewGizmo = new ViewGizmo(sceneEl, { persp: et('viewPersp'), ortho: et('viewOrtho'), tip: et('viewTip') });
+  viewGizmo.onAxis = (a) => cam.view(a);
+  viewGizmo.onToggle = () => cam.toggleProjection();
   const markers = new Markers(ctx.scene);
   markers.draw(doc.data);
   const handles = new LinearHandles(ctx.scene);
   const gizmo = new Gizmo(camera, canvas, ctx.scene);
+  cam.onProjection = (c) => gizmo.setCamera(c);
+  /** The tool picked (Unity's Q W E R T). */
+  let tool: Tool = 'translate';
+  cam.hand = () => tool === 'hand';
 
   /** What a piece builds, with everything inside it when it's a group. */
   const pieceBounds = (id: string) => {
@@ -332,9 +354,94 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     const mesh = handles.group.children.find((c) => c.userData.ponta === s.key);
     return mesh ? new THREE.Box3().setFromObject(mesh) : null;
   };
-  const selection = new Selection(ctx.scene, camera, canvas, () => [handles.group, markers.group, view.root], () => gizmo.hot(), boundsOf);
+  const selection = new Selection(
+    ctx.scene,
+    () => cam.active,
+    canvas,
+    () => [handles.group, markers.group, view.root],
+    () => gizmo.hot(),
+    boundsOf,
+    // Alt + left drag orbits and the hand tool pans: those presses aren't the selection's.
+    (e) => e.altKey || tool === 'hand',
+  );
+  /** Box selection: the pieces whose drawing touches the box. */
+  selection.boxPick = (r) => {
+    const all: [string, THREE.Object3D][] = [];
+    for (const p of doc.data.pecas) {
+      const g = view.group(p.id);
+      if (g) all.push([p.id, g]);
+    }
+    return piecesInRect(cam.active, r, all);
+  };
+  /** The box around everything selected (null: nothing with a box). */
+  const selectionBox = (): THREE.Box3 | null => {
+    const box = new THREE.Box3();
+    for (const x of selection.items) {
+      const b = boundsOf(x);
+      if (b) box.union(b);
+    }
+    return box.isEmpty() ? null : box;
+  };
+  // Alt + left drag orbits about the selection's middle (or the point ahead).
+  cam.orbitCenter = () => (selection.pieceIds.length || selection.current ? (selectionBox()?.getCenter(new THREE.Vector3()) ?? null) : null);
   // Clicking the 3D view takes the keyboard back from the panels.
   canvas.addEventListener('pointerdown', () => (document.activeElement as HTMLElement | null)?.blur?.());
+  /** Where the mouse is over the Scene panel (null: elsewhere), for pasting where it points. */
+  let pointer: { x: number; y: number } | null = null;
+  sceneEl.addEventListener('pointermove', (e) => (pointer = { x: e.clientX, y: e.clientY }));
+  sceneEl.addEventListener('pointerleave', () => (pointer = null));
+
+  // --- The handle settings: Pivot/Center, Local/Global and the snapping (kept in the browser) --------------
+  let prefs: ToolPrefs = (() => {
+    try {
+      return readPrefs(localStorage.getItem(PREFS_KEY));
+    } catch {
+      return readPrefs(null);
+    }
+  })();
+  /** Ctrl held: snapping while it's down (Unity). */
+  let ctrlHeld = false;
+  const applySnap = () => gizmo.setSnap(snapSteps(prefs, ctrlHeld));
+  const setCtrl = (on: boolean) => {
+    if (on === ctrlHeld) return;
+    ctrlHeld = on;
+    applySnap();
+  };
+  window.addEventListener('keydown', (e) => setCtrl(e.ctrlKey || e.metaKey));
+  window.addEventListener('keyup', (e) => setCtrl(e.ctrlKey || e.metaKey));
+  window.addEventListener('pointermove', (e) => setCtrl(e.ctrlKey || e.metaKey));
+  window.addEventListener('blur', () => setCtrl(false));
+  // Alt held: the left button orbits, the gizmo lets it through.
+  const setAlt = (on: boolean) => gizmo.setEnabled(!on);
+  window.addEventListener('keydown', (e) => setAlt(e.altKey));
+  window.addEventListener('keyup', (e) => setAlt(e.altKey));
+  window.addEventListener('blur', () => setAlt(false));
+
+  // --- The Rect tool (T) -------------------------------------------------------------------------------------
+  const rect = new RectOverlay(sceneEl, canvas, () => cam.active, () => snapSteps(prefs, ctrlHeld).move);
+  /** The rectangle's box for the selection (its plane comes from the camera, syncRect). */
+  let rectBase: Omit<RectFrame, 'drop'> | null = null;
+  let rectDrop: RectFrame['drop'] | null = null;
+  const rectFrameOf = (pieces: Peca[]): Omit<RectFrame, 'drop'> | null => {
+    const tops = topLevel(doc.data, pieces.map((p) => p.id)).map(find).filter((p): p is Peca => !!p);
+    if (tops.length === 1 && stretchable(tops[0])) return { ...stretchBox(tops[0], groupMatrix(tops[0], find)), mode: 'stretch' };
+    const box = selectionBox();
+    if (!box) return null;
+    return { world: new THREE.Matrix4(), min: box.min.clone(), max: box.max.clone(), mode: tops.some(scalable) ? 'uniform' : 'move' };
+  };
+  /** The rectangle on the face that looks at the camera most (`force`: drawn again anyway). */
+  const syncRect = (force = false) => {
+    if (!rectBase) {
+      rectDrop = null;
+      return rect.set(null);
+    }
+    if (rect.dragging) return;
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.active.getWorldQuaternion(new THREE.Quaternion()));
+    const drop = dropAxis(rectBase.world, dir);
+    if (!force && drop === rectDrop) return;
+    rectDrop = drop;
+    rect.set({ ...rectBase, drop });
+  };
 
   /** The pieces selected (that still exist), the active one last. */
   const selectedPieces = (): Peca[] => selection.pieceIds.map(find).filter((p): p is Peca => !!p);
@@ -447,14 +554,19 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     };
   };
 
+  /** The gizmo on a target, unless the hand tool is on (Unity hides the handles then). */
+  const showGizmo = (t: GizmoTarget) => gizmo.attach(tool === 'hand' ? null : t);
   const attach = () => {
     const s = selection.current;
     const pieces = selectedPieces();
     hierarchy.setSelection(pieces.map((p) => p.id), s?.kind === 'marcador' ? s.key : null);
     view.setOut(drawnApart());
-    if (gizmo.dragging) return;
+    if (gizmo.dragging || rect.dragging) return;
     // Pieces gone (an undo, a delete) leave the selection.
     if (pieces.length !== selection.pieceIds.length) return selection.setMany(pieces.map((p) => ({ kind: 'peca', id: p.id })));
+    gizmo.setSpace(gizmoSpace(prefs));
+    rectBase = null;
+    syncRect();
     if (!s) {
       handles.show(null);
       gizmo.attach(null);
@@ -466,7 +578,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
       const at = markerPlace(doc.data, s.key);
       if (!at) return selection.set(null);
       const m = new THREE.Matrix4().compose(new THREE.Vector3(...at.p), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), at.yaw ?? 0), new THREE.Vector3(1, 1, 1));
-      gizmo.attach({ world: m, rotate: markerTurns(s.key), scale: false });
+      showGizmo({ world: m, rotate: markerTurns(s.key), scale: false });
       inspector.showMarker(s.key, doc.data);
       return;
     }
@@ -477,10 +589,19 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     if (s.kind === 'ponta') {
       const h = handles.world(s.key);
       if (!h) return selection.set({ kind: 'peca', id: s.id });
-      gizmo.attach({ world: h.world, rotate: false, scale: false, axis: h.axis ?? undefined });
+      showGizmo({ world: h.world, rotate: false, scale: false, axis: h.axis ?? undefined });
     } else {
       base = handleBase(peca, pivotOf(peca));
-      gizmo.attach({ world: handleWorld(peca, base, parent), rotate: true, scale: pieces.some(scalable) });
+      if (tool === 'rect') {
+        // The Rect tool instead of the gizmo.
+        gizmo.attach(null);
+        rectBase = rectFrameOf(pieces.length ? pieces : [peca]);
+        syncRect(true);
+      } else {
+        // Pivot: on the active piece; Center: in the middle of the selection (the point it turns and scales about).
+        const at = gizmoFrame(handleWorld(peca, base, parent), prefs.center ? selectionBox() : null, prefs);
+        showGizmo({ world: at, rotate: true, scale: pieces.some(scalable) });
+      }
     }
     inspector.showPieces(pieces.length ? pieces : [peca], doc.data, transformBinding(pieces.length ? pieces : [peca]));
   };
@@ -527,6 +648,28 @@ export async function runEditor(o: EditorOptions): Promise<void> {
       const peca = find(s.id);
       if (peca) doc.editPiece(moveHandle(peca, s.key, handles.toLocal(world)));
     }
+  };
+
+  // The Rect tool: a drag previews like the gizmo, then becomes one edit (a stretch, an even scale or a move).
+  rect.onPreview = (delta) => previewDeltas(new Map(topLevel(doc.data, selection.pieceIds).map((id) => [id, delta])));
+  rect.onCancel = () => clearPreview();
+  rect.onClick = (x, y, e) => selection.clickAt(x, y, e.ctrlKey || e.metaKey || e.shiftKey);
+  rect.onCommit = (f, d) => {
+    clearPreview();
+    const ids = selection.pieceIds;
+    let next: Peca[];
+    if (f.mode === 'stretch') {
+      const p = find(topLevel(doc.data, ids)[0]);
+      if (!p) return;
+      const moved = applyStretch(p, groupMatrix(p, find), d.min, d.max);
+      next = doc.data.pecas.map((x) => (x.id === moved.id ? moved : x));
+    } else if (d.k !== undefined && d.anchor) next = scaleTree(doc.data, ids, d.anchor.clone().applyMatrix4(f.world), d.k, pivotOf);
+    else {
+      // A move in the box's axes, turned into the world's.
+      const t = d.min.clone().sub(f.min).applyMatrix3(new THREE.Matrix3().setFromMatrix4(f.world));
+      next = moveTree(doc.data, ids, new THREE.Matrix4().makeTranslation(t.x, t.y, t.z));
+    }
+    doc.setPieces(next, linkedRest(doc.data, next));
   };
 
   /** A piece edited in the panel: the server's places tied to it follow when it moves. */
@@ -609,7 +752,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   const dropPoint = (): Vec3 => {
     const r = canvas.getBoundingClientRect();
     const p = selection.dropPoint(r.left + r.width / 2, r.top + r.height / 2, view.root);
-    return [snap(p.x), r4(p.y), snap(p.z)];
+    return [r4(snapTo(p.x, prefs.move)), r4(p.y), r4(snapTo(p.z, prefs.move))];
   };
 
   const addPiece = async (tipo: string) => {
@@ -679,7 +822,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
       for (const id of ids) box.union(pieceBounds(id));
       if (!box.isEmpty()) {
         const c = box.getCenter(new THREE.Vector3());
-        at = [snap(c.x), r4(box.min.y), snap(c.z)];
+        at = [r4(snapTo(c.x, prefs.move)), r4(box.min.y), r4(snapTo(c.z, prefs.move))];
       }
     }
     const made = makeGroup(doc.data, ids, at);
@@ -695,7 +838,12 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     {
       select: (ids, active) => selectPieces(ids, active),
       marker: (key) => selection.set({ kind: 'marcador', key }),
+      focusMarker: (key) => {
+        const m = markers.get(key);
+        if (m) cam.frame(new THREE.Box3().setFromObject(m));
+      },
       rename: (id, nome) => rename(id, nome),
+      focus: (id) => cam.frame(pieceBounds(id)),
       move: (ids, pai, slot) => {
         const next = moveInto(doc.data, ids, pai, slot);
         if (!next) return status(et('cantMove'), true);
@@ -737,15 +885,44 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     selection.set(null);
   };
 
+  /** F: the selection framed in the Scene view (nothing selected: the whole map). */
   const focus = () => {
-    const s = selection.current;
-    if (!s) return fly.frame(view.bounds());
+    if (!selection.current) return cam.frame(view.bounds());
+    const box = selectionBox();
+    if (box) cam.frame(box);
+  };
+
+  // --- Copy and paste ------------------------------------------------------------------------------------------
+  /** What Ctrl+C kept (the editor's own clipboard: it lasts while the editor is open). */
+  let clip: Clip | null = null;
+  const copy = () => {
+    const ids = selection.pieceIds;
+    if (!ids.length) return;
     const box = new THREE.Box3();
-    for (const x of selection.items) {
-      const b = boundsOf(x);
-      if (b) box.union(b);
+    for (const id of ids) box.union(pieceBounds(id));
+    clip = copyPieces(doc.data, ids, box);
+    if (clip) status(et('copied', { n: clip.pecas.length }));
+  };
+  /** Ctrl+V: where the mouse points in the Scene view, or (the mouse elsewhere) in the same place with an offset. */
+  const paste = async () => {
+    if (!clip) return status(et('pasteEmpty'));
+    const anchor = clipAnchor(clip);
+    const d = new THREE.Vector3(1, 0, 1);
+    if (pointer && anchor) {
+      d.copy(selection.dropPoint(pointer.x, pointer.y, view.root)).sub(anchor);
+      // With the grid button on, the copies keep to the grid (they move by whole steps).
+      if (prefs.grid) d.set(snapTo(d.x, prefs.move), d.y, snapTo(d.z, prefs.move));
+      d.set(r4(d.x), r4(d.y), r4(d.z));
     }
-    if (!box.isEmpty()) fly.frame(box);
+    const made = pastePieces(doc.data, clip, new THREE.Matrix4().makeTranslation(d.x, d.y, d.z));
+    if (made.skipped.length) {
+      const p = clip.pecas.find((x) => x.id === made.skipped[0]);
+      status(et('limitReached', { nome: p ? (MAP_CATALOG[p.tipo]?.nome.pt ?? p.tipo) : made.skipped[0] }), true);
+    }
+    if (!made.copies.length) return;
+    doc.setPieces(made.pecas, made.rest);
+    await view.idle();
+    selectPieces(made.copies);
   };
 
   // --- Test and save ------------------------------------------------------------------------------------------
@@ -801,17 +978,74 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   let leaving = false;
 
   // --- Buttons and keys ---------------------------------------------------------------------------------------
-  const setMode = (m: 'translate' | 'rotate' | 'scale') => {
-    gizmo.setMode(m);
-    for (const k of ['translate', 'rotate', 'scale']) button(k).classList.toggle('ed-on', k === m);
+  const TOOLS: Tool[] = ['hand', 'translate', 'rotate', 'scale', 'rect'];
+  /** Q W E R T: the hand pans (no gizmo), move, rotate and scale are the gizmo's, the rect is the Rect tool. */
+  const setTool = (t: Tool) => {
+    tool = t;
+    if (t === 'translate' || t === 'rotate' || t === 'scale') gizmo.setMode(t);
+    for (const k of TOOLS) button(k).classList.toggle('ed-on', k === t);
+    attach();
   };
-  setMode('translate');
+  /** The handle settings shown on their buttons, kept in the browser and applied. */
+  const showPrefs = () => {
+    const pv = button('pivotMode');
+    pv.textContent = et(prefs.center ? 'center' : 'pivot');
+    pv.title = et('pivotTip');
+    const sp = button('spaceMode');
+    sp.textContent = et(prefs.global ? 'global' : 'local');
+    sp.title = et('spaceTip');
+    const g = button('grid');
+    g.textContent = `▦ ${et('grid')}`;
+    g.title = et('gridTip');
+    g.classList.toggle('ed-on', prefs.grid);
+    applySnap();
+  };
+  const setPrefs = (p: Partial<ToolPrefs>) => {
+    prefs = { ...prefs, ...p };
+    try {
+      localStorage.setItem(PREFS_KEY, writePrefs(prefs));
+    } catch {
+      // Private window without storage: the settings last while the editor is open.
+    }
+    showPrefs();
+    attach();
+  };
+  const gridMenu = $<HTMLElement>('.ed-gridmenu');
+  $('.ed-gridtitle').textContent = et('gridMenu');
+  $('.ed-gridmove').textContent = et('gridMove');
+  $('.ed-gridturn').textContent = et('gridTurn');
+  for (const input of gridMenu.querySelectorAll<HTMLInputElement>('input[data-step]')) {
+    const which = input.dataset.step as 'move' | 'turn';
+    input.value = String(prefs[which]);
+    input.onchange = () => {
+      const v = parseStep(input.value, which === 'move' ? MOVE_RANGE : TURN_RANGE);
+      input.classList.toggle('ed-bad', v === null);
+      if (v !== null) setPrefs({ [which]: v });
+    };
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === 'Escape') {
+        input.blur();
+        if (e.key === 'Escape') gridMenu.hidden = true;
+      }
+    };
+  }
+  document.addEventListener('pointerdown', (e) => {
+    if (!gridMenu.contains(e.target as Node) && e.target !== button('gridMenu')) gridMenu.hidden = true;
+  });
+  showPrefs();
+
   const actions: Record<string, () => void> = {
     undo: () => doc.undo(),
     redo: () => doc.redo(),
-    translate: () => setMode('translate'),
-    rotate: () => setMode('rotate'),
-    scale: () => setMode('scale'),
+    hand: () => setTool('hand'),
+    translate: () => setTool('translate'),
+    rotate: () => setTool('rotate'),
+    scale: () => setTool('scale'),
+    rect: () => setTool('rect'),
+    pivotMode: () => setPrefs({ center: !prefs.center }),
+    spaceMode: () => setPrefs({ global: !prefs.global }),
+    grid: () => setPrefs({ grid: !prefs.grid }),
+    gridMenu: () => (gridMenu.hidden = !gridMenu.hidden),
     focus,
     duplicate: () => void duplicate(),
     remove,
@@ -834,39 +1068,44 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   };
   for (const [a, f] of Object.entries(actions)) button(a).onclick = f;
   button('undo').disabled = button('redo').disabled = true;
+  setTool('translate');
 
-  window.addEventListener('keydown', (e) => {
-    if (typing() || root.querySelector('.ed-modal')) return;
-    const h = historyKey(e);
-    if (h) {
-      e.preventDefault();
-      if (!gizmo.dragging) actions[h]();
-      return;
-    }
-    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyD') {
-      e.preventDefault();
-      actions.duplicate();
-      return;
-    }
-    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyG') {
-      e.preventDefault();
-      void group(true);
-      return;
-    }
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.code === 'Digit1') setMode('translate');
-    else if (e.code === 'Digit2') setMode('rotate');
-    else if (e.code === 'Digit3') setMode('scale');
-    else if (e.code === 'Delete' || e.code === 'Backspace') remove();
-    else if (e.code === 'KeyF') focus();
-    else if (e.code === 'F2') {
+  /** What each of Unity's keys does (client/editor/shortcuts.ts says which key is which). */
+  const keyActions: Record<EditorAction, () => void> = {
+    undo: actions.undo,
+    redo: actions.redo,
+    hand: actions.hand,
+    translate: actions.translate,
+    rotate: actions.rotate,
+    scale: actions.scale,
+    rect: actions.rect,
+    focus,
+    remove,
+    duplicate: actions.duplicate,
+    clear: () => selection.set(null),
+    copy,
+    paste: () => void paste(),
+    selectAll: () => selectPieces(doc.data.pecas.map((p) => p.id)),
+    group: () => void group(true),
+    rename: () => {
       const id = selection.pieceIds.pop();
-      if (id) {
-        e.preventDefault();
-        dock.show('hierarchy');
-        hierarchy.rename(id);
-      }
-    } else if (e.code === 'Escape') selection.set(null);
+      if (!id) return;
+      dock.show('hierarchy');
+      hierarchy.rename(id);
+    },
+  };
+  window.addEventListener('keydown', (e) => {
+    if (root.querySelector('.ed-modal')) return;
+    // Esc first gives up a box or a Rect drag under way.
+    if (e.code === 'Escape' && !typing() && (selection.cancelBox() || rect.cancel())) {
+      e.preventDefault();
+      return;
+    }
+    const a = shortcutOf(e, { typing: typing(), flying: cam.flying });
+    if (!a) return;
+    e.preventDefault();
+    if (gizmo.dragging || rect.dragging || selection.boxing) return;
+    keyActions[a]();
   });
   // Closing the tab with unsaved edits asks first (leaving by the Exit button already asked; testing keeps the draft).
   window.addEventListener('beforeunload', (e) => {
@@ -882,7 +1121,16 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   if (import.meta.env.DEV) {
     Object.assign(window, {
       __ocEditor: {
-        THREE, doc, selection, gizmo, markers, handles, budget, target, actions, addPiece, addMarkerAt, importGlb, dock, hierarchy, inspector, renderer: ctx.renderer,
+        THREE, doc, selection, gizmo, markers, handles, budget, target, actions, keyActions, addPiece, addMarkerAt, importGlb, dock, hierarchy, inspector, renderer: ctx.renderer, cam, rect, setTool, copy, paste,
+        get prefs() {
+          return prefs;
+        },
+        get tool() {
+          return tool;
+        },
+        get clip() {
+          return clip;
+        },
         get view() {
           return view;
         },
@@ -899,11 +1147,16 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     fit();
-    fly.update(dt);
+    cam.update(dt);
     view.update(dt, camera.position);
+    if (tool === 'rect') {
+      syncRect();
+      rect.update();
+    }
+    viewGizmo.update(cam.state.yaw, cam.state.pitch, cam.orthographic);
     // The shadow map is refreshed on demand: without this it was never drawn (PF-6 Revisions 01).
     o.quality.beforeRender();
-    ctx.render();
+    ctx.render(cam.active);
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

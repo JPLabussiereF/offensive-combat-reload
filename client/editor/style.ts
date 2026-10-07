@@ -43,6 +43,24 @@ const CSS = `
 #editor .ed-panel-body { position: absolute; inset: 0; overflow: auto; padding: 6px 8px; }
 #editor .ed-panel-body[hidden] { display: none; }
 #editor .ed-scene { padding: 0; overflow: hidden; background: #000; }
+#editor .ed-boxsel { position: absolute; border: 1px solid #8fb8ff; background: rgba(77,139,240,0.18); pointer-events: none; z-index: 5; }
+#editor .ed-boxsel[hidden] { display: none; }
+#editor .ed-rect { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4; overflow: visible; }
+#editor .ed-rect-body { fill: rgba(255,255,255,0.04); stroke: #f0f4ff; stroke-width: 1.5; pointer-events: all; cursor: move; }
+#editor .ed-rect-body.ed-rect-move { stroke-dasharray: 5 4; }
+#editor .ed-rect-handle { fill: #2f6fd6; stroke: #fff; stroke-width: 1.2; pointer-events: all; cursor: crosshair; }
+#editor .ed-viewgizmo { position: absolute; top: 6px; right: 6px; display: flex; flex-direction: column; align-items: center; z-index: 6; user-select: none; }
+#editor .ed-viewgizmo svg { overflow: visible; }
+#editor .ed-vg-axis, #editor .ed-vg-middle { cursor: pointer; }
+#editor .ed-vg-axis:hover { stroke: #fff; stroke-width: 2; }
+#editor .ed-vg-middle { fill: #d9dee6; stroke: #5b6576; }
+#editor .ed-vg-middle:hover { fill: #fff; }
+#editor .ed-vg-text { font: 700 10px system-ui, sans-serif; fill: #10141b; pointer-events: none; }
+#editor button.ed-vg-label { padding: 0 6px; font-size: 11px; background: rgba(22,27,36,0.75); border-color: transparent; }
+#editor .ed-gridmenu { min-width: 200px; padding: 6px 8px; left: 0; right: auto; }
+#editor button.ed-caret { padding: 3px 4px; min-width: 0; }
+#editor .ed-gridmenu .ed-row > span:first-child { flex: 0 0 100px; }
+#editor .ed-gridmenu input { width: 64px; flex: 0 0 auto; }
 #editor .ed-drop { position: absolute; background: rgba(47,111,214,0.28); border: 2px solid #4d8bf0; border-radius: 4px; pointer-events: none; z-index: 30; }
 #editor .ed-drop[hidden] { display: none; }
 

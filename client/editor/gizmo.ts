@@ -1,12 +1,12 @@
 // The editor's gizmo: three's TransformControls on a stand-in handle placed where the selection sits. Arrows
-// move, rings turn, cubes scale, snapping to a 0.5 m grid and 15° steps; holding Shift snaps nothing. It never
-// edits the data itself: it tells where the handle went while dragging (to preview) and when it's let go (to
-// commit an undoable edit).
+// move, rings turn, cubes scale. Revisions 01 (etapa 3) makes it Unity's: free by default, snapping (0.5 m and
+// 15°, or the steps chosen) while Ctrl is held or always with the grid button (setSnap); its axes the active
+// piece's (Local) or the world's (Global, setSpace); held on the active piece (Pivot) or in the middle of the
+// selection (Center: the editor places the handle, client/editor/tools.ts). It never edits the data itself: it
+// tells where the handle went while dragging (to preview) and when it's let go (to commit an undoable edit).
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
-
-export const GRID = 0.5;
-export const STEP = THREE.MathUtils.degToRad(15);
+import type { SnapSteps } from './tools';
 
 export type GizmoMode = 'translate' | 'rotate' | 'scale';
 
@@ -16,7 +16,7 @@ export interface GizmoTarget {
   /** What it may do: turning and scaling are off for what can't. */
   rotate: boolean;
   scale: boolean;
-  /** Only along one axis of its own frame (a wall's end), else free in the world's axes. */
+  /** Only along one axis of its own frame (a wall's end), else free in the chosen axes. */
   axis?: 'x' | 'z' | 'y';
 }
 
@@ -26,8 +26,7 @@ export class Gizmo {
   private target: GizmoTarget | null = null;
   private start = new THREE.Matrix4();
   private wanted: GizmoMode = 'translate';
-  private shift = false;
-  private off: (() => void)[] = [];
+  private space: 'local' | 'world' = 'world';
   /** While dragging: the handle's world matrix now and where it started. */
   onDrag: (world: THREE.Matrix4, start: THREE.Matrix4) => void = () => {};
   /** Let go: where it started and where it ended (equal: a click on the gizmo that moved nothing). */
@@ -41,7 +40,7 @@ export class Gizmo {
     const helper = this.controls.getHelper();
     helper.name = 'gizmo';
     scene.add(helper);
-    this.snap(true);
+    this.setSnap({ move: null, turn: null, scale: null });
     this.controls.addEventListener('mouseDown', () => {
       this.handle.updateMatrixWorld(true);
       this.start.copy(this.handle.matrixWorld);
@@ -54,27 +53,35 @@ export class Gizmo {
       this.handle.updateMatrixWorld(true);
       this.onEnd(this.start.clone(), this.handle.matrixWorld.clone());
     });
-    const key = (e: KeyboardEvent) => {
-      const s = e.shiftKey;
-      if (s === this.shift) return;
-      this.shift = s;
-      this.snap(!s);
-    };
-    window.addEventListener('keydown', key);
-    window.addEventListener('keyup', key);
-    this.off.push(() => window.removeEventListener('keydown', key), () => window.removeEventListener('keyup', key));
   }
 
-  /** Grid and 15° steps on or off (Shift held: off). */
-  private snap(on: boolean) {
-    this.controls.setTranslationSnap(on ? GRID : null);
-    this.controls.setRotationSnap(on ? STEP : null);
-    this.controls.setScaleSnap(on ? 0.1 : null);
+  /** The steps it snaps to (null: free); taken at once, even in the middle of a drag. */
+  setSnap(s: SnapSteps) {
+    this.controls.setTranslationSnap(s.move);
+    this.controls.setRotationSnap(s.turn);
+    this.controls.setScaleSnap(s.scale);
+  }
+
+  /** Local (the handle's axes) or Global (the world's). */
+  setSpace(space: 'local' | 'world') {
+    this.space = space;
+    this.apply();
+  }
+
+  /** The camera it's drawn and picked with (perspective or orthographic). */
+  setCamera(camera: THREE.Camera) {
+    this.controls.camera = camera;
+  }
+
+  /** Off while the camera has the left button (Alt held to orbit). */
+  setEnabled(on: boolean) {
+    if (this.controls.dragging) return;
+    this.controls.enabled = on;
   }
 
   /** Whether the pointer is over the gizmo (a click there is for it, not for picking). */
   hot() {
-    return this.controls.axis !== null || this.controls.dragging;
+    return this.controls.enabled && (this.controls.axis !== null || this.controls.dragging);
   }
 
   get dragging() {
@@ -108,15 +115,14 @@ export class Gizmo {
     if (!t) return;
     const mode: GizmoMode = (this.wanted === 'rotate' && !t.rotate) || (this.wanted === 'scale' && !t.scale) ? 'translate' : this.wanted;
     this.controls.setMode(mode);
-    // One axis of its own frame (a wall's end slides along the wall), or the world's.
-    this.controls.setSpace(t.axis ? 'local' : 'world');
+    // One axis of its own frame (a wall's end slides along the wall), or the axes chosen.
+    this.controls.setSpace(t.axis ? 'local' : this.space);
     this.controls.showX = !t.axis || t.axis === 'x';
     this.controls.showY = !t.axis || t.axis === 'y';
     this.controls.showZ = !t.axis || t.axis === 'z';
   }
 
   dispose() {
-    for (const f of this.off) f();
     this.controls.detach();
     this.controls.getHelper().removeFromParent();
     this.controls.dispose();

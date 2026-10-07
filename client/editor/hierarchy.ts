@@ -1,7 +1,7 @@
 // The editor's Hierarchy panel (PF-6 Revisions 01), as in Unity: every piece of the map as a tree (groups with
 // their children, in the map's order), then the markers. A click selects (Ctrl adds or takes out, Shift takes the
 // run from the last one clicked), in step with the 3D view's selection; the arrow opens and closes a group; a
-// double click or F2 renames; rows dragged onto a group go into it, onto the top or bottom edge of a row go
+// double click frames the piece in the Scene view (etapa 3, as Unity's); F2 renames; rows dragged onto a group go into it, onto the top or bottom edge of a row go
 // before or after it (in its group), onto the empty space below go out of every group. The search shows the
 // matching pieces as a flat list. "+" makes an empty group, or a group around the selection (Ctrl+G).
 import type { MapData, Peca } from '@shared/mapData';
@@ -14,7 +14,11 @@ export interface HierarchyActions {
   /** Pieces picked in the tree: the whole selection now (Ctrl and Shift already applied), `active` the one clicked. */
   select(ids: string[], active: string | null): void;
   marker(key: string): void;
+  /** A marker's row double-clicked: the Scene view frames it. */
+  focusMarker(key: string): void;
   rename(id: string, nome: string | null): void;
+  /** A row double-clicked: the Scene view frames it. */
+  focus(id: string): void;
   move(ids: string[], pai: string | null, slot: Slot): void;
   newGroup(): void;
   groupSelection(): void;
@@ -150,6 +154,7 @@ export class Hierarchy {
           r.style.paddingLeft = '22px';
           r.textContent = `◆ ${key}`;
           r.onclick = () => this.act.marker(key);
+          r.ondblclick = () => this.act.focusMarker(key);
           frag.append(r);
         }
     }
@@ -187,7 +192,7 @@ export class Hierarchy {
     r.onclick = (e) => this.click(p.id, e);
     r.ondblclick = (e) => {
       e.preventDefault();
-      this.rename(p.id);
+      this.act.focus(p.id);
     };
     r.ondragstart = (e) => {
       this.dragging = this.selected.has(p.id) ? [...this.selected] : [p.id];
