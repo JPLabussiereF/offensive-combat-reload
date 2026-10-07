@@ -1,0 +1,19 @@
+{
+  "id": "frango",
+  "nome": "Frango de Borracha",
+  "icone": "🐔",
+  "categoria": "corpo",
+  "slot": "corpo",
+  "libera": {
+    "arma": "faca",
+    "pontos": 1500
+  },
+  "letal": true,
+  "alcance": 1.8,
+  "alcanceInvestida": 4,
+  "anguloGraus": 45,
+  "duracao": 0.45,
+  "impacto": 0.14,
+  "intervalo": 0.6,
+  "velocidadeInvestida": 15.4
+}

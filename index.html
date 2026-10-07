@@ -206,9 +206,20 @@
               </div>
             </div>
             <div id="tab-arsenal" class="home-pane hidden">
-              <h3 data-t="arsenal"></h3>
-              <p class="hint" data-t="arsenalHint"></p>
-              <div id="home-arsenal" class="arsenal-grid"></div>
+              <!-- The Arsenal as a canvas (client/ui/arsenalCanvas.ts): the touch hint replaces the mouse one on phones. -->
+              <div class="cv-head">
+                <div class="cv-head-text">
+                  <h3 data-t="arsenal"></h3>
+                  <p class="hint hint-mouse" data-t="arsenalCanvasHint"></p>
+                  <p class="hint hint-touch" data-t="arsenalCanvasHintTouch"></p>
+                </div>
+                <div class="cv-legend">
+                  <span><i class="on"></i><span data-t="upgradeOn"></span></span>
+                  <span><i class="off"></i><span data-t="upgradeOff"></span></span>
+                  <span><i class="locked"></i><span data-t="cvLegendLocked"></span></span>
+                </div>
+              </div>
+              <div id="home-arsenal"></div>
             </div>
             <div id="tab-album" class="home-pane hidden"></div>
             <div id="tab-profile" class="home-pane hidden"></div>

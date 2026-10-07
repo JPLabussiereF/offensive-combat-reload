@@ -93,7 +93,7 @@
     { "id": "liquidificadorPipoca", "arma": "smg", "melhorias": ["motor", "holo", "tambor"], "raridade": "epico" },
     { "id": "rifleCompleto", "arma": "rifle", "melhorias": ["pontoVermelho", "empunhadura", "pente"], "raridade": "lendario" },
     { "id": "liquidificadorSupremo", "arma": "smg", "melhorias": ["motor", "holo", "tambor", "coronha"], "raridade": "lendario" },
-    { "id": "sabre", "arma": "faca", "melhorias": ["sabre"], "raridade": "lendario" }
+    { "id": "sabre", "arma": "faca", "faca": "sabre", "melhorias": [], "raridade": "lendario" }
   ],
   "mapas": {
     "cemiterio": {

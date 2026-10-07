@@ -10,7 +10,7 @@
 //   has unlocked (the coffin is this mode's progression).
 // The barricades' rules (shared/barricades.ts) use the numbers here too.
 import data from './data/zumbi.json';
-import { isGun, upgradeOf, type GunId, type ProgWeapon } from './progression';
+import { isGun, isKnife, PRIMARIES, progOf, upgradeOf, type GunId, type KnifeId, type ProgWeapon, type WeaponId } from './progression';
 import { damageAtDistance, LETHAL_DAMAGE, type HitRegion, type WeaponData } from './weapons';
 import { WEAPON_FLAWS, type GunStats, type Loadout, type WeaponFlaw } from './arsenal';
 import type { MapId } from './maps';
@@ -32,6 +32,8 @@ export const RARITIES: Rarity[] = ['inicial', 'comum', 'raro', 'epico', 'lendari
 export interface ZItem {
   id: string;
   arma: GunId | 'faca';
+  /** A knife item: which knife (the saber). */
+  faca?: KnifeId;
   melhorias: string[];
   raridade: Rarity;
 }
@@ -162,7 +164,7 @@ export const ZOMBIE = data as unknown as {
 
 export const ZITEMS = new Map(ZOMBIE.itens.map((i) => [i.id, i]));
 export const itemOf = (id: string | null | undefined): ZItem | undefined => (id ? ZITEMS.get(id) : undefined);
-export const itemSlot = (it: ZItem): ZSlot => (it.arma === 'faca' ? 'faca' : it.arma === 'rifle' ? 'primaria' : 'secundaria');
+export const itemSlot = (it: ZItem): ZSlot => (it.arma === 'faca' ? 'faca' : PRIMARIES.includes(it.arma) ? 'primaria' : 'secundaria');
 /** How much harder a weapon of this rarity hits zombies. */
 export const rarityMul = (r: Rarity) => ZOMBIE.raridades[r]?.dano ?? 1;
 
@@ -198,30 +200,31 @@ export function zombieLoadout(items: ZItems): Loadout {
   const sec = itemOf(items.secundaria);
   const knife = itemOf(items.faca);
   const primGun: GunId = isGun(prim.arma) ? prim.arma : 'rifle';
-  ativas[primGun] = [...prim.melhorias];
+  ativas[progOf(primGun)] = [...prim.melhorias];
   const secGun: GunId | null = sec && isGun(sec.arma) ? sec.arma : null;
-  if (sec && secGun) ativas[secGun] = [...sec.melhorias];
+  if (sec && secGun) ativas[progOf(secGun)] = [...sec.melhorias];
   if (knife) ativas.faca = [...knife.melhorias];
   // A damaged item's flaw goes with its weapon (the client gives the gun fewer rounds).
   const danificadas: Partial<Record<ProgWeapon, ZFlaw>> = {};
   const flaws = items.danificadas ?? {};
-  if (flaws.primaria) danificadas[primGun] = flaws.primaria;
-  if (flaws.secundaria && secGun) danificadas[secGun] = flaws.secundaria;
+  if (flaws.primaria) danificadas[progOf(primGun)] = flaws.primaria;
+  if (flaws.secundaria && secGun) danificadas[progOf(secGun)] = flaws.secundaria;
   if (flaws.faca && knife) danificadas.faca = flaws.faca;
-  return { primaria: primGun, secundaria: secGun, ativas, ...(Object.keys(danificadas).length ? { danificadas } : {}) };
+  const faca: KnifeId = knife && isKnife(knife.faca) ? knife.faca : 'faca';
+  return { primaria: primGun, secundaria: secGun, faca, ativas, ...(Object.keys(danificadas).length ? { danificadas } : {}) };
 }
 
-/** The slot of the weapon a hit came from (the rifle is always the primary, the pistol and the SMG the secondary). */
-const slotOfGun = (gun: ProgWeapon): ZSlot => (gun === 'faca' ? 'faca' : gun === 'rifle' ? 'primaria' : 'secundaria');
+/** The slot of the weapon a hit came from (the rifles are the primary, the pistol and the SMG the secondary). */
+const slotOfGun = (gun: WeaponId): ZSlot => (isKnife(gun) ? 'faca' : isGun(gun) && PRIMARIES.includes(gun) ? 'primaria' : 'secundaria');
 
-/** The item behind the gun a hit came from (by the gun: the rifle is always the primary). */
-export function itemOfGun(items: ZItems, gun: ProgWeapon): ZItem | undefined {
+/** The item behind the gun a hit came from (by the gun: the rifles are the primary). */
+export function itemOfGun(items: ZItems, gun: GunId | 'faca'): ZItem | undefined {
   const it = itemOf(items[slotOfGun(gun)]);
   return it?.arma === gun ? it : undefined;
 }
 
 /** The flaw of the weapon a hit came from, if it's a damaged one. */
-export const flawOfGun = (items: ZItems, gun: ProgWeapon): ZFlaw | null => (itemOfGun(items, gun) ? (items.danificadas?.[slotOfGun(gun)] ?? null) : null);
+export const flawOfGun = (items: ZItems, gun: GunId | 'faca'): ZFlaw | null => (itemOfGun(items, gun) ? (items.danificadas?.[slotOfGun(gun)] ?? null) : null);
 
 /** A flaw's damage multiplier (less damage for 'dano' and 'ambos'). */
 export const flawDamageMul = (flaw: ZFlaw | null | undefined) => (flaw === 'dano' || flaw === 'ambos' ? ZOMBIE.caixa.danificada.dano : 1);
@@ -236,7 +239,7 @@ export function flawAmmo(flaw: ZFlaw | null | undefined): { pente: number; reser
  * The damage multiplier of whatever made a hit: the item's rarity (the plain knife ×1), less for a damaged one.
  * The server's hit checks (and the solo game's) use it.
  */
-export const weaponMul = (items: ZItems, gun: ProgWeapon) => rarityMul(itemOfGun(items, gun)?.raridade ?? 'inicial') * flawDamageMul(flawOfGun(items, gun));
+export const weaponMul = (items: ZItems, gun: GunId | 'faca') => rarityMul(itemOfGun(items, gun)?.raridade ?? 'inicial') * flawDamageMul(flawOfGun(items, gun));
 
 /** A gun as this mode hands it out: a bigger reserve for hordes, minus a damaged gun's missing rounds. */
 export function zombieGunData(g: GunStats, flaw: ZFlaw | null | undefined): GunStats {
@@ -420,7 +423,9 @@ export function zombieProblems(): string[] {
     if (ids.has(it.id)) out.push(`item repetido ${it.id}`);
     ids.add(it.id);
     if (it.arma !== 'faca' && !isGun(it.arma)) out.push(`${it.id}: arma desconhecida`);
-    for (const u of it.melhorias) if (!upgradeOf(it.arma, u)) out.push(`${it.id}: melhoria desconhecida ${u}`);
+    if (it.faca !== undefined && !isKnife(it.faca)) out.push(`${it.id}: faca desconhecida`);
+    const prog = it.arma === 'faca' ? 'faca' : isGun(it.arma) ? progOf(it.arma) : null;
+    if (prog) for (const u of it.melhorias) if (!upgradeOf(prog, u)) out.push(`${it.id}: melhoria desconhecida ${u}`);
     if (!RARITIES.includes(it.raridade)) out.push(`${it.id}: raridade desconhecida`);
   }
   const start = itemOf(ZOMBIE.inicial);

@@ -16,7 +16,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { armGlove, armSleeve, bodyStats, type Appearance } from '@shared/appearance';
-import type { GrenadeKind, KnifeForm } from '@shared/progression';
+import type { GrenadeKind, KnifeId } from '@shared/progression';
 import { gunStats } from '@shared/arsenal';
 import type { Sex } from '@shared/protocol';
 import { toonGradient } from './materials';
@@ -263,8 +263,8 @@ export class Viewmodel {
     this.drawT = this.drawLen;
   }
 
-  /** Swaps what the melee hand swings (the knife, the rubber chicken, the lightsaber). */
-  setKnife(form: KnifeForm) {
+  /** Swaps what the melee hand swings (the kitchen knife, or a bigger one: the spoon, the chicken, the saber…). */
+  setKnife(form: KnifeId) {
     if (this.knifeItem) {
       this.knife.remove(this.knifeItem);
       this.knifeItem.traverse((o) => (o as THREE.Mesh).geometry?.dispose());

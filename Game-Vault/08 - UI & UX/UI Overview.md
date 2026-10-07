@@ -71,7 +71,7 @@ flowchart LR
 - **Atualização barata:** o HUD guarda o último valor mostrado e só toca no DOM quando muda; números (vida, munição, placar) são atualizados a 15 Hz (`hudTimer = 1/15` em `main.ts`).
 - **Textos sempre por `t(chave)`:** todo texto visível vem de `client/ui/strings.ts` em **pt-BR** e **en**. O idioma é escolhido pelo `navigator.language` (começa com "pt" → pt-BR, senão en). Não há seletor de idioma na interface (existe `setLang`, mas nada o chama). O editor de personagem tem seus próprios rótulos bilíngues em `customize.ts`.
 - **Segurança de texto:** nomes de jogadores e mensagens de chat são escritos com `textContent` ou escapados (`esc`) antes de `innerHTML`.
-- **Navegação por controle:** fora da partida, `PadNav` (`client/ui/padNav.ts`) move o foco para o controle visível mais próximo na direção do D-pad/analógico; ✕/A aciona, ◯/B volta (botões cujo texto começa com "voltar", "cancelar", "fechar"...), L1/R1 trocam abas, analógico direito rola.
+- **Navegação por controle:** fora da partida, `PadNav` (`client/ui/padNav.ts`) move o foco para o controle visível mais próximo na direção do D-pad/analógico; ✕/A aciona, ◯/B volta (botões cujo texto começa com "voltar", "cancelar", "fechar"...), L1/R1 trocam abas, analógico direito rola (no canvas do Arsenal da tela inicial, move o canvas).
 - **Celular:** classe `mobile` no `<html>` (`client/core/device.ts`) troca layouts via CSS (`.desktop-only`, `.mobile-only`); a partida pede o celular deitado (aviso "Gire o celular para jogar").
 
 ## Notas desta área

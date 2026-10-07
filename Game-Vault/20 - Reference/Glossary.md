@@ -35,7 +35,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 
 | Termo exibido | No código | Significado | Nota |
 |---|---|---|---|
-| Arsenal | `client/ui/arsenal.ts`, `ArsenalChoice` | Tela (menu de pausa e aba da home) para escolher a arma secundária e ligar/desligar as melhorias opcionais já liberadas; mostra o nível, o XP e os atributos de cada arma | [[Inventory UI]] · [[Progression]] · [[Menus]] |
+| Arsenal | `client/ui/arsenal.ts` (árvore, menu de pausa), `client/ui/arsenalCanvas.ts` (canvas, aba da home), `ArsenalChoice` | Tela para escolher o rifle, a secundária e a faca e ligar/desligar qualquer melhoria já liberada; mostra o nível, os pontos que faltam e os atributos de cada arma | [[Inventory UI]] · [[Progression]] · [[Menus]] |
 | Banner | `hud.showBanner` | Texto grande animado (NO PÁSSARO!, OPRIMIDO!, nível) | [[Notifications]] |
 | Beber Poção | prompt `promptPotion` | Ação da tecla de contexto perto da bruxa | [[Interaction System]] |
 | Biscoito Scooby | `biscoito` | Coletável da Vila Assombrada: cura total; aparece com o armário da cozinha aberto | [[Pickups]] |
@@ -69,7 +69,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Tipo de partida | `#home-game`, `GameModeId` | Seletor de modo de jogo na home (Mata-mata / Corrida armada / Zumbi) | [[Matchmaking UI]] |
 | Rodada | `roundEnd`, `roundStart` | Na corrida armada, do início até o abate com o sabre; 6 s de intervalo antes da próxima | [[Gun Game]] |
 | Melhoria (upgrade) | `Upgrade` em `progression.json` (`melhorias`), `upg_<arma>_<id>` | O que cada nível de arma ≥ 2 libera: muda atributos reais (e às vezes o visual). As **comuns** ficam ativas assim que liberadas | [[Weapons]] · [[Progression]] |
-| Melhoria opcional | `opcional: true`, `grupo`, `ArsenalChoice.ligadas` | Melhoria com troca (ganha algo, perde algo; ex.: silenciador, luneta, frango, sabre, mina). Vem desligada; o jogador liga no Arsenal. Num `grupo`, só uma fica ligada e ela substitui as comuns do grupo | [[Weapons]] · [[Inventory UI]] |
+| Melhoria opcional | `opcional: true`, `grupo`, `ArsenalChoice.ligadas` | Melhoria com troca (ganha algo, perde algo; ex.: silenciador, lunetas, mina). Vem desligada; o jogador liga no Arsenal. Num `grupo`, só uma fica ligada e ela substitui as comuns do grupo | [[Weapons]] · [[Inventory UI]] |
 | Mina Terrestre | melhoria opcional da granada (nível 2, grupo `modo`), `tipo: 'mina'` | Mina plantada com G; arma em 1 s, no máximo 3 por jogador | [[Land Mines]] |
 | Modo PCD | membro ausente na aparência | Sem um membro: recarga ×1,3 ou velocidade ×0,75, e o membro não tem hitbox | [[Character Customization]] |
 | No pássaro! | região `virilha`, kind `groin` | Tiro na virilha: morte instantânea, +100 pontos | [[Damage System]] · [[Scoring]] |
@@ -78,7 +78,11 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Poções da bruxa | `POTION`, `pato`/`veloz`/`lerdo`/`critico`/`bebado` | Efeito sorteado, uma poção por minuto | [[Buffs & Debuffs]] |
 | Prompt | `hud.setPrompt` | Dica de ação ("Oprimir {nome}", "Beber Poção") | [[HUD]] |
 | Sala / Sessão | `Session` | Uma partida online; ≠ sessão de login (cookie `oc_sessao`) | [[Sessions]] |
-| Primária | `primaria`, `PRIMARIES`, tecla `weapon1` | Espaço da arma de fogo principal: o Rifle Padrão. Toda vida começa com ela na mão | [[Weapons]] |
+| Primária | `primaria`, `PRIMARIES`, tecla `weapon1` | Espaço da arma de fogo principal: um dos sete rifles (padrão: o Rifle Padrão). Toda vida começa com ela na mão | [[Weapons]] |
+| Rifles antigos / facas antigas | `rifleFita`…`rifleOuro`, `colher`…`sabre` | As armas das primeiras versões do jogo, de volta como armas próprias (PF-8): cada uma com uma troca, usando os pontos e as melhorias do rifle ou da faca | [[Weapons]] · [[Melee]] · [[ADR - Rifles e facas antigos como armas próprias]] |
+| Progressão (de uma arma) | `ProgWeapon`, `progOf` | Onde ficam os pontos, o nível e as melhorias: `rifle` (os sete rifles), `pistola`, `smg`, `faca` (as sete facas), `granada` | [[Progression]] |
+| Trava | `libera: { arma, pontos }`, `weaponUnlocked` | No JSON de uma arma: os pontos de uma progressão que a liberam (ex.: Sabre com 9.000 de faca) | [[Progression]] |
+| Pintura | `visual`, `GunLook`, `LOOKS` | As cores e enfeites de um rifle (`padrao`, `fita`, `tia`, `natal`, `chamas`, `vovo`, `ouro`); vem do JSON do rifle | [[Weapon Models]] |
 | Sala permanente | ids `principal` (rua), `jardim`, `halloween` (mata-mata), `corrida-armada-<mapa>` e `zumbi-cemiterio` | Uma sala fixa por mapa e por modo jogado nele | [[Sessions]] · [[Matchmaking]] |
 | Secundária | `secundaria`, `SECONDARIES`, `FLAG.secondary`, tecla `weapon2` | Segundo espaço de arma de fogo: Pistola do Porteiro (padrão) ou Submetralhadora Liquidificador, escolhida no Arsenal; troca com 1/2/roda | [[Weapons]] · [[Inventory]] |
 
@@ -153,7 +157,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `Conn` / `Peer` / `SPlayer` | Conexão de socket / dados presos ao socket / jogador dentro de uma sala (servidor) | [[Server Architecture]] |
 | `HomeChoice` | O que a tela inicial devolve: `offline`, `bots` (com `game`, o modo de jogo) ou `online` (o modo vem da sessão) | [[Client Architecture]] |
 | `SessionMode` / `MODE_RULES` | Lado do servidor de um modo de jogo (ganchos chamados pela `Session`) / regras declaradas de cada modo | [[ADR - Modos de jogo com regras declaradas e ganchos no servidor]] |
-| `soFaca` | Campo do `Loadout`: só a faca, sempre na mão, o tiro golpeia (Sabre de Luz da corrida armada) | [[Melee]] · [[Gun Game]] |
+| `soFaca` | Campo do `Loadout`: só a faca, sempre na mão, o tiro golpeia (a faca `sabre` da corrida armada) | [[Melee]] · [[Gun Game]] |
 | `GameMap` / `MapFrame` | Contrato que todo mapa devolve / informações por quadro passadas ao mapa | [[World Structure]] |
 | `MapBuilder` / célula | Construtor de mapas que funde geometria por (material, célula de 40/45/60 m) e cria colisores | [[ADR - Lotes estáticos por material e célula]] |
 | `PropBus` | Registro que sincroniza piadas de mapa (gatilho local → mensagem `prop` → `remote`) | [[Map Gags]] · [[Events & Messaging]] |
@@ -161,10 +165,10 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `BotManager` / `Bot` / `BOT_SKILLS` / `NavMap` | Gerente da partida contra bots / um bot / tabela de dificuldades / navmesh Recast | [[AI Overview]] |
 | Modos do bot (`roam`, `engage`, `chase`, `flee`, `toTaunt`, `taunt`) | Estados de comportamento dos bots | [[States]] |
 | `GrenadeThrower` | A mão do jogador como máquina de estados (cozinhar, arremessar, recarga) | [[Controllers]] |
-| `ArsenalChoice` | O que o jogador escolheu no Arsenal e a conta guarda: `{ secundaria, ligadas }` (melhorias opcionais ligadas por arma); sempre limpo por `sanitizeChoice` | [[Shared Systems]] · [[Player Data]] |
+| `ArsenalChoice` | O que o jogador escolheu no Arsenal e a conta guarda: `{ primaria, secundaria, faca, ligadas, desligadas }` (rifle, secundária e faca; opcionais ligadas e comuns desligadas por progressão); sempre limpo por `sanitizeChoice` | [[Shared Systems]] · [[Player Data]] |
 | `Loadout` | O que o jogador leva na partida: `{ primaria, secundaria, ativas }` (arma de cada espaço e melhorias em efeito por arma), resolvido por `resolveLoadout(choice, níveis)` e replicado em `playerLoadout` | [[Shared Systems]] · [[Inventory]] |
 | `gunStats` / `meleeStats` / `grenadeStats` | Atributos efetivos de uma arma com uma lista de melhorias (`shared/arsenal.ts`); cliente e servidor usam as mesmas funções | [[Shared Systems]] · [[Weapons]] |
-| `GunId` / `ProgWeapon` | Armas de fogo (`rifle`, `pistola`, `smg`) / todas as armas com progressão (+ `faca`, `granada`) | [[Shared Systems]] |
+| `GunId` / `KnifeId` / `WeaponId` / `ProgWeapon` | Armas de fogo (os sete rifles, `pistola`, `smg`) / as sete facas / qualquer arma (+ `granada`) / as cinco progressões (`rifle`, `pistola`, `smg`, `faca`, `granada`) | [[Shared Systems]] |
 | `SIM` | Passo fixo da simulação (1/60 s, até 5 passos por quadro) | [[ADR - Simulação em passo fixo com render interpolado]] |
 | `FLAG` | Bits de animação enviados junto com o estado | [[Replication]] |
 | `HttpError` / `ApiError` / `ApiErrorCode` | Códigos de erro estáveis em snake_case português | [[Error Handling]] |
@@ -172,6 +176,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `__oc` | Handle de depuração no `window`, só em dev (perf, stats, trace) | [[Troubleshooting]] |
 | F3 / F4 / F6 | Overlay de depuração / hitboxes e navmesh / painel de ajuste | [[Troubleshooting]] |
 | PadNav | Navegação dos menus pelo controle | [[Input & Controls]] |
+| Canvas do Arsenal | `ArsenalCanvas`, `canvasLayout`, `data-pad-pan` | A aba Arsenal da tela inicial: quadros por espaço, armas e melhorias ligadas, câmera com arrastar e zoom, painel de detalhes | [[Inventory UI]] · [[ADR - Arsenal da tela inicial em canvas]] |
 | Primária / Alternativa | Os dois espaços de tecla de cada ação | [[ADR - Teclas remapeáveis com primária e alternativa]] |
 
 ## Renderização e arte

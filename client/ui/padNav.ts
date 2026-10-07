@@ -1,7 +1,7 @@
 // Menus with a controller (home, character editor, settings, pause): the D-pad or the left stick moves the focus
 // to the nearest visible control in that direction, ✕/A presses it (a checkbox toggles, a select cycles, a
-// slider moves with left/right), ◯/B goes back, L1/R1 switch tabs, the right stick scrolls. Works on whatever
-// is on top: a control counts only if it's visible and not covered by another layer.
+// slider moves with left/right), ◯/B goes back, L1/R1 switch tabs, the right stick scrolls (or pans a canvas: the
+// home's Arsenal). Works on whatever is on top: a control counts only if it's visible and not covered by another layer.
 
 import type { GamepadInput } from '../core/gamepad';
 
@@ -152,11 +152,12 @@ export class PadNav {
     if (p.pressed('b')) this.back();
     if (p.pressed('lb')) this.tab(-1);
     if (p.pressed('rb')) this.tab(1);
-    // Right stick: scroll the list under the focus.
-    const ry = p.look[1];
-    if (ry) {
-      const box = this.focused?.closest<HTMLElement>('.cz-content, .menu-card, .home-card, [data-pad-scroll]');
-      box?.scrollBy({ top: ry * 900 * dt });
+    // Right stick: scroll the list under the focus, or pan the canvas under it (data-pad-pan: the home's Arsenal).
+    const [rx, ry] = p.look;
+    if (rx || ry) {
+      const box = this.focused?.closest<HTMLElement>('.cz-content, .menu-card, .home-card, [data-pad-scroll], [data-pad-pan]');
+      if (box?.hasAttribute('data-pad-pan')) box.dispatchEvent(new CustomEvent('pad-pan', { detail: { dx: -rx * 900 * dt, dy: -ry * 900 * dt } }));
+      else if (ry) box?.scrollBy({ top: ry * 900 * dt });
     }
   }
 

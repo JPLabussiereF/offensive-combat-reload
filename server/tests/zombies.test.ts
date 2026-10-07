@@ -11,7 +11,7 @@ import { importNavMesh, init, type NavMesh } from 'recast-navigation';
 import nav from '@shared/data/navmesh/cemiterio.json';
 import { gunStats, resolveLoadout } from '@shared/arsenal';
 import { modeMaps, MODE_RULES } from '@shared/modes';
-import { MAX_LEVELS, PROG_WEAPONS, xpForLevel, type ArsenalChoice, type ProgWeapon } from '@shared/progression';
+import { MAX_LEVELS, progOf, PROG_WEAPONS, xpForLevel, type ArsenalChoice, type ProgWeapon } from '@shared/progression';
 import { FLAG, type ServerMsg, type Vec3 } from '@shared/protocol';
 import {
   BOX_ITEMS,
@@ -76,7 +76,9 @@ describe('regras do modo zumbi', () => {
   });
 
   it('todo mundo começa com o rifle sem melhorias e a faca comum', () => {
-    expect(zombieLoadout(startItems())).toEqual({ primaria: 'rifle', secundaria: null, ativas: { rifle: [], pistola: [], smg: [], faca: [], granada: [] } });
+    expect(zombieLoadout(startItems())).toEqual({ primaria: 'rifle', secundaria: null, faca: 'faca', ativas: { rifle: [], pistola: [], smg: [], faca: [], granada: [] } });
+    // The coffin's saber is the saber knife.
+    expect(zombieLoadout({ ...startItems(), faca: 'sabre' })).toMatchObject({ faca: 'sabre', ativas: { faca: [] } });
   });
 
   it('as ondas crescem, escalam com os jogadores e têm chefes nas ondas marcadas', () => {
@@ -746,7 +748,7 @@ describe('modo zumbi no servidor: progressão de armas, chefes e quem entra no m
     // The coffin's weapon: in its slot, with its own fixed upgrades, never the account's.
     const { item, lo } = await buyFromCoffin(a);
     expect(lo).toEqual(zombieLoadout({ ...startItems(), [itemSlot(item)]: item.id }));
-    expect(lo.ativas[item.arma]).toEqual(item.melhorias);
+    expect(lo.ativas[item.arma === 'faca' ? 'faca' : progOf(item.arma)]).toEqual(item.melhorias);
     expect(lo.ativas.granada).toEqual([]);
     // And its damage on the boss: that weapon with those upgrades, times its rarity.
     if (item.arma === 'faca') {
@@ -777,7 +779,7 @@ describe('modo zumbi no servidor: progressão de armas, chefes e quem entra no m
       // A blade has no rounds to lose: its flaw is always less damage.
       expect(got).toBe(item.arma === 'faca' ? 'dano' : flaw);
       // (the loadout lists every damaged weapon in hand: an earlier roll's may still be there in its own slot)
-      expect(lo.danificadas?.[item.arma]).toBe(got!);
+      expect(lo.danificadas?.[item.arma === 'faca' ? 'faca' : progOf(item.arma)]).toBe(got!);
       const mul = rarityMul(item.raridade) * (got === 'municao' ? 1 : ZOMBIE.caixa.danificada.dano);
       if (item.arma === 'faca') {
         a.p.send({ t: 'state', s: { p: close, yaw: 0, pitch: 0, f: FLAG.grounded } });

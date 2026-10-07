@@ -83,9 +83,9 @@ Um só time: todos os jogadores da sessão contra os zumbis. **Não há fogo ami
 
 | Item | No modo zumbi |
 |---|---|
-| Primária | **Rifle Padrão sem melhorias**, o mesmo para todos: as melhorias e a secundária do Arsenal da conta **não valem** aqui (`startItems`, `zombieLoadout`) |
+| Primária | **Rifle Padrão sem melhorias**, o mesmo para todos: as armas (rifle, secundária, faca) e as melhorias do Arsenal da conta **não valem** aqui (`startItems`, `zombieLoadout`) |
 | Secundária | vazia até sair uma do caixão |
-| Faca | a comum (golpe rápido `F`/`V`): **120 de dano** contra zumbis (mata um zumbi da onda 1, depois só ajuda); o Sabre de Luz do caixão multiplica pela raridade |
+| Faca | a faca de cozinha (golpe rápido `F`/`V`): **120 de dano** contra zumbis (mata um zumbi da onda 1, depois só ajuda); o Sabre de Luz do caixão multiplica pela raridade |
 | Granadas | 2 granadas de fragmentação básicas (sem mina nem Dose Dupla), **devolvidas só no intervalo** entre ondas (não recarregam com o tempo). Contra zumbis o dano cresce 25% por onda (`armas.granadaPorOnda`) |
 | Munição | reserva **×3** (`armas.municaoReserva`), cheia de novo em todo intervalo (uma arma danificada por munição tem menos: ver o caixão) |
 
@@ -183,7 +183,7 @@ Um caixão velho com um "?" brilhando e um **feixe de luz** que se vê de longe,
 
 - `E` perto dele (2,2 m): paga **$950** e gira (3,5 s, as armas passam piscando). Para numa arma, que fica flutuando, na cor da raridade, por **8 s** só para quem pagou: `E` de novo pega. Não pegou, perdeu (é assim que se recusa uma arma).
 - O sorteio é **no servidor** online (`rollBox` e `rollFlaw`, `Math.random` do servidor): a raridade pelo peso, uma arma dela e, por cima, **se vem danificada**. **Nunca sai a arma que você já tem intacta naquele lugar** (uma cópia danificada pode sair de novo).
-- A arma nova vai para o **lugar dela** (rifle → primária; pistola/submetralhadora → secundária; sabre → faca) e a que estava lá **é jogada fora**.
+- A arma nova vai para o **lugar dela** (rifle → primária; pistola/submetralhadora → secundária; sabre → faca; `itemSlot` usa `PRIMARIES`) e a que estava lá **é jogada fora**.
 - **A raridade multiplica o dano contra zumbis** (não muda o comportamento da arma).
 
 | Raridade | Chance | Dano × | Vem danificada | Armas (arma + melhorias fixas) |
@@ -192,7 +192,10 @@ Um caixão velho com um "?" brilhando e um **feixe de luz** que se vê de longe,
 | Comum | 50% | 1,4 | 25% | Rifle com Ponto Vermelho; Rifle Silencioso (ponto vermelho + silenciador); Pistola do Porteiro; Pistola da Batata; Liquidificador |
 | Rara | 32% | 1,9 | 18% | Rifle Firme (ponto vermelho + empunhadura); Rifle do Vovô (empunhadura + luneta); Pistola Ligeira (gatilho + ponto vermelho + coldre); Liquidificador com Motor (motor + holográfica) |
 | Épica | 14% | 2,6 | 12% | Rifle Remendado (empunhadura + pente); Liquidificador Turbo (motor + holo + coronha); Liquidificador Pipoqueiro (motor + holo + tambor) |
-| Lendária | 4% | 3,5 | **6%** | Rifle Completo (ponto vermelho + empunhadura + pente); Liquidificador Supremo (as 4); **Sabre de Luz Paraguaio** (a faca vira sabre: 420 por golpe) |
+| Lendária | 4% | 3,5 | **6%** | Rifle Completo (ponto vermelho + empunhadura + pente); Liquidificador Supremo (as 4); **Sabre de Luz Paraguaio** (o item `{ "arma": "faca", "faca": "sabre" }`: a faca vira o sabre, 420 por golpe) |
+
+> [!warning] Nomes dos itens × armas do Arsenal (PF-8)
+> Os itens do caixão continuam sendo o **Rifle Padrão** com melhorias fixas, mesmo os que levam o nome de um rifle antigo ("Rifle do Vovô", "Rifle Remendado"). Desde que as melhorias deixaram de mudar a pintura ([[ADR - Rifles e facas antigos como armas próprias]]), esses itens aparecem com a pintura do Rifle Padrão, e o "Rifle do Vovô" do caixão não é o `rifleVovo` do Arsenal. Pôr os rifles antigos no caixão ficou fora do escopo da PF-8.
 
 **Armas danificadas** (`caixa.danificada`, [[ADR - Caixão fixo com armas danificadas]]):
 

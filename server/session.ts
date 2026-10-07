@@ -15,8 +15,8 @@ import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, HIT_R
 import { ACCOUNT_XP } from '@shared/accountLevel';
 import { bodyStats } from '@shared/appearance';
 import { CHECKED_PROPS, FISH, PICKUPS, PROP_RANGE, PROPS, RATS, WITCHES, type MapId, type PickupKind } from '@shared/maps';
-import { isGun, weaponOfKill, type GunId, type ProgWeapon } from '@shared/progression';
-import { DEFAULT_LOADOUT, grenadeStats, meleeStats, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
+import { isGun, weaponOfKill, type GunId, type WeaponId } from '@shared/progression';
+import { DEFAULT_LOADOUT, grenadeStats, loadoutKnife, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import type { GameModeId } from '@shared/modes';
 import { accountLevelOf, addAccountXp, addTime, addWeaponXp, equip, loadoutOf, progressMsg, stickerAdd, stickerMax, stickerUps, type LevelUp, type LiveAccount } from './progress';
 import { createMode, type SessionMode } from './modes';
@@ -596,7 +596,7 @@ export class Session {
   private onStab(p: SPlayer, targetId: number, behind: boolean, now: number) {
     const target = this.players.get(targetId);
     if (!target || target === p || !p.alive || p.downed || !target.alive) return;
-    const knife = meleeStats(p.loadout.ativas.faca);
+    const knife = loadoutKnife(p.loadout);
     if (now - p.lastStab < knife.intervalo * 1000 * 0.75) return;
     const d = Math.hypot(p.state.p[0] - target.state.p[0], p.state.p[2] - target.state.p[2]);
     if (d > knife.alcanceInvestida + 1.5) return;
@@ -686,7 +686,7 @@ export class Session {
   // --- Rules ------------------------------------------------------------------------------------------
 
   /** `weapon`: what dealt it (it gets the kill's points); null for falls, the dog, your own grenade. */
-  private damage(target: SPlayer, attacker: SPlayer | null, amount: number, kind: KillKind, from: Vec3 | null, bonus: Award[], weapon: ProgWeapon | null) {
+  private damage(target: SPlayer, attacker: SPlayer | null, amount: number, kind: KillKind, from: Vec3 | null, bonus: Award[], weapon: WeaponId | null) {
     if (!target.alive || target.downed || amount <= 0) return;
     // Between rounds nobody hurts anybody (falls and the map still do).
     if (attacker && attacker !== target && !this.mode.combatOpen()) return;
@@ -704,7 +704,7 @@ export class Session {
     this.kill(target, attacker, kind, bonus, weapon);
   }
 
-  private kill(victim: SPlayer, attacker: SPlayer | null, kind: KillKind, bonus: Award[], weapon: ProgWeapon | null) {
+  private kill(victim: SPlayer, attacker: SPlayer | null, kind: KillKind, bonus: Award[], weapon: WeaponId | null) {
     const now = this.now();
     victim.alive = false;
     victim.downed = false;

@@ -66,6 +66,9 @@ O multiplicador `zoom` é o `ads.zoom` da arma em mãos (`gunStats`): o valor do
 | Rifle | ferro (sem melhoria) | 0,85 | 63,8° |
 | Rifle | ponto vermelho (nível 2) | 0,78 | 58,5° |
 | Rifle | luneta 3x (nível 4, opcional; substitui o ponto vermelho) | 0,38 | 28,5° |
+| Rifle | holo com lupa 1,5x (nível 7, opcional) | 0,66 | 49,5° |
+| Rifle | luneta 2x (nível 8, opcional) | 0,50 | 37,5° |
+| Rifle | luneta 4x (nível 9, opcional) | 0,25 | 18,8° |
 | Pistola | ferro | 0,90 | 67,5° |
 | Pistola | mini ponto vermelho (nível 3) | 0,82 | 61,5° |
 | Submetralhadora | ferro | 0,90 | 67,5° |
@@ -75,7 +78,7 @@ A sensibilidade do mouse é multiplicada pelo mesmo `zoom` (e por `adsSensitivit
 
 ### Overlay de luneta
 
-Com a luneta do rifle ligada (mira `luneta`, `scoped` em `gunParts`), quando `weapon.ads > 0.85`, o viewmodel some e aparece o elemento HTML `#scope` (máscara radial em CSS com cruz e ponto). Não é um render-to-texture: o mundo continua sendo desenhado pela câmera principal com o FOV reduzido. Ver [[HUD]].
+Com uma luneta do rifle ligada (mira `luneta`, `luneta2x` ou `luneta4x`: `isScope`, `scoped` em `gunParts`), quando `weapon.ads > 0.85`, o viewmodel some e aparece o elemento HTML `#scope` (máscara radial em CSS com cruz e ponto). Não é um render-to-texture: o mundo continua sendo desenhado pela câmera principal com o FOV reduzido. Ver [[HUD]].
 
 ## Movimentos de câmera
 

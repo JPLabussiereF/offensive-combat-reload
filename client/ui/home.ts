@@ -10,8 +10,10 @@ import { DEFAULT_GAME_MODE, GAME_MODE_IDS, isGameModeId, modeMaps, MODE_RULES, t
 import { Progress } from '../gameplay/progress';
 import { api, fetchMe, fetchProfile } from '../net/api';
 import { Connection } from '../net/connection';
-import { Arsenal, weaponIcon } from './arsenal';
-import type { ProgWeapon } from '@shared/progression';
+import { weaponIcon } from './arsenal';
+import { ArsenalCanvas } from './arsenalCanvas';
+import { progOf, type WeaponId } from '@shared/progression';
+import { knifeOf } from '@shared/arsenal';
 import { errorText, showAuth, type AuthView } from './auth';
 import { renderPortrait, showCustomizer, Stage } from './customize';
 import { showProfile } from './profile';
@@ -198,6 +200,8 @@ export function showHome(): Promise<HomeChoice> {
   let me: MeResponse | null = null;
   let profile: ProfileResponse | null = null;
   let progress: Progress | null = null;
+  /** The Arsenal tab's canvas: one for the whole page, so its camera stays where the player left it. */
+  let canvas: ArsenalCanvas | null = null;
   let discord = false;
   /** The character's body comes from the profile; without an account it is the default one. */
   let sex: Sex = 'm';
@@ -208,16 +212,19 @@ export function showHome(): Promise<HomeChoice> {
     tab = next;
     for (const id of ['play', 'arsenal', 'album', 'profile', 'settings', 'auth'] as const) $(`tab-${id}`).classList.toggle('hidden', id !== next);
     for (const b of home.querySelectorAll<HTMLElement>('[role="tab"]')) b.setAttribute('aria-selected', String(b.dataset.tab === next));
+    // The Arsenal takes the screen's height (the canvas pans and zooms instead of the page scrolling).
+    $('home-in').classList.toggle('arsenal-open', next === 'arsenal');
+    if (next === 'arsenal') canvas?.shown();
     if (next === 'profile') openProfile();
     if (next === 'album') void showAlbum($('tab-album'), { setStatus, onBack: () => showTab('play') });
   };
 
   const renderEquipped = () => {
     if (!progress) return;
-    // What goes into a match: the primary, the chosen secondary, the knife and the grenade (as their upgrades make them).
+    // What goes into a match: the chosen rifle, secondary and knife, and the grenade (as its upgrades make it).
     const lo = progress.loadout;
-    const carried: (ProgWeapon | null)[] = [lo.primaria, lo.secundaria, 'faca', 'granada'];
-    const icons = carried.flatMap((w) => (w ? [weaponIcon(w, lo.ativas[w])] : [])).join(' ');
+    const carried: (WeaponId | null)[] = [lo.primaria, lo.secundaria, knifeOf(lo), 'granada'];
+    const icons = carried.flatMap((w) => (w ? [weaponIcon(w, lo.ativas[progOf(w)])] : [])).join(' ');
     $('char-equipped').textContent = t('equippedLine', { icons });
   };
 
@@ -255,13 +262,13 @@ export function showHome(): Promise<HomeChoice> {
     const r = await fetchMe();
     me = r.me;
     profile = me ? await fetchProfile().catch(() => null) : null;
-    // The Arsenal tab edits the account's Arsenal choice; a fresh grid drops the old listeners.
+    // The Arsenal tab edits the account's Arsenal choice (a new Progress for every load of the account).
     progress = profile ? new Progress(profile) : null;
-    const grid = $('home-arsenal');
-    const fresh = grid.cloneNode(false) as HTMLElement;
-    grid.replaceWith(fresh);
+    canvas ??= new ArsenalCanvas($('home-arsenal'));
+    canvas.attach(progress);
     if (progress) {
-      new Arsenal(progress, () => {}, fresh);
+      // A change the server didn't save is already undone on screen; say so.
+      progress.onSaveError(() => setStatus(t('arsenalSaveFailed'), true));
       progress.onChange(renderEquipped);
       renderEquipped();
     }
