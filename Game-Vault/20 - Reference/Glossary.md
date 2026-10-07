@@ -112,6 +112,11 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `pose` (`Peca.pose`) | Giro livre e deslocamento que o gizmo do editor dá a uma peça inteira (P32) | [[ADR - Mapas como dados com catálogo de peças]] |
 | Grupo (`tipo: 'grupo'`, `Peca.pai`) | Peça sem geometria da Hierarchy do editor; a pose dela é o referencial das peças que a nomeiam em `pai` | [[World Structure]], [[Map Editor UI]] |
 | Lote do editor (`EditorBatches`) | `BatchedMesh` em que o editor desenha as peças fora da seleção (P46) | [[ADR - Lotes do editor com BatchedMesh]] |
+| Pivô / Centro (Pivot / Center) | Onde fica o gizmo do editor: na peça ativa, ou no meio da caixa da seleção (o ponto em volta do qual ela gira e escala) | [[Map Editor UI]] |
+| Local / Global | Eixos do gizmo do editor: os da peça ativa, ou os do mundo | [[Map Editor UI]] |
+| Encaixe (snap) e Grade | O gizmo do editor anda em passos (0,5 m e 15° por padrão) com Ctrl segurado, ou sempre com o botão Grade | [[Map Editor UI]] |
+| Retângulo (Rect Tool, T) | Ferramenta do editor: retângulo sobre a seleção que move, estica caixas, salas e colisores e escala o resto pelos cantos | [[Map Editor UI]] |
+| Pivô da câmera | O ponto que a câmera do editor olha, à distância dela; a órbita, a roda e o F giram em volta dele | [[Map Editor UI]] |
 
 ## Combate e dados
 

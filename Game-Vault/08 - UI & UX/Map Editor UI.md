@@ -11,12 +11,28 @@ source_paths:
   - client/editor/inspector.ts
   - client/editor/transformFields.ts
   - client/editor/selection.ts
+  - client/editor/sceneCamera.ts
+  - client/editor/cameraMath.ts
+  - client/editor/viewGizmo.ts
+  - client/editor/tools.ts
+  - client/editor/gizmo.ts
+  - client/editor/shortcuts.ts
+  - client/editor/boxSelect.ts
+  - client/editor/clipboard.ts
+  - client/editor/rectTool.ts
+  - client/editor/rectOverlay.ts
   - client/editor/groups.ts
   - client/editor/palette.ts
   - client/editor/style.ts
   - client/editor/strings.ts
   - client/tests/editorLayout.test.ts
   - client/tests/editorGroups.test.ts
+  - client/tests/editorCamera.test.ts
+  - client/tests/editorTools.test.ts
+  - client/tests/editorBoxSelect.test.ts
+  - client/tests/editorClipboard.test.ts
+  - client/tests/editorShortcuts.test.ts
+  - client/tests/editorRect.test.ts
 tags:
   - ui
   - ux
@@ -27,7 +43,7 @@ updated: 2026-10-07
 
 # Map Editor UI
 
-A janela do editor de mapas no jogo, no estilo do editor do Unity (PF-6 Revisions 01, etapa 2 de 4). O que o editor faz com os dados está em [[ADR - Editor de mapas no jogo]]; o formato do mapa (peças, pose, grupos) em [[World Structure]].
+A janela do editor de mapas no jogo, no estilo do editor do Unity (PF-6 Revisions 01: a janela na etapa 2 de 4; a navegação e a edição da cena na etapa 3). O que o editor faz com os dados está em [[ADR - Editor de mapas no jogo]]; o formato do mapa (peças, pose, grupos) em [[World Structure]].
 
 ## Visão geral (nível 1)
 
@@ -35,7 +51,7 @@ O editor ocupa a página inteira (`#editor`, criado em código; sem HUD nem entr
 
 ```text
 ┌──────────────────────────── toolbar ────────────────────────────┐
-│ título · desfazer refazer · mover girar escalar · [ ] [ ] ·  ▶ ❚❚ ■  · centralizar duplicar apagar · Layout ▾ · Salvar Sair │
+│ título · desfazer refazer · mão mover girar escalar retângulo · Pivô Global · ▦ Grade ▾ ·  ▶ ❚❚ ■  · centralizar duplicar apagar · Layout ▾ · Salvar Sair │
 ├───────────────┬───────────────────────────────┬─────────────────┤
 │  Hierarquia   │            Cena               │                 │
 │               │      (canvas do three.js)     │    Inspetor     │
@@ -46,7 +62,7 @@ O editor ocupa a página inteira (`#editor`, criado em código; sem HUD nem entr
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-- **Toolbar**: os botões de sempre; **▶ Play** abre o teste do mapa (o mesmo "Testar" de antes, que recarrega a página); **Pause** e **Stop** ficam desligados até o Play rodar dentro do editor (etapa 4). Dois lugares vazios (`data-slot="pivo"` e `data-slot="grade"`) esperam Pivot/Center, Local/Global e o botão de grade (etapa 3). **Layout ▾** tem "Restaurar layout padrão".
+- **Toolbar**: as ferramentas do Unity (**Mão** Q, **Mover** W, **Girar** E, **Escalar** R, **Retângulo** T); **Pivô/Centro** e **Global/Local** (cada botão alterna e mostra o estado); **▦ Grade** (encaixe sempre ligado) e **▾** com os passos do encaixe; **▶ Play** abre o teste do mapa (o mesmo "Testar" de antes, que recarrega a página); **Pause** e **Stop** ficam desligados até o Play rodar dentro do editor (etapa 4). **Layout ▾** tem "Restaurar layout padrão". Pivô/Centro, Global/Local, a grade e os passos ficam no `localStorage` (`oc.editor.ferramentas.v1`); um valor quebrado volta ao padrão (Pivô, Global, grade desligada, 0,5 m, 15°).
 - **Painéis encaixáveis** (Hierarquia, Cena, Inspetor, Projeto): cada um é uma aba numa pilha. Arrastar a aba (mais de 6 px) mostra onde ela cai na pilha sob o ponteiro: no **meio**, entra na pilha como mais uma aba; numa **borda** (um quarto de cada lado), divide a pilha e fica à esquerda, à direita, em cima ou embaixo. Esc desiste. Clicar numa aba a traz para a frente. As **bordas** entre painéis se arrastam para redimensionar (cada lado fica com pelo menos 6%). O layout fica no `localStorage` (`oc.editor.layout.v1`); um layout guardado quebrado (sem um painel, com painel repetido, tamanhos inválidos) volta ao padrão. O canvas da cena acompanha o tamanho do painel Cena a cada quadro.
 - **Barra de status**: a barra de orçamento, as mensagens do editor e os atalhos.
 
@@ -56,7 +72,8 @@ O editor ocupa a página inteira (`#editor`, criado em código; sem HUD nem entr
 - **Selecionar**: clique (substitui), Ctrl+clique (soma ou tira), Shift+clique (o trecho desde a última clicada). A seleção é a mesma da cena: selecionar na cena marca a linha, abre os grupos acima dela e rola até ela.
 - **Criar**: "+" → **Grupo vazio** (no meio da Cena) ou **Agrupar a seleção** (Ctrl+G; o grupo nasce no meio da seleção, no lugar da primeira peça, dentro do grupo que elas compartilham). O grupo novo já abre renomeando.
 - **Arrastar** linhas (a seleção inteira, se a linha estiver nela): no meio de um grupo, entra no fim dele; na borda de cima ou de baixo de uma linha, vai antes ou depois dela, no grupo dela; no espaço vazio abaixo das linhas, sai de todos os grupos e vai para o fim. As peças **não saem do lugar no mundo** (o lugar delas no referencial do grupo é recalculado, como no Unity). Um grupo não entra nele mesmo nem num grupo de dentro dele (a barra de status avisa).
-- **Renomear**: F2 ou duplo clique; Enter guarda, Esc desiste, vazio volta ao `id` (o nome vai em `Peca.nome`).
+- **Duplo clique** numa linha enquadra a peça (ou o marcador) na Cena, como o Unity (etapa 3; antes renomeava).
+- **Renomear**: F2; Enter guarda, Esc desiste, vazio volta ao `id` (o nome vai em `Peca.nome`).
 - **Busca**: mostra, sem árvore, as peças cujo nome, id ou tipo batem.
 
 ## Inspetor
@@ -69,8 +86,56 @@ O editor ocupa a página inteira (`#editor`, criado em código; sem HUD nem entr
 
 ## Cena
 
-- A câmera, o clique, o gizmo, as pontas e vãos continuam como na fase 3 ([[ADR - Editor de mapas no jogo]]); a câmera do Scene View, os atalhos Q/W/E/R/T, o Ctrl para encaixar e a seleção por caixa vêm na etapa 3.
-- Com várias peças, o gizmo fica na última escolhida e mexe todas juntas (girar e escalar em volta dela). Cada peça selecionada mostra a sua caixa (a ativa em amarelo forte); a de um grupo cobre tudo o que está nele.
+A Cena funciona como o Scene View do Unity (etapa 3). As contas da câmera, do encaixe, da caixa e do retângulo são puras e testadas ([[Unit Tests]]); o que cada edição faz com os dados está em [[ADR - Editor de mapas no jogo]].
+
+### Câmera
+
+| Controle | O que faz |
+|---|---|
+| Botão direito segurado + **W A S D** | Voa para a frente, para a esquerda, para trás, para a direita (na direção da vista) |
+| Botão direito segurado + **Q / E** | Desce / sobe |
+| Botão direito segurado + mover o mouse | Olha em volta (o ponteiro fica preso só enquanto o botão está segurado) |
+| Botão direito segurado + **Shift** | Voa 3,5 vezes mais rápido |
+| Botão direito segurado + **roda** | Muda a velocidade do voo |
+| **Alt** + botão esquerdo arrastado | Orbita em volta do pivô: o meio da seleção (a caixa de tudo o que está selecionado) ou, sem seleção, o ponto à frente da câmera |
+| Botão do **meio** arrastado (ou o botão esquerdo com a **Mão**, Q) | Arrasta a vista: o ponto à distância do pivô acompanha o cursor |
+| **Roda** | Aproxima ou afasta (dolly) na direção do cursor; na ortográfica muda o tamanho da vista e o ponto sob o cursor fica parado |
+| **F** | Enquadra a seleção (sem seleção, o mapa inteiro), mantendo a direção; a câmera desliza em 0,25 s |
+| Duplo clique na Hierarquia | Enquadra aquela peça ou marcador |
+| Gizmo de orientação (canto de cima, à direita) | Clicar num eixo olha daquele lado em volta do mesmo pivô (**Y**: de cima; **Z**: de frente; **X**: de lado; os cinza, do lado oposto); o quadrado do meio, ou o rótulo **Persp/Orto** embaixo, alterna perspectiva e ortográfica |
+
+- A câmera guarda lugar, direção e a **distância ao pivô** (o ponto que ela olha). Voar leva o pivô junto; a roda muda a distância; F põe o pivô no meio da caixa.
+- **Ortográfica**: do mesmo tamanho que a perspectiva no pivô; o plano de perto fica 500 m atrás da câmera (nada some ao aproximar). A vista pelos eixos não muda a projeção.
+- Pressionar Alt sozinho não leva o teclado para o menu do navegador.
+
+### Ferramentas (Q W E R T)
+
+- **Mão (Q)**: o botão esquerdo arrasta a vista; o gizmo some e o clique não seleciona.
+- **Mover (W), Girar (E), Escalar (R)**: o gizmo de sempre. Escalar só aparece para tipos com `escala` e grupos (o grupo espalha os filhos e escala quem tem escala: P47).
+- **Retângulo (T)**: o Rect Tool do Unity levado ao 3D. Um retângulo sobre a face da caixa da seleção que mais olha para a câmera (de cima, o plano XZ), desenhado por cima da cena. Arrastar por dentro move a seleção nesse plano; as alças esticam, com o lado oposto parado. O que a alça faz depende do que está selecionado:
+  - **uma caixa** (sem `rot` próprio), **sala** (som) ou **colisor invisível**: o retângulo fica na caixa da própria peça, nos eixos dela, com 8 alças; cada borda muda o tamanho (`tamanho`, ou `meia` no colisor) e o lugar;
+  - **qualquer outra seleção com algo que escala** (`escala` ou grupo): o retângulo fica na caixa da seleção no mundo, só com os 4 cantos, que escalam tudo por igual a partir do canto oposto (como o Escalar);
+  - **nada que escale** (paredes, telhados, carros e outros tipos medidos pelos parâmetros): só move (retângulo tracejado, sem alças).
+
+  Um clique por dentro sem arrastar seleciona o que está embaixo, como um clique normal. Esc desiste do arrasto. Com o encaixe ligado, as medidas e o movimento vão em passos e a escala em décimos. Marcador e ponta de parede ficam com o gizmo.
+
+### Encaixe, Pivô/Centro e Local/Global
+
+- **Encaixe**: livre por padrão. Segurar **Ctrl** encaixa enquanto segura (mesmo no meio de um arrasto): o gizmo move em passos de **0,5 m**, gira em **15°** e escala em décimos. O botão **▦ Grade** deixa o encaixe sempre ligado; o **▾** ao lado abre os passos (mover em metros, de 0,01 a 100; girar em graus, de 0,1 a 180; vírgula ou ponto). Mover encaixa a posição do gizmo na grade do mundo. Peças novas e grupos novos caem na grade do passo de mover; colar com a grade ligada anda em passos inteiros.
+- **Pivô / Centro**: no Pivô, o gizmo fica na peça ativa (a última escolhida) e a seleção gira e escala em volta dela; no Centro, fica no meio da caixa de toda a seleção, que passa a ser o ponto de giro e de escala.
+- **Global / Local**: no Global os eixos do gizmo são os do mundo; no Local giram com a peça ativa. A ponta de uma parede sempre corre no eixo dela.
+
+### Selecionar
+
+- **Clique**: seleciona o que está sob o cursor (o mais perto: pontas, marcadores, peças); Ctrl ou Shift + clique soma ou tira peças.
+- **Caixa**: arrastar com o botão esquerdo (de qualquer lugar que não seja o gizmo) desenha um retângulo; ao soltar, ficam selecionadas as peças cujo desenho **encosta** nele (inclusive o que está atrás de outra peça e o chão por baixo: ver a pergunta P48). **Shift** soma à seleção; **Ctrl** alterna cada peça da caixa. Marcadores não entram na caixa (só peças vão várias de uma vez). Esc desiste.
+- **Ctrl+A** seleciona todas as peças; **Esc** tira a seleção.
+- Com várias peças, cada uma mostra a sua caixa (a ativa em amarelo forte; a de um grupo cobre tudo o que está nele) e o gizmo mexe todas juntas.
+
+### Copiar e colar
+
+- **Ctrl+C** guarda as peças selecionadas com tudo o que está dentro dos grupos entre elas (um retrato: editar ou apagar as originais depois não muda o que foi copiado). Fica na memória enquanto o editor está aberto (não passa de um mapa para outro).
+- **Ctrl+V** cola como uma edição só (um Ctrl+Z tira tudo): com o mouse sobre a Cena, o fundo do meio da cópia vai para onde o mouse aponta; com o mouse em outro lugar, no mesmo lugar com 1 m de deslocamento em X e Z. As cópias ganham ids novos (e ids de piada, semente e, num rato gigante, o seu lugar em `objetos`, como no Ctrl+D); os filhos de um grupo copiado vão para o grupo novo; uma peça de dentro de um grupo volta para o mesmo grupo, ou, se ele não existe mais, para o topo, no mesmo lugar do mundo. O que está no limite do tipo (a bruxa, por exemplo) não é colado e a barra de status avisa.
 
 ## Projeto
 
@@ -78,13 +143,32 @@ A paleta de sempre (tipos por categoria com busca, modelos GLB, marcadores), em 
 
 ## Atalhos
 
-Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z, Ctrl+D (duplica a seleção; um grupo com os filhos), Ctrl+G (agrupa), F2 (renomeia), Delete (apaga; um grupo com os filhos), F (centraliza a seleção), Esc (tira a seleção), 1/2/3 (mover, girar, escalar), WASD e Q/E com o botão direito (câmera).
+Nenhum dispara enquanto um campo de texto tem o foco (nome, busca, números do Inspetor). Com o botão direito segurado, as letras são da câmera.
+
+| Tecla | Ação |
+|---|---|
+| Q / W / E / R / T | Mão / Mover / Girar / Escalar / Retângulo |
+| F | Enquadra a seleção (sem seleção, o mapa) |
+| F2 | Renomeia a peça ativa na Hierarquia |
+| Delete (ou Backspace) | Apaga a seleção (um grupo com os filhos) |
+| Esc | Desiste da caixa ou do retângulo em andamento; senão, tira a seleção |
+| Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z | Desfaz / refaz / refaz |
+| Ctrl+D | Duplica a seleção (um grupo com os filhos) |
+| Ctrl+C / Ctrl+V | Copia / cola |
+| Ctrl+A | Seleciona todas as peças |
+| Ctrl+G | Agrupa a seleção |
+| Ctrl segurado | Encaixa o gizmo e o retângulo enquanto segura |
+
+As teclas 1/2/3 da fase 3 saíram (agora W/E/R) e o Shift não tira mais o encaixe (o encaixe é livre por padrão).
 
 ## Código relacionado
 
-- `client/editor/editor.ts` — monta a janela, liga painéis, seleção, gizmo, Transform e Hierarquia.
+- `client/editor/editor.ts` — monta a janela, liga painéis, seleção, gizmo, Transform, Hierarquia, ferramentas, atalhos, copiar e colar.
+- `client/editor/sceneCamera.ts` (mouse e teclas da câmera), `client/editor/cameraMath.ts` (as contas, sem tela) e `client/editor/viewGizmo.ts` (o gizmo de orientação).
+- `client/editor/tools.ts` (encaixe, Pivô/Centro, Local/Global e as escolhas guardadas) e `client/editor/gizmo.ts` (o TransformControls do three).
+- `client/editor/shortcuts.ts` (o mapa de atalhos), `client/editor/boxSelect.ts` (a caixa), `client/editor/clipboard.ts` (copiar e colar), `client/editor/rectTool.ts` (as contas do retângulo) e `client/editor/rectOverlay.ts` (o desenho e o arrasto dele).
 - `client/editor/dock.ts` (DOM) e `client/editor/dockLayout.ts` (árvore do layout, sem tela).
 - `client/editor/hierarchy.ts`, `client/editor/inspector.ts`, `client/editor/transformFields.ts`, `client/editor/selection.ts`, `client/editor/groups.ts`.
 - `client/editor/style.ts` (CSS do editor) e `client/editor/strings.ts` (textos pt e en).
 
-Relacionado: [[UI Overview]] · [[Menus]] · [[ADR - Editor de mapas no jogo]] · [[ADR - Lotes do editor com BatchedMesh]] · [[Unit Tests]]
+Relacionado: [[UI Overview]] · [[Menus]] · [[Input & Controls]] · [[ADR - Editor de mapas no jogo]] · [[ADR - Lotes do editor com BatchedMesh]] · [[Unit Tests]]

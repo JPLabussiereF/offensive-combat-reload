@@ -35,6 +35,12 @@ source_paths:
   - client/tests/editorGroups.test.ts
   - client/tests/editorLayout.test.ts
   - client/tests/editorBatches.test.ts
+  - client/tests/editorCamera.test.ts
+  - client/tests/editorTools.test.ts
+  - client/tests/editorBoxSelect.test.ts
+  - client/tests/editorClipboard.test.ts
+  - client/tests/editorShortcuts.test.ts
+  - client/tests/editorRect.test.ts
   - tools/snapshot-mapas.ts
   - tools/headless.ts
 tags:
@@ -153,6 +159,12 @@ Os mapas são montados **sem tela** no Bun (`tools/headless.ts`: canvas falso, `
 - `client/tests/editorGroups.test.ts` (`client/editor/groups.ts`): agrupar a seleção (o grupo no meio dela, no lugar da primeira peça, as peças sem sair do lugar; desfazer e refazer); mover e girar o grupo leva os filhos e o lugar da bruxa, numa edição que só nomeia o grupo; pôr dentro de um grupo girado, tirar e reordenar mantêm o lugar no mundo, e reordenar não remonta nada; um grupo não entra nele mesmo nem num de dentro; escalar o grupo espalha os filhos e aumenta o que tem `escala`; duplicar copia os filhos para o grupo novo e apagar leva os filhos; a lista nova vira um patch com só o que saiu de ordem.
 - `client/tests/editorLayout.test.ts` (`client/editor/dockLayout.ts`, `client/editor/transformFields.ts`): o layout padrão do Unity; serializar e restaurar, e layout quebrado voltando ao padrão; aba no meio de uma pilha empilha, na borda divide, pilha vazia some, divisões do mesmo sentido se juntam; arrastar a borda (com mínimo); a zona sob o ponteiro; graus e radianos do Transform, o valor digitado mantido (200°), os campos em comum de uma seleção múltipla e a edição digitada ou arrastada.
 - `client/tests/editorBatches.test.ts` (P46, `client/editor/batches.ts`): no Jardim, o editor com lotes desenha em chamadas próximas às do jogo (o teste imprime: jogo 233, editor sem lotes 1.682, com lotes 142, sem recorte); a peça selecionada sai do lote e volta; as cópias seguem a malha que se move e o raio da seleção acerta a malha da peça, nunca o lote; materiais iguais de peças diferentes dividem um lote e o material que muda sai dele; peça remontada ou apagada troca ou leva as cópias.
+- `client/tests/editorCamera.test.ts` (`client/editor/cameraMath.ts`, etapa 3): frente, direita e cima batem com a câmera do three; olhar para um ponto; olhar em volta e voar; órbita em volta do pivô (a distância fica e ele continua no centro) e em volta do meio da seleção fora do centro (ele fica no mesmo lugar da tela), parando no topo; arrastar leva o ponto do pivô pixel por pixel; a roda aproxima do pivô no meio da tela, vai na direção do cursor fora dele e, na ortográfica, deixa parado o ponto sob o cursor; F põe a caixa inteira na tela; as vistas pelos eixos; a transição gira pelo lado curto.
+- `client/tests/editorTools.test.ts` (`client/editor/tools.ts`): encaixe livre, com Ctrl, com o botão de grade e com passos escolhidos (vírgula aceita, faixas); as escolhas voltam do navegador e o que estiver quebrado volta ao padrão (Pivô, Global); Pivô e Centro (posição, giro e escala do gizmo); eixos Local e Global; girar com o Centro gira em volta do meio da seleção e com o Pivô em volta da ativa; escalar com o Centro espalha e aumenta o que tem escala.
+- `client/tests/editorBoxSelect.test.ts` (`client/editor/boxSelect.ts`): o retângulo em pixels vira coordenadas da vista; polígono por dentro, por cima, cruzando e a lasca que só tem a caixa por perto; recorte no plano de perto; numa cena com caixotes, chão, uma peça atrás da câmera, uma oculta e uma malha instanciada: o que encosta entra (o chão também), atrás da câmera e oculto não, em perspectiva e na ortográfica de cima; Shift soma, Ctrl alterna.
+- `client/tests/editorClipboard.test.ts` (`client/editor/clipboard.ts`): colar um grupo dá ids novos, os filhos penduram no grupo novo, tudo deslocado, e um desfazer tira tudo; a peça de dentro de um grupo volta para ele ou, com ele apagado, para o topo no mesmo lugar do mundo; a cópia não muda com edições depois; colar duas vezes não repete id nem id de piada, cada rato ganha o seu lugar, a bruxa (uma só) fica de fora; o ponto de colar.
+- `client/tests/editorShortcuts.test.ts` (`client/editor/shortcuts.ts`): Q W E R T, F, F2, Delete, Backspace, Esc; Ctrl (ou Cmd) com Z, Y, Shift+Z, D, C, V, A, G e o que fica para o navegador; nada com um campo de texto em foco; as letras são da câmera com o botão direito; Shift e Alt não trocam ferramenta; o que conta como campo de texto.
+- `client/tests/editorRect.test.ts` (`client/editor/rectTool.ts`): o retângulo na face mais virada para a câmera (também numa caixa girada); mover por dentro, livre e em passos; a borda estica só o seu lado, com tamanho mínimo; o canto escala por igual a partir do canto oposto (em décimos ao encaixar); esticar uma caixa girada muda tamanho e lugar com a face oposta parada; o colisor pela meia medida; o que não estica.
 
 O hash da navmesh do Cemitério (`server/tests/zombies.test.ts`) é refeito a partir do JSON e continua igual.
 

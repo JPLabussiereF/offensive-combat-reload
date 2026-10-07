@@ -11,7 +11,15 @@ source_paths:
   - client/editor/view.ts
   - client/editor/transform.ts
   - client/editor/gizmo.ts
-  - client/editor/flyCamera.ts
+  - client/editor/sceneCamera.ts
+  - client/editor/cameraMath.ts
+  - client/editor/viewGizmo.ts
+  - client/editor/tools.ts
+  - client/editor/shortcuts.ts
+  - client/editor/boxSelect.ts
+  - client/editor/clipboard.ts
+  - client/editor/rectTool.ts
+  - client/editor/rectOverlay.ts
   - client/editor/selection.ts
   - client/editor/palette.ts
   - client/editor/inspector.ts
@@ -47,6 +55,12 @@ source_paths:
   - client/tests/editorLayout.test.ts
   - client/tests/editorBatches.test.ts
   - client/tests/mapGroups.test.ts
+  - client/tests/editorCamera.test.ts
+  - client/tests/editorTools.test.ts
+  - client/tests/editorBoxSelect.test.ts
+  - client/tests/editorClipboard.test.ts
+  - client/tests/editorShortcuts.test.ts
+  - client/tests/editorRect.test.ts
 tags:
   - decision
   - adr
@@ -85,6 +99,20 @@ Decisões do dev (plano da PF-6, seção 4): o editor passa a seguir o editor do
 - **Inspector**: nome, **Transform** (posição, rotação em graus e escala do lugar onde o gizmo segura a peça, no referencial do grupo; rótulos arrastáveis; o valor digitado é guardado enquanto der a mesma matriz) e o formulário do esquema; com seleção múltipla, os valores em comum e a edição para todas. A matemática está em `client/editor/transformFields.ts`.
 - **Seleção múltipla** (Ctrl ou Shift na cena e na Hierarchy): o gizmo fica na última escolhida e move, gira e escala todas juntas (girar e escalar em volta dela); os lugares do servidor (bruxa, rato, coletável) acompanham cada peça (`linkedRest`).
 - **P46, lotes por seleção**: o que não está selecionado é desenhado em `BatchedMesh` ([[ADR - Lotes do editor com BatchedMesh]]): no Jardim, 2.701 → 350 chamadas por quadro.
+
+## Revisions 01: etapa 3 (navegação e edição no estilo do Unity)
+
+Decisões do dev: a câmera, os atalhos, o encaixe, Pivot/Center, Local/Global, a seleção por caixa e copiar/colar seguem o Unity. O uso está em [[Map Editor UI]] (tabela de atalhos e da câmera).
+
+- **Câmera do Scene View** (`client/editor/sceneCamera.ts`; as contas em `client/editor/cameraMath.ts`, puras): substitui a câmera livre da fase 3 (`flyCamera.ts` saiu). O estado é lugar, direção (yaw e pitch, ordem YXZ) e **distância ao pivô**; voar com o botão direito, orbitar com Alt + esquerdo (em volta do meio da seleção ou do pivô), arrastar com o meio, roda para o cursor, F e o duplo clique na Hierarchy enquadram com uma transição de 0,25 s. O **gizmo de orientação** (`client/editor/viewGizmo.ts`, SVG por cima do canvas) dá as vistas pelos eixos e alterna a projeção. A **ortográfica** é uma `OrthographicCamera` própria, do tamanho da perspectiva no pivô e com o plano de perto 500 m atrás; `RenderContext.render(camera?)` passou a aceitar outra câmera, e o gizmo (`TransformControls.camera`), o clique, a caixa e o colar usam a câmera desenhada. O ponteiro só é preso depois dos outros ouvintes do clique direito (o gizmo captura o ponteiro, e com um lock pendente o navegador recusa: dava um erro no console).
+- **Ferramentas Q W E R T**: a Mão esconde o gizmo e o botão esquerdo arrasta a vista; W, E e R são o gizmo; o **Retângulo** (T, `client/editor/rectTool.ts` e `rectOverlay.ts`) é o Rect Tool levado ao 3D: um retângulo na face da caixa da seleção mais virada para a câmera. O dado só guarda escala uniforme (`Peca.escala`) e o tamanho de cada tipo nos parâmetros, então a alça faz o que cabe em cada caso: **estica** caixa (sem `rot`), sala e colisor pelo tamanho (`tamanho`, `meia`) nos eixos da peça; **escala por igual** pelos cantos o que tem `escala` e grupos (o mesmo `scaleTree` do Escalar, P47); **só move** o resto (desligado onde não faz sentido, como o dev permitiu).
+- **Encaixe**: livre por padrão; Ctrl segurado ou o botão de grade ligam (`snapSteps`), mesmo no meio de um arrasto; os passos (0,5 m e 15° por padrão) mudam no menu do botão. O Shift deixou de tirar o encaixe. O `TransformControls` encaixa a posição absoluta na grade do mundo (Global) ou o deslocamento nos eixos da peça (Local).
+- **Pivot/Center e Local/Global** (`client/editor/tools.ts`): o editor põe o gizmo na peça ativa ou no meio da caixa da seleção (`gizmoFrame`), e como o arrasto vira um delta rígido (`moveTree`) ou uma escala em volta do ponto segurado (`scaleTree`), o Centro é também o pivô do giro e da escala da seleção. Local/Global é o `space` do `TransformControls`. O padrão é **Pivô + Global**, o comportamento de antes. As escolhas, a grade e os passos ficam no `localStorage` (`oc.editor.ferramentas.v1`), lidos com cada campo validado.
+- **Seleção por caixa** (`client/editor/boxSelect.ts`): ao soltar, as peças cujas malhas **encostam** no retângulo: a caixa de cada malha projetada decide o que está todo dentro ou todo fora, e o resto é testado triângulo a triângulo (recorte no plano de perto e eixos separadores), até 400 mil triângulos por caixa. Não olha oclusão: o chão por baixo e o que está atrás entram (pergunta P48). Começa de qualquer lugar que não seja o gizmo (num mapa quase todo coberto de chão, "só no vazio" não deixaria arrastar). As malhas das peças em lote (P46) contam onde estão.
+- **Copiar e colar** (`client/editor/clipboard.ts`): Ctrl+C guarda um retrato das peças e dos filhos (e onde o grupo de cada uma a punha no mundo); Ctrl+V monta as cópias num mapa de trabalho que cresce com elas (`newPieceId`, `newPropId` e `newObjectId` olham a lista inteira, então duas cópias nunca repetem id), remapeia o `pai` dos filhos, devolve a peça ao grupo dela (ou ao topo, no mesmo lugar do mundo, quando o grupo sumiu) e move tudo pelo delta (onde o mouse aponta, ou 1 m em X e Z); uma edição só (`setPieces`). O retrato vive na memória da página.
+- **Atalhos** (`client/editor/shortcuts.ts`, um mapa puro): Q W E R T, F, F2, Delete, Esc, Ctrl+Z/Y/Shift+Z/D/C/V/A/G; nenhum dispara em campo de texto (`isTextField`: checkbox e cor não contam) e as letras são da câmera com o botão direito segurado. As teclas 1/2/3 saíram; o duplo clique na Hierarchy passou a enquadrar (renomear ficou no F2).
+
+Consequências: Ctrl+A num mapa grande tira todas as peças dos lotes enquanto estão selecionadas (as chamadas por quadro sobem, como numa seleção grande da etapa 2); a caixa testa triângulos no soltar (no Jardim, uma caixa grande leva alguns milissegundos).
 
 ## Motivo
 
