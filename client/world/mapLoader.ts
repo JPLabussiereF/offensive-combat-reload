@@ -23,7 +23,7 @@ import { CATALOG } from './catalog';
 import { Services, type ServiceHost } from './catalog/services';
 import type { BuildCtx, MapOutputs } from './catalog/types';
 import { pieceView, type PieceTrace } from './catalog/posed';
-import { poseColliders, poseMatrix, poseOpening, poseRoom } from './pose';
+import { poseColliders, poseOpening, poseRoom, worldPoseMatrix, type FindPiece } from './pose';
 import type { RoomVolume } from '../audio/spatial';
 import type { WallOpening } from './mapBuilder';
 import type { CritterHit, GameMap, MapFrame, MapSfx } from './gameMap';
@@ -137,6 +137,9 @@ export function startBuild(data: MapData, o: LoadOptions): MapBuild {
   };
 
   const pieces = modo === 'editor' ? new Map<string, EditorPiece>() : undefined;
+  // A group's children (Peca.pai) look their groups up: the game's data never changes, the editor's does.
+  const index = pieces ? null : new Map(data.pecas.map((p) => [p.id, p]));
+  const find: FindPiece = (id) => (index ? index.get(id) : data.pecas.find((p) => p.id === id));
   const traces = new Map<string, { trace: PieceTrace; rooms: RoomVolume[]; openings: WallOpening[] }>();
   /** Colliders seen so far: what a piece made is what's new after it. */
   const known = new Set<number>();
@@ -150,7 +153,10 @@ export function startBuild(data: MapData, o: LoadOptions): MapBuild {
     return list;
   };
   const piece = async (peca: Peca) => {
-    const pose = poseMatrix(peca.pose);
+    // A group builds nothing: in the game it's only its children's frame (the editor shows a stand-in for it).
+    if (!pieces && peca.tipo === 'grupo') return;
+    // The piece's pose, inside its groups' frame (Revisions 01): a piece without groups has just its own.
+    const pose = worldPoseMatrix(peca, find);
     if (!pieces && !pose) return runPiece(ctx, peca);
     // A posed piece (P32) builds in its own frame: its objects in a group the pose carries, its colliders,
     // rooms and holes carried after it (see pose.ts). In the editor, every piece builds in its own group, with

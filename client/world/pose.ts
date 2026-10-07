@@ -4,7 +4,7 @@
 // with their own frame: see RoomVolume.local and WallOpening.pose), and its objects (client/world/catalog/
 // posed.ts). A piece without a pose builds exactly as it always did.
 import * as THREE from 'three';
-import type { Pose, Vec3 } from '@shared/mapData';
+import type { Peca, Pose, Vec3 } from '@shared/mapData';
 import type RAPIER from '@dimforge/rapier3d-compat';
 
 // Only the parts used here (this module stays free of the DOM: the server's typecheck reaches it through the
@@ -20,6 +20,33 @@ export function poseMatrix(pose: Pose | undefined): THREE.Matrix4 | null {
   if (p.every((v) => v === 0) && r.every((v) => v === 0)) return null;
   const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(r[0], r[1], r[2], 'XYZ'));
   return new THREE.Matrix4().compose(new THREE.Vector3(...p), q, new THREE.Vector3(1, 1, 1));
+}
+
+/** How a map's pieces are found by id (a group's children look their groups up). */
+export type FindPiece = (id: string) => Peca | undefined;
+
+/**
+ * The frame a piece's groups give it (Peca.pai, Revisions 01): their poses, outermost first, or null when it
+ * hangs from no group (or its groups move nothing). A missing or looping parent ends the chain (the data's
+ * validation refuses both).
+ */
+export function groupMatrix(peca: Peca, find: FindPiece): THREE.Matrix4 | null {
+  let m: THREE.Matrix4 | null = null;
+  const seen = new Set<string>([peca.id]);
+  for (let g = peca.pai ? find(peca.pai) : undefined; g && !seen.has(g.id); g = g.pai ? find(g.pai) : undefined) {
+    seen.add(g.id);
+    const gm = poseMatrix(g.pose);
+    if (gm) m = m ? gm.multiply(m) : gm;
+  }
+  return m;
+}
+
+/** Where a piece builds in the world: its groups' frame times its own pose (null: nothing moves it). */
+export function worldPoseMatrix(peca: Peca, find: FindPiece): THREE.Matrix4 | null {
+  const own = poseMatrix(peca.pose);
+  const parent = peca.pai ? groupMatrix(peca, find) : null;
+  if (!parent) return own;
+  return own ? parent.multiply(own) : parent;
 }
 
 /** The pose of a rigid matrix (rounded: what the map's data keeps), or undefined when it's the identity. */

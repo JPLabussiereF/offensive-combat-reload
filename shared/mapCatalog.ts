@@ -37,7 +37,8 @@ export type Param =
 
 export type Transformacao = 'livre' | 'linear' | 'fixa';
 
-export type Categoria = 'primitivas' | 'estrutura' | 'construcoes' | 'natureza' | 'moveis' | 'veiculos' | 'objetos' | 'luzes' | 'ambiente' | 'importado';
+/** 'organizacao': the editor's own kinds (a group), made from the Hierarchy and never listed with the pieces. */
+export type Categoria = 'primitivas' | 'estrutura' | 'construcoes' | 'natureza' | 'moveis' | 'veiculos' | 'objetos' | 'luzes' | 'ambiente' | 'importado' | 'organizacao';
 
 export interface TipoPeca {
   id: string;
@@ -316,6 +317,13 @@ const DEFS: Record<string, Def> = {
 
   // --- Imported ------------------------------------------------------------------------------------------
   glb: { categoria: 'importado', nome: { pt: 'Modelo GLB', en: 'GLB model' }, ...livre(true, true), params: { arquivo: text(80) } },
+
+  // --- Organization ----------------------------------------------------------------------------------------
+  /**
+   * A group of the editor's Hierarchy (Revisions 01): builds nothing; its pose is the frame of the pieces that
+   * name it as their parent (Peca.pai), so moving or turning it carries them.
+   */
+  grupo: { categoria: 'organizacao', nome: { pt: 'Grupo', en: 'Group' }, ...fixa, params: {} },
 };
 
 export const MAP_CATALOG: Readonly<Record<string, TipoPeca>> = Object.fromEntries(Object.entries(DEFS).map(([id, d]) => [id, { id, ...d }]));

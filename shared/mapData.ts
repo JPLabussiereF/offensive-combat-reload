@@ -42,7 +42,19 @@ export interface Peca {
    * its params say. Any kind, any angle; absent, the piece builds exactly where its params put it.
    */
   pose?: Pose;
+  /**
+   * The group it hangs from (Revisions 01): the id of a piece of kind 'grupo'. The group's pose (and its own
+   * group's, outward) carries the piece: its frame in the world is its groups' poses, outermost first, then its
+   * own pose. Absent: it stands in the world, as before. The order of `pecas` stays the build order; the
+   * Hierarchy shows a group's children in that order.
+   */
+  pai?: string;
+  /** The name the editor shows (Hierarchy, Inspector); absent: its id. */
+  nome?: string;
 }
+
+/** How deep groups may nest (a group in a group in a group...). */
+export const MAX_GROUP_DEPTH = 16;
 
 /** A rigid transform: turn `r` (Euler XYZ, radians), then move by `p`. */
 export interface Pose {
@@ -166,6 +178,30 @@ function checkSpawns(list: unknown, path: string, out: string[], min: number) {
 }
 
 /**
+ * The pieces' parents (Peca.pai): each one a group of the map (not the piece itself), without loops, at most
+ * MAX_GROUP_DEPTH deep.
+ */
+function checkGroups(pecas: unknown[], out: string[]) {
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const p of pecas) if (isObj(p) && typeof p.id === 'string' && !byId.has(p.id)) byId.set(p.id, p);
+  pecas.forEach((p, i) => {
+    if (!isObj(p) || typeof p.pai !== 'string') return;
+    const at = `pecas[${i}].pai`;
+    const parent = byId.get(p.pai);
+    if (!parent || parent.tipo !== 'grupo') return out.push(`${at}: "${p.pai}" não é um grupo do mapa`);
+    if (p.pai === p.id) return out.push(`${at}: a peça não pode ser o próprio pai`);
+    // Up the chain: a loop comes back to a piece already seen; too long is too deep.
+    const seen = new Set<unknown>([p.id]);
+    let depth = 0;
+    for (let g: Record<string, unknown> | undefined = parent; g; g = typeof g.pai === 'string' ? byId.get(g.pai) : undefined) {
+      if (seen.has(g.id)) return out.push(`${at}: os grupos formam um ciclo`);
+      seen.add(g.id);
+      if (++depth > MAX_GROUP_DEPTH) return out.push(`${at}: grupos dentro de grupos, no máximo ${MAX_GROUP_DEPTH} níveis`);
+    }
+  });
+}
+
+/**
  * Checks a map's data from anywhere (a file, the editor, a request): its shape, every piece against the
  * catalog, the per-map limits, the objects the server tracks and the zumbi layout. Pure: no side effects.
  */
@@ -276,6 +312,8 @@ export function validateMapData(raw: unknown): { ok: boolean; erros: string[] } 
         else if (props.has(p.prop)) out.push(`${at}.prop: repetido "${p.prop}"`);
         else props.add(p.prop);
       }
+      if (p.nome !== undefined && (typeof p.nome !== 'string' || !p.nome.trim() || p.nome.length > 60)) out.push(`${at}.nome: de 1 a 60 caracteres`);
+      if (p.pai !== undefined && typeof p.pai !== 'string') out.push(`${at}.pai: o id de um grupo`);
       if (p.coletavel !== undefined && !(t.coletavel && typeof p.coletavel === 'string' && pickups.has(p.coletavel))) out.push(`${at}.coletavel: um id de objetos.coletaveis, numa peça que guarda coletável`);
       if (t.id === 'bruxa') witches++;
       if (t.id === 'ratoGigante' && isObj(p.params) && !rats.has(p.params.id as string)) out.push(`${at}.params.id: um id de objetos.ratos`);
@@ -283,6 +321,7 @@ export function validateMapData(raw: unknown): { ok: boolean; erros: string[] } 
       out.push(...checkPieceParams(t.id, p.params, `${at}.params`));
     });
   }
+  if (Array.isArray(d.pecas)) checkGroups(d.pecas, out);
   for (const [id, n] of counts) {
     const lim = MAP_CATALOG[id].limite;
     if (lim !== undefined && n > lim) out.push(`pecas: no máximo ${lim} de "${id}"`);

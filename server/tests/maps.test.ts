@@ -247,6 +247,35 @@ describe('mapas recusados', () => {
   });
 });
 
+describe('grupos de peças (Revisions 01)', () => {
+  it('aceita um mapa com grupos e monta os filhos onde o grupo os leva; recusa pai que não é grupo', async () => {
+    const b = await signedIn('Organizada');
+    const grouped: MapData = {
+      ...tinyMap('Com grupos'),
+      pecas: [
+        ...tinyMap().pecas.map((p) => (p.id === 'carro' ? { ...p, pai: 'garagem' } : p)),
+        { id: 'garagem', tipo: 'grupo', nome: 'Garagem', params: {}, pose: { p: [3, 0, -2], r: [0, 0.6, 0] } },
+      ],
+    };
+    const r = await create(b, grouped);
+    expect(r.status).toBe(201);
+    const { id } = r.body;
+    const saved = (await (await fetch(`${b.base}/api/mapas/${id}/versoes/1`)).json()) as MapData;
+    expect(saved.pecas.find((p) => p.id === 'carro')?.pai).toBe('garagem');
+    // The server's builder (the game's loader, headless) counts what the client builds: the group adds nothing.
+    const local = await buildHeadless((physics, scene) => buildMapFromData(saved, { physics, scene, renderer: fakeRenderer, sfx: silentSfx, modo: 'jogo' }));
+    const row = await game.deps.db.query('SELECT colliders FROM map_version WHERE map_id = $1 AND version = 1', [id]);
+    expect(row.rows[0].colliders).toBe(local.physics.world.colliders.len());
+    const plain = await buildHeadless((physics, scene) => buildMapFromData(tinyMap(), { physics, scene, renderer: fakeRenderer, sfx: silentSfx, modo: 'jogo' }));
+    expect(row.rows[0].colliders).toBe(plain.physics.world.colliders.len());
+
+    const bad = { ...tinyMap('Pai errado'), pecas: tinyMap().pecas.map((p) => (p.id === 'carro' ? { ...p, pai: 'chao' } : p)) };
+    const refused = await create(b, bad);
+    expect(refused.body.erro).toBe('mapa_invalido');
+    expect(refused.body.erros).toContain('pecas[1].pai: "chao" não é um grupo do mapa');
+  });
+});
+
 describe('modelos GLB', () => {
   it('envia, guarda pelo SHA-256 uma vez só, baixa e um mapa usa', async () => {
     const b = await signedIn('Modeladora');
