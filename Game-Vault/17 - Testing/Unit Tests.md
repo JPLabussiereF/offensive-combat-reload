@@ -19,6 +19,7 @@ source_paths:
   - client/zombies/link.ts
   - server/tests/progression-modes.test.ts
   - client/tests/arsenalTree.test.ts
+  - client/tests/arsenalCanvasLayout.test.ts
   - client/ui/arsenalTree.ts
 tags:
   - testes
@@ -50,6 +51,10 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 ## `client/tests/arsenalText.test.ts` → [[Inventory UI]]
 
 - Um caso por idioma (pt-BR e en): toda arma e toda melhoria de `progression.json` tem nome e descrição (`arma_*`, `armaDesc_*`, `upg_<arma>_<id>`, `upgDesc_*`), todo efeito tem o seu rótulo (`fx_*`) e toda linha da árvore do Arsenal o seu (`treeRow_*`) em `client/ui/strings.ts`.
+
+## `client/tests/arsenalCanvasLayout.test.ts` → [[Inventory UI]]
+
+A geometria e a câmera do canvas do Arsenal da tela inicial (`client/ui/arsenalCanvasLayout.ts`, puro), 6 casos: quatro quadros um embaixo do outro, com 7, 2, 7 e 1 armas lado a lado no espaçamento do design e dentro do quadro; a cadeia de melhorias pende da arma mostrada (8 no rifle, 4 na pistola, 2 na faca, 4 na granada; outro rifle mostrado leva as mesmas melhorias para baixo dele); as linhas laranja até a melhoria ligada e pontilhadas até a trancada, e a arma trancada tranca o ramo dela; o zoom fica entre 25% e 200% com o ponto sob o ponteiro parado; "Ver tudo" cabe na largura livre, a primeira vista enquadra tudo ou começa no canto a 72%, pular para um quadro fica entre 60% e 100%; o foco num nó fora da tela move a câmera só o necessário. O desenho em DOM (`ArsenalCanvas`) não roda aqui (sem navegador).
 
 ## `client/tests/arsenalTree.test.ts` → [[Inventory UI]]
 

@@ -35,7 +35,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 
 | Termo exibido | No código | Significado | Nota |
 |---|---|---|---|
-| Arsenal | `client/ui/arsenal.ts`, `ArsenalChoice` | Tela (menu de pausa e aba da home) para escolher a arma secundária e ligar/desligar as melhorias opcionais já liberadas; mostra o nível, o XP e os atributos de cada arma | [[Inventory UI]] · [[Progression]] · [[Menus]] |
+| Arsenal | `client/ui/arsenal.ts` (árvore, menu de pausa), `client/ui/arsenalCanvas.ts` (canvas, aba da home), `ArsenalChoice` | Tela para escolher o rifle, a secundária e a faca e ligar/desligar qualquer melhoria já liberada; mostra o nível, os pontos que faltam e os atributos de cada arma | [[Inventory UI]] · [[Progression]] · [[Menus]] |
 | Banner | `hud.showBanner` | Texto grande animado (NO PÁSSARO!, OPRIMIDO!, nível) | [[Notifications]] |
 | Beber Poção | prompt `promptPotion` | Ação da tecla de contexto perto da bruxa | [[Interaction System]] |
 | Biscoito Scooby | `biscoito` | Coletável da Vila Assombrada: cura total; aparece com o armário da cozinha aberto | [[Pickups]] |
@@ -165,7 +165,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `BotManager` / `Bot` / `BOT_SKILLS` / `NavMap` | Gerente da partida contra bots / um bot / tabela de dificuldades / navmesh Recast | [[AI Overview]] |
 | Modos do bot (`roam`, `engage`, `chase`, `flee`, `toTaunt`, `taunt`) | Estados de comportamento dos bots | [[States]] |
 | `GrenadeThrower` | A mão do jogador como máquina de estados (cozinhar, arremessar, recarga) | [[Controllers]] |
-| `ArsenalChoice` | O que o jogador escolheu no Arsenal e a conta guarda: `{ secundaria, ligadas }` (melhorias opcionais ligadas por arma); sempre limpo por `sanitizeChoice` | [[Shared Systems]] · [[Player Data]] |
+| `ArsenalChoice` | O que o jogador escolheu no Arsenal e a conta guarda: `{ primaria, secundaria, faca, ligadas, desligadas }` (rifle, secundária e faca; opcionais ligadas e comuns desligadas por progressão); sempre limpo por `sanitizeChoice` | [[Shared Systems]] · [[Player Data]] |
 | `Loadout` | O que o jogador leva na partida: `{ primaria, secundaria, ativas }` (arma de cada espaço e melhorias em efeito por arma), resolvido por `resolveLoadout(choice, níveis)` e replicado em `playerLoadout` | [[Shared Systems]] · [[Inventory]] |
 | `gunStats` / `meleeStats` / `grenadeStats` | Atributos efetivos de uma arma com uma lista de melhorias (`shared/arsenal.ts`); cliente e servidor usam as mesmas funções | [[Shared Systems]] · [[Weapons]] |
 | `GunId` / `KnifeId` / `WeaponId` / `ProgWeapon` | Armas de fogo (os sete rifles, `pistola`, `smg`) / as sete facas / qualquer arma (+ `granada`) / as cinco progressões (`rifle`, `pistola`, `smg`, `faca`, `granada`) | [[Shared Systems]] |
@@ -176,6 +176,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `__oc` | Handle de depuração no `window`, só em dev (perf, stats, trace) | [[Troubleshooting]] |
 | F3 / F4 / F6 | Overlay de depuração / hitboxes e navmesh / painel de ajuste | [[Troubleshooting]] |
 | PadNav | Navegação dos menus pelo controle | [[Input & Controls]] |
+| Canvas do Arsenal | `ArsenalCanvas`, `canvasLayout`, `data-pad-pan` | A aba Arsenal da tela inicial: quadros por espaço, armas e melhorias ligadas, câmera com arrastar e zoom, painel de detalhes | [[Inventory UI]] · [[ADR - Arsenal da tela inicial em canvas]] |
 | Primária / Alternativa | Os dois espaços de tecla de cada ação | [[ADR - Teclas remapeáveis com primária e alternativa]] |
 
 ## Renderização e arte

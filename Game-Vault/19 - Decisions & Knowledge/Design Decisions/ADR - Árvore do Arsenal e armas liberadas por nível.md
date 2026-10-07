@@ -35,6 +35,9 @@ updated: 2026-10-06
 > [!warning] Substituída em parte (06/10/2026, PF-8)
 > [[ADR - Rifles e facas antigos como armas próprias]] mudou dois pontos: a **primária** deixou de ser só o Rifle Padrão (item 2: voltaram seis rifles, e a linha Faca ganhou seis facas, todos com o botão Equipar) e a **trava** saiu de `progression.json` para o JSON de cada arma, em pontos (item 3: a submetralhadora agora é `"libera": { "arma": "pistola", "pontos": 1800 }` em `smg.json`, o mesmo nível 3). O resto continua valendo.
 
+> [!warning] Substituída em parte (06/10/2026, PF-9)
+> [[ADR - Arsenal da tela inicial em canvas]] trocou a árvore em linhas (item 1) por um canvas com arrastar e zoom **só na aba Arsenal da tela inicial**. O menu de pausa e o campo de tiro continuam com a árvore; as regras de trava, melhorias e salvamento continuam as desta ADR.
+
 ## Contexto
 
 O Arsenal mostrava um cartão por arma, lado a lado. A única troca de arma era um botão pequeno "Levar como secundária" no cartão da secundária fora de uso; o rifle não tinha controle nenhum. Só as melhorias opcionais tinham interruptor, e nada mostrava que ainda havia armas por vir.
