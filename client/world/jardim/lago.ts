@@ -8,7 +8,8 @@ import { column, dragonGeometry, dragonMaterial, FireBreath, ORIENTAL as C, pavi
 import { surfaceMaterial } from '../surfaces';
 import { archBridge, basin, bench, type Ctx, deck, hedge, lilies, lowTable, rect, reeds, signBoard, ting } from './kit';
 
-const JADE: DragonColors = { body: 0x2fae7a, bodyDark: 0x23895f, belly: 0xf2d98a, spikes: 0xe7b847, horns: 0xf2d98a };
+/** The fountain dragon's colors. */
+export const JADE: DragonColors = { body: 0x2fae7a, bodyDark: 0x23895f, belly: 0xf2d98a, spikes: 0xe7b847, horns: 0xf2d98a };
 
 export function buildLago(c: Ctx) {
   const { b, rand } = c;
@@ -137,23 +138,7 @@ function dragonFountain(c: Ctx, cx: number, cz: number) {
   c.scene.add(pool);
   b.cylinder(cx, y0, cz, 0.3, 2.1, 'pedra', { tint: C.stoneDark, segments: 10 });
 
-  // The coil turns so the head ends up looking west (-X).
-  const coil: THREE.Vector3[] = [];
-  const turns = 1.6;
-  const a0 = Math.PI - turns * Math.PI * 2 - 1.2;
-  for (let i = 0; i <= 16; i++) {
-    const u = i / 16;
-    const a = a0 + u * turns * Math.PI * 2;
-    coil.push(new THREE.Vector3(cx + Math.cos(a) * 0.7, 0.55 + u * 1.8, cz + Math.sin(a) * 0.7));
-  }
-  const aEnd = a0 + turns * Math.PI * 2;
-  const look = aEnd + 1.2;
-  coil.push(
-    new THREE.Vector3(cx + Math.cos(aEnd + 0.6) * 0.75, 2.75, cz + Math.sin(aEnd + 0.6) * 0.75),
-    new THREE.Vector3(cx + Math.cos(look) * 0.3, 3.25, cz + Math.sin(look) * 0.3),
-    new THREE.Vector3(cx + Math.cos(look) * 0.65, 3.35, cz + Math.sin(look) * 0.65),
-  );
-  const fountain = dragonGeometry(coil, 0.19, JADE);
+  const fountain = dragonGeometry(dragonCoil(cx, cz), 0.19, JADE);
   const dragon = new THREE.Mesh(fountain.geo, dragonMaterial());
   dragon.castShadow = true;
   c.scene.add(dragon);
@@ -175,4 +160,27 @@ function dragonFountain(c: Ctx, cx: number, cz: number) {
       c.drops.emit(fountain.mouth, f.x * 0.4 + (Math.random() - 0.5) * 0.25, 2.6 + Math.random() * 0.8, f.z * 0.4 + (Math.random() - 0.5) * 0.25, 0.68);
     }
   });
+}
+
+/**
+ * The fountain dragon's path (tail first, head last) for dragonGeometry: coiled up its pillar at (cx, cz),
+ * turning so the head ends up looking west (-X).
+ */
+export function dragonCoil(cx: number, cz: number): THREE.Vector3[] {
+  const coil: THREE.Vector3[] = [];
+  const turns = 1.6;
+  const a0 = Math.PI - turns * Math.PI * 2 - 1.2;
+  for (let i = 0; i <= 16; i++) {
+    const u = i / 16;
+    const a = a0 + u * turns * Math.PI * 2;
+    coil.push(new THREE.Vector3(cx + Math.cos(a) * 0.7, 0.55 + u * 1.8, cz + Math.sin(a) * 0.7));
+  }
+  const aEnd = a0 + turns * Math.PI * 2;
+  const look = aEnd + 1.2;
+  coil.push(
+    new THREE.Vector3(cx + Math.cos(aEnd + 0.6) * 0.75, 2.75, cz + Math.sin(aEnd + 0.6) * 0.75),
+    new THREE.Vector3(cx + Math.cos(look) * 0.3, 3.25, cz + Math.sin(look) * 0.3),
+    new THREE.Vector3(cx + Math.cos(look) * 0.65, 3.35, cz + Math.sin(look) * 0.65),
+  );
+  return coil;
 }

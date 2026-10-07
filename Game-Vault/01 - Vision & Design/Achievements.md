@@ -7,6 +7,11 @@ source_paths:
   - shared/achievements.ts
   - shared/data/conquistas.json
   - client/ui/album.ts
+  - client/ui/stickerArt.ts
+  - shared/data/figurinhas/
+  - public/figurinhas/
+  - tools/bake-figurinhas.ts
+  - client/dev/studio/
   - client/ui/home.ts
   - client/styles.css
   - server/tests/album.test.ts
@@ -15,7 +20,7 @@ tags:
   - design
   - progression
   - achievements
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Achievements (Álbum de figurinhas)
@@ -165,7 +170,7 @@ O "calling card" do jogo: cada jogador escolhe **uma figurinha em destaque** (qu
   - páginas como botões, cada uma com o quanto já colou;
   - grade de cartões.
 - **Cartão:**
-  - desenho (ícone sobre a cor da página);
+  - desenho sobre a cor da página: a **arte** da figurinha (ver "Arte das figurinhas") ou, sem arte, o ícone;
   - nome;
   - quatro bolinhas (acabamentos ganhos);
   - barra até a próxima meta, contada desde zero (300 de 1.000 = 30%);
@@ -179,6 +184,18 @@ O "calling card" do jogo: cada jogador escolhe **uma figurinha em destaque** (qu
   
   Com `prefers-reduced-motion`, as animações param.
 
+## Arte das figurinhas
+
+Cada figurinha tem uma arte feita com os **modelos do próprio jogo** (o HERÓI de boné vermelho, a RIVAL, os zumbis e chefes, as armas, os objetos dos mapas), em estilo de adesivo recortado: contorno escuro e borda creme. A arte é **pré-gerada** (PNG no repositório), não desenhada na hora:
+
+- **Carta** 400 × 300 e **mini** 128 × 128 (`public/figurinhas/<id>.png` e `<id>-mini.png`). A mini tem câmera própria, num traço só (um rosto, um objeto), para ler em 30 px no placar.
+- **Por que pré-gerada:** o selo no placar e na tela de morte é HTML síncrono; montar até 12 cenas 3D numa página do álbum travaria celulares; e a imagem sairia diferente em cada placa de vídeo.
+- **Quem desenha:** o estúdio `tools/estudio-figurinhas.html` (`client/dev/stickerStudio.ts`, núcleo em `client/dev/studio/core/`, um arquivo por domínio: `personagens`, `armas`, `rua`, `jardim`, `vila`, `zumbi`) monta a cena de cada figurinha. `bun run figurinhas` (`tools/bake-figurinhas.ts`) abre essa página no Edge sem tela, com renderização por software (SwiftShader), e grava os PNGs e um manifesto por domínio (`shared/data/figurinhas/<domínio>.json`: hash dos bytes, que vai na URL como `?v=`, hash dos pixels e tamanhos). Ver [[Asset Pipeline]].
+- **No jogo** (`client/ui/stickerArt.ts`): a carta e o selo usam a arte só quando **todas** as figurinhas da página têm arte (nenhuma página mistura emoji e arte). Uma figurinha **secreta** ainda não colada nunca manda a URL da arte. Se a imagem falhar, um ouvinte de erro (fase de captura, em `album.ts`) troca pelo emoji. O detalhe e o aviso no jogo continuam com o emoji.
+- **Vazia:** a arte vira silhueta (`.fig-t0 .fig-img`: `brightness(0)`, opacidade 0,3). Os acabamentos em CSS passam por cima da arte como passavam do emoji.
+- **Texto na arte** em português, como no jogo (OPRIMIDO!, PROIBIDO, CHEGA., R.I.P. LAG...).
+- **Mudou um modelo, um item ou um objeto?** A arte não acompanha sozinha: rode `bun run figurinhas` de novo (ver [[Local Development]]).
+
 ## Dados e código
 
 - `shared/data/conquistas.json`:
@@ -190,7 +207,7 @@ O "calling card" do jogo: cada jogador escolhe **uma figurinha em destaque** (qu
   - `albumProblems` (validação dos dados, usada nos testes).
 - `client/ui/album.ts`: `showAlbum` busca o perfil (com `album`, os contadores próprios), monta as páginas e os cartões; a página aberta fica guardada enquanto a tela inicial está aberta. `stickerUpText` monta a faixa do aviso.
 - Servidor: `server/progress.ts` (`stickerAdd`, `stickerMax`, `liveSources`, `liveOwn`, `settle`, `countEntry`, `stickerUps`), `server/accounts.ts` (`achievement_progress` no perfil, no login e no flush), migration `005_figurinhas.sql`.
-- Testes: `server/tests/album.test.ts` (dados, acabamentos, repetidas, recordes, coleções, contagem e o mapeamento do perfil) e `server/tests/albumSession.test.ts` (eventos numa sessão de relógio falso; aviso, gravação e perfil no servidor real).
+- Testes: `server/tests/album.test.ts` (dados, acabamentos, repetidas, recordes, coleções, contagem e o mapeamento do perfil), `server/tests/albumSession.test.ts` (eventos numa sessão de relógio falso; aviso, gravação e perfil no servidor real) e `client/tests/stickerArt.test.ts` (manifestos, PNGs, regras da arte no cartão e no selo, recorte e elenco do estúdio).
 
 ## Ideias futuras
 
@@ -204,7 +221,6 @@ Nada disto existe ainda; fica anotado para as próximas versões do álbum (prop
 
 **Mais registro**
 - **Data de cada acabamento** ("Dourada em 06/10"): hoje só o número é guardado. Precisa de uma coluna de datas em `achievement_progress` e, para as derivadas, de gravar a data na primeira vez que o servidor vê a meta cruzada.
-- **Arte das figurinhas** renderizada com os modelos do próprio jogo (o rato, a Noiva, o Frango de Borracha), por uma ferramenta como a `bake-navmesh` (`tools/bake-figurinhas.ts`), no lugar dos emojis.
 
 **Mais figurinhas**
 - **Mais objetos de mapa:** o relógio da mansão (bater meia-noite), os cogumelos, o hidrante (ser lançado), os flamingos girando. Precisam que o servidor guarde o estado deles para todos (a hora do relógio) ou confie em física do cliente. A página Mapas já tem os que dava para conferir.

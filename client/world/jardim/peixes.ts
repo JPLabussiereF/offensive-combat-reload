@@ -9,8 +9,9 @@ import { mergeColoredParts, toonGradient, type ColoredPart } from '../../render/
 import type { WaterDrops } from '../hydrant';
 import { raySphere } from './frutas';
 
-type Kind = { body: number; patches: number[]; fin: number; crown?: boolean };
-const KINDS: Kind[] = [
+export type Kind = { body: number; patches: number[]; fin: number; crown?: boolean };
+/** The koi varieties, in the order the pond's fish cycle through them (spec index % 6). */
+export const KINDS: Kind[] = [
   { body: 0xf7f3ea, patches: [0xe0301e, 0xe0301e], fin: 0xfff4ea }, // kohaku
   { body: 0xf7f3ea, patches: [0xe0301e, 0x1b1530], fin: 0xfff4ea }, // sanke
   { body: 0xffb52e, patches: [0xffd36b], fin: 0xffe08a }, // ogon
@@ -18,12 +19,13 @@ const KINDS: Kind[] = [
   { body: 0xff7a1a, patches: [0xf7f3ea], fin: 0xffd2a8 }, // orange with white
   { body: 0xf7f3ea, patches: [], fin: 0xfff4ea, crown: true }, // tancho: a red crown only
 ];
-const GOLDEN: Kind = { body: 0xffc21a, patches: [0xffe27a], fin: 0xffe9a8 };
+/** The golden carp a koi sometimes comes back as. */
+export const GOLDEN: Kind = { body: 0xffc21a, patches: [0xffe27a], fin: 0xffe9a8 };
 /** The pond's water surface (basin() in kit.ts). */
 const WATER_Y = -0.25;
 const HALF = 0.27;
 
-interface Variant {
+export interface Variant {
   mesh: THREE.Mesh;
   /** Positions before the swimming bend. */
   base: Float32Array;
@@ -224,7 +226,7 @@ export class KoiSchool {
 }
 
 /** One look of a fish (a koi variety or the golden carp): its mesh, own material (it fades alone). */
-function variant(scene: THREE.Scene, k: Kind, size: number, rand: () => number, emissive: number): Variant {
+export function variant(scene: THREE.Scene, k: Kind, size: number, rand: () => number, emissive: number): Variant {
   const tint = new THREE.Color(0x3fa49c);
   const c = (hex: number) => new THREE.Color(hex).lerp(tint, emissive ? 0.05 : 0.18).getHex();
   const fin = (pts: [number, number][]) => new THREE.ShapeGeometry(new THREE.Shape(pts.map(([u, v]) => new THREE.Vector2(u, v))));
@@ -266,7 +268,7 @@ function variant(scene: THREE.Scene, k: Kind, size: number, rand: () => number, 
 }
 
 /** Swimming: an S-wave running down the body, stronger toward the tail (`amount` 0 holds it straight). */
-function bend(v: Variant, phase: number, amount: number) {
+export function bend(v: Variant, phase: number, amount: number) {
   const pos = v.mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
   const arr = pos.array as Float32Array;
   for (let i = 0; i < arr.length; i += 3) {
@@ -278,7 +280,7 @@ function bend(v: Variant, phase: number, amount: number) {
 }
 
 /** Soft round glow: white in the middle fading out to the edge. */
-function glowTexture() {
+export function glowTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
   const g = c.getContext('2d')!;

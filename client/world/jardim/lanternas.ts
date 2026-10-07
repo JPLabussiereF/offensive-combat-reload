@@ -159,14 +159,14 @@ interface Market {
 }
 
 /** Dó, ré, mi, fá, sol (C5 to G5), in Hz. */
-const NOTES = [523.25, 587.33, 659.25, 698.46, 783.99];
+export const NOTES = [523.25, 587.33, 659.25, 698.46, 783.99];
 
 /**
  * Bianzhong: five bronze bells of falling size on a lacquered frame, the biggest (dó) on the right of whoever
  * faces them from the market (-X), down to the smallest (sol) on their left. Each rings its note and swings
  * when shot, synchronized as "carrilhao:0".."carrilhao:4".
  */
-function bianzhong(c: Ctx, x0: number, x1: number, z: number) {
+export function bianzhong(c: Ctx, x0: number, x1: number, z: number) {
   const { b } = c;
   const top = 2.75;
   for (const x of [x0, x1]) {

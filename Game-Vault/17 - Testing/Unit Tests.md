@@ -14,6 +14,7 @@ source_paths:
   - shared/arsenal.ts
   - server/migrations/003_melhorias.sql
   - client/tests/offlineModes.test.ts
+  - client/tests/stickerArt.test.ts
   - client/gameplay/progress.ts
   - client/zombies/local.ts
   - client/zombies/link.ts
@@ -21,7 +22,7 @@ source_paths:
 tags:
   - testes
   - unitarios
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Unit Tests
@@ -81,6 +82,14 @@ Testa `shared/progression.ts` e `shared/arsenal.ts` (puros), 18 casos:
 - **Escolha do Arsenal:** `sanitizeChoice` limpa o que veio do cliente (secundária válida, só opcionais conhecidas, uma por grupo) e, com os níveis, descarta o que não foi liberado; `legacyChoice` dá às contas antigas a escolha mais parecida; `resolveLoadout`; as armas de cada espaço vêm dos dados (`PRIMARIES`/`SECONDARIES`); `sanitizeLoadout` só aceita ids conhecidos.
 - **Atributos:** sem melhorias, `gunStats` é o JSON; cada melhoria muda atributos de verdade; o silenciador abafa e cobra dano e alcance; a faca vira sabre; a granada vira mina ou Dose Dupla e ganha cinto e pólvora; cada abate de tiro vai para a arma que atirou (`weaponOfKill`).
 - **Migração 003:** lê `server/migrations/003_melhorias.sql` e confere que todo XP de destino é um limiar que existe nos níveis novos ([[Data Migrations]]).
+
+## `client/tests/stickerArt.test.ts` → [[Achievements]], [[Asset Pipeline]]
+
+- **Manifestos** (`shared/data/figurinhas/*.json`): leem, chaves em ordem com a linha `_doc`, cada id existe no álbum e está só no manifesto do seu domínio.
+- **PNGs:** cada um existe, tem a assinatura PNG e o tamanho certo no cabeçalho (400 × 300 e 128 × 128), o hash dos bytes bate com o manifesto (`?v=`), fica abaixo de 150 KB (carta) e 30 KB (mini), e não sobra PNG sem dono.
+- **No álbum:** secreta não colada nunca manda a URL da arte; uma página só usa arte quando todas as figurinhas dela têm; o selo usa a mini.
+- **Estúdio:** o recorte (fechamento, buracos, peças) e o elenco (vizinhos simples, o sexo de cada visual, cabelo e barba no `dress`).
+- Roda sem banco: `bun --config=<bunfig sem preload> test client/tests/stickerArt.test.ts`.
 
 ## `client/tests/offlineModes.test.ts` → [[Training]], [[Versus Bots]], [[Zombie]]
 

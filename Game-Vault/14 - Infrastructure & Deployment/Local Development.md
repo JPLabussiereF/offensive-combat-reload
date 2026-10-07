@@ -5,6 +5,8 @@ status: documented
 area: infrastructure
 source_paths:
   - tools/bake-navmesh.ts
+  - tools/bake-figurinhas.ts
+  - tools/estudio-figurinhas.html
   - README.md
   - package.json
   - vite.config.ts
@@ -51,6 +53,7 @@ docker compose up -d banco redis   # PostgreSQL :5442 e Redis :6392 em 127.0.0.1
 | `bun run preview` | `vite preview` do `dist/`. |
 | `bun run admin ...` | Console de moderação ([[Moderation]]). |
 | `bun run navmesh` | `tools/bake-navmesh.ts`: refaz a navmesh dos mapas do modo zumbi (`shared/data/navmesh/*.json`) a partir do código dos mapas, headless em Bun. Rode depois de mudar o mapa do cemitério (`client/world/cemetery.ts`) ou as brechas em `shared/data/zumbi.json`; senão `bun test` falha. Ver [[Navigation]]. |
+| `bun run figurinhas [ids... \| --dominio <d>]` | `tools/bake-figurinhas.ts`: refaz a arte das figurinhas do álbum (`public/figurinhas/*.png` e `shared/data/figurinhas/*.json`) com os modelos do jogo, no Edge sem tela com SwiftShader (precisa de internet para as fontes do Google). Só regrava o que mudou de pixel. `--revisao <png>` e `--folha <png>` tiram capturas para conferir; `--smoke <pasta>` testa o estúdio. Rode depois de mudar um modelo, item ou objeto que aparece numa figurinha. Ver [[Achievements]] e [[Asset Pipeline]]. |
 | `bun run exemplos:glb` | Gera `public/models/casinha_cachorro.glb` e `public/maps/arena_teste.glb` (`tools/gerar-props-exemplo.mjs`, usa `@gltf-transform/core`). Ver [[Asset Pipeline]]. |
 | `bun run offensive [subir\|parar\|logs\|status\|firewall]` | Pilha Docker completa (ver [[Hosting]]). Com `bun link`, vira o comando global `offensive`. |
 
@@ -68,6 +71,7 @@ docker compose up -d banco redis   # PostgreSQL :5442 e Redis :6392 em 127.0.0.1
 | Handle `window.__oc` | só em `import.meta.env.DEV` | Acesso a player, arma, física, `perf()`, `stats()`, `trace()` para testes de fumaça e console. |
 | Mapa glTF | `?mapa=/maps/arena_teste.glb` | Carrega um mapa exportado do Blender por cima do escolhido. Ver [[Map - Arena Teste (glTF)]]. |
 | Forçar plataforma | `?mobile=1` / `?mobile=0` | Força modo toque ou PC. |
+| Estúdio de figurinhas | `tools/estudio-figurinhas.html` no Vite (`?dominio=`, `?ids=`, `?grade=1`, `?folha=1`) | Cada figurinha ao vivo nos cartões e selos reais do álbum, em todos os acabamentos. Ver [[Achievements]]. |
 | Laboratório de personagens | `tools/lab-personagens.html` no Vite (`client/dev/characterLab.ts`) | Grades de itens e auditoria `?audit=1[&category=]`. Ver [[Performance Tests]]. |
 
 ## Dicas
