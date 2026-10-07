@@ -280,6 +280,8 @@ class ZombieMode implements SessionMode {
 
   onJoin(p: SPlayer) {
     this.match?.join(p.id, p.name);
+    // Joined during a wave: in only at the break (the match allows it then, like the dead's).
+    if (this.match?.parts.get(p.id)?.waiting) p.deadAt = Number.MAX_SAFE_INTEGER / 2;
   }
 
   onLeave(p: SPlayer) {

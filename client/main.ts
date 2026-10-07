@@ -461,7 +461,13 @@ async function boot() {
     spawnedAt = performance.now();
     conn?.send({ t: 'respawn', p: vec3(lastSpawn.position), yaw: lastSpawn.yaw });
   };
-  respawn();
+  if (zombies?.waitingToJoin) {
+    // Zumbi, a wave already on: we come in at the break. Meanwhile we watch from a spawn spot, as the dead do.
+    lastSpawn = pickSpawn();
+    player.spawn(lastSpawn);
+    player.kill(0);
+    hud.showDeath(t('zJoinWaitTitle'));
+  } else respawn();
   physics.world.step(); // builds the query pipeline before the first ray
 
   // Match stats (offline; online the server's numbers are shown).
@@ -2248,7 +2254,8 @@ async function boot() {
       fpPos.copy(deathCamPos);
       fpQuat.setFromRotationMatrix(lookM);
     } else {
-      if (player.dead) {
+      // Waiting to join a zumbi wave isn't a death: the view stays put at the spawn spot, no fall and no tilt.
+      if (player.dead && !zombies?.waitingToJoin) {
         // Offline death cam: drop to the floor under the death spot (also when killed mid-air) and tilt.
         if (deathFloorAt !== player.deathAt) {
           deathFloorAt = player.deathAt;

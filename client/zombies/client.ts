@@ -91,6 +91,8 @@ export class ZombieClient {
   private reviveTarget: number | null = null;
   /** Died during a wave: back only at the break. */
   private diedInWave = false;
+  /** Joined while a wave was on: in only at the break (it rides on diedInWave; this only changes the words). */
+  private joinedInWave = false;
   private summary: Extract<ServerMsg, { t: 'zend' }> | null = null;
   private slowUntil = 0;
   private slowFactor = 1;
@@ -114,7 +116,14 @@ export class ZombieClient {
     this.barricades = new BarricadeView(game.scene, game.physics, this.map.barricadas, game.sfx, game.effects);
     this.bars = this.map.barricadas.map(() => emptyBarricade());
     if (sync) this.applySync(sync);
+    // Online, a wave already on: we wait for the break like the dead (the server refuses our respawn till then).
+    if (link.online && sync?.phase === 'wave') this.diedInWave = this.joinedInWave = true;
     this.listen();
+  }
+
+  /** Joined during a wave and still waiting for the break (the game shows the wait instead of spawning us). */
+  get waitingToJoin() {
+    return this.joinedInWave && this.diedInWave;
   }
 
   private get me() {
@@ -193,7 +202,7 @@ export class ZombieClient {
       }
       // Dead since the wave: back now (with the starting weapons, the server already sent them).
       if (m.phase !== 'wave' && this.diedInWave && m.phase !== 'over') {
-        this.diedInWave = false;
+        this.diedInWave = this.joinedInWave = false;
         if (!g.alive()) g.respawn();
       }
     });
@@ -671,7 +680,7 @@ export class ZombieClient {
         this.heartbeatIn = 1.1;
         g.sfx.heartbeat();
       }
-    } else if (this.diedInWave && !g.alive()) g.hud.setDeathText(t('zDeadWait'));
+    } else if (this.diedInWave && !g.alive()) g.hud.setDeathText(t(this.joinedInWave ? 'zJoinWait' : 'zDeadWait'));
   }
 
   /** A red cross over every teammate who's down, seen through walls. */

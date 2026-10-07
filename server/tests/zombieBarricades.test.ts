@@ -35,7 +35,7 @@ import {
   zombieLoadout,
   type ZItems,
 } from '@shared/zombies';
-import { ZombieMatch, type ZombieHost } from '@shared/zombieMatch';
+import { ZombieMatch, type ZombieHost, type ZStat } from '@shared/zombieMatch';
 
 const ORIGINAL = structuredClone(ZOMBIE);
 afterEach(() => {
@@ -517,5 +517,72 @@ describe('espinhos na grade do muro e na sebe', () => {
     expect(hits.every((a) => a === t.sangraDano)).toBe(true);
     expect(hits.length).toBeGreaterThanOrEqual(t.sangraSegundos - 1);
     expect(hits.length).toBeLessThanOrEqual(t.sangraSegundos);
+  });
+});
+
+describe('quem entra com a onda em andamento', () => {
+  /** A match on a fake clock whose host remembers who may come back and the stats. */
+  function waitMatch() {
+    const w = { t: 0, allowed: [] as number[], stats: [] as [number, ZStat][], xp: new Map<number, number>() };
+    const host: ZombieHost = {
+      now: () => w.t,
+      rng: seeded(5),
+      emit: () => {},
+      hurt: () => {},
+      giveXp: (id, xp) => w.xp.set(id, (w.xp.get(id) ?? 0) + xp),
+      setLoadout: () => {},
+      bleedOut: () => {},
+      revive: () => {},
+      allowRespawn: (id) => w.allowed.push(id),
+      newMatch: () => {},
+      stat: (id, s) => w.stats.push([id, s]),
+    };
+    const match = new ZombieMatch(host, navMesh, MAP());
+    const tick = (seconds: number, alive: Record<number, boolean>) => {
+      for (let i = 0; i < seconds * 20; i++) {
+        w.t += 50;
+        match.tick(0.05, Object.entries(alive).map(([id, a]) => ({ id: Number(id), feet: [Number(id) * 1.5, 0.1, 0] as Vec3, grounded: true, alive: a })));
+      }
+    };
+    return { w, match, tick };
+  }
+
+  it('fica de fora até o intervalo, como quem morreu, e volta nele', () => {
+    const { w, match, tick } = waitMatch();
+    match.join(1, 'P1');
+    tick(ZOMBIE.inicioSegundos + 1, { 1: true });
+    expect(match.phase).toBe('wave');
+    match.join(2, 'P2');
+    expect(match.parts.get(2)).toMatchObject({ state: 'dead', waiting: true });
+    // During the wave the host keeps them out: still waiting.
+    tick(2, { 1: true, 2: false });
+    expect(match.parts.get(2)).toMatchObject({ state: 'dead', waiting: true });
+    expect(w.allowed).not.toContain(2);
+    // The wave ends: they may come in now, and once in they play.
+    (match as unknown as { endWave(): void }).endWave();
+    expect(match.phase).toBe('break');
+    expect(w.allowed).toContain(2);
+    tick(0.1, { 1: true, 2: true });
+    expect(match.parts.get(2)).toMatchObject({ state: 'up', waiting: false });
+  });
+
+  it('antes da primeira onda (e no intervalo) entra na hora', () => {
+    const { match } = waitMatch();
+    match.join(1, 'P1');
+    match.join(2, 'P2');
+    expect(match.phase).toBe('countdown');
+    expect(match.parts.get(2)).toMatchObject({ state: 'up', waiting: false });
+  });
+
+  it('quem ainda espera quando a partida acaba não ganha a vitória nem conta a partida', () => {
+    const { w, match, tick } = waitMatch();
+    match.join(1, 'P1');
+    tick(ZOMBIE.inicioSegundos + 1, { 1: true });
+    match.join(2, 'P2');
+    (match as unknown as { finish(won: boolean): void }).finish(true);
+    expect(w.xp.get(1)).toBeGreaterThanOrEqual(ZOMBIE.xp.vitoria);
+    expect(w.xp.get(2) ?? 0).toBe(0);
+    expect(w.stats.filter(([id]) => id === 2)).toEqual([]);
+    expect(w.stats.some(([id, s]) => id === 1 && s.e === 'end')).toBe(true);
   });
 });
