@@ -861,15 +861,17 @@ describe('modo zumbi no servidor: progressão de armas, chefes e quem entra no m
     // The mayor rises at his own spot (the ring path south of the wall, with a long clear line east of him: no
     // override needed any more). Everyone in the lobby first: the bosses' first moves come a few seconds after they rise.
     const [p1, p2, p3, p4, p5] = await Promise.all(['Gritada', 'Arrepiada', 'Distante', 'Atropelado', 'Arremessado'].map(async (n) => lobby(await account(n))));
+    // Everyone joins during the countdown: once a wave is on, newcomers wait for the break.
+    ZOMBIE.inicioSegundos = 1.5;
     const bride = await joinWith(p1, 'nova');
+    const bride2 = await joinWith(p2, bride.joined.session.id);
+    const far = await joinWith(p3, bride.joined.session.id);
     await bride.p.next('zwave', (m) => m.phase === 'wave' && m.boss === 'noiva', 5000);
     // The next session's first wave gets the mayor.
     ZOMBIE.ondas[0].chefe = 'prefeito';
     const mayor = await joinWith(p4, 'nova');
-    await mayor.p.next('zwave', (m) => m.phase === 'wave' && m.boss === 'prefeito', 5000);
-    const bride2 = await joinWith(p2, bride.joined.session.id);
-    const far = await joinWith(p3, bride.joined.session.id);
     const mayor2 = await joinWith(p5, mayor.joined.session.id);
+    await mayor.p.next('zwave', (m) => m.phase === 'wave' && m.boss === 'prefeito', 5000);
     const nb = bossIn(await fresh(bride, (m) => !!m.boss)).pos;
     const pm = bossIn(await fresh(mayor, (m) => !!m.boss)).pos;
     // Two players within the scream's reach and one well outside it.
@@ -908,7 +910,7 @@ describe('modo zumbi no servidor: progressão de armas, chefes e quem entra no m
     await sleep(150);
   }, 40_000);
 
-  it('quem entra no meio de uma onda recebe a onda, os zumbis, o dinheiro de cada um e quem está caído', async () => {
+  it('quem entra no meio de uma onda recebe a onda, os zumbis, o dinheiro de cada um e quem está caído, e espera o intervalo para jogar', async () => {
     quick();
     Object.assign(ZOMBIE.ondas[0], { zumbis: 6, intervalo: 0.1 });
     for (const t of Object.values(ZOMBIE.tipos)) t.dano = 0;
@@ -934,14 +936,16 @@ describe('modo zumbi no servidor: progressão de armas, chefes e quem entra no m
     expect(info(a.id).zumbi).toMatchObject({ money: ZOMBIE.dinheiroInicial - ZOMBIE.caixa.custo, state: 'up', items: aItems });
     expect(info(a.id).lo).toEqual(zombieLoadout(aItems));
     expect(info(b.id).zumbi).toMatchObject({ money: ZOMBIE.dinheiroInicial, state: 'down' });
-    expect(info(c.id).zumbi).toMatchObject({ money: ZOMBIE.dinheiroInicial, state: 'up', items: startItems() });
+    // C came in during the wave: waiting (like the dead) until the break.
+    expect(info(c.id).zumbi).toMatchObject({ money: ZOMBIE.dinheiroInicial, state: 'dead', items: startItems() });
     expect(info(c.id).lo).toEqual(zombieLoadout(startItems()));
     // The horde comes with the next snapshot: the zombies A was seeing.
     const first = await c.p.next('zsnap');
     const ids = new Set(first.z.map((z) => z[0]));
     expect(seen.z.filter((z) => !ids.has(z[0]))).toEqual([]);
-    // And C plays at once, on their feet.
-    await stand(c, [0, 0.1, 2]);
+    // And C doesn't play until the wave ends: the server refuses the respawn.
+    c.p.send({ t: 'respawn', p: [0, 0.1, 2], yaw: 0 });
+    await expect(c.p.next('spawned', (m) => m.id === c.id, 800)).rejects.toThrow();
     for (const x of [a, b, c]) x.p.close();
     await sleep(150);
   }, 30_000);

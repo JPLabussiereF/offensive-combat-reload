@@ -432,7 +432,13 @@ async function boot() {
     spawnedAt = performance.now();
     conn?.send({ t: 'respawn', p: vec3(lastSpawn.position), yaw: lastSpawn.yaw });
   };
-  respawn();
+  if (zombies?.waitingToJoin) {
+    // Zumbi, a wave already on: we come in at the break. Meanwhile we watch from a spawn spot, as the dead do.
+    lastSpawn = pickSpawn();
+    player.spawn(lastSpawn);
+    player.kill(0);
+    hud.showDeath(t('zJoinWaitTitle'));
+  } else respawn();
   physics.world.step(); // builds the query pipeline before the first ray
 
   // Match stats (offline; online the server's numbers are shown).
