@@ -8,6 +8,7 @@
     { "id": "cardapio", "icone": "🍪", "cor": "#e0567a", "nome": { "pt": "Cardápio", "en": "Menu" }, "titulo": { "pt": "Chef da Vizinhança", "en": "Neighborhood Chef" } },
     { "id": "corrida", "icone": "🏁", "cor": "#1fb5a8", "nome": { "pt": "Corrida Armada", "en": "Gun Game" }, "titulo": { "pt": "Piloto de Fuga", "en": "Getaway Driver" } },
     { "id": "zumbi", "icone": "🧟", "cor": "#3fae4a", "nome": { "pt": "Zumbi", "en": "Zombies" }, "titulo": { "pt": "Caça-Zumbis", "en": "Zombie Hunter" } },
+    { "id": "mapas", "icone": "🗺️", "cor": "#8a6cff", "nome": { "pt": "Mapas", "en": "Maps" }, "titulo": { "pt": "Guia Turístico", "en": "Tour Guide" } },
     { "id": "vexames", "icone": "🤡", "cor": "#ffb13d", "nome": { "pt": "Vexames", "en": "Fails" }, "titulo": { "pt": "Pé-Frio", "en": "Jinx" } }
   ],
   "figurinhas": [
@@ -272,6 +273,53 @@
       "id": "marceneiro", "pagina": "zumbi", "icone": "🔨", "tipo": "contador", "fonte": "propria", "metas": [10, 50, 200, 500],
       "nome": { "pt": "Marceneiro", "en": "Carpenter" },
       "como": { "pt": "Erga ou pregue {meta} tábuas nas barricadas", "en": "Build or nail {meta} boards on the barricades" }
+    },
+    {
+      "id": "sorveteiro-fantasma", "pagina": "mapas", "icone": "🍦", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 10],
+      "nome": { "pt": "Sorveteiro Fantasma", "en": "Phantom Ice Cream Man" },
+      "como": { "pt": "Faça o caminhão de sorvete da Rua dos Vizinhos tocar {meta} {vez|vezes}", "en": "Make the ice cream truck on Neighbors' Street play {meta} {time|times}" }
+    },
+    {
+      "id": "proibido-acordar", "pagina": "mapas", "icone": "🐉", "tipo": "recorde", "fonte": "propria", "metas": [1], "oculta": true,
+      "nome": { "pt": "Proibido Acordar", "en": "Do Not Wake" },
+      "como": { "pt": "Acorde o dragão do lago do Jardim do Dragão", "en": "Wake the dragon in the Dragon Garden lake" },
+      "dica": { "pt": "Uma placa do Jardim do Dragão proíbe uma coisa. Faça.", "en": "A sign in the Dragon Garden forbids something. Do it." }
+    },
+    {
+      "id": "maestro", "pagina": "mapas", "icone": "🎼", "tipo": "recorde", "fonte": "propria", "metas": [1],
+      "nome": { "pt": "Maestro", "en": "Maestro" },
+      "como": { "pt": "Toque Dó-Ré-Mi-Fá-Sol no carrilhão do mercado do Jardim, em ordem, em até 6 s", "en": "Play Do-Re-Mi-Fa-Sol on the market chime in the Dragon Garden, in order, within 6 s" }
+    },
+    {
+      "id": "banda-marcial", "pagina": "mapas", "icone": "🥁", "tipo": "recorde", "fonte": "propria", "metas": [1],
+      "nome": { "pt": "Banda Marcial", "en": "Marching Band" },
+      "como": { "pt": "Toque os 4 tambores e o gongo do Jardim do Dragão em até 30 s", "en": "Hit the 4 drums and the gong in the Dragon Garden within 30 s" }
+    },
+    {
+      "id": "eu-ja-ouvi", "pagina": "mapas", "icone": "🔔", "tipo": "recorde", "fonte": "propria", "metas": [1], "oculta": true,
+      "nome": { "pt": "EU JÁ OUVI.", "en": "I HEARD YOU." },
+      "como": { "pt": "Toque o sino da capela da Vila Assombrada 5 vezes em 8 s", "en": "Ring the Haunted Town chapel bell 5 times within 8 s" },
+      "dica": { "pt": "O sino da capela tem pouca paciência.", "en": "The chapel bell is short on patience." }
+    },
+    {
+      "id": "chega", "pagina": "mapas", "icone": "📯", "tipo": "recorde", "fonte": "propria", "metas": [1],
+      "nome": { "pt": "CHEGA.", "en": "ENOUGH." },
+      "como": { "pt": "Buzine o carro da Estrada Maldita 6 vezes em 6 s", "en": "Honk the car on the Cursed Road 6 times within 6 s" }
+    },
+    {
+      "id": "mudou-pro-mausoleu", "pagina": "mapas", "icone": "👻", "tipo": "contador", "fonte": "propria", "metas": [4, 8, 12],
+      "nome": { "pt": "Mudou pro Mausoléu", "en": "Moved to the Mausoleum" },
+      "como": { "pt": "Acorde o fantasma da cova {meta} vezes", "en": "Wake the grave ghost {meta} times" }
+    },
+    {
+      "id": "patinhos-em-fila", "pagina": "mapas", "icone": "🦆", "tipo": "contador", "fonte": "propria", "metas": [5, 15, 50],
+      "nome": { "pt": "Patinhos em Fila", "en": "Ducks in a Row" },
+      "como": { "pt": "Mexa o caldeirão da bruxa {meta} vezes (a cada 5, um pato)", "en": "Stir the witch's cauldron {meta} times (every 5th, a duck)" }
+    },
+    {
+      "id": "mosca-no-alvo", "pagina": "mapas", "icone": "🎪", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 20],
+      "nome": { "pt": "Mosca no Alvo", "en": "Bullseye" },
+      "como": { "pt": "Derrube os 7 alvos do parque antes do primeiro voltar ({meta} {vez|vezes})", "en": "Knock down all 7 park targets before the first stands back up ({meta} {time|times})" }
     },
     {
       "id": "saco-de-pancada", "pagina": "vexames", "icone": "🥊", "tipo": "contador", "fonte": "mortes", "metas": [50, 250, 1000, 5000],

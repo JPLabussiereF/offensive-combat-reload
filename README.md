@@ -19,7 +19,6 @@ Para jogar com os colegas, `bun link` (uma vez, nesta pasta) cria o comando glob
 
 Para **publicar e jogar com amigos** (Radmin VPN, túnel, roteador ou servidor alugado, com nginx), veja **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
-<<<<<<< HEAD
 ## No celular
 
 O jogo detecta sozinho se está num **PC** (teclado e mouse) ou no **navegador de um celular/tablet** (toque) — `?mobile=1` ou `?mobile=0` na URL força um dos dois. No celular:
@@ -35,7 +34,7 @@ Funciona no navegador do **PC** (USB ou Bluetooth) e do **celular** (Bluetooth: 
 - **Nos menus**: D-pad ou analógico move o foco, ✕/A confirma (seleções trocam de opção, controles deslizantes andam com ←/→), ◯/B volta, L1/R1 trocam de aba (editor de personagem), o analógico direito rola as listas. Start/Options volta ao jogo da pausa.
 - **Configurações**: sensibilidade do controle e **assistência de mira** (a mesma do celular: desligada por padrão; ligada, a mira desacelera sobre um inimigo e acompanha o movimento dele enquanto você mira, sem nunca puxar a mira de longe; nunca vale para o mouse).
 - No PC, jogar com controle não prende o mouse; um clique no jogo devolve o controle ao mouse. No celular, os botões de toque somem enquanto o controle está em uso e voltam ao tocar na tela.
-=======
+
 ## Banco e Redis (desenvolvimento)
 
 O modo online, as contas e os testes do servidor precisam do **PostgreSQL 18** e do **Redis 8**. Os dois vêm prontos no `docker-compose.yml`; só é preciso ter o [Docker Desktop](https://www.docker.com/products/docker-desktop/) aberto. O treino offline e o modo contra bots funcionam sem eles.
@@ -58,7 +57,6 @@ docker compose down -v              # apaga tudo, inclusive as contas (volume oc
 - O Redis roda sem persistência: guarda só limites de tentativas, tickets do WebSocket e links de troca de senha, então reiniciá-lo não perde nada importante.
 - Para olhar o banco: `docker compose exec banco psql -U oc oc` (por exemplo `SELECT display_name, discriminator FROM player_profile;`). Para o Redis: `docker compose exec redis redis-cli`.
 - Moderação (banir, papéis): `npm run admin -- banir "Nome#1234" "motivo" 7d`. Veja [tools/admin.ts](tools/admin.ts).
->>>>>>> 4405447 (Document how to run the database and Redis in development)
 
 ## Jogar online
 
