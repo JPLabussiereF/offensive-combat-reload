@@ -161,7 +161,7 @@ docker compose cp jogo:/app/dados/mapas ./backup-mapas                # salvar
 
 Sem Docker, os modelos ficam em `MAPAS_DIR` (padrão `./dados/mapas`, relativo à pasta de onde o servidor roda). O servidor monta os mapas ao salvar numa thread que roda do código-fonte (`server/mapWorker.ts` com `client/`, `shared/` e `tools/headless.ts`): no deploy sem Docker, mantenha a pasta do projeto inteira ao lado do `build/`.
 
-**Moderação.** Banimentos, silêncios no chat, troca de nome, aparência e progresso e papéis de staff podem ser feitos pela API de Gerenciamento (`/api/gestao`, por admins e moderadores; a tela é da fase 4 da PF-6) ou pelo console do servidor. O primeiro admin sempre vem do console (`papel "Nome#1234" admin`). O banimento derruba o jogador da partida na hora; o silêncio só cala o chat da sala (a pessoa continua jogando) e também vale na partida em andamento:
+**Moderação.** Banimentos, silêncios no chat, troca de nome, aparência e progresso e papéis de staff podem ser feitos pela aba **Gerenciamento** da tela inicial (admins e moderadores; usa a API `/api/gestao`) ou pelo console do servidor. O primeiro admin sempre vem do console (`papel "Nome#1234" admin`). O banimento derruba o jogador da partida na hora; o silêncio só cala o chat da sala (a pessoa continua jogando) e também vale na partida em andamento:
 
 ```bash
 docker compose exec jogo bun build/admin.js banir "Nome#1234" "motivo" 7d     # 7d, 12h, 30m ou permanente

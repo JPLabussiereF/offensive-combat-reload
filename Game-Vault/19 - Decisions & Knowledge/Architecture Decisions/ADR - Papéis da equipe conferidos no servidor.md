@@ -13,6 +13,10 @@ source_paths:
   - server/migrations/004_mapas.sql
   - client/tests/roles.test.ts
   - server/tests/management.test.ts
+  - client/ui/management.ts
+  - client/ui/managementRules.ts
+  - client/ui/mapsRules.ts
+  - client/tests/mapsScreen.test.ts
 tags:
   - decision
   - adr
@@ -43,10 +47,11 @@ Onde e como conferir quem pode fazer o quê, sem que um moderador consiga agir s
 - A remoção de admin conta os admins e remove **sob o mesmo lock** (`SELECT ... FOR UPDATE`), para dois admins não se removerem ao mesmo tempo.
 - **Auditoria com o autor**: `auth_event.actor_id` (migration 004) guarda quem da equipe agiu; `sanction.issued_by` e `account_role.granted_by` passam a ser preenchidos pela API.
 - `server/moderacao.ts` recebe o id da conta e `by` (quem agiu); o console continua funcionando por tag (`resolveTag`).
+- **A interface só esconde (fase 4).** A aba Gerenciamento aparece só com `papeis` de `/api/me`; o painel de uma conta mostra as partes que as `permissoes` de `GET /api/gestao/contas/:id` permitem (calculadas no servidor com as regras acima para quem pergunta: `editar`, `punir`, `conceder`, `remover`), e a aba Mapas mostra Editar, Ocultar e Excluir pelo papel, pelo dono (`MapaResumo.meu`) e pelo `pode` do servidor. Cada ação é conferida de novo no servidor.
 
 ## Motivo
 
-Um papel tirado vale na hora; as regras ficam num lugar só e testáveis sem servidor (`client/tests/roles.test.ts`), e a matriz completa roda contra o servidor real (`server/tests/management.test.ts`).
+Um papel tirado vale na hora; as regras ficam num lugar só e testáveis sem servidor (`client/tests/roles.test.ts`), e a matriz completa roda contra o servidor real (`server/tests/management.test.ts`). As telas não repetem as regras: leem as permissões que o servidor calculou (`client/tests/mapsScreen.test.ts` confere o que cada papel vê).
 
 ### Troca de nome pela equipe (P35)
 

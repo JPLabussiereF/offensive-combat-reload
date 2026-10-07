@@ -73,7 +73,7 @@ Equipe = admin ou moderador. Ver [[World Structure]] e [[ADR - Sessões sob dema
 
 | Método e caminho | Quem | O que faz | Respostas principais |
 | --- | --- | --- | --- |
-| `GET /api/mapas?tipo=oficial\|comunidade&q=&autor=&ordem=jogados\|recentes&pagina=&ocultos=1` | todos | Lista os mapas visíveis (nem ocultos nem apagados; com `ocultos=1`, a equipe também vê os ocultos, e para os outros o parâmetro é ignorado: P34), 20 por página, com busca por nome ou autor (nome ou tag). Cada item é um `MapaResumo` (com `pode`: o que quem pergunta pode fazer). | 200 `{ mapas, pagina, mais }` |
+| `GET /api/mapas?tipo=oficial\|comunidade&q=&autor=&ordem=jogados\|recentes&pagina=&ocultos=1` | todos | Lista os mapas visíveis (nem ocultos nem apagados; com `ocultos=1`, a equipe também vê os ocultos, e para os outros o parâmetro é ignorado: P34), 20 por página, com busca por nome ou autor (nome ou tag). Cada item é um `MapaResumo` (com `pode`: o que quem pergunta pode fazer, e `meu`: se foi quem pergunta que o fez). | 200 `{ mapas, pagina, mais }` |
 | `GET /api/mapas/:id` | todos | Um mapa. Oculto: só o autor e a equipe o veem. | 200; 404 `nao_encontrado` / `mapa_oculto` |
 | `GET /api/mapas/:id/versoes` | todos | As versões salvas (`VersaoMapa`: número, data, quem salvou, chamadas e triângulos, qual é a atual). | 200 |
 | `GET /api/mapas/:id/versoes/:v` | todos | Os dados (`MapData`) de uma versão: imutável, com cache longo. | 200; 404 |

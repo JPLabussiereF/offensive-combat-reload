@@ -17,6 +17,8 @@ source_paths:
   - docs/DEPLOY.md
   - server/tests/game.test.ts
   - server/tests/management.test.ts
+  - client/ui/management.ts
+  - client/ui/managementRules.ts
 tags:
   - backend
   - moderacao
@@ -28,7 +30,7 @@ updated: 2026-10-06
 
 A moderação é feita por dois caminhos que chamam as mesmas funções (`server/moderacao.ts`, que recebem o **id da conta** e `by`, quem agiu):
 
-- **API de Gerenciamento** (`/api/gestao/...`, PF-6 fase 2), para admins e moderadores, com as regras de `shared/roles.ts` conferidas a cada pedido. A tela Gerenciamento que a usa é da fase 4 da PF-6. Ver [[ADR - Papéis da equipe conferidos no servidor]].
+- **API de Gerenciamento** (`/api/gestao/...`, PF-6 fase 2), para admins e moderadores, com as regras de `shared/roles.ts` conferidas a cada pedido, usada pela aba **Gerenciamento** da tela inicial (`client/ui/management.ts`, PF-6 fase 4: busca de contas e painel com sanções, nome, aparência, progresso e papéis, os botões conforme as permissões que a API devolve; ver [[Menus]]). Ver [[ADR - Papéis da equipe conferidos no servidor]].
 - **Console do servidor** (`tools/admin.ts`), que fala direto com o mesmo PostgreSQL e Redis do jogo e acha a conta pela tag (`resolveTag`).
 
 ## Papéis

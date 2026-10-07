@@ -69,7 +69,7 @@ A lista, o botão de entrar (desabilitado quando cheia) e o campo de criar sala 
 - Um único processo: as salas existem só na memória dele; não há descoberta entre servidores. Ver [[Problem - Estado das partidas só em memória de um processo]].
 - Sem senha/convite para salas privadas; qualquer conta logada pode entrar em qualquer sala listada.
 - Sem limite explícito de salas por jogador (criar uma sala nova sai da anterior, que é removida se ficar vazia).
-- A lista da tela inicial ainda mostra só os mapas oficiais como filtro; a lista de mapas vinda de `/api/mapas` somada às salas abertas é da fase 4 da PF-6.
+- A tela inicial filtra pelos mapas oficiais de `/api/mapas` somados aos mapas das salas abertas; um mapa da comunidade sem ninguém jogando só abre sala pela aba Mapas (Jogar) ou pela entrada rápida de quem o tem no filtro.
 
 ## Código relacionado
 

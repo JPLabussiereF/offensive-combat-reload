@@ -78,6 +78,7 @@ Reaproveita todo o código de construção que já existe (os construtores viram
 - Um tipo de peça novo precisa do esquema em `shared/mapCatalog.ts` e do adaptador em `client/world/catalog/` (um teste confere que os dois casam).
 - **Fase 2 (feita):** o servidor guarda cada versão salva do mapa no banco (`map_version`) e lê `objetos`, `zumbi` e a navmesh dela; `PICKUPS`, `WITCHES`, `RATS`, `FISH` e `MAPS` saíram de `shared/maps.ts`. Salvar monta o mapa numa thread (`server/mapWorker.ts`) e confere `MAP_BUDGET`. Ver [[ADR - Sessões sob demanda por versão do mapa]].
 - **Fase 3 (feita):** o editor no jogo ([[ADR - Editor de mapas no jogo]]) usa o modo editor do carregador, reconstrói só a peça mexida (`MapBuild.remove` e `piece`) e grava a pose da P32.
+- **Fase 4 (feita):** as lanternas de papel e os recortes de lago de uma peça com pose entram nas listas do mapa inteiro levados pela pose (P42: `Services.lanternSources`/`lanternSpots`, `holes` com a caixa do retângulo girado; `client/tests/mapPose.test.ts`); a tela inicial mostra o cartão (`cartao`) de cada mapa e as abas Mapas e Gerenciamento ([[Menus]]).
 - Os dados de zumbi do Cemitério saíram de `shared/data/zumbi.json` e estão no campo `zumbi` de `cemiterio.json` (`ZOMBIE.mapas` continua igual).
 
 ## Código afetado

@@ -94,12 +94,12 @@ Mapa de ferramenta (não aparece no seletor):
 
 Confirmado em código e em `docs/MAPAS.md`:
 
-**Pelo servidor (PF-6 fase 2):** `POST /api/mapas { tipo, dados }` com um `MapData` válido ([[APIs]]): o servidor valida os dados, monta o mapa numa thread própria (`server/mapWorker.ts`), recusa acima de 400 chamadas de desenho ou 750 mil triângulos e, se for zumbi (`exclusivo: 'zumbi'` com o campo `zumbi`), gera a navmesh. O mapa fica jogável online na hora. O editor no jogo (fase 3, [[ADR - Editor de mapas no jogo]]) salva por essas rotas; a tela Mapas (fase 4) também as usa.
+**Pelo servidor (PF-6 fase 2):** `POST /api/mapas { tipo, dados }` com um `MapData` válido ([[APIs]]): o servidor valida os dados, monta o mapa numa thread própria (`server/mapWorker.ts`), recusa acima de 400 chamadas de desenho ou 750 mil triângulos e, se for zumbi (`exclusivo: 'zumbi'` com o campo `zumbi`), gera a navmesh. O mapa fica jogável online na hora. O editor no jogo (fase 3, [[ADR - Editor de mapas no jogo]]) salva por essas rotas, e a aba **Mapas** da tela inicial (fase 4, [[Menus]]) lista, joga, duplica, oculta, apaga e restaura versões por elas.
 
 **Um mapa oficial novo no pacote do cliente** (para treino e bots offline):
 
 1. Escrever o mapa como dados em `shared/data/mapas/<id>.json` (formato `MapData`, peças do catálogo `shared/mapCatalog.ts`; ver [[World Structure]]), com coletáveis, bruxa, ratos e peixes em `objetos`. `validateMapData` tem de passar e o custo de desenho tem de caber em 400 chamadas e 750 mil triângulos (`client/tests/mapData.test.ts` e `budget.test.ts` conferem os oficiais).
-2. O id em `OFFICIAL_MAPS` (`shared/maps.ts`), o arquivo em `OFFICIAL` e o nome em `OFFICIAL_INFO` (`client/world/mapLoader.ts`), e um `MAP_LOOK` em `client/ui/home.ts`.
+2. O id em `OFFICIAL_MAPS` (`shared/maps.ts`), o arquivo em `OFFICIAL` e o nome e o cartão em `OFFICIAL_INFO` (`client/world/mapLoader.ts`), e as linhas da tela inicial (clima, tamanho, piada) em `OFFICIAL_BLURB` (`client/ui/home.ts`).
 3. O servidor cria a versão 1 sozinho na próxima subida (`seedOfficialMaps`).
 4. Mapa do modo zumbi: os dados de zumbi no campo `zumbi` e `exclusivo: 'zumbi'`; `bun run navmesh` grava a malha em `shared/data/navmesh/<id>.json`, que a semeadura guarda com a versão 1.
 

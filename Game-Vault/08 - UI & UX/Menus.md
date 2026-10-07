@@ -12,6 +12,10 @@ source_paths:
   - client/ui/home.ts
   - client/ui/auth.ts
   - client/ui/profile.ts
+  - client/ui/maps.ts
+  - client/ui/mapsRules.ts
+  - client/ui/management.ts
+  - client/ui/managementRules.ts
   - client/ui/customize.ts
   - client/ui/arsenal.ts
   - client/ui/padNav.ts
@@ -41,14 +45,16 @@ Página rolável com duas caras, conforme a conta (`/api/me`). Enquanto a consul
 
 ### 2.1 Logado (`#home-in`)
 
-- **Cabeçalho:** logo, abas **JOGAR / ARSENAL / PERFIL / CONFIGURAÇÕES** (`role="tab"`, L1/R1 no controle) e um botão da conta com o retrato do personagem (`renderPortrait`, close no rosto), `Nome#1234`, selo de nível e barra de XP da conta (`xpNoNivel / xpProximo`). O botão abre a aba Perfil.
+- **Cabeçalho:** logo, abas **JOGAR / MAPAS / ARSENAL / PERFIL / CONFIGURAÇÕES** e, só para admin e moderador (`papeis` de `/api/me`), **GERENCIAMENTO** (`role="tab"`, L1/R1 no controle) e um botão da conta com o retrato do personagem (`renderPortrait`, close no rosto), `Nome#1234`, selo de nível e barra de XP da conta (`xpNoNivel / xpProximo`). O botão abre a aba Perfil.
 - **Cartão do personagem** (lateral, fixo ao rolar no computador; empilhado no celular): o **personagem real** da conta em 3D (o mesmo palco `Stage` do editor, `client/ui/customize.ts`: parado, girando devagar, arrastar gira; sem zoom pela roda para não travar a rolagem), os ícones do que vai para a partida — primária, secundária escolhida, faca e granada, com a forma ligada (ex.: "🔫 🛎️ 🐔 🧨 equipados"; `weaponIcon`), abates e partidas, botão **PERSONALIZAR** (abre o editor de [[Character Customization]] no lugar do painel, que ocupa a largura toda) e, no modo Online, **JOGAR ONLINE** com a dica "Entra direto na sessão mais cheia dos mapas filtrados".
 - **Aba Jogar:**
   - *Modo:* três cartões, **Online**, **Contra bots** e **Campo de tiro**.
   - *Tipo de partida* (Online e Contra bots): **Mata-mata** ou **Corrida armada**, com uma linha sobre o modo ([[Free For All]], [[Gun Game]]). Na landing (sem conta) o mesmo seletor aparece para o jogo contra bots.
-  - *Mapas:* no Online, os mapas são um **filtro** (vários marcados) e mostram quantas sessões cada um tem depois de conectar. Em Contra bots escolhe-se um mapa. No Campo de tiro, **clicar no mapa já começa** o treino ([[Training]]). Fora do modo zumbi só aparecem os mapas oficiais abertos (sem `exclusivo`): o Cemitério da Capela é só do zumbi.
+  - *Mapas:* cada botão mostra o **cartão** do mapa (emoji e cor de `cartao`, da versão atual; os oficiais do pacote enquanto o servidor não responde). No Online, os mapas vêm de `/api/mapas?tipo=oficial` **somados aos mapas das sessões abertas** (um mapa da comunidade que alguém está jogando entra com o cartão de `GET /api/mapas/:id`), são um **filtro** (vários marcados; um mapa novo entra marcado) e mostram quantas sessões cada um tem. Em Contra bots escolhe-se um mapa e no Campo de tiro **clicar no mapa já começa** o treino ([[Training]]): fora do Online só os oficiais do pacote do cliente. Fora do modo zumbi só aparecem os mapas abertos (sem `exclusivo`): o Cemitério da Capela é só do zumbi.
   - *Contra bots:* dificuldade (Fácil/Normal/Difícil), 3/5/7/9 bots e o botão **CONTRA N BOTS** ([[Versus Bots]]).
   - *Online:* lista de sessões **já carregada** ao abrir a aba (6 por vez, **VER MAIS** quando há mais), filtrada pelos mapas marcados, e a criação de sessão. A conexão de jogo só abre ao entrar. Ver [[Matchmaking UI]].
+- **Aba Mapas** (`client/ui/maps.ts`, PF-6): abas **Oficiais** e **Comunidade**, busca por **nome** ou **autor**, ordem **Mais jogados** ou **Mais recentes** e, para a equipe, **Mostrar ocultos** (`?ocultos=1`). Cada mapa é um cartão (emoji, cor e nome da versão atual; autor, jogadas, versão e data; selos "Só zumbi" e "Oculto: motivo") com os botões que quem olha pode usar (`mapActions` em `client/ui/mapsRules.ts`): **Jogar** (online, mensagem `play` no modo escolhido no seletor do cartão; num mapa exclusivo de zumbi, só zumbi), **Editar** (o dono no seu mapa da comunidade; admin e moderador nos oficiais), **Duplicar** (qualquer conta; a cópia "Nome (cópia)" aparece em Comunidade), **Versões** (a lista das versões salvas com **Restaurar**; com Editar), **Ocultar** com motivo e **Desocultar** (equipe), **Excluir** com confirmação (o dono no seu; a equipe em qualquer um). **+ Novo mapa** e **Editar** fecham a tela inicial no editor (`HomeChoice` `{ mode: 'editor', mapa }`, [[ADR - Editor de mapas no jogo]]). O servidor confere cada ação de novo.
+- **Aba Gerenciamento** (`client/ui/management.ts`, só admin e moderador): busca de contas por nome ou `Nome#1234` (tags de papel, banida, silenciada, suspensa) e o **painel da conta**: **Sanções** (Banir ou Silenciar com motivo e duração de 1 hora a permanente, Retirar banimento, Retirar silêncio e o histórico com quem aplicou), **Nome** (sem a espera de 7 dias; a do jogador recomeça), **Aparência** (corpo e o editor de [[Character Customization]] salvando na conta do outro: `showCustomizer` com `onSave`), **Progresso** (XP da conta e de cada arma) e **Papéis** (Promover e Tirar). As partes aparecem ou somem pelas permissões que `GET /api/gestao/contas/:id` devolve para quem pergunta (`accountControls` em `client/ui/managementRules.ts`): um moderador diante de um admin vê só "Você não pode mexer nesta conta", e ninguém se pune. Ver [[Moderation]].
 - **Aba Arsenal:** o mesmo painel do menu de pausa (`Arsenal`, `client/ui/arsenal.ts`) sobre a progressão da conta. Escolher a secundária ou ligar/desligar uma melhoria grava na conta na hora (`PATCH /api/perfil {arsenal}`). Ver [[Inventory UI]].
 - **Aba Perfil** (`client/ui/profile.ts`): tag e nível com barra de XP, aviso de exclusão pendente (com cancelar), corpo (masculino/feminino), **Personalizar personagem**, estatísticas totais, últimas sessões online, troca de nome (com carência), vincular/desvincular Discord, sair e excluir conta (com `confirm`). Ver [[Player Data]].
 - **Aba Configurações:** os mesmos controles do menu de pausa (teclas e [[Settings]]). O bloco `#menu-settings` é **emprestado** para a aba enquanto a tela inicial está aberta e devolvido ao `#menu` ao sair, por isso a mudança vale na hora. O editor de layout de toque fica escondido aqui (os controles de toque só existem na partida).
@@ -69,7 +75,7 @@ Página rolável com duas caras, conforme a conta (`/api/me`). Enquanto a consul
 
 ### 2.3 Preferências e mensagens
 
-- Modo, mapa, filtro de mapas do Online, dificuldade e número de bots ficam no `localStorage` (`oc.bots`). Ver [[Settings]].
+- Modo, mapa, filtro de mapas do Online (os mapas **tirados** do filtro, `fora`; o antigo `filtro` com os marcados é convertido), dificuldade e número de bots ficam no `localStorage` (`oc.bots`). A busca e a ordem da aba Mapas e a conta aberta no Gerenciamento duram enquanto a tela inicial está aberta. Ver [[Settings]].
 - As mensagens de estado ("Conectando ao servidor…", erros) aparecem num aviso fixo no rodapé da tela (`#home-status`).
 
 ## 3. Menu inicial / pausa (`#menu`)
@@ -107,6 +113,7 @@ O jogo renderiza um quadro do mapa **atrás** do menu inicial, para que o mapa a
 ## Código relacionado
 
 - `client/ui/menu.ts` — `Screens` (`setProgress`, `showLoading`, `hideLoading`, `showMenu`, `hideMenu`, `bindSettings`, `showControls`, `onEditLayout`, `onExit`, `showGpuWarning`).
-- `client/ui/home.ts` — `showHome()` → `HomeChoice` (`offline` | `bots` | `online`): abas, landing, entrada rápida, empréstimo de `#menu-settings`.
+- `client/ui/home.ts` — `showHome()` → `HomeChoice` (`offline` | `bots` | `online` | `editor`): abas, landing, entrada rápida, mapas online (`playableMaps`), empréstimo de `#menu-settings`.
+- `client/ui/maps.ts` (`showMaps`) e `client/ui/mapsRules.ts` (botões por papel e dono, modos, endereço da lista, mapas da tela inicial); `client/ui/management.ts` (`showManagement`) e `client/ui/managementRules.ts` (painel pelas permissões, sanção e progresso conferidos antes de enviar).
 - `client/ui/auth.ts`, `client/ui/profile.ts`, `client/ui/customize.ts`, `client/ui/arsenal.ts`, `client/ui/padNav.ts`, `client/ui/tuning.ts`.
 - `client/main.ts` — ordem das telas no `boot()`, pausa/retomada (`input.onLockChange`).

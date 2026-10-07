@@ -42,7 +42,11 @@ Online, todo mapa — oficial ou da comunidade — vive no servidor, com as **ve
 - **Jogar**: cada sala online joga uma versão; salvar não muda as partidas em andamento, só as novas. O cliente baixa os dados da versão (`GET /api/mapas/:id/versoes/:v`) e os guarda em memória e no IndexedDB. Treino e bots continuam usando os JSON do pacote.
 - **Modelos .glb** (`POST /api/mapas/arquivos`, corpo `model/gltf-binary`): até **10 MB**, glTF 2.0 legível, tudo dentro do arquivo (nenhuma URI para fora), só as extensões que o jogo carrega (sem Draco, sem meshopt, sem AVIF), texturas até **2048 px**, até 2000 nós. O arquivo fica guardado pelo SHA-256 (em `MAPAS_DIR`, padrão `./dados/mapas`; no Docker, o volume `oc-mapas`).
 
-O editor no jogo (fase 3, abaixo) e as telas Mapas e Gerenciamento (fase 4) usam essas rotas; a lista completa está em `Game-Vault/13 - Backend & Services/APIs.md`.
+O editor no jogo (fase 3, abaixo) e a aba Mapas da tela inicial (fase 4, abaixo) usam essas rotas; a lista completa está em `Game-Vault/13 - Backend & Services/APIs.md`.
+
+### Aba Mapas (PF-6, fase 4)
+
+Na tela inicial, logado: abas **Oficiais** e **Comunidade**, busca por nome ou por autor, ordem por mais jogados ou mais recentes e, para admin e moderador, **Mostrar ocultos**. Cada cartão (nome, emoji e cor da versão atual) tem **Jogar** (online, no modo escolhido; um mapa exclusivo do zumbi só no zumbi), **Editar** (o dono no seu mapa da comunidade; a equipe nos oficiais), **Duplicar** (qualquer conta: a cópia "Nome (cópia)" é da comunidade e de quem duplicou), **Versões** (com **Restaurar**: as partidas novas passam a usar a versão escolhida), **Ocultar**/**Desocultar** (equipe) e **Excluir** (o dono no seu; a equipe em qualquer um). **+ Novo mapa** abre o editor num mapa em branco. Na aba Jogar, o filtro online mostra os oficiais do servidor e os mapas das salas abertas. Código: [client/ui/maps.ts](../client/ui/maps.ts) e [client/ui/mapsRules.ts](../client/ui/mapsRules.ts).
 
 ### Pose de uma peça (`Peca.pose`, P32)
 
@@ -54,11 +58,13 @@ O gizmo do editor move e gira **qualquer** peça em **qualquer** ângulo, inclus
 - um **vão** guarda os números no referencial da parede e a matriz da parede (`WallOpening.pose`; `openingCenter` dá o centro no mundo);
 - os objetos da peça ficam num grupo que a pose carrega, e o que ela entrega aos sistemas do mapa atravessa o referencial ([client/world/catalog/posed.ts](../client/world/catalog/posed.ts)): luzes, partículas, sons, os pés e ouvidos que as piadas olham, quem atirou, coletáveis, a poção, o cachorro e o que um tiro ou a faca acertam. Posições que vêm dos dados (o biscoito, a cereja, as voltas dos peixes) entram pelo `ctx.local`.
 
-Uma peça **sem** pose monta exatamente como antes (o golden dos 4 oficiais e o hash da navmesh não mudam). Uma peça `livre` só ganha pose quando é inclinada: movida e girada em torno do eixo vertical, continua só com `p`, `yaw` e `escala`. Limites conhecidos: as lanternas de papel e os buracos de lago (`holes`) de uma peça com pose não entram nas listas do mapa inteiro (as luzes noturnas das lanternas e os recortes do chão do Jardim).
+- as **lanternas de papel** entram na lista de luzes da noite do mapa inteiro levadas pela pose (`Services.lanternSpots`: as luzes e os halos acompanham o balanço de cada lanterna onde a pose a pôs), e o **buraco de um lago** (`tanque`) entra em `holes` como a caixa em volta do retângulo girado (P42).
+
+Uma peça **sem** pose monta exatamente como antes (o golden dos 4 oficiais e o hash da navmesh não mudam). Uma peça `livre` só ganha pose quando é inclinada: movida e girada em torno do eixo vertical, continua só com `p`, `yaw` e `escala`. Os recortes de `holes` só valem para o chão montado depois (a laje do Jardim guarda os dela nos parâmetros, `furos`): mover um lago não abre um buraco novo no chão já salvo.
 
 ### Editor no jogo (PF-6, fase 3)
 
-[client/editor/](../client/editor/) roda no lugar de uma partida (sem jogador, HUD nem entrada do jogo); sair recarrega a página. Até a fase 4 criar os botões da tela Mapas, **em desenvolvimento** (`bun run dev`) ele abre por `?editor` (mapa novo) ou `?editor=<id>` (a versão atual do mapa; sem servidor, um oficial abre do pacote do cliente).
+[client/editor/](../client/editor/) roda no lugar de uma partida (sem jogador, HUD nem entrada do jogo); sair recarrega a página. Abre pela aba Mapas da tela inicial: **Editar** (a versão atual do mapa) ou **+ Novo mapa**.
 
 - **Câmera**: WASD anda, Q e E descem e sobem, botão direito arrastado olha (o ponteiro só fica preso durante o arrasto), Shift acelera, a roda muda a velocidade, F centraliza.
 - **Selecionar e mexer**: clique numa peça ou marcador; o gizmo move (1), gira (2) e escala (3, só as peças com `escala`) com grade de 0,5 m e passos de 15° (Shift segurado tira o encaixe). Ctrl+Z desfaz, Ctrl+Y e Ctrl+Shift+Z refazem, Ctrl+D duplica, Delete apaga, Esc tira a seleção. Cada edição reconstrói só a peça mexida. Mover a bruxa, um rato gigante ou uma peça com coletável leva junto o lugar dele em `objetos`.
@@ -66,8 +72,9 @@ Uma peça **sem** pose monta exatamente como antes (o golden dos 4 oficiais e o 
 - **Paleta** (esquerda): os tipos do catálogo por categoria, com busca; uma peça nova cai no meio da tela, copiando o primeiro exemplo do tipo nos mapas oficiais (ou os padrões do esquema). Também os marcadores (spawns A, B e livres, bonecos, cereja, biscoito, rato, peixe; no modo zumbi, surgimentos e brechas) e a **importação de .glb** do computador (até 10 MB, enviado ao servidor e guardado pelo SHA-256; a peça `glb` mostra o modelo como o jogo).
 - **Propriedades** (direita): o formulário da peça gerado pelo esquema (posição, giro, escala, pose, semente, piada, coletável e cada parâmetro), o do marcador ou, sem seleção, os do mapa (killY, célula, sombra, céu, atmosfera e sons em JSON, luzes reais, "criar os dados do modo zumbi").
 - **Orçamento** (embaixo): um pouco depois de cada edição o mapa é montado de novo **como o jogo o monta** (lotes entre peças), fora da tela, e medido pela mesma função do servidor; acima de 400 chamadas ou 750 mil triângulos (ou com dados inválidos) Salvar fica desligado e a barra diz o que passou.
-- **Testar** grava o rascunho no IndexedDB (banco `oc-mapas`, store `rascunhos`) e recarrega a página no **treino** sobre ele; "Sair para o início" volta ao editor no mesmo rascunho.
-- **Salvar**: nome, emoji, cor, aberto ou exclusivo do zumbi e, num mapa novo, oficial (só admin e moderador) ou comunidade. Os dados são conferidos aqui (`validateMapData`) e no servidor; um mapa existente vai com a versão em que foi aberto (`baseVersao`). Se alguém salvou antes (409), nada é salvo e o rascunho continua; orçamento estourado e dados inválidos mostram os números e a lista de erros do servidor.
+- **Rascunho automático** (P40): cada edição grava o rascunho no IndexedDB (banco `oc-mapas`, store `rascunhos`, com a data e a versão de onde veio). Ao abrir um mapa com rascunho mais novo que a versão atual, o editor pergunta se quer recuperar; recuperado, ele salva sobre a versão de onde veio (se outra foi salva depois, cai no 409). Salvar com sucesso ou sair pelo botão Sair apaga o rascunho.
+- **Testar** grava o rascunho e recarrega a página no **treino** sobre ele ou, num mapa exclusivo do zumbi, na **partida de zumbi sozinho contra a horda** (P41); "Sair para o início" volta ao editor no mesmo rascunho.
+- **Salvar**: nome, emoji, cor, aberto ou exclusivo do zumbi e, num mapa novo, oficial (só admin e moderador) ou comunidade. Os dados são conferidos aqui (`validateMapData`) e no servidor; um mapa existente vai com a versão em que foi aberto (`baseVersao`). Se alguém salvou antes (409), nada é salvo e o diálogo oferece **Salvar como nova versão mesmo assim** (envia de novo sobre a versão atual; a outra fica no histórico) ou **Abrir a versão atual** (descarta as edições e reabre o editor nela) (P39). Orçamento estourado e dados inválidos mostram os números e a lista de erros do servidor.
 
 ### Golden e conversão
 

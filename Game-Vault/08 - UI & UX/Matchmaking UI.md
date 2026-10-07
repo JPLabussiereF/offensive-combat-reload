@@ -43,7 +43,7 @@ Antes do `join`/`create`, o cliente manda a escolha do Arsenal (`loadout`) para 
 **A conexão de jogo só abre quando o jogador escolhe entrar** (ENTRAR, CRIAR ou JOGAR ONLINE); a lista vem antes, por HTTP. A conexão fecha ao trocar para Contra bots ou Campo de tiro, ao sair da conta ou ao começar um modo offline. Ver [[ADR - Conexão online aberta sob demanda na tela inicial]].
 
 > [!info]
-> Desde a PF-6 (fase 2) não há sessão fixa: elas abrem sob demanda e fecham vazias; cada sessão tem até 10 jogadores (`NET.maxPlayers` = 10 em `shared/protocol.ts`). As telas Mapas (oficiais e comunidade) são da fase 4. Ver [[Free For All]].
+> Desde a PF-6 (fase 2) não há sessão fixa: elas abrem sob demanda e fecham vazias; cada sessão tem até 10 jogadores (`NET.maxPlayers` = 10 em `shared/protocol.ts`). Os mapas do filtro online vêm de `/api/mapas?tipo=oficial` somados aos mapas das sessões abertas (um mapa da comunidade com gente jogando aparece com o seu cartão), e criar sessão aceita qualquer um deles. A aba **Mapas** ([[Menus]]) joga qualquer mapa oficial ou da comunidade online (**Jogar**: `play` no modo escolhido). Ver [[Free For All]].
 
 ## Pré-condições e erros
 
