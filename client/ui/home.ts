@@ -4,14 +4,22 @@
 // landing page with the account form and a quick game against bots. Resolves with the chosen mode.
 //
 // Online sessions open on demand (PF-6): quick join and the map filters send 'play' (a session of the map with
-// room, or a new one); the list shows the sessions open now. The pickers offer the official maps (their names
-// from client/world/mapLoader.ts OFFICIAL_INFO).
+// room, or a new one); the list shows the sessions open now. Online, the maps offered are the official ones from
+// /api/mapas (their name, emoji and color from the current version) plus the maps of the sessions open now (a
+// community map someone is playing); offline (bots, the range), the official maps shipped with the client
+// (client/world/mapLoader.ts OFFICIAL_INFO). The Mapas tab (client/ui/maps.ts) lists every map, plays it online
+// and opens the editor; the Gerenciamento tab (client/ui/management.ts) is the staff's.
 import type { MeResponse, ProfileResponse } from '@shared/account';
 import { defaultAppearance, type Appearance } from '@shared/appearance';
+import type { MapaResumo } from '@shared/mapData';
 import { CLOSE, NET, type ServerMsg, type SessionInfo, type Sex } from '@shared/protocol';
 import { DEFAULT_MAP, isOfficialMap, OFFICIAL_MAPS, type MapId, type OfficialMapId } from '@shared/maps';
 import { DEFAULT_GAME_MODE, GAME_MODE_IDS, isGameModeId, modeAllowsMap, MODE_RULES, type GameModeId } from '@shared/modes';
+import { isEquipe } from '@shared/roles';
 import { OFFICIAL_INFO } from '../world/mapLoader';
+import { cardOf, playableMaps, unknownSessionMaps, type MapCard } from './mapsRules';
+import { showMaps } from './maps';
+import { showManagement } from './management';
 import { Progress } from '../gameplay/progress';
 import { api, fetchMe, fetchProfile } from '../net/api';
 import { Connection } from '../net/connection';
@@ -36,7 +44,8 @@ export type HomeChoice = { name: string; sex: Sex; account: ProfileResponse | nu
 );
 
 type PlayMode = 'online' | 'bots' | 'treino';
-type Tab = 'play' | 'arsenal' | 'profile' | 'settings' | 'auth';
+type Tab = 'play' | 'maps' | 'management' | 'arsenal' | 'profile' | 'settings' | 'auth';
+const TABS: Tab[] = ['play', 'maps', 'management', 'arsenal', 'profile', 'settings', 'auth'];
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -48,20 +57,27 @@ const FUNNY_NAMES = ['Recruta Pimpolho', 'Sargento Pastel', 'Cabo Chinelo', 'Mir
 const SKILLS: [BotSkillName, StringKey][] = [['facil', 'skillEasy'], ['normal', 'skillNormal'], ['dificil', 'skillHard']];
 const COUNTS = [3, 5, 7, 9];
 
-/** How each map is shown on the home (no screenshots yet: a tint and an emoji stand in for them). */
-const MAP_LOOK: Record<OfficialMapId, { tint: string; emoji: string; size: string; when: StringKey; gag: StringKey }> = {
-  rua: { tint: '#cfe8ff', emoji: '🏡', size: '80 × 60 m', when: 'mapRuaWhen', gag: 'mapRuaGag' },
-  jardim: { tint: '#ffe2b8', emoji: '🏮', size: '90 × 90 m', when: 'mapJardimWhen', gag: 'mapJardimGag' },
-  halloween: { tint: '#e3dbff', emoji: '🎃', size: '120 × 110 m', when: 'mapHalloweenWhen', gag: 'mapHalloweenGag' },
-  cemiterio: { tint: '#c9f5b0', emoji: '⚰️', size: '68 × 64 m', when: 'mapCemiterioWhen', gag: 'mapCemiterioGag' },
+/**
+ * The official maps' lines on the home (when it is there, its size, its gag). How a map looks on the pickers
+ * (no screenshots yet: a tint and an emoji) is its card, `cartao`, from its data.
+ */
+const OFFICIAL_BLURB: Record<OfficialMapId, { size: string; when: StringKey; gag: StringKey }> = {
+  rua: { size: '80 × 60 m', when: 'mapRuaWhen', gag: 'mapRuaGag' },
+  jardim: { size: '90 × 90 m', when: 'mapJardimWhen', gag: 'mapJardimGag' },
+  halloween: { size: '120 × 110 m', when: 'mapHalloweenWhen', gag: 'mapHalloweenGag' },
+  cemiterio: { size: '68 × 64 m', when: 'mapCemiterioWhen', gag: 'mapCemiterioGag' },
 };
+/** The official maps shipped with the client, as cards (offline play, and online until the server's list comes). */
+const BUNDLED: MapCard[] = OFFICIAL_MAPS.map((id) => ({ id, tipo: 'oficial', nome: OFFICIAL_INFO[id].nome, cartao: OFFICIAL_INFO[id].cartao, exclusivo: OFFICIAL_INFO[id].exclusivo ?? null, autor: null }));
 const mapName = (m: OfficialMapId) => OFFICIAL_INFO[m].nome;
-/** The official maps a mode is played on (a map made for one mode only in that mode). */
+/** The official maps a mode is played on offline (a map made for one mode only in that mode). */
 const modeMaps = (m: GameModeId): OfficialMapId[] => OFFICIAL_MAPS.filter((id) => modeAllowsMap(m, OFFICIAL_INFO[id].exclusivo));
 /** The official maps made for no single mode. */
 const PVP_MAPS: OfficialMapId[] = OFFICIAL_MAPS.filter((id) => !OFFICIAL_INFO[id].exclusivo);
 /** A map that may be offered outside its own mode's pickers (the training range, the landing's showcase). */
 const openMap = (m: OfficialMapId) => PVP_MAPS.includes(m);
+/** A map's thumbnail: its card's color and emoji. */
+const thumb = (c: { cartao: { emoji: string; cor: string } }) => `<span class="map-thumb" style="--tint:${esc(c.cartao.cor)}">${esc(c.cartao.emoji)}</span>`;
 
 const MODES: { id: PlayMode; title: StringKey; desc: StringKey; color: string }[] = [
   { id: 'online', title: 'modeOnline', desc: 'modeOnlineDesc', color: '#ff7a1a' },
@@ -134,11 +150,11 @@ function renderLanding(showMap: (id: OfficialMapId) => void) {
 }
 
 function renderLandingMap(id: OfficialMapId) {
-  const look = MAP_LOOK[id];
-  $('land-map-show').innerHTML = `<div class="ph" style="--tint:${look.tint}">${look.emoji}</div>
-    <div class="land-map-caption"><span class="land-map-name">${mapName(id)}</span><span class="land-map-gag">${t(look.gag)}</span></div>`;
+  const card = OFFICIAL_INFO[id].cartao;
+  $('land-map-show').innerHTML = `<div class="ph" style="--tint:${card.cor}">${card.emoji}</div>
+    <div class="land-map-caption"><span class="land-map-name">${mapName(id)}</span><span class="land-map-gag">${t(OFFICIAL_BLURB[id].gag)}</span></div>`;
   $('land-map-list').innerHTML = PVP_MAPS.map(
-    (m) => `<button type="button" class="land-map-btn" data-map="${m}" aria-pressed="${m === id}"><b>${mapName(m)}</b><span>${t(MAP_LOOK[m].when)} · ${MAP_LOOK[m].size}</span></button>`,
+    (m) => `<button type="button" class="land-map-btn" data-map="${m}" aria-pressed="${m === id}"><b>${mapName(m)}</b><span>${t(OFFICIAL_BLURB[m].when)} · ${OFFICIAL_BLURB[m].size}</span></button>`,
   ).join('');
 }
 
@@ -168,16 +184,19 @@ export function showHome(): Promise<HomeChoice> {
   $('tab-settings').appendChild(settingsPanel);
 
   // --- Preferences (oc.bots): mode, match type, map, online map filter, difficulty and bot count -------
-  let prefs: { skill: BotSkillName; count: number; map: OfficialMapId; mode: PlayMode; game: GameModeId; filtro: OfficialMapId[] } = {
+  // The online filter keeps the maps taken out of it (`fora`): a map that shows up later (a community map with a
+  // session) comes in ticked.
+  let prefs: { skill: BotSkillName; count: number; map: OfficialMapId; mode: PlayMode; game: GameModeId; fora: string[] } = {
     skill: 'normal',
     count: 7,
     map: 'rua',
     mode: 'online',
     game: DEFAULT_GAME_MODE,
-    filtro: [...PVP_MAPS],
+    fora: [],
   };
   try {
     const saved = JSON.parse(localStorage.getItem(BOTS_KEY) ?? '{}');
+    const str = (v: unknown): v is string => typeof v === 'string';
     prefs = {
       skill: SKILLS.some(([s]) => s === saved.skill) ? saved.skill : prefs.skill,
       count: COUNTS.includes(saved.count) ? saved.count : prefs.count,
@@ -185,7 +204,8 @@ export function showHome(): Promise<HomeChoice> {
       map: isOfficialMap(saved.map) && openMap(saved.map) ? saved.map : prefs.map,
       mode: MODES.some((m) => m.id === saved.mode) ? saved.mode : prefs.mode,
       game: isGameModeId(saved.game) ? saved.game : prefs.game,
-      filtro: Array.isArray(saved.filtro) ? saved.filtro.filter(isOfficialMap) : prefs.filtro,
+      // (before PF-6's community maps the filter kept the ticked maps: `filtro`)
+      fora: Array.isArray(saved.fora) ? saved.fora.filter(str) : Array.isArray(saved.filtro) ? PVP_MAPS.filter((m) => !saved.filtro.includes(m)) : prefs.fora,
     };
   } catch {
     /* storage unavailable */
@@ -218,11 +238,20 @@ export function showHome(): Promise<HomeChoice> {
   const guestName = FUNNY_NAMES[(Math.random() * FUNNY_NAMES.length) | 0];
   let tab: Tab = 'play';
 
+  /** The Mapas and Gerenciamento tabs, wired once the online part below exists (they play and open the editor). */
+  let openMaps = () => {};
+  let openManagement = () => {};
   const showTab = (next: Tab) => {
+    // Gerenciamento is the staff's (the server checks every request again).
+    if (next === 'management' && !(me && isEquipe(me))) next = 'play';
     tab = next;
-    for (const id of ['play', 'arsenal', 'profile', 'settings', 'auth'] as const) $(`tab-${id}`).classList.toggle('hidden', id !== next);
-    for (const b of home.querySelectorAll<HTMLElement>('[role="tab"]')) b.setAttribute('aria-selected', String(b.dataset.tab === next));
+    for (const id of TABS) $(`tab-${id}`).classList.toggle('hidden', id !== next);
+    for (const b of home.querySelectorAll<HTMLElement>('.home-tabs [role="tab"]')) b.setAttribute('aria-selected', String(b.dataset.tab === next));
+    // The lists want the room the character card takes.
+    home.querySelector('.home-panel')!.classList.toggle('wide', next === 'maps' || next === 'management');
     if (next === 'profile') openProfile();
+    else if (next === 'maps') openMaps();
+    else if (next === 'management') openManagement();
   };
 
   const renderEquipped = () => {
@@ -253,6 +282,10 @@ export function showHome(): Promise<HomeChoice> {
     $('home-in').classList.toggle('hidden', !me);
     $('home-out').classList.toggle('hidden', !!me);
     sex = me?.sexo ?? 'm';
+    // The Gerenciamento tab only for admins and moderators.
+    const staff = !!me && isEquipe(me);
+    home.querySelector<HTMLElement>('.home-tabs [data-tab="management"]')!.classList.toggle('hidden', !staff);
+    if (!staff && tab === 'management') showTab('play');
     if (!me) return;
     $('acct-tag').textContent = $('char-tag').textContent = me.tag;
     $('acct-level').textContent = t('levelShort', { level: me.nivel });
@@ -334,7 +367,7 @@ export function showHome(): Promise<HomeChoice> {
     });
   };
 
-  for (const b of home.querySelectorAll<HTMLElement>('[role="tab"]')) b.onclick = () => showTab(b.dataset.tab as Tab);
+  for (const b of home.querySelectorAll<HTMLElement>('.home-tabs [role="tab"]')) b.onclick = () => showTab(b.dataset.tab as Tab);
   $('acct-chip').onclick = () => showTab('profile');
   $('char-customize').onclick = () => {
     if (!profile) return;
@@ -388,6 +421,40 @@ export function showHome(): Promise<HomeChoice> {
   /** The open sessions: live from the connection, else from GET /api/sessoes (refreshed while Online is shown). */
   let sessions: SessionInfo[] = [];
   let listed = false;
+  /** The maps offered online: the official ones (the server's current versions once they come) and the sessions' maps. */
+  let cards: MapCard[] = BUNDLED;
+  let officialList: MapaResumo[] | null = null;
+  /** Session maps asked for their card (GET /api/mapas/:id), and the answers. */
+  const askedCards = new Set<string>();
+  const knownCards = new Map<string, MapCard>();
+  const recomputeCards = () => {
+    cards = playableMaps(BUNDLED, officialList, sessions, knownCards);
+    for (const id of unknownSessionMaps(cards, sessions, askedCards)) {
+      askedCards.add(id);
+      void api<MapaResumo>('GET', `/api/mapas/${encodeURIComponent(id)}`)
+        .then((m) => {
+          knownCards.set(id, cardOf(m));
+          cards = playableMaps(BUNDLED, officialList, sessions, knownCards);
+          renderMapsChanged();
+        })
+        .catch(() => {});
+    }
+  };
+  /** Set once the Play tab exists: the map lists changed. */
+  let renderMapsChanged = () => {};
+  const loadOfficial = () =>
+    api<{ mapas: MapaResumo[] }>('GET', '/api/mapas?tipo=oficial&ordem=recentes')
+      .then((r) => {
+        officialList = r.mapas;
+        recomputeCards();
+        renderMapsChanged();
+      })
+      .catch(() => {
+        /* server down: the shipped copies stand in */
+      });
+  /** The maps a mode is played on online. */
+  const onlineMaps = (g: GameModeId) => cards.filter((c) => modeAllowsMap(g, c.exclusivo));
+  const cardFor = (id: string) => cards.find((c) => c.id === id) ?? BUNDLED.find((c) => c.id === id);
   const closeConn = () => {
     if (conn) conn.onClose = () => {};
     conn?.close();
@@ -422,23 +489,28 @@ export function showHome(): Promise<HomeChoice> {
       $('home-game').innerHTML = segButtons(games.map((m) => ({ label: gameModeName(m), on: prefs.game === m, data: m })));
       $('home-game-hint').textContent = gameModeDesc(prefs.game);
       newModeSel.value = prefs.game;
-      // New sessions only on the maps the mode is played on.
-      const pickedMap = mapFor(prefs.game, isOfficialMap(newMapSel.value) ? newMapSel.value : prefs.map);
-      newMapSel.innerHTML = modeMaps(prefs.game).map((id) => `<option value="${id}">${mapName(id)}</option>`).join('');
-      newMapSel.value = pickedMap;
-      // A one-map mode (zumbi) only shows its map.
-      const single = !range && oneMap(prefs.game);
+      // New sessions only on the maps the mode is played on (online: the server's maps, community ones included).
+      const sessionMaps = onlineMaps(prefs.game);
+      const pickedMap = sessionMaps.some((c) => c.id === newMapSel.value) ? newMapSel.value : (sessionMaps.find((c) => c.id === prefs.map) ?? sessionMaps[0])?.id;
+      newMapSel.innerHTML = sessionMaps.map((c) => `<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join('');
+      if (pickedMap) newMapSel.value = pickedMap;
+      // Offline (bots, the range) the maps shipped with the game; online the server's.
+      const shown: MapCard[] = range ? BUNDLED.filter((c) => !c.exclusivo) : online ? sessionMaps : BUNDLED.filter((c) => modeMaps(prefs.game).includes(c.id as OfficialMapId));
+      // A one-map mode (zumbi with only its cemetery) only shows its map.
+      const single = !range && shown.length === 1;
       $('home-map-title').textContent = t(online && !single ? 'mapFilterTitle' : 'mapLabel');
       $('home-map-hint').textContent = single ? t('zMapOnly') : online ? t('mapFilterHint') : range ? t('mapHintRange') : t('mapHintBots');
-      $('home-maps').innerHTML = (range ? PVP_MAPS : modeMaps(prefs.game)).map((id) => {
-        const look = MAP_LOOK[id];
-        const on = single || (online ? prefs.filtro.includes(id) : !range && prefs.map === id);
-        const n = sessions.filter((s) => s.map === id && s.mode === prefs.game).length;
-        const sub = online && listed ? (n === 1 ? t('sessionsOne') : t('sessionsMany', { n })) : t(look.when);
-        return `<button type="button" class="map-btn${online ? ' filter' : ''}" data-map="${id}" aria-pressed="${on}">
-          <span class="map-thumb" style="--tint:${look.tint}">${look.emoji}</span>
-          <span class="map-text"><b>${mapName(id)}</b><small>${esc(sub)}</small></span><span class="map-mark"></span></button>`;
-      }).join('');
+      $('home-maps').innerHTML = shown
+        .map((c) => {
+          const on = single || (online ? !prefs.fora.includes(c.id) : !range && prefs.map === c.id);
+          const n = sessions.filter((s) => s.map === c.id && s.mode === prefs.game).length;
+          const blurb = isOfficialMap(c.id) && c.tipo === 'oficial' ? t(OFFICIAL_BLURB[c.id].when) : c.autor ? t('mapsBy', { autor: c.autor }) : t('mapsCommunitySub');
+          const sub = online && listed ? (n === 1 ? t('sessionsOne') : t('sessionsMany', { n })) : blurb;
+          return `<button type="button" class="map-btn${online ? ' filter' : ''}" data-map="${esc(c.id)}" aria-pressed="${on}">
+          ${thumb(c)}
+          <span class="map-text"><b>${esc(c.nome)}</b><small>${esc(sub)}</small></span><span class="map-mark"></span></button>`;
+        })
+        .join('');
       $('home-bot-opts').classList.toggle('hidden', prefs.mode !== 'bots');
       $('home-skills').innerHTML = segButtons(SKILLS.map(([v, k]) => ({ label: t(k), on: prefs.skill === v, data: v })));
       $('home-counts').innerHTML = segButtons(COUNTS.map((n) => ({ label: String(n), on: prefs.count === n, data: String(n) })));
@@ -456,7 +528,8 @@ export function showHome(): Promise<HomeChoice> {
     /** The list is there as soon as the tab opens (GET /api/sessoes); long lists come a page at a time. */
     const renderLobby = () => {
       // The chosen match type and the ticked maps.
-      const shown = sessions.filter((s) => (oneMap(prefs.game) || prefs.filtro.includes(s.map as OfficialMapId)) && s.mode === prefs.game);
+      const single = onlineMaps(prefs.game).length === 1;
+      const shown = sessions.filter((s) => (single || !prefs.fora.includes(s.map)) && s.mode === prefs.game);
       $('home-lobby-title').textContent = listed ? t('openSessions', { n: shown.length }) : t('sessions');
       list.classList.toggle('hidden', !listed);
       list.innerHTML = '';
@@ -504,9 +577,11 @@ export function showHome(): Promise<HomeChoice> {
         const welcome = await welcomeP;
         conn = c;
         sessions = welcome.sessions;
+        recomputeCards();
         listed = true;
         c.on('sessions', (m) => {
           sessions = m.list;
+          recomputeCards();
           renderPlay();
         });
         c.onClose = (code) => {
@@ -583,14 +658,19 @@ export function showHome(): Promise<HomeChoice> {
     };
     $('home-maps').onclick = (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-map]');
-      if (!b || !isOfficialMap(b.dataset.map)) return;
-      const id = b.dataset.map;
-      if (prefs.mode === 'treino') return void startOffline(id);
-      if (oneMap(prefs.game)) return;
+      const id = b?.dataset.map;
+      if (!id) return;
       if (prefs.mode === 'online') {
-        prefs.filtro = prefs.filtro.includes(id) ? prefs.filtro.filter((m) => m !== id) : [...prefs.filtro, id];
+        if (onlineMaps(prefs.game).length === 1) return;
+        prefs.fora = prefs.fora.includes(id) ? prefs.fora.filter((m) => m !== id) : [...prefs.fora, id];
         pageSize = PAGE;
-      } else prefs.map = id;
+      } else {
+        // Offline: the maps shipped with the game.
+        if (!isOfficialMap(id)) return;
+        if (prefs.mode === 'treino') return void startOffline(id);
+        if (oneMap(prefs.game)) return;
+        prefs.map = id;
+      }
       savePrefs();
       renderPlay();
     };
@@ -632,15 +712,15 @@ export function showHome(): Promise<HomeChoice> {
     // nobody is playing them (the server opens a session).
     $('home-quick').onclick = async () => {
       if (busy) return;
-      if (!prefs.filtro.length && !oneMap(prefs.game)) return setStatus(t('pickAMap'), true);
       if (!(await connect())) return;
-      const maps = oneMap(prefs.game) ? modeMaps(prefs.game) : prefs.filtro.filter((m) => modeMaps(prefs.game).includes(m));
+      const all = onlineMaps(prefs.game).map((c) => c.id);
+      const maps = all.length === 1 ? all : all.filter((m) => !prefs.fora.includes(m));
       if (!maps.length) return setStatus(t('pickAMap'), true);
-      const best = sessions.filter((s) => maps.includes(s.map as OfficialMapId) && s.mode === prefs.game && s.players < s.max).sort((a, b) => b.players - a.players)[0];
+      const best = sessions.filter((s) => maps.includes(s.map) && s.mode === prefs.game && s.players < s.max).sort((a, b) => b.players - a.players)[0];
       void join({ t: 'play', map: best?.map ?? maps[Math.floor(Math.random() * maps.length)], mode: prefs.game });
     };
     const create = () =>
-      join({ t: 'create', name: createInput.value, map: isOfficialMap(newMapSel.value) ? newMapSel.value : DEFAULT_MAP, mode: isGameModeId(newModeSel.value) ? newModeSel.value : prefs.game });
+      join({ t: 'create', name: createInput.value, map: cardFor(newMapSel.value) ? newMapSel.value : DEFAULT_MAP, mode: isGameModeId(newModeSel.value) ? newModeSel.value : prefs.game });
     $('session-create-btn').onclick = () => void create();
     createInput.onkeydown = (e) => {
       if (e.key === 'Enter') void create();
@@ -668,6 +748,7 @@ export function showHome(): Promise<HomeChoice> {
         const list = await api<SessionInfo[]>('GET', '/api/sessoes');
         if (conn) return;
         sessions = list;
+        recomputeCards();
         listed = true;
         renderPlay();
       } catch {
@@ -675,7 +756,40 @@ export function showHome(): Promise<HomeChoice> {
       }
     };
     const poll = window.setInterval(() => void refreshList(), 10_000);
+
+    // --- Mapas and Gerenciamento -------------------------------------------------------------------------
+    renderMapsChanged = () => {
+      if (tab === 'play') renderPlay();
+    };
+    openMaps = () => {
+      if (!me) return showTab('play');
+      showMaps($('tab-maps'), {
+        me,
+        setStatus,
+        game: prefs.game,
+        setGame: (g) => {
+          prefs.game = g;
+          savePrefs();
+        },
+        // Jogar: online, the 'play' message in the mode chosen (a session of that version of the map with room, or a new one).
+        play: (map, mode) => void join({ t: 'play', map, mode }),
+        // Editar and Novo mapa: the editor takes over the page (client/editor).
+        edit: (mapa) => {
+          if (busy) return;
+          closeConn();
+          leave({ mode: 'editor', mapa, name: playerName(), sex, account: null, map: mapa?.id ?? DEFAULT_MAP });
+        },
+      });
+    };
+    openManagement = () => {
+      if (!me || !isEquipe(me)) return showTab('play');
+      showManagement($('tab-management'), { setStatus });
+    };
+    if (tab === 'maps') openMaps();
+    else if (tab === 'management') openManagement();
+
     void refreshList();
+    void loadOfficial();
     renderPlay();
   });
 }

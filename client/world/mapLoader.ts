@@ -55,14 +55,15 @@ const OFFICIAL: Record<OfficialMapId, () => Promise<{ default: unknown }>> = {
 };
 
 /**
- * The official maps' names and the mode each is made for, for the home's pickers before any map data is loaded
- * (the same as their JSON says: client/tests/mapData.test.ts checks it).
+ * The official maps' names, cards and the mode each is made for, for the home's pickers before any map data is
+ * loaded or the server answers (the same as their JSON says: client/tests/mapData.test.ts checks it). Online,
+ * the server's current version of each replaces this (the staff edits the official maps).
  */
-export const OFFICIAL_INFO: Record<OfficialMapId, { nome: string; exclusivo?: 'zumbi' }> = {
-  rua: { nome: 'Rua dos Vizinhos' },
-  jardim: { nome: 'Jardim do Dragão' },
-  halloween: { nome: 'Vila Assombrada' },
-  cemiterio: { nome: 'Cemitério da Capela', exclusivo: 'zumbi' },
+export const OFFICIAL_INFO: Record<OfficialMapId, { nome: string; cartao: { emoji: string; cor: string }; exclusivo?: 'zumbi' }> = {
+  rua: { nome: 'Rua dos Vizinhos', cartao: { emoji: '🏡', cor: '#cfe8ff' } },
+  jardim: { nome: 'Jardim do Dragão', cartao: { emoji: '🏮', cor: '#ffe2b8' } },
+  halloween: { nome: 'Vila Assombrada', cartao: { emoji: '🎃', cor: '#e3dbff' } },
+  cemiterio: { nome: 'Cemitério da Capela', cartao: { emoji: '⚰️', cor: '#c9f5b0' }, exclusivo: 'zumbi' },
 };
 
 /** One of the official maps, shipped with the client (training and bots work without the server). */

@@ -194,12 +194,12 @@ describe('esquema das peças', () => {
 });
 
 describe('mapas oficiais', () => {
-  it('nome e exclusividade iguais aos da tabela dos seletores da tela inicial (OFFICIAL_INFO)', async () => {
+  it('nome, cartão e exclusividade iguais aos da tabela dos seletores da tela inicial (OFFICIAL_INFO)', async () => {
     const restore = installCanvasStandIn();
     try {
       const { OFFICIAL_INFO } = await loadClient('client/world/mapLoader.ts');
       expect(Object.keys(OFFICIAL_INFO)).toEqual([...OFFICIAL_MAPS]);
-      for (const id of OFFICIAL_MAPS) expect({ id, nome: OFFICIAL[id].nome, exclusivo: OFFICIAL[id].exclusivo }).toEqual({ id, nome: OFFICIAL_INFO[id].nome, exclusivo: OFFICIAL_INFO[id].exclusivo });
+      for (const id of OFFICIAL_MAPS) expect({ id, nome: OFFICIAL[id].nome, cartao: OFFICIAL[id].cartao, exclusivo: OFFICIAL[id].exclusivo }).toEqual({ id, nome: OFFICIAL_INFO[id].nome, cartao: OFFICIAL_INFO[id].cartao, exclusivo: OFFICIAL_INFO[id].exclusivo });
     } finally {
       restore();
     }

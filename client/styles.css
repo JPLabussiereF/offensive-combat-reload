@@ -3805,6 +3805,231 @@ input[type='range'] {
   }
 }
 
+/* --- Mapas and Gerenciamento tabs (ui/maps.ts, ui/management.ts) ------------------------------------------ */
+.maps-screen,
+.mgmt {
+  display: grid;
+  gap: 12px;
+}
+.maps-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.maps-tabs {
+  display: flex;
+  gap: 6px;
+}
+.maps-tabs [role='tab'] {
+  font-family: var(--display);
+  font-size: 17px;
+  padding: 5px 14px;
+  color: var(--ink);
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.maps-tabs [role='tab'][aria-selected='true'] {
+  color: #fff;
+  background: var(--team-b);
+  box-shadow: 0 4px 0 var(--ink);
+  -webkit-text-stroke: 1px var(--ink);
+}
+.maps-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 18px;
+}
+.maps-tools input[type='search'],
+.mg-field input,
+.mg-field select,
+.maps-mode {
+  font: 800 16px var(--body);
+  padding: 7px 12px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  min-width: 0;
+}
+.maps-tools input[type='search'] {
+  flex: 1 1 220px;
+}
+.maps-hidden {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+}
+.maps-list,
+.mg-list,
+.maps-versions,
+.mg-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.maps-card,
+.mg-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 10px;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+}
+.mg-row {
+  grid-template-columns: 1fr auto;
+}
+.maps-card.is-hidden {
+  background: #ece8f3;
+}
+.maps-list li.empty,
+.mg-list li.empty {
+  opacity: 0.6;
+  text-align: center;
+  font-weight: 800;
+}
+.maps-text,
+.mg-who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+.mg-who {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.maps-text b {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.maps-text small {
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0.65;
+}
+.maps-tags,
+.mg-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 0;
+}
+.maps-hidden-tag,
+.mg-bad {
+  background: #ffc9c2;
+}
+.mg-warn {
+  background: var(--warn);
+}
+.mg-role {
+  background: #cfe8ff;
+}
+.maps-actions,
+.maps-row,
+.mg-row-btns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px 10px;
+}
+.maps-row,
+.mg-row-btns {
+  justify-content: flex-start;
+}
+.maps-actions .link-btn,
+.maps-row .link-btn {
+  margin-top: 0;
+}
+.maps-panel {
+  grid-column: 1 / -1;
+  padding: 8px 4px 2px;
+  border-top: 2px dashed var(--ink);
+}
+.maps-panel p {
+  margin: 0 0 8px;
+  font-weight: 800;
+}
+.maps-panel .session-create {
+  grid-template-columns: 1fr auto auto;
+  margin-top: 0;
+}
+.maps-versions li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-weight: 700;
+}
+.small-btn.danger-btn {
+  background: #e0402f;
+}
+.mg-search {
+  grid-template-columns: 1fr auto;
+  margin-top: 0;
+}
+.mg-field {
+  display: grid;
+  gap: 4px;
+  font-weight: 900;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+.mg-sanction {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: end;
+  gap: 10px;
+}
+.mg-weapons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.mg-history li {
+  padding: 6px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 14px;
+}
+.mg-account h3 {
+  margin-top: 8px !important;
+}
+.mg-name {
+  margin-top: 0;
+  grid-template-columns: 1fr auto;
+}
+@media (max-width: 760px) {
+  .maps-card {
+    grid-template-columns: auto 1fr;
+  }
+  .maps-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+  .mg-sanction {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* --- Controllers (core/gamepad.ts, ui/padNav.ts) ------------------------------------------------------- */
 .pad-only,
 .assist-only {
