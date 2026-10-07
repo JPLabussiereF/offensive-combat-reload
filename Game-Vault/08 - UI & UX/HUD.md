@@ -7,6 +7,7 @@ source_paths:
   - client/ui/ladder.ts
   - client/ui/hud.ts
   - client/ui/corpseTimer.ts
+  - client/ui/damageNumbers.ts
   - client/main.ts
   - index.html
   - client/styles.css
@@ -30,6 +31,7 @@ Interface sobreposta durante a partida (`#hud` em `index.html`, classe `Hud` em 
 | --- | --- | --- | --- |
 | **Retículo dinâmico** (`#crosshair`) | centro | 4 traços + ponto; o espaço entre eles é o **cone de dispersão projetado** da arma (`gap = tan(dispersão)/tan(FOV/2) · altura/2 + 3 px`). Some ao mirar (ADS ≥ 0,6), correr, morrer ou dançar. | [[Weapons]], [[Combat]] |
 | **Hitmarker** (`#hitmarker`) | centro | X animado; variantes `hit`, `head` e `kill` (0,18 s; 0,35 s no abate). Vibra o celular (12/40 ms) e o controle. | [[Damage System]] |
+| **Números de dano** (`#dmg-numbers`) | no ponto do acerto | Número flutuante com o dano de cada tiro que acerta um inimigo (jogador online, bot, boneco, zumbi), **só na tela de quem atirou**. Fonte arredondada (Nunito 900) com contorno escuro grosso; **amarelo** no acerto comum, **laranja** no crítico (dano de cabeça: tiro na cabeça ou qualquer tiro com a poção do crítico) e **vermelho** no pássaro (virilha), cada cor um pouco maior. Um número por alvo em cada disparo (os bagos da garrucha somam), na cor do acerto mais forte, no lugar do primeiro bago. Nasce maior, sobe ~44 px e some em 0,7 s; atravessa paredes; até 24 de uma vez. Não há barra de vida no inimigo. Ver [[#Números de dano]]. | [[Damage System]] |
 | **Luneta** (`#scope`) | tela cheia | Overlay de mira telescópica quando o rifle tem uma luneta ligada (2x, a do Vovô 3x ou 4x) e está totalmente mirado. | [[Weapons]] |
 | **Vinheta** (`#vignette`) | bordas | Avermelha com vida < 30 (`--low`) e pisca ao levar dano (`damageFlash`, intensidade pelo dano; também vibra o controle). | [[Health System]] |
 | **Vida** (`#health`) | inferior esquerdo | Número + barra; barra cheia na vida máxima do corpo; classe `low` abaixo de 25; fica rosa com a Cereja do Dragão (`boost`). | [[Health System]], [[Pickups]] |
@@ -56,6 +58,22 @@ Interface sobreposta durante a partida (`#hud` em `index.html`, classe `Hud` em 
 | **Status de rede** (`#net-status`) | — | "Sem conexão com o servidor" ou motivo do fechamento (sessão encerrada, conta conectada em outro lugar). | [[Sessions]] |
 | **Depuração** (`#debug`) | — | F3: FPS, draw calls, triângulos, GPU, tempos de CPU, qualidade, ping, posição, estado do movimento, dispersão, recuo, TTK. | [[Performance Overview]] |
 
+### Números de dano
+
+`DamageNumbers` (`client/ui/damageNumbers.ts`) é uma camada **DOM** dentro do `#hud`: cada número guarda o ponto do acerto no mundo e é projetado na câmera a cada quadro (`update`, chamado ao lado de `hud.update` em `client/main.ts`); atrás da câmera fica invisível. Elementos reaproveitados (pool), no máximo 24 vivos.
+
+O número sai **do próprio cliente**, no gancho `shoot`, sem mensagem de rede nova; ninguém além do atirador recebe nada. De onde vem cada valor:
+
+| Alvo | Valor mostrado |
+|---|---|
+| Boneco do campo de tiro, bot | o dano realmente aplicado (`Dummy.applyHit` → `damage`, `BotManager.hit` → `dealt`) |
+| Jogador online | **previsão** com a mesma fórmula do servidor (`computeDamage` + `critRegion`), limitada à vida que o último snapshot deu ao alvo (`RemotePlayer.health`) |
+| Zumbi | **previsão** com a fórmula do modo (`ZombieClient.shot` → `gunDamageToZombie`, com o multiplicador da raridade/defeito da arma), limitada a `ZombieClient.healthOf`: a vida do chefe (vem no `zsnap`) ou, num zumbi comum (cuja vida não chega ao cliente), a vida cheia do tipo na onda |
+
+Por isso o pássaro mostra a vida que o alvo tinha (ex.: 100), não o `LETHAL_DAMAGE` de 9999. Como o hitmarker, a previsão aparece na hora: se o servidor recusar o acerto ([[Validation]]), o número já foi mostrado. Num zumbi comum já ferido, o pássaro mostra a vida cheia do tipo, não o que restava.
+
+Regras puras e testadas ([[Unit Tests]]): `damageTier` (cor), `ShotDamage` (um número por alvo por disparo, soma com teto), `numberPose` (subida, escala, opacidade).
+
 ### Contador sobre corpos (3D)
 
 `CorpseTimer` (`client/ui/corpseTimer.ts`) é um **sprite no mundo 3D** (canvas 160×200 como textura) sobre cada corpo humilhável: anel colorido (verde > 50%, amarelo > 25%, vermelho) com os segundos restantes da janela de humilhação (6 s) e um selo **[E]**; ao terminar, mostra "OPRIMIDO!". Redesenha só quando o segundo ou o segmento do anel mudam. Usado por `client/gameplay/corpse.ts` e `client/entities/dummy.ts`. Ver [[Humiliation]].
@@ -78,5 +96,6 @@ Não há minimapa, radar, bússola, cronômetro de partida nem indicador de obje
 - `client/ui/hud.ts` — classe `Hud` (`setHealth`, `setBoost`, `setBuffs`, `setAmmo`, `setWeaponName`, `setWeaponSlots`, `setReload`, `setCrosshair`, `setScore`, `hit`, `popup`, `killfeed`, `setGrenades`, `setCook`, `setGrenadeWarning`, `showBanner`, `setPrompt`, `notice`, `setNetStatus`, `damageFlash`, `showDeath`, `setDeathTimer`, `setDebug`, `update`; zumbi: `setZombie`, `setMoney`, `cash`, `showZombieSummary`, `setZombieSummaryNext`, `setDeathText`, `setEntrances`; `setWeaponName(nome, raridade, danificada)` e `setWeaponSlots` com `damaged`).
 - `client/zombies/client.ts` — o que o HUD do zumbi mostra (`renderHud`, `prompt`, `coffinPrompt`, `barricadePrompt`, `entrances`, marcadores de colegas caídos).
 - `client/ui/corpseTimer.ts` — `CorpseTimer`.
+- `client/ui/damageNumbers.ts` — `DamageNumbers`, `damageTier`, `ShotDamage`, `numberPose`.
 - `client/main.ts` — `buffs()`, cálculo do retículo e do aviso de granada, laço de atualização do HUD.
-- `client/styles.css` — seções "HUD", "Banner, prompt", "Grenades", "Phones and tablets".
+- `client/styles.css` — `#dmg-numbers`/`.dmg-num` (números de dano), seções "HUD", "Banner, prompt", "Grenades", "Phones and tablets".

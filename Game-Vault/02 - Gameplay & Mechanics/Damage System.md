@@ -18,6 +18,7 @@ source_paths:
   - shared/data/weapons/smg.json
   - shared/data/weapons/garrucha.json
   - shared/arsenal.ts
+  - client/ui/damageNumbers.ts
 tags:
   - game
   - gameplay
@@ -147,7 +148,11 @@ Não há rewind de hitboxes nem checagem de linha de visão no servidor ("Not ye
 
 - Dano mínimo de bala é 1.
 - Offline (campo de tiro) o boneco recebe o dano direto; contra bots o `BotManager` aplica as mesmas regras do servidor.
-- Online o cliente só **mostra** hitmarker na hora; vida e morte vêm do servidor.
+- Online o cliente só **mostra** hitmarker e o número de dano na hora; vida e morte vêm do servidor.
+
+## Número de dano na tela
+
+Cada tiro que acerta mostra, só para quem atirou, o dano causado num número flutuante: amarelo no acerto comum, laranja quando o dano usa o multiplicador da cabeça (tiro na cabeça ou poção do crítico, a regra de `critRegion`) e vermelho no pássaro (virilha). O valor é o desta nota, limitado à vida que o alvo tinha. Detalhes (de onde sai cada valor, previsão online e no zumbi) em [[HUD#Números de dano]].
 
 ## Código relacionado
 

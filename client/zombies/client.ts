@@ -7,10 +7,10 @@ import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
 import type { PlayerInfo, ServerMsg, Vec3, ZBarricade, ZombieSync, ZPhase } from '@shared/protocol';
 import type { GunStats } from '@shared/arsenal';
-import type { HitRegion } from '@shared/weapons';
+import { critRegion, type HitRegion } from '@shared/weapons';
 import type { MapId } from '@shared/maps';
 import { emptyBarricade, inGap, inReach, insideWall, needsWork } from '@shared/barricades';
-import { itemOf, startItems, waveSpec, WAVES, withItem, ZF, ZOMBIE, type BossId, type KillHow, type ZFlaw, type ZItems, type ZombieMapData } from '@shared/zombies';
+import { gunDamageToZombie, isBoss, itemOf, startItems, waveSpec, WAVES, weaponMul, withItem, zombieHp, ZF, ZOMBIE, type BossId, type KillHow, type ZFlaw, type ZItems, type ZombieMapData } from '@shared/zombies';
 import type { Hud } from '../ui/hud';
 import type { Sfx } from '../audio/sfx';
 import type { Effects } from '../render/effects';
@@ -382,8 +382,17 @@ export class ZombieClient {
     return target instanceof Zombie;
   }
 
-  shot(z: Zombie, region: HitRegion, dist: number, gun: GunStats, keep: number) {
+  /** Reports a hit; returns the damage the match should deal (the same formula), for the floating number. */
+  shot(z: Zombie, region: HitRegion, dist: number, gun: GunStats, keep: number, crit: boolean): number {
     this.link.send({ t: 'zhit', z: z.id, region, dist: +dist.toFixed(2), w: gun.arma, ...(keep < 1 ? { keep: +keep.toFixed(3) } : {}) });
+    return gunDamageToZombie(gun, Math.min(dist, gun.alcanceMaximo), critRegion(region, crit), keep, weaponMul(this.items, gun.arma), isBoss(z.kind));
+  }
+
+  /** The most a zombie can still lose: a boss's health reaches us, a common zombie's doesn't (taken as full). */
+  healthOf(z: Zombie): number {
+    if (isBoss(z.kind) && this.boss?.id === z.id) return this.boss.hp;
+    const players = this.game.teammates().length + 1;
+    return zombieHp(z.kind, waveSpec(Math.max(1, this.wave), players), players);
   }
 
   stab(z: Zombie) {

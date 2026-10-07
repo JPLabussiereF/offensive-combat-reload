@@ -109,7 +109,7 @@ client/
 │   ├── viewmodel.ts        Braços + arma em 1ª pessoa (cena própria)
 │   ├── viewmodelArms.ts    Braços da 1ª pessoa
 │   └── weaponModels.ts     Modelos das armas de fogo com as melhorias e a pintura de cada rifle (gunParts, GUN_MODELS: um construtor por secundária), as sete facas e a mina
-├── tests/                  Testes bun:test de lógica pura do cliente (aimAssist, arsenalText, arsenalTree, arsenalCanvasLayout, keybinds, offlineModes, pauseMenu, spatial, weapon)
+├── tests/                  Testes bun:test de lógica pura do cliente (aimAssist, arsenalText, arsenalTree, arsenalCanvasLayout, damageNumbers, keybinds, offlineModes, pauseMenu, spatial, weapon)
 ├── ui/
 │   ├── home.ts             Home: conta, lobby online, bots, treino (HomeChoice)
 │   ├── auth.ts             Formulários de login/cadastro/senha
@@ -127,6 +127,7 @@ client/
 │   ├── arsenalStats.ts     Barras de atributo (armas de fogo e facas), texto da passiva e fichas, sem DOM
 │   ├── arsenalCanvasLayout.ts  Geometria e câmera do canvas do Arsenal (sem DOM)
 │   ├── corpseTimer.ts      Contagem sobre corpos oprimíveis
+│   ├── damageNumbers.ts    Números de dano flutuantes (só de quem atirou): camada DOM, cor, soma dos bagos
 │   ├── touch.ts            Controles de toque estilo CoD Mobile
 │   ├── padNav.ts           Navegação de menus com controle
 │   ├── tuning.ts           Painel de ajuste ao vivo (F6)

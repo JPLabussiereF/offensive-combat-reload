@@ -171,6 +171,36 @@ body {
   height: 4px;
 }
 
+/* Floating damage numbers (client/ui/damageNumbers.ts): rounded type with a thick dark outline. */
+#dmg-numbers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.dmg-num {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-family: var(--body);
+  font-weight: 900;
+  font-size: 26px;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--warn);
+  -webkit-text-stroke: 6px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0 2px 0 var(--ink);
+  will-change: transform, opacity;
+}
+.dmg-num.crit {
+  color: #ff8c1a;
+  font-size: 30px;
+}
+.dmg-num.bird {
+  color: var(--bad);
+  font-size: 36px;
+}
+
 #popups {
   position: absolute;
   left: 50%;

@@ -25,6 +25,7 @@ source_paths:
   - client/tests/offlineModes.test.ts
   - client/tests/arsenalTree.test.ts
   - client/tests/arsenalCanvasLayout.test.ts
+  - client/tests/damageNumbers.test.ts
   - server/tests/album.test.ts
   - server/tests/albumSession.test.ts
 tags:
@@ -57,6 +58,7 @@ Os testes usam o executor nativo **`bun test`** (`bun:test`: `describe`, `it`, `
 | `server/tests/albumSession.test.ts` | `Session` com relógio falso + servidor real | 14 | contadores próprios do álbum numa sessão (sequências, combos, vexames, corrida armada, poção crítico, objetos de mapa) e no servidor (mensagem `figurinha`, gravação e leitura) |
 | `client/tests/arsenalTree.test.ts` | Unitário | 8 | modelo da árvore do Arsenal (linhas com 7, 7, 7 e 1 armas, as secundárias pelos pontos de pistola, armas trancadas, pontos que faltam, estado das melhorias) |
 | `client/tests/offlineModes.test.ts` | Unitário | 10 | treino e bots com o Arsenal da conta (`Progress`: travas, rifle e faca antigos, comuns desligadas, fila de salvamento e falha desfeita), sorteio da arma dos bots (60% rifle, 40% secundárias por igual), armas dos bots e da escada, zumbi sozinho (`LocalZombies`) |
+| `client/tests/damageNumbers.test.ts` | Unitário (DOM falso) | 12 | números de dano: cor por região e com a poção do crítico, um número por alvo por disparo com teto na vida, animação, camada (projeção, duração, atrás da câmera, limite de 24) |
 | `client/tests/spatial.test.ts` | Unitário | 6 | som espacial |
 | `client/tests/weapon.test.ts` | Unitário | 11 | arma do cliente: rajada do grampeador (3 por clique, pausa, sem repetir segurando), bagos da garrucha no cone, modelo, mão e voz próprios de cada secundária, coice na tela |
 
