@@ -18,7 +18,7 @@ tags:
   - decision
   - ui
   - inventory
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # ADR - Arsenal da tela inicial em canvas
@@ -30,6 +30,9 @@ updated: 2026-10-06
 
 > [!info] Revisão (06/10/2026, PF-9 Revisions 01)
 > Depois de testar na sprint, o dev pediu duas mudanças (respostas P8 a P10 no chat). As melhorias da arma mostrada saíram de uma cadeia única para **linhas por tipo**: Miras, Modo (a granada) e Melhorias, cada uma com rótulo e saindo de um tronco sob a arma. E o canvas deixou de ficar **desfocado**: sem `will-change: transform` no mundo e com a câmera em pixels inteiros, o texto é redesenhado a cada zoom. O item 1 da Decisão abaixo vale com essas mudanças.
+
+> [!info] Revisão (07/10/2026, PF-11)
+> [[ADR - Menu de pausa com trilho e abas]] tirou a árvore do menu de pausa e do campo de tiro: lá o Arsenal virou a lista dos quatro espaços em uso com o cartão do espaço. O canvas continua só na aba Arsenal da tela inicial, agora como a **única** apresentação da progressão inteira; a primeira consequência abaixo ("duas apresentações…") vale como "o canvas e o cartão da pausa usam o mesmo modelo e o mesmo salvamento".
 
 ## Contexto
 
