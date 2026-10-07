@@ -52,6 +52,7 @@ import { Thumbs } from './thumbs';
 import { ASSET_MIME, dropPiece, ghostBox, hierarchySpot, sceneSpot, type DropSpot } from './dropPiece';
 import { PlaySession, buttonsOf, cameraOn, editable as editableIn, pickingOn, shortcutAllowed, type PlayState } from './playMode';
 import { launchGame, type GameFrame } from './playHost';
+import { gamepad } from '../core/gamepad';
 import { BudgetBar } from './budgetBar';
 import { applyHandle, handleBase, handleDelta, handleLocal, handleWorld, hasLinked, moveLinked, scalable } from './transform';
 import { removalRest, templatesFrom } from './create';
@@ -1042,6 +1043,8 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     const m = String((err as Error)?.message ?? err);
     if (m !== 'abort') status(et('playFailed', { e: m }), true);
   };
+  /** The controller's menu navigation, set aside while the game plays. */
+  let padMenu: typeof gamepad.onMenu = null;
   /** The buttons that change the map (off while it's played). */
   const EDITING = ['undo', 'redo', 'hand', 'translate', 'rotate', 'scale', 'rect', 'pivotMode', 'spaceMode', 'grid', 'gridMenu', 'duplicate', 'remove', 'save'];
   /** The editor as the play state wants it: read-only (the camera too while it plays), the toolbar tinted. */
@@ -1070,6 +1073,14 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     button('focus').disabled = !cameraOn(s);
     // The thumbnails wait while the game plays (it has the GPU).
     thumbs.hold(s === 'jogando');
+    // A controller plays the game: the editor's menus don't follow it meanwhile (the Gamepad API is the whole browser's).
+    if (s === 'jogando' && gamepad.onMenu) {
+      padMenu = gamepad.onMenu;
+      gamepad.onMenu = null;
+    } else if (s !== 'jogando' && padMenu) {
+      gamepad.onMenu = padMenu;
+      padMenu = null;
+    }
     if (edit) {
       game = null;
       gameEl.textContent = et('gameIdle');
