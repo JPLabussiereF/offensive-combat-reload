@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { HUMILIATION, SCORE } from '@shared/constants';
 import { computeDamage, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
-import type { ProgWeapon } from '@shared/progression';
+import type { WeaponId } from '@shared/progression';
 import type { Loadout } from '@shared/arsenal';
 import type { GameModeId } from '@shared/modes';
 import { afterDeath, afterKill, GUN_GAME, ladderLoadout, ladderStart, type LadderPos } from '@shared/gunGame';
@@ -15,10 +15,12 @@ import type { NavMap } from './navmesh';
 import { Corpse, groundBelow } from '../gameplay/corpse';
 import { pickSafeSpawn } from '../gameplay/spawnPicker';
 import type { HitboxRegistry } from '../gameplay/targets';
-import { applySpread, traceShot } from '../weapons/hitscan';
+import { applySpread, offsetDir, traceShot } from '../weapons/hitscan';
+import { findMeleeTarget } from '../weapons/melee';
+import type { Pellet } from '../weapons/weapon';
 import type { Effects } from '../render/effects';
 import type { Sfx } from '../audio/sfx';
-import type { Physics } from '../world/physics';
+import type { Physics, SurfaceMaterial } from '../world/physics';
 import type { SpawnPoint } from '../world/blockoutMap';
 
 const RESPAWN = 5;
@@ -35,7 +37,7 @@ const BOT_NAMES: [string, Sex][] = [
 export interface HitInfo {
   kind: KillKind;
   /** The weapon that dealt it (named in the kill feed). */
-  w?: ProgWeapon;
+  w?: WeaponId;
   region?: HitRegion;
   dist?: number;
   behind?: boolean;
@@ -45,7 +47,7 @@ export interface BotHooks {
   /** Damage to the local player; returns the health left (the game applies it and handles death). */
   damagePlayer(amount: number, attacker: Combatant, from: THREE.Vector3): number;
   /** `weapon`: what got the kill (null for falls, the dog, your own grenade). */
-  kill(victim: Combatant, killer: Combatant | null, kind: KillKind, awards: Award[], corpse: Corpse, weapon: ProgWeapon | null): void;
+  kill(victim: Combatant, killer: Combatant | null, kind: KillKind, awards: Award[], corpse: Corpse, weapon: WeaponId | null): void;
   tauntStarted(dancer: Combatant, corpse: Corpse): void;
   humiliation(dancer: Combatant, corpse: Corpse, awards: Award[]): void;
   /** Corrida armada: the local player's ladder weapons changed (into our hands, full magazines). */
@@ -91,7 +93,7 @@ export class BotManager {
     for (let i = 0; i < o.count; i++) {
       const [name, sex] = names[i % names.length];
       const bot = new Bot(i + 1, name, sex, BOT_SKILLS[o.skill], o.physics.world, o.scene, o.registry);
-      bot.onShoot = (spread) => this.fire(bot, spread);
+      bot.onShoot = (spread, pellets) => this.fire(bot, spread, pellets);
       this.bots.push(bot);
     }
     this.ladder = o.game === 'corrida-armada' ? new Map() : null;
@@ -109,7 +111,7 @@ export class BotManager {
       nav: o.nav,
       combatants: () => this.combatants().filter((c) => !this.isProtected(c)),
       corpses: () => this.corpses.values(),
-      fire: (bot, spread) => this.fire(bot, spread),
+      fire: (bot, spread, pellets) => this.fire(bot, spread, pellets),
       stab: (bot, target) => this.stab(bot, target),
       tauntStarted: (bot, corpse) => o.hooks.tauntStarted(bot, corpse),
       tauntFinished: (bot, corpse) => this.finishTaunt(bot, corpse),
@@ -242,7 +244,7 @@ export class BotManager {
   }
 
   /** Corrida armada's rules for a kill (the server's, see server/modes.ts); true when it won the round. */
-  private climb(victim: Combatant, killer: Combatant | null, kind: KillKind, weapon: ProgWeapon | null): boolean {
+  private climb(victim: Combatant, killer: Combatant | null, kind: KillKind, weapon: WeaponId | null): boolean {
     if (!this.ladder || !this.combatOpen) return false;
     const before = this.ladder.get(victim.id) ?? ladderStart();
     const down = afterDeath(before, kind);
@@ -287,48 +289,61 @@ export class BotManager {
     this.o.hooks.humiliation(dancer, corpse, [{ label: 'humiliation', value: SCORE.humiliation }]);
   }
 
-  private fire(bot: Bot, spread: number) {
+  /** A bot's shot: one ray, or one per pellet of a scattergun (each pellet that lands is a hit of its own). */
+  private fire(bot: Bot, spread: number, pellets: Pellet[] | null) {
     this.unprotect(bot);
     const eye = bot.eye(new THREE.Vector3());
     const p = bot.pitch + bot.weapon.recoilPitch * DEG;
     const y = bot.yaw - bot.weapon.recoilYaw * DEG;
     const aim = new THREE.Vector3(-Math.sin(y) * Math.cos(p), Math.sin(p), -Math.cos(y) * Math.cos(p));
-    const dir = applySpread(aim, spread, new THREE.Vector3());
+    const center = applySpread(aim, spread, new THREE.Vector3());
     const gun = bot.weapon.data;
-    const { hit, through, keep, end } = traceShot(this.o.physics, this.o.registry, eye, dir, gun.alcanceMaximo, bot.rig.body, gun.penetracao);
     const muzzle = bot.muzzle(new THREE.Vector3());
     bot.fired();
     this.o.sfx.at(muzzle, gun.silenciador ? 'step' : 'gun', (s) => s.gunshot(1, gun.silenciador ? 'silenciado' : bot.gun));
-    if (Math.random() < 0.5) this.o.effects.tracer(muzzle, end);
-    for (const p of through) {
-      this.o.effects.decal(p.point, p.normal);
-      this.o.effects.decal(p.exit, p.exitNormal);
-      this.o.effects.burst('debris', p.exit, dir, 3, 0x9a6a3a);
-      this.o.sfx.at(p.point, 'normal', (s) => s.impact(p.surface.material));
-      p.surface.onShot?.(p.point);
-    }
-    if (!hit) return;
-    if (hit.target) {
-      const victim = hit.target.entity as Combatant;
-      if (!('id' in victim)) return; // dummies aren't in bot matches
-      const region = victim.refineRegion(hit.point, hit.target.region);
-      const kind: KillKind = region === 'cabeca' ? 'head' : region === 'virilha' ? 'groin' : 'gun';
-      this.o.effects.burst(region === 'cabeca' || region === 'virilha' ? 'star' : 'confetti', hit.point, dir.clone().negate(), 6);
-      this.hit(victim, bot, computeDamage(gun, hit.distance, region, keep), { kind, region, dist: hit.distance, w: bot.gun });
-    } else {
-      this.o.effects.decal(hit.point, hit.normal);
-      this.o.effects.burst('debris', hit.point, hit.normal, 3, 0x9a8f80);
-      const surface = hit.surface;
-      if (surface) this.o.sfx.at(hit.point, 'normal', (s) => s.impact(surface.material));
-      hit.surface?.onShot?.(hit.point);
+    const tracer = Math.random() < 0.5;
+    let heard = false;
+    const impact = (at: THREE.Vector3, material: SurfaceMaterial) => {
+      if (heard) return;
+      heard = true;
+      this.o.sfx.at(at, 'normal', (s) => s.impact(material));
+    };
+    for (const dir of pellets ? pellets.map((q) => offsetDir(center, q.theta, q.phi, new THREE.Vector3())) : [center]) {
+      const { hit, through, keep, end } = traceShot(this.o.physics, this.o.registry, eye, dir, gun.alcanceMaximo, bot.rig.body, gun.penetracao);
+      if (tracer) this.o.effects.tracer(muzzle, end);
+      for (const p of through) {
+        this.o.effects.decal(p.point, p.normal);
+        this.o.effects.decal(p.exit, p.exitNormal);
+        this.o.effects.burst('debris', p.exit, dir, 3, 0x9a6a3a);
+        impact(p.point, p.surface.material);
+        p.surface.onShot?.(p.point);
+      }
+      if (!hit) continue;
+      if (hit.target) {
+        const victim = hit.target.entity as Combatant;
+        if (!('id' in victim)) continue; // dummies aren't in bot matches
+        const region = victim.refineRegion(hit.point, hit.target.region);
+        const kind: KillKind = region === 'cabeca' ? 'head' : region === 'virilha' ? 'groin' : 'gun';
+        this.o.effects.burst(region === 'cabeca' || region === 'virilha' ? 'star' : 'confetti', hit.point, dir.clone().negate(), 6);
+        this.hit(victim, bot, computeDamage(gun, hit.distance, region, keep), { kind, region, dist: hit.distance, w: bot.gun });
+      } else {
+        this.o.effects.decal(hit.point, hit.normal);
+        this.o.effects.burst('debris', hit.point, hit.normal, 3, 0x9a8f80);
+        const surface = hit.surface;
+        if (surface) impact(hit.point, surface.material);
+        hit.surface?.onShot?.(hit.point);
+      }
     }
   }
 
+  /**
+   * A bot's swing at its impact moment, with the player's rule for a swing without a lunge: it lands if the
+   * target is still within reach + 0.4 m, inside the knife's cone and in sight; otherwise only the swing is heard.
+   */
   private stab(bot: Bot, target: Combatant) {
-    const d = Math.hypot(target.position.x - bot.position.x, target.position.z - bot.position.z);
-    if (d > bot.knife.alcance + 0.4) return;
     const eye = bot.eye(new THREE.Vector3());
     this.o.sfx.at(eye, 'normal', (s) => s.meleeSwing(bot.knife.forma));
+    if (target.dead || !findMeleeTarget(this.o.physics, [target], eye, bot.yaw, bot.knife.alcance + 0.4, bot.knife.anguloGraus)) return;
     this.o.sfx.at(eye, 'normal', (s) => s.knifeHit());
     this.o.effects.burst('star', target.position.clone().setY(target.position.y + 1.1), UP, 10);
     this.hit(target, bot, LETHAL_DAMAGE, { kind: 'knife', behind: target.isBehind(eye), w: 'faca' });

@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { pickSafeSpawn } from './gameplay/spawnPicker';
 import { BISCUIT, CHERRY, GROUP, groups, HEALTH, HUMILIATION, KOI, MOVE, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
-import { PICKUPS } from '@shared/maps';
+import { MAPS, PICKUPS } from '@shared/maps';
 import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, idealTtk, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
 import { eyeHeight, type MoveInput } from '@shared/movement';
 import { CLOSE, FLAG, NET, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
@@ -26,7 +26,7 @@ import { holdOf } from './render/weaponModels';
 import { ANIM } from './character/animator';
 import { TuningPanel } from './ui/tuning';
 import { QualityManager } from './render/quality';
-import { createPhysics } from './world/physics';
+import { createPhysics, type SurfaceMaterial } from './world/physics';
 import { buildBlockoutMap, type CritterHit, type SpawnPoint } from './world/blockoutMap';
 import { buildDragonGardenMap } from './world/dragonGarden';
 import { buildHauntedTownMap } from './world/hauntedTown';
@@ -41,7 +41,7 @@ import { bodyStats, defaultAppearance } from '@shared/appearance';
 import { Weapon, type WeaponHooks } from './weapons/weapon';
 import { Melee, findMeleeTarget } from './weapons/melee';
 import { GrenadeProjectiles, GrenadeThrower } from './weapons/grenades';
-import { applySpread, traceShot } from './weapons/hitscan';
+import { applySpread, offsetDir, traceShot } from './weapons/hitscan';
 import { Taunt } from './gameplay/taunt';
 import { nearestHumiliable, type HitboxRegistry, type Humiliable, type Target } from './gameplay/targets';
 import { RemoteWorld, type RemotePlayer } from './net/remote';
@@ -54,25 +54,26 @@ import { Corpse } from './gameplay/corpse';
 import { Sfx } from './audio/sfx';
 import { BodySounds, OCCLUSION_WEIGHT, type Vec, type Walker } from './audio/spatial';
 import { Chat } from './ui/chat';
-import { Hud, type Buff, type FeedIcon } from './ui/hud';
-import { Screens } from './ui/menu';
+import { Hud, type Buff, type FeedIcon, type HitKind } from './ui/hud';
+import { Screens, type ModeTabMeta } from './ui/menu';
+import { ladderLeader, pauseContext, previewMapName, type PauseContext } from './ui/pauseMenu';
 import { closeReason, gameModeName, showHome } from './ui/home';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
-import { Arsenal, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
+import { ArsenalPanel, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
 import { stickerBadge, stickerUpText, titleText } from './ui/album';
-import { upgradeAt, type KnifeForm, type ProgWeapon } from '@shared/progression';
-import { DEFAULT_LOADOUT, grenadeStats, gunIn, meleeStats, sanitizeLoadout, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
+import { GUN_IDS, isKnife, KNIVES, progOf, upgradeAt, type GunId, type KnifeId, type WeaponId } from '@shared/progression';
+import { DEFAULT_LOADOUT, grenadeStats, gunIn, knifeOf, loadoutKnife, sanitizeLoadout, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import { MODE_RULES, type GameModeId } from '@shared/modes';
-import { FINAL_STEP, GUN_GAME, killsForStep, ladderLoadout, type LadderPos } from '@shared/gunGame';
-import { renderLadder, stepName } from './ui/ladder';
+import { FINAL_STEP, killsForStep, ladderLoadout, type LadderPos } from '@shared/gunGame';
+import { ladderTabSub, renderLadderTab, stepName } from './ui/ladder';
 import { Scoreboard } from './ui/scoreboard';
 import { DEATH_MESSAGES, getLang, pick, t, type StringKey } from './ui/strings';
 import { itemOf, startItems, ZOMBIE, zombieGunData, zombieLoadout, type ZItems } from '@shared/zombies';
 import { gateAreas } from '@shared/barricades';
 import { ZombieClient, type ZombieLink } from './zombies/client';
 import { LocalZombies } from './zombies/local';
-import { flawText, renderZombieArsenal, tintFog, zombieAtmosphere } from './zombies/ambience';
+import { renderCoffinTab, tintFog, zombieAtmosphere } from './zombies/ambience';
 
 const DEG = Math.PI / 180;
 const MOUSE_DEG_PER_COUNT = 0.022;
@@ -203,7 +204,7 @@ async function boot() {
   player.health = body.maxHealth;
   viewmodel.setBody(look, choice.sex);
   const avatar = new Avatar(ctx.scene, look, choice.sex);
-  const melee = new Melee(meleeStats(startLoadout.ativas.faca));
+  const melee = new Melee(loadoutKnife(startLoadout));
   // The grenade as its upgrades make it (how many, what G does, the blast); applyLoadout keeps it current.
   let grenadeData = grenadeStats(startLoadout.ativas.granada);
   const thrower = new GrenadeThrower(grenadeData);
@@ -248,14 +249,14 @@ async function boot() {
     const hit = physics.world.castRay(groundProbe, 0.5, true, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, WORLD_ONLY);
     return (hit && physics.surfaces.get(hit.collider.handle)?.material) || 'concrete';
   };
-  const playBody = (id: number, w: Walker, dt: number, reloadTime: () => number) => {
+  const playBody = (id: number, w: Walker, dt: number, reloadTime: () => number, gun: () => GunId) => {
     const f = w.feet;
     for (const ev of bodySounds.update(id, w, dt)) {
       const at = { x: f.x, y: f.y + 0.4, z: f.z };
       if (ev.kind === 'step') sfx.at(at, 'step', (s) => s.footstep(groundAt(f), ev.loud * 2));
       else if (ev.kind === 'land') sfx.at(at, 'step', (s) => s.land(ev.hard));
       else if (ev.kind === 'slide') sfx.at(at, 'step', (s) => s.slide(groundAt(f)));
-      else sfx.at({ x: f.x, y: f.y + 1.2, z: f.z }, 'normal', (s) => s.reload(reloadTime(), false));
+      else sfx.at({ x: f.x, y: f.y + 1.2, z: f.z }, 'normal', (s) => s.reload(reloadTime(), false, gun()));
     }
   };
   // Phones and tablets: touch controls over the HUD; the pause button leaves to the menu.
@@ -711,111 +712,130 @@ async function boot() {
 
   // The gun hooks, shared by both slots: they act on the gun in hand (`weapon`).
   const gunHooks: WeaponHooks = {
-    shoot(spread, shotIndex) {
+    shoot(spread, shotIndex, pellets) {
       shots++;
       bots?.unprotect(playerTarget);
       player.eye(1, eye);
       computeAim(aimForward);
       applySpread(aimForward, spread, shotDir);
-      const { hit, through, keep, end } = traceShot(physics, registry, eye, shotDir, weapon.data.alcanceMaximo, playerRig?.body, weapon.data.penetracao);
+      // One ray per bullet: a scattergun's pellets each go their own way around the shot, each one a hit of its own.
+      const dirs = pellets ? pellets.map((p) => offsetDir(shotDir, p.theta, p.phi, new THREE.Vector3())) : [shotDir];
 
       // Muzzle position in world space (viewmodel is camera-relative).
       viewmodel.muzzleCameraSpace(muzzle).applyMatrix4(ctx.camera.matrixWorld);
       viewmodel.flash();
-      viewmodel.kick();
+      viewmodel.kick(weapon.data.coiceVisual ?? 1);
       gamepad.rumble(45, 0.1, 0.35);
       effects.flash(muzzle);
       sfx.gunshot(1, weapon.data.silenciador ? 'silenciado' : weapon.data.arma);
-      if (shotIndex % weapon.data.tracanteACada === 0) effects.tracer(muzzle, end);
-      conn?.send({ t: 'shot', o: vec3(muzzle), e: vec3(end) });
-      // Fish and fruit don't stop the bullet: whatever it hits further on is hit too.
-      const critter = map.critters?.shot(eye, shotDir, hit ? hit.distance : Math.min(120, weapon.data.alcanceMaximo));
-      if (critter) {
-        effects.burst('confetti', critter.point, tmp.copy(shotDir).negate(), 4, critter.fish ? 0xbfeaff : 0xc8102e);
-        hitCritter(critter);
-      }
 
-      // Through wood and glass: entry and exit holes, splinters out the far side.
-      for (const p of through) {
-        effects.decal(p.point, p.normal);
-        effects.decal(p.exit, p.exitNormal);
-        effects.burst('debris', p.point, p.normal, 3, 0x9a6a3a);
-        effects.burst('debris', p.exit, shotDir, 5, 0x9a6a3a);
-        sfx.at(p.point, 'normal', (s) => s.impact(p.surface.material));
-        p.surface.onShot?.(p.point);
-      }
-      if (!hit) return;
-      if (hit.target) {
-        const entity = hit.target.entity;
-        const region: HitRegion = entity.refineRegion(hit.point, hit.target.region);
-        const groin = region === 'virilha';
-        const head = region === 'cabeca';
-        tmp.copy(shotDir).negate();
-        if (zombies?.isZombie(entity)) {
-          // A zombie: reported to the match (the server online), which decides the damage and the kill.
-          if (entity.dead) return;
-          zombies.shot(entity, region, hit.distance, weapon.data, keep);
-          hits++;
-          lastHitDist = hit.distance;
-          effects.burst(head || groin ? 'star' : 'debris', hit.point, tmp, head || groin ? 10 : 7, 0x6f8a3a);
-          sfx.hitmarker(head || groin);
-          hud.hit(head ? 'head' : 'hit');
-          return;
+      // The shot's feedback, once however many pellets landed: the best of them (a kill, then a head, then a hit).
+      let landed = false;
+      let headMark = false;
+      let mark: HitKind | null = null;
+      let markedElsewhere = false;
+      let heardImpact = false;
+      const land = (dist: number, head: boolean, kind: HitKind | null) => {
+        landed = true;
+        lastHitDist = dist;
+        headMark ||= head;
+        if (kind === null) markedElsewhere = true;
+        else if (!mark || kind === 'kill' || (kind === 'head' && mark === 'hit')) mark = kind;
+      };
+      // Eight pellets on a wall make one impact sound, not eight.
+      const impact = (at: THREE.Vector3, material: SurfaceMaterial) => {
+        if (heardImpact) return;
+        heardImpact = true;
+        sfx.at(at, 'normal', (s) => s.impact(material));
+      };
+
+      dirs.forEach((dir, i) => {
+        const { hit, through, keep, end } = traceShot(physics, registry, eye, dir, weapon.data.alcanceMaximo, playerRig?.body, weapon.data.penetracao);
+        if (shotIndex % weapon.data.tracanteACada === 0) effects.tracer(muzzle, end);
+        // The others see and hear one shot, whatever its pellets did.
+        if (i === 0) conn?.send({ t: 'shot', o: vec3(muzzle), e: vec3(end) });
+        // Fish and fruit don't stop the bullet: whatever it hits further on is hit too.
+        const critter = map.critters?.shot(eye, dir, hit ? hit.distance : Math.min(120, weapon.data.alcanceMaximo));
+        if (critter) {
+          effects.burst('confetti', critter.point, tmp.copy(dir).negate(), 4, critter.fish ? 0xbfeaff : 0xc8102e);
+          hitCritter(critter);
         }
-        if (net) {
-          // Online: report the hit, show feedback now; the server confirms damage and kills.
-          if (entity.dead) return;
-          conn!.send({ t: 'hit', target: (entity as RemotePlayer).id, region, dist: +hit.distance.toFixed(2), w: weapon.data.arma, ...(keep < 1 ? { keep: +keep.toFixed(3) } : {}) });
-          hits++;
-          lastHitDist = hit.distance;
-          effects.burst(head || groin ? 'star' : 'confetti', hit.point, tmp, head || groin ? 10 : 6);
-          sfx.hitmarker(head || groin);
-          hud.hit(head ? 'head' : 'hit');
-          return;
+
+        // Through wood and glass: entry and exit holes, splinters out the far side.
+        for (const p of through) {
+          effects.decal(p.point, p.normal);
+          effects.decal(p.exit, p.exitNormal);
+          effects.burst('debris', p.point, p.normal, 3, 0x9a6a3a);
+          effects.burst('debris', p.exit, dir, 5, 0x9a6a3a);
+          impact(p.point, p.surface.material);
+          p.surface.onShot?.(p.point);
         }
-        if (entity instanceof Bot && bots) {
-          // Against bots: same rules as online; kills and popups come back through the bot hooks.
-          if (entity.dead) return;
-          const kind: KillKind = head ? 'head' : groin ? 'groin' : 'gun';
-          const res = bots.hit(entity, playerTarget, computeDamage(weapon.data, hit.distance, critRegion(region, potionKind === 'critico'), keep), { kind, region, dist: hit.distance, w: weapon.data.arma });
-          if (res.dealt <= 0) return;
-          hits++;
-          lastHitDist = hit.distance;
-          effects.burst(head || groin ? 'star' : 'confetti', hit.point, tmp, head || groin ? 10 : 6);
-          sfx.hitmarker(head || groin);
-          if (!res.killed) hud.hit(head ? 'head' : 'hit');
-          return;
-        }
-        const dummy = entity as Dummy;
-        const res = dummy.applyHit(computeDamage(weapon.data, hit.distance, critRegion(region, potionKind === 'critico'), keep), region, simTime, shotDir, groin ? 'forward' : 'back');
-        if (res.damage <= 0) return;
-        hits++;
-        lastHitDist = hit.distance;
-        effects.burst(res.headshot || groin ? 'star' : 'confetti', hit.point, tmp, res.headshot || groin ? 10 : 6);
-        sfx.hitmarker(res.headshot || groin);
-        hud.hit(res.killed ? 'kill' : res.headshot ? 'head' : 'hit');
-        if (res.killed) {
-          onKill(dummy, res, weaponName(weapon.data.arma), groin ? 'bird' : res.headshot ? 'head' : null);
-          if (res.headshot) award(t('headshot'), SCORE.headshot);
-          if (groin) {
-            award(t('groin'), SCORE.groin);
-            groinFx(hit.point);
+        if (!hit) return;
+        if (hit.target) {
+          const entity = hit.target.entity;
+          const region: HitRegion = entity.refineRegion(hit.point, hit.target.region);
+          const groin = region === 'virilha';
+          const head = region === 'cabeca';
+          tmp.copy(dir).negate();
+          if (zombies?.isZombie(entity)) {
+            // A zombie: reported to the match (the server online), which decides the damage and the kill.
+            if (entity.dead) return;
+            zombies.shot(entity, region, hit.distance, weapon.data, keep);
+            effects.burst(head || groin ? 'star' : 'debris', hit.point, tmp, head || groin ? 10 : 7, 0x6f8a3a);
+            land(hit.distance, head || groin, head ? 'head' : 'hit');
+            return;
           }
-          if (hit.distance > SCORE.longShotDistance) award(t('longShot'), SCORE.longShot);
+          if (net) {
+            // Online: report the hit, show feedback now; the server confirms damage and kills.
+            if (entity.dead) return;
+            conn!.send({ t: 'hit', target: (entity as RemotePlayer).id, region, dist: +hit.distance.toFixed(2), w: weapon.data.arma, ...(keep < 1 ? { keep: +keep.toFixed(3) } : {}) });
+            effects.burst(head || groin ? 'star' : 'confetti', hit.point, tmp, head || groin ? 10 : 6);
+            land(hit.distance, head || groin, head ? 'head' : 'hit');
+            return;
+          }
+          if (entity instanceof Bot && bots) {
+            // Against bots: same rules as online; kills and popups come back through the bot hooks.
+            if (entity.dead) return;
+            const kind: KillKind = head ? 'head' : groin ? 'groin' : 'gun';
+            const res = bots.hit(entity, playerTarget, computeDamage(weapon.data, hit.distance, critRegion(region, potionKind === 'critico'), keep), { kind, region, dist: hit.distance, w: weapon.data.arma });
+            if (res.dealt <= 0) return;
+            effects.burst(head || groin ? 'star' : 'confetti', hit.point, tmp, head || groin ? 10 : 6);
+            land(hit.distance, head || groin, res.killed ? null : head ? 'head' : 'hit');
+            return;
+          }
+          const dummy = entity as Dummy;
+          const res = dummy.applyHit(computeDamage(weapon.data, hit.distance, critRegion(region, potionKind === 'critico'), keep), region, simTime, dir, groin ? 'forward' : 'back');
+          if (res.damage <= 0) return;
+          effects.burst(res.headshot || groin ? 'star' : 'confetti', hit.point, tmp, res.headshot || groin ? 10 : 6);
+          land(hit.distance, res.headshot || groin, res.killed ? 'kill' : res.headshot ? 'head' : 'hit');
+          if (res.killed) {
+            onKill(dummy, res, weaponName(weapon.data.arma), groin ? 'bird' : res.headshot ? 'head' : null);
+            if (res.headshot) award(t('headshot'), SCORE.headshot);
+            if (groin) {
+              award(t('groin'), SCORE.groin);
+              groinFx(hit.point);
+            }
+            if (hit.distance > SCORE.longShotDistance) award(t('longShot'), SCORE.longShot);
+          }
+        } else {
+          effects.decal(hit.point, hit.normal);
+          effects.burst('debris', hit.point, hit.normal, 5, 0x9a8f80);
+          effects.burst('spark', hit.point, hit.normal, 3);
+          const surface = hit.surface;
+          if (surface) {
+            impact(hit.point, surface.material);
+            surface.onShot?.(hit.point);
+          }
         }
-      } else {
-        effects.decal(hit.point, hit.normal);
-        effects.burst('debris', hit.point, hit.normal, 5, 0x9a8f80);
-        effects.burst('spark', hit.point, hit.normal, 3);
-        const surface = hit.surface;
-        if (surface) {
-          sfx.at(hit.point, 'normal', (s) => s.impact(surface.material));
-          surface.onShot?.(hit.point);
-        }
-      }
+      });
+      if (!landed) return;
+      // One shot, one hit for the accuracy count; a bot's kill already marked itself.
+      hits++;
+      sfx.hitmarker(headMark);
+      if (mark && (mark === 'kill' || !markedElsewhere)) hud.hit(mark);
     },
     dryFire: () => sfx.dryFire(),
-    reloadStart: (duration, empty) => sfx.reload(duration, empty),
+    reloadStart: (duration, empty) => sfx.reload(duration, empty, weapon.data.arma),
     reloadEnd: () => {},
   };
   /** What we carry: the guns in each slot and every weapon's upgrades (refreshed by applyLoadout). */
@@ -854,7 +874,7 @@ async function boot() {
     slot = next;
     weapon = guns[next];
     viewmodel.setGun(weapon.data);
-    hud.setWeaponName(bladeOnly ? weaponLabel('faca', loadout.ativas.faca) : slotName(next), slotRarity(next), !bladeOnly && slotDamaged(next));
+    hud.setWeaponName(bladeOnly ? weaponLabel(knifeOf(loadout)) : slotName(next), slotRarity(next), !bladeOnly && slotDamaged(next));
     if (!draw) return;
     drawT = weapon.data.troca;
     viewmodel.draw(drawT);
@@ -866,7 +886,7 @@ async function boot() {
   };
 
   // --- Weapon progression: each kill's points level up only the weapon that made it ------------------
-  let knifeForm: KnifeForm = 'faca';
+  let knifeForm: KnifeId = 'faca';
   /**
    * Puts `lo` in our hands: each slot's gun, the knife and the grenade with their upgrades (or only the
    * knife). `tell`: the choice changed here (the Arsenal, where it can change mid-match), so the server hears.
@@ -884,10 +904,10 @@ async function boot() {
       const g = slotStats(lo, s);
       // Zumbi: hordes need more bullets than a duel (the reserve is refilled at every break); a damaged gun from
       // the coffin holds fewer rounds (its damage penalty is the server's, on every hit).
-      if (g) guns[s].setData(zombieMode ? zombieGunData(g, lo.danificadas?.[g.arma]) : g);
+      if (g) guns[s].setData(zombieMode ? zombieGunData(g, lo.danificadas?.[progOf(g.arma)]) : g);
       guns[s].reloadMul = body.reloadMul;
     }
-    const knife = meleeStats(lo.ativas.faca);
+    const knife = loadoutKnife(lo);
     melee.setData(knife);
     viewmodel.setKnife(knife.forma);
     knifeForm = knife.forma;
@@ -903,6 +923,7 @@ async function boot() {
   // Points only come from the server (online kills, humiliations, time alive): it pushes the new progress.
   // With a locked loadout (every online mode) what we hold doesn't change: new upgrades wait for the next match.
   conn?.on('progresso', (m) => {
+    const lockedBefore = [...GUN_IDS, ...KNIVES].filter((w) => !progress.unlocked(w));
     progress.applyServer(m);
     if (!lockedLoadout && rules?.weapons !== 'mode') applyLoadout(progress.loadout);
     if (!m.subiu) return;
@@ -915,6 +936,8 @@ async function boot() {
       hud.showBanner(`${u?.icone ?? ''} ${t('upgradeUnlocked', { weapon: weaponName(w), level: m.subiu.nivel, upgrade: u ? upgradeName(w, u.id) : '' })}`, 'level');
       if (u?.opcional) hud.notice(t(lockedLoadout ? 'upgradeTurnOnNext' : 'upgradeTurnOn'));
       else if (lockedLoadout) hud.notice(t('upgradeNextMatch'));
+      // The level also unlocked a weapon (the pistol's frees the SMG): it waits in the Arsenal, not in our hands.
+      for (const freed of lockedBefore.filter((x) => progress.unlocked(x))) hud.notice(t('weaponUnlocked', { weapon: weaponName(freed) }));
     }
     sfx.levelUp();
   });
@@ -935,23 +958,19 @@ async function boot() {
     stickerLines.push(line);
     if (!stickerShowing) nextSticker();
   });
-  // The pause menu: corrida armada shows its ladder (the mode hands out the weapons); otherwise the Arsenal,
-  // read-only during a match with a locked loadout (mata-mata), editable on the training range.
-  const arsenalGrid = document.getElementById('arsenal-grid')!;
-  if (gunGame) {
-    document.getElementById('arsenal-title')!.textContent = t('ladderTitle');
-    document.getElementById('arsenal-hint')!.textContent = t('ladderHint', { n: GUN_GAME.killsPerStep });
-    renderLadder(arsenalGrid, { step: 0, kills: 0 });
-  } else if (zombieMode) {
-    // Zumbi: the coffin (what we carry, the rarities and their odds) instead of the account's Arsenal.
-    document.getElementById('arsenal-title')!.textContent = t('zArsenalTitle');
-    const r = ZOMBIE.raridades;
-    document.getElementById('arsenal-hint')!.textContent = t('zArsenalHint', { cost: ZOMBIE.caixa.custo, c: r.comum.dano, r: r.raro.dano, e: r.epico.dano, l: r.lendario.dano, ammo: flawText('municao'), damage: flawText('dano') });
-    renderZombieArsenal(arsenalGrid, startItems());
-  } else {
-    if (lockedLoadout) document.getElementById('arsenal-hint')!.textContent = t('arsenalLockedHint');
-    new Arsenal(progress, () => applyLoadout(progress.loadout, true), arsenalGrid, lockedLoadout);
-  }
+  // The pause menu's Arsenal tab (corrida armada shows its ladder and zumbi the coffin instead, see "Menus"):
+  // in a match what is in our hands (locked as the match began, levels and points live), on the training range
+  // editable, the new choice in our hands at once.
+  const arsenalPanel =
+    !gunGame && !zombieMode
+      ? new ArsenalPanel(progress, screens.modeBody, { editable: !lockedLoadout, inUse: () => loadout, startLevels: progress.levels, onChange: () => applyLoadout(progress.loadout, true) })
+      : null;
+  // Training range: a change the account didn't save is undone, in the Arsenal and in our hands.
+  if (arsenalPanel && !lockedLoadout)
+    progress.onSaveError(() => {
+      applyLoadout(progress.loadout, true);
+      hud.notice(t('arsenalSaveFailed'));
+    });
   applyLoadout(startLoadout);
   // Zumbi: the bigger reserve from the start.
   if (zombieMode) for (const g of Object.values(guns)) g.refill();
@@ -1007,7 +1026,7 @@ async function boot() {
     if (res.damage <= 0) return;
     hud.hit(res.killed ? 'kill' : 'hit');
     if (res.killed) {
-      onKill(dummy, res, weaponLabel('faca', loadout.ativas.faca), 'knife');
+      onKill(dummy, res, weaponLabel(knifeOf(loadout)), 'knife');
       award(t('knife'), SCORE.knife);
       if (behind) award(t('backstab'), SCORE.backstab);
     }
@@ -1240,14 +1259,14 @@ async function boot() {
 
   // --- Bots ----------------------------------------------------------------------------------------
   /**
-   * Name of the weapon behind a kill (`weapon`, when the server or the bots tell it), as the killer's upgrades
-   * make it: the lightsaber, the land mine (bots carry no upgrades).
+   * Name of the weapon behind a kill (`weapon`, when the server or the bots tell it): the gun that shot (an old
+   * rifle too), the killer's knife (a stab only says 'faca'), the land mine (bots carry no upgrades).
    */
-  const weaponNameFor = (kind: KillKind, weapon: ProgWeapon | null | undefined, lo: Loadout = DEFAULT_LOADOUT) => {
-    const w: ProgWeapon = weapon ?? (kind === 'knife' ? 'faca' : kind === 'grenade' || kind === 'explosion' ? 'granada' : 'rifle');
-    return weaponLabel(w, lo.ativas[w]);
+  const weaponNameFor = (kind: KillKind, weapon: WeaponId | null | undefined, lo: Loadout = DEFAULT_LOADOUT) => {
+    const w: WeaponId = weapon ?? (kind === 'knife' ? 'faca' : kind === 'grenade' || kind === 'explosion' ? 'granada' : 'rifle');
+    if (isKnife(w)) return weaponLabel(knifeOf(lo));
+    return weaponLabel(w, lo.ativas[progOf(w)]);
   };
-  if (zombieMode && !online) screens.setSubtitle(t('zSoloSubtitle'));
   if (botMode && nav && !zombieMode) {
     bots = new BotManager({
       physics,
@@ -1275,7 +1294,8 @@ async function boot() {
         },
         kill: (victim, killer, kind, awards, corpse, weapon) => {
           const victimName = victim === playerTarget ? t('you') : victim.name;
-          const killerLoadout = killer === playerTarget ? loadout : DEFAULT_LOADOUT;
+          // A bot's knife is drawn each life (its loadout is otherwise the default one, without upgrades).
+          const killerLoadout = killer === playerTarget ? loadout : killer instanceof Bot ? { ...DEFAULT_LOADOUT, faca: killer.knife.forma } : DEFAULT_LOADOUT;
           if (killer) hud.killfeed(killer === playerTarget ? t('you') : killer.name, weaponNameFor(kind, weapon, killerLoadout), victimName, KIND_ICON[kind]);
           else if (kind === 'dog') hud.killfeed('Amora', t('dogBite'), victimName, 'dog');
           else hud.notice(`💀 ${victimName}`);
@@ -1302,7 +1322,6 @@ async function boot() {
         },
       },
     });
-    screens.setSubtitle(t('botsSubtitle', { n: botMode.count, mode: gameModeName(botMode.game) }));
     const navDebug = nav.debugMesh();
     ctx.scene.add(navDebug);
     Object.assign(window, { __ocNavDebug: navDebug });
@@ -1313,7 +1332,6 @@ async function boot() {
     for (const p of online.joined.players) net.upsertInfo(p);
     zombies?.syncInfo(online.joined.players);
     for (const c of online.joined.corpses) net.addCorpse(c);
-    screens.setSubtitle(t('onlineSubtitle', { name: online.joined.session.name, mode: gameModeName(online.joined.session.mode) }));
 
     conn.on('snap', (m) => {
       net.snapshot(m.time, m.players);
@@ -1354,7 +1372,7 @@ async function boot() {
     });
     conn.on('swing', (m) => {
       const rp = net.players.get(m.id);
-      // The rubber chicken's scream and the lightsaber's vwoom carry much farther than a knife's swish.
+      // The rubber chicken's scream, the lightsaber's vwoom and the other knives' sounds carry much farther than a knife's swish.
       const form = rp?.knife.forma ?? 'faca';
       if (rp) sfx.at({ x: rp.position.x, y: rp.position.y + 1.3, z: rp.position.z }, form === 'faca' ? 'step' : 'normal', (s) => s.meleeSwing(form));
     });
@@ -1503,7 +1521,6 @@ async function boot() {
     const before = shownLadder;
     shownLadder = l;
     if (before?.step === l.step && before.kills === l.kills) return;
-    renderLadder(arsenalGrid, l);
     if (!before) return;
     // A stab on a step with kills: one of them lost, same weapon.
     if (before.step === l.step) {
@@ -1515,7 +1532,7 @@ async function boot() {
       sfx.levelUp();
     } else hud.showBanner(t('ladderDown', { weapon: stepName(l.step) }), 'bird');
   };
-  /** Zumbi: the coffin's weapons we carry, as last shown (the pause menu's page and the weapon's name follow them). */
+  /** Zumbi: the coffin's weapons we carry, as last shown (the weapon's name follows them; the menu reads them itself). */
   let shownItems = '';
   const watchZombieItems = () => {
     if (!zombieMode) return;
@@ -1523,7 +1540,6 @@ async function boot() {
     const key = JSON.stringify(items);
     if (key === shownItems) return;
     shownItems = key;
-    renderZombieArsenal(arsenalGrid, items);
     if (!bladeOnly) hud.setWeaponName(slotName(slot), slotRarity(slot), slotDamaged(slot));
   };
   /** The round is over (who won, and when the next starts on the game clock); null while playing. */
@@ -1541,11 +1557,7 @@ async function boot() {
     roundOver = null;
     hud.showRoundEnd(null);
     shownLadder = { step: 0, kills: 0 };
-    if (gunGame) renderLadder(arsenalGrid, shownLadder);
-    if (zombies) {
-      zombies.reset();
-      renderZombieArsenal(arsenalGrid, startItems());
-    }
+    if (zombies) zombies.reset();
     taunt.cancel(simTime);
     thrower.cancel();
     secondThrowIn = null;
@@ -1555,6 +1567,69 @@ async function boot() {
 
   // --- Menus and pointer lock ---------------------------------------------------------------------
   relayoutTouch = () => touch?.layout();
+  // The start card and the pause menu (client/ui/pauseMenu.ts): what the rail says here (the mode, the map, the
+  // session or the bots or the wave, the banner, the exit), and the mode's tab: the Arsenal, corrida armada's
+  // ladder or the zumbi mode's coffin. Refreshed with the HUD while the menu is open (online the world goes on).
+  const mapName = mapUrl ? previewMapName(mapUrl) : MAPS[choice.map].nome;
+  const pauseNow = (): PauseContext =>
+    pauseContext({
+      place: online ? 'online' : botMode ? 'bots' : 'range',
+      mode: gameMode,
+      session: online ? { name: online.joined.session.name, players: net?.info.size ?? 1, max: online.joined.session.max } : undefined,
+      bots: botMode ? { count: botMode.count, skill: botMode.skill } : undefined,
+      wave: zombies?.wave ?? 0,
+    });
+  const modeTabMeta = (c: PauseContext): ModeTabMeta => {
+    if (c.tab === 'escada') {
+      return { icon: '🪜', label: t('pmTabLadder'), sub: ladderTabSub(myLadder() ?? { step: 0, kills: 0 }), title: t('ladderTitle'), hint: t('pmLadderHint'), badge: null, foot: '' };
+    }
+    if (c.tab === 'caixao') {
+      const cost = { cost: ZOMBIE.caixa.custo };
+      return { icon: '⚰️', label: t('pmTabCoffin'), sub: t('pmTabCoffinSub'), title: t('zArsenalTitle'), hint: t(online ? 'pmCoffinHintOnline' : 'pmCoffinHintSolo', cost), badge: null, foot: t('pmCoffinFoot') };
+    }
+    const ro = c.readOnly;
+    return {
+      icon: '🎒',
+      label: t('arsenal'),
+      sub: t(ro ? 'pmArsenalSubReadOnly' : 'pmArsenalSubEditable'),
+      title: t('arsenal'),
+      hint: t(ro ? 'pmArsenalHintReadOnly' : 'pmArsenalHintEditable'),
+      badge: ro ? 'readOnly' : 'editable',
+      // Without an account nothing levels up: the footer says why.
+      foot: t(!progress.signedIn ? 'pmArsenalFootGuest' : ro ? 'pmArsenalFootReadOnly' : 'pmArsenalFootEditable'),
+    };
+  };
+  /** What the mode's tab last drew (it is drawn again only when that changes). */
+  let modeTabKey = '';
+  const drawModeTab = (force: boolean) => {
+    const el = screens.modeBody;
+    if (arsenalPanel) {
+      // Points and choices redraw it themselves (Progress.onChange).
+      if (force) arsenalPanel.render();
+      return;
+    }
+    if (gunGame) {
+      const players = net ? net.info.values() : (bots?.standings() ?? []);
+      const round = roundOver && { title: roundOver.title, next: t('roundNext', { s: Math.max(0, Math.ceil(roundOver.restartAt - clock())) }) };
+      const view = { pos: myLadder() ?? { step: 0, kills: 0 }, leader: ladderLeader(players, me), round };
+      const key = JSON.stringify(view);
+      if (force || key !== modeTabKey) renderLadderTab(el, view);
+      modeTabKey = key;
+    } else if (zombieMode) {
+      const items = zItems();
+      const key = JSON.stringify(items);
+      if (force || key !== modeTabKey) renderCoffinTab(el, items);
+      modeTabKey = key;
+    }
+  };
+  const refreshMenu = () => {
+    if (!screens.visible) return;
+    const c = pauseNow();
+    screens.setContext(c, mapName);
+    screens.setModeTab(modeTabMeta(c));
+    if (screens.openedTab === 'mode') drawModeTab(false);
+  };
+  screens.onTab((tab) => tab === 'mode' && drawModeTab(true));
   screens.onPlay(() => {
     sfx.unlock();
     sfx.ui();
@@ -1585,7 +1660,8 @@ async function boot() {
       () => touch.resetLayout(),
     );
   }
-  screens.onExit(t('exitToHome'), () => {
+  // The exit (after its confirmation): back to the home screen.
+  screens.onExit(() => {
     conn?.close();
     location.reload();
   });
@@ -1614,13 +1690,15 @@ async function boot() {
     } else {
       pausedAt = performance.now();
       screens.showMenu('pause');
+      refreshMenu();
     }
   };
-  // Computer: Esc opens and closes the pause menu.
+  // Computer: Esc opens the pause menu and, inside it, goes back one level: the exit's confirmation, then the
+  // open tab, then the game (a key being bound takes its Esc first: it listens before this).
   // - In fullscreen the game keeps Esc (keepEscape): it pauses by letting go of the mouse itself, which the
   //   browser lets it take back without a click, so closing the menu has the mouse aiming at once.
   // - Elsewhere the browser takes the Esc that pauses and only gives the mouse back on a click or another key:
-  //   the next Esc closes the menu and play resumes, the mouse coming back with the first key or click.
+  //   the last Esc closes the menu and play resumes, the mouse coming back with the first key or click.
   // The Esc that opened the menu may be seen after it did (its time is earlier): never a second press.
   if (!IS_MOBILE)
     window.addEventListener('keydown', (e) => {
@@ -1632,7 +1710,13 @@ async function boot() {
         }
         return;
       }
-      if (pausedAt === null || e.timeStamp <= pausedAt) return;
+      if (pausedAt !== null && e.timeStamp <= pausedAt) return;
+      // The start card has tabs too: Esc closes them, but never starts the match.
+      if (screens.visible && screens.back()) {
+        e.preventDefault();
+        return;
+      }
+      if (pausedAt === null) return;
       e.preventDefault();
       sfx.ui();
       void input.lock().then((got) => {
@@ -1845,6 +1929,7 @@ async function boot() {
           grounded: player.move.grounded,
           crouched: player.move.crouched,
           speed: player.horizontalSpeed,
+          holdFire: busy,
         });
       }
     }
@@ -2142,12 +2227,12 @@ async function boot() {
     }
     for (const b of bots?.bots ?? []) {
       const m = b.move;
-      playBody(-b.id, { feet: b.position, alive: !b.dead, grounded: m.grounded, sprint: m.sprinting, crouch: m.crouched, slide: m.sliding, reload: b.weapon.reloading }, frameDt, () => b.weapon.reloadDuration);
+      playBody(-b.id, { feet: b.position, alive: !b.dead, grounded: m.grounded, sprint: m.sprinting, crouch: m.crouched, slide: m.sliding, reload: b.weapon.reloading }, frameDt, () => b.weapon.reloadDuration, () => b.gun);
     }
     for (const p of net?.players.values() ?? []) {
       const f = p.flags;
       const w = { feet: p.position, alive: p.alive, grounded: !!(f & FLAG.grounded), sprint: !!(f & FLAG.sprint), crouch: !!(f & FLAG.crouch), slide: !!(f & FLAG.slide), reload: !!(f & FLAG.reload) };
-      playBody(p.id, w, frameDt, () => p.gun.recarga.tatica);
+      playBody(p.id, w, frameDt, () => p.gun.recarga.tatica, () => p.gun.arma);
     }
     grenades.render(alpha);
     effects.update(frameDt);
@@ -2240,6 +2325,8 @@ async function boot() {
       const l = myLadder();
       hud.setLadder(l && { step: l.step, total: FINAL_STEP + 1, name: stepName(l.step), kills: l.kills, need: killsForStep(l.step), final: l.step === FINAL_STEP });
       if (roundOver) hud.showRoundEnd(roundOver.title, t('roundNext', { s: Math.max(0, Math.ceil(roundOver.restartAt - clock())) }), roundOver.won);
+      // The menu over a running match follows it (the wave, the players, the ladder, the coffin).
+      refreshMenu();
       if (showDebug) {
         const info = ctx.renderer.info;
         const pos = cam.position;
@@ -2283,6 +2370,7 @@ async function boot() {
   render(1, 0);
   mark('firstFrame');
   screens.showMenu('start');
+  refreshMenu();
   // Every handler exists now: messages that arrived while the map was being built go through.
   conn?.release();
   startLoop(step, render);

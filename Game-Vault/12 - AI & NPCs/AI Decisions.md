@@ -5,7 +5,10 @@ status: documented
 area: ai
 source_paths:
   - client/ai/bot.ts
+  - client/ai/botGuns.ts
   - client/ai/bots.ts
+  - client/ai/botKnife.ts
+  - client/weapons/melee.ts
   - client/gameplay/spawnPicker.ts
   - shared/weapons.ts
   - shared/data/weapons/faca.json
@@ -15,7 +18,7 @@ tags:
   - bots
   - decisions
   - difficulty
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # AI Decisions
@@ -40,6 +43,7 @@ Como um bot decide **o que ver, para onde ir, para onde mirar e quando atirar**.
 | `headshotChance` | 5% | 15% | 30% | Mirar na cabeça (1,6 m) em vez do peito (1,15 m) |
 | `fov` | 100° | 115° | 130° | Campo de visão |
 | `tauntChance` | 35% | 50% | 65% | Ir dançar num corpo após um abate |
+| `knifeDelay` (s) | 0,30 | 0,20 | 0,12 | Hesitação com o alvo no alcance e na frente antes de golpear (×0,8–1,3) |
 
 A dificuldade é escolhida na home (`facil`/`normal`/`dificil`, padrão `normal`) e vale para todos os bots da partida. Ver [[Versus Bots]].
 
@@ -70,11 +74,16 @@ Ver o diagrama em [[States]]. Regras:
 | > 24 m | Aproxima pela navmesh (recalcula a cada 1 s) |
 | 7–24 m | Strafe lateral |
 | 3,5–7 m | Recua na diagonal (para trás + lado) |
-| < 3,5 m | Avança para a faca (frente + meio lado) |
+| < 3,5 m | Avança para a faca (frente + meio lado) se ainda tem a chance da faca contra esse alvo; senão recua como na faixa de 3,5–7 m (e atira) |
 
 - Troca o lado do strafe a cada 0,5–1,4 s; nessa troca, 18% de chance de agachar por 0,6–1,4 s.
 - Mira (ADS) se o alvo está a mais de 12 m.
-- **Faca**: a menos de 2,2 m, se o cooldown permite (`MELEE.faca.intervalo + 0,3` s). O `BotManager.stab` confere o alcance da faca (`alcance + 0,4` m), aplica dano letal e o bônus "pelas costas" se for o caso.
+- **Faca** (desde 2026-10-07, [[ADR - Facada dos bots com uma chance por aproximação]]): o bot segue a regra do golpe do jogador ([[Melee]]) e tem **uma chance por aproximação**.
+  - **Começa o golpe** só com o tempo de reação esgotado, sem golpe em andamento e com o intervalo da faca (`intervalo`) cumprido, e com o alvo **no alcance e na frente**: `findMeleeTarget` com `alcance` (do olho à superfície do corpo), o cone da faca (`anguloGraus`, ±45°), diferença de altura ≤ 1,6 m e linha de visão. Um bot de costas precisa **virar primeiro**, no limite de `turnSpeed`. Com tudo isso valendo, ainda espera `knifeDelay` (a espera recomeça se o alvo sai do alcance ou da frente).
+  - **O golpe acerta no `impacto`** da faca (0,14 s depois), e não na hora: o `BotManager.stab` toca o som do golpe e só mata se o alvo ainda estiver a até `alcance + 0,4` m, dentro do cone e à vista (a regra do jogador para golpe sem investida). Fora disso, é um golpe no vazio. Durante o golpe o bot segue para o alvo e não atira (`knifeAnim` = `duracao` da faca).
+  - **Uma chance por aproximação** (`BotKnife`, `client/ai/botKnife.ts`): depois de golpear um alvo, acertando ou errando, o bot só pode golpear esse alvo de novo depois de se afastar mais de `KNIFE_REARM` = 5 m dele. A chance é por alvo e volta toda a cada vida. Sem a chance, o bot de arma de fogo não avança mais para a faca: recua e atira.
+  - Até 2026-10-06 o bot golpeava a menos de 2,2 m em qualquer direção (sem cone, sem tempo de reação), o golpe acertava na hora e se repetia a cada `intervalo + 0,3` s. Na corrida armada, em que a facada passou a contar como abate, isso deixava os bots quase invencíveis de perto.
+- **Só com a lâmina** (o sabre, último degrau da [[Gun Game|corrida armada]]): corre direto para o alvo (pela navmesh a mais de 6 m), em zigue-zague leve e correndo a mais de 3 m, e golpeia pelas mesmas regras acima. Depois de cada golpe, acertando ou errando, **recua de frente** (para trás + lado) até passar de 5 m e ter a chance de volta, e então corre de novo.
 - Fora de combate, corre (`sprint`) em `roam`/`flee` quando faltam mais de 8 m de caminho; em `chase`, olha para a última posição vista.
 
 ## Mira
@@ -84,7 +93,7 @@ Ver o diagrama em [[States]]. Regras:
 
 ## Gatilho
 
-Só atira em `engage`, com alvo visível, depois do tempo de reação e fora da animação da faca. Atira quando o erro de mira está dentro de um cone de `2,5° + 0,6 / max(3, dist)` rad; segura por uma rajada (×1,8 se o alvo está a menos de 10 m) e pausa. Recarrega com pente vazio, ou fora de combate com menos de 40% do pente da arma. Com uma arma semiautomática (a pistola), o gatilho é solto a cada tick para cada aperto valer um tiro. O disparo passa pelo mesmo `Weapon` do jogador (cadência, dispersão, recuo da arma sorteada para a vida, `gunStats` sem melhorias) e é resolvido pelo `BotManager.fire` com `traceShot` (inclui penetração), `computeDamage` e prêmios iguais aos do servidor (abate, cabeça, virilha, longa distância).
+Só atira em `engage`, com alvo visível, depois do tempo de reação e fora do golpe da faca (`knifeAnim`). Atira quando o erro de mira está dentro de um cone de `2,5° + 0,6 / max(3, dist)` rad; segura por uma rajada (×1,8 se o alvo está a menos de 10 m) e pausa. Recarrega com pente vazio, ou fora de combate com menos de 40% do pente da arma. Com uma arma que não é automática (semi: pistola, revólver, garrucha, pistolão; rajada: grampeador), o gatilho é solto a cada outro tick para cada aperto valer um tiro (ou uma rajada de 3, que termina sozinha e respeita a pausa de 0,2 s). A garrucha resolve um raio por bago (`BotManager.fire` recebe os bagos sorteados pelo `Weapon`). O disparo passa pelo mesmo `Weapon` do jogador (cadência, dispersão, recuo da arma sorteada para a vida, `gunStats` sem melhorias) e é resolvido pelo `BotManager.fire` com `traceShot` (inclui penetração), `computeDamage` e prêmios iguais aos do servidor (abate, cabeça, virilha, longa distância).
 
 ## Spawn
 
@@ -103,6 +112,8 @@ Usar granadas, minas, coletáveis, poções ou cobertura explícita (não há bu
 
 - `client/ai/bot.ts` (`BOT_SKILLS`, `perceive`, `visibleFrom`, `decide`, `setGoal`, `fixedUpdate`)
 - `client/ai/bots.ts` (`fire`, `stab`, `hit`, `kill`, `pickSpawn`, `protect`)
+- `client/ai/botKnife.ts` (`BotKnife`: hesitação e uma chance por aproximação; `KNIFE_REARM`)
+- `client/weapons/melee.ts` (`findMeleeTarget`, o mesmo teste de alcance, cone e visão do golpe do jogador)
 - `client/gameplay/spawnPicker.ts` (`pickSafeSpawn`)
 
 Ver também: [[AI Overview]], [[NPC Behavior]], [[Navigation]], [[Combat]], [[Damage System]].

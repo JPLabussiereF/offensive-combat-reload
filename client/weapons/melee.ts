@@ -68,7 +68,7 @@ export class Melee {
  * Nearest living target within `range` (eye to body surface, horizontally), inside the view cone and with
  * a clear line of sight.
  */
-export function findMeleeTarget(physics: Physics, targets: Iterable<Target>, eye: THREE.Vector3, yaw: number, range: number, angleDeg: number): { target: Target; dist: number } | null {
+export function findMeleeTarget(physics: Pick<Physics, 'world'>, targets: Iterable<Target>, eye: THREE.Vector3, yaw: number, range: number, angleDeg: number): { target: Target; dist: number } | null {
   const fx = -Math.sin(yaw);
   const fz = -Math.cos(yaw);
   const cosMax = Math.cos((angleDeg * Math.PI) / 180);

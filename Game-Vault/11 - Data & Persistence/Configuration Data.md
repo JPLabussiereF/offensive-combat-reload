@@ -20,6 +20,8 @@ source_paths:
   - server/config.ts
   - shared/data/weapons/pistola.json
   - shared/data/weapons/smg.json
+  - shared/data/weapons/rifle_tia.json
+  - shared/data/weapons/sabre.json
   - shared/arsenal.ts
 tags:
   - game
@@ -36,10 +38,12 @@ Dados que definem o jogo e **não mudam em tempo de execução**. Ficam no repos
 
 | Arquivo | Conteúdo | Lido por |
 |---|---|---|
-| `shared/data/weapons/rifle_padrao.json` | Rifle (espaço `primaria`): dano por distância, multiplicadores por região, cadência (700 rpm), alcance máximo (300 m), tempo de saque `troca` (0,45 s), modelo `.glb`, etc. | `shared/weapons.ts` (`WEAPONS`) |
+| `shared/data/weapons/rifle_padrao.json` | Rifle Padrão (espaço `primaria`): dano por distância, multiplicadores por região, cadência (700 rpm), alcance máximo (300 m), tempo de saque `troca` (0,45 s), ícone `icone`, pintura `visual`, modelo `.glb`, etc. | `shared/weapons.ts` (`WEAPONS`) |
+| `shared/data/weapons/rifle_fita.json`, `rifle_tia.json`, `rifle_natal.json`, `rifle_chama.json`, `rifle_vovo.json`, `rifle_ouro.json` | Os rifles antigos (espaço `primaria`): cópias do Padrão com a troca de cada um, a pintura (`visual`) e a trava `libera: { arma: "rifle", pontos }` (ver [[Weapons#Rifles]]) | `shared/weapons.ts` (`WEAPONS`) |
 | `shared/data/weapons/pistola.json` | Pistola do Porteiro (espaço `secundaria`): semiautomática, 400 rpm, pente 12/48, `troca` 0,3 s | `shared/weapons.ts` (`WEAPONS`) |
-| `shared/data/weapons/smg.json` | Submetralhadora Liquidificador (espaço `secundaria`): automática, 950 rpm, pente 32/128, `troca` 0,35 s | `shared/weapons.ts` (`WEAPONS`) |
-| `shared/data/weapons/faca.json` | Faca (`MELEE`) | `shared/weapons.ts` |
+| `shared/data/weapons/smg.json` | Submetralhadora Liquidificador (espaço `secundaria`): automática, 950 rpm, pente 32/128, `troca` 0,35 s, trava `libera: { arma: "pistola", pontos: 1800 }` | `shared/weapons.ts` (`WEAPONS`) |
+| `shared/data/weapons/faca.json` | Faca de Cozinha (`MELEE.faca`) | `shared/weapons.ts` |
+| `shared/data/weapons/colher.json`, `frango.json`, `baguete.json`, `peixe.json`, `macarrao.json`, `sabre.json` | As facas antigas (`MELEE`): alcance, investida, intervalo e a trava `libera: { arma: "faca", pontos }` (ver [[Melee#As facas]]) | `shared/weapons.ts` |
 | `shared/data/weapons/granada_frag.json` | Granada: quantidade 2, recarga 10 s, pavio 3 s, impacto, tempo máx. de voo 8 s, níveis (`raioDano` 7 m, `danoMax` 85, `podeMatar`) | `shared/weapons.ts` (`GRENADES`) |
 | `shared/data/progression.json` | Por arma (rifle, pistola, smg, faca, granada): ícone e a lista de `melhorias`, uma por nível ≥ 2 (`nivel`, `xp`, `id`, `icone`, `opcional?`, `grupo?`, `efeitos`). Os nomes e descrições ficam em `client/ui/strings.ts` (`upg_<arma>_<id>`) | `shared/progression.ts`, aplicado por `shared/arsenal.ts` |
 | `shared/data/nivel_conta.json` | Nível da conta: `porMinutoVivo` 10, `porAbate` 25, `porOpressao` 50; custo do nível n→n+1 = `round(1000 × n^1,5)` | `shared/accountLevel.ts` |

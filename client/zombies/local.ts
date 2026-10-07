@@ -6,7 +6,7 @@
 // and with nobody to revive you, going down alone ends the run.
 import type { NavMesh } from 'recast-navigation';
 import { gunStats, grenadeStats, type Loadout } from '@shared/arsenal';
-import { isGun } from '@shared/progression';
+import { isGun, progOf } from '@shared/progression';
 import { explosionDamage, type HitRegion } from '@shared/weapons';
 import type { ClientMsg, ServerMsg, Vec3 } from '@shared/protocol';
 import { grenadeDamageToZombie, gunDamageToZombie, isBoss, knifeDamageToZombie, weaponMul, zombieLoadout, type ZombieMapData } from '@shared/zombies';
@@ -89,7 +89,7 @@ export class LocalZombies implements ZombieLink {
       case 'zhit': {
         const z = m.hittable(msg.z);
         if (!z || !isGun(msg.w)) return;
-        const gun = gunStats(msg.w, this.loadout.ativas[msg.w]);
+        const gun = gunStats(msg.w, this.loadout.ativas[progOf(msg.w)]);
         const r: HitRegion = msg.region;
         const dmg = gunDamageToZombie(gun, Math.min(msg.dist, gun.alcanceMaximo), r, msg.keep ?? 1, weaponMul(items, msg.w), isBoss(z.kind));
         m.damage(z.id, me, dmg, r === 'cabeca' ? 'head' : r === 'virilha' ? 'groin' : 'gun');

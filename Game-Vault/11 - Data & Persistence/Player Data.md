@@ -64,7 +64,7 @@ Colunas e índices em [[Database]].
 |---|---|---|
 | XP e nível da conta | `player_stats.xp`, `level` | XP só online: 10/minuto vivo, 25/abate, 50/humilhação (`shared/data/nivel_conta.json`), +XP por carpa. Nível recalculado na gravação (`accountLevel`) |
 | XP por arma (rifle, pistola, smg, faca, granada) | `weapon_progress.xp` | Pontos do abate (com bônus) vão para a arma que matou (`weaponOfKill(kind, arma)`: um abate de pistola vai para a pistola). O nível sai do XP (`levelForXp`) e não é guardado |
-| Escolha do Arsenal (`ArsenalChoice`: secundária + melhorias opcionais ligadas) | `player_profile.loadout` (jsonb) | `PATCH /api/perfil {arsenal}` (melhoria bloqueada → `400 nivel_bloqueado`) ou mensagem `loadout` (o servidor descarta o que não está liberado e grava no próximo flush). `NULL` = deriva uma vez do antigo `equipped_level` (`legacyChoice`) |
+| Escolha do Arsenal (`ArsenalChoice`: rifle `primaria`, secundária, `faca`, melhorias opcionais ligadas + comuns desligadas, `desligadas`) | `player_profile.loadout` (jsonb) | `PATCH /api/perfil {arsenal}` (melhoria não liberada ou arma trancada → `400 nivel_bloqueado`) ou mensagem `loadout` (o servidor descarta o que não está liberado, com o XP de cada arma, e grava no próximo flush). Escolhas antigas sem `desligadas` valem como "nenhuma comum desligada"; sem `primaria`/`faca`, o Rifle Padrão e a faca de cozinha (o frango ou o sabre ligados como forma viram essa faca, se liberada). `NULL` = deriva uma vez do antigo `equipped_level` (`legacyChoice`) |
 | Nível equipado (legado) | `weapon_progress.equipped_level` | Não é mais escrito; só lido para derivar a escolha de contas antigas ([[Data Migrations]]) |
 | Totais | `player_stats` (kills, deaths, headshots, groin_kills, knife_kills, backstabs, grenade_kills, humiliations, seconds_played, matches_played) | Somados a partir do delta de cada gravação |
 | Totais do modo zumbi | `zombie_stats` (partidas, vitórias, melhor onda, ondas sobrevividas, abates por golpe, chefes por nome, quedas, reanimações, mortes, giros no caixão) | O motor (`ZombieMatch`) avisa cada evento pelo gancho `ZombieHost.stat`; `addZombieStat` soma em `delta.zumbi`; gravado no mesmo flush. Zumbis não contam em `player_stats` |
@@ -79,7 +79,7 @@ Regras de progressão: [[Progression]].
 
 Criado no handshake do WebSocket (`liveAccount(loadGameProfile(...), chatMutedUntil)`):
 
-- `profile: GameProfile` — `accountId`, `profileId`, `tag`, `sex`, `appearance`, `xp`, `weapons{xp}` por arma, `arsenal` (`ArsenalChoice`, sanitizada contra os níveis).
+- `profile: GameProfile` — `accountId`, `profileId`, `tag`, `sex`, `appearance`, `xp`, `weapons{xp}` por arma, `arsenal` (`ArsenalChoice`, sanitizada contra o XP de cada progressão: níveis e travas das armas). Os rifles antigos guardam pontos em `rifle` e as facas em `faca` (`weapon_progress` continua com os 5 ids).
 - `delta: ProgressDelta` — o que foi ganho desde a última gravação (accountXp, weaponXp por arma, kills, deaths, headshots, groinKills, knifeKills, backstabs, grenadeKills, humiliations, secondsPlayed, score e `zumbi: ZombieDelta`).
 - `profile.totals` e `profile.album` — totais e contadores próprios do álbum como estavam na última gravação. Com o delta, são os números "ao vivo" (`liveSources`, `liveOwn`); `settle` junta o delta depois de cada gravação que deu certo.
 - `stickerTiers` — o acabamento de cada figurinha que o jogador já sabe. Uma vez por segundo `stickerUps` compara e manda `figurinha` para o que subiu.
@@ -93,7 +93,7 @@ O perfil em memória é a fonte de verdade durante a conexão; a gravação apli
 
 - `GET /api/me` → `MeResponse` (tag, nível, sexo, provedores, data de exclusão).
 - `GET /api/perfil` → `ProfileResponse` (tag, nome, sexo, aparência, nível/XP, `armas` (`{xp, nivel}` por arma), `arsenal` (a escolha, já conferida contra os níveis), totais (com `totais.zumbi`), **últimas 10 participações**, `nomeLiberaEm`, provedores, `exclusaoEm`).
-- `client/gameplay/progress.ts` (`Progress`) guarda o XP das armas e a escolha do Arsenal: inicia do perfil, é atualizado por `progresso` do servidor (`armas`, `escolha`) e salva as mudanças da escolha via `PATCH /api/perfil {arsenal}` (`toggle`, `setSecondary`). Nada disso vai para `localStorage` (as chaves antigas `oc.name`, `oc.sex`, `oc.profile` são apagadas na home).
+- `client/gameplay/progress.ts` (`Progress`) guarda o XP das armas e a escolha do Arsenal: inicia do perfil, é atualizado por `progresso` do servidor (`armas`, `escolha`) e salva as mudanças da escolha via `PATCH /api/perfil {arsenal}` (`toggle`, `setPrimary`, `setSecondary`, `setKnife`), um salvamento por vez; se um falha, volta à última escolha confirmada e avisa (`onSaveError`). Nada disso vai para `localStorage` (as chaves antigas `oc.name`, `oc.sex`, `oc.profile` são apagadas na home).
 
 ## Ciclo de vida da conta (LGPD)
 

@@ -10,6 +10,12 @@ source_paths:
   - shared/progression.ts
   - shared/arsenal.ts
   - shared/data/progression.json
+  - shared/data/weapons/smg.json
+  - shared/data/weapons/grampeador.json
+  - shared/data/weapons/furadeira.json
+  - shared/data/weapons/rifle_tia.json
+  - shared/data/weapons/sabre.json
+  - shared/weapons.ts
   - shared/accountLevel.ts
   - shared/data/nivel_conta.json
   - server/progress.ts
@@ -18,6 +24,7 @@ source_paths:
   - server/migrations/003_melhorias.sql
   - client/gameplay/progress.ts
   - client/ui/arsenal.ts
+  - client/ui/arsenalTree.ts
   - client/main.ts
   - shared/zombies.ts
   - shared/zombieMatch.ts
@@ -26,14 +33,14 @@ tags:
   - game
   - design
   - progression
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Progression
 
 Existem **duas progressões independentes**, ambas guardadas **na conta** (no servidor) e alimentadas **só por eventos online validados pelo servidor**:
 
-1. **Progressão de arma**: rifle, pistola, submetralhadora, faca e granada evoluem separadamente, cada uma com os pontos dos próprios abates; cada nível libera uma **melhoria** com atributos reais.
+1. **Progressão de arma**: rifle, pistola, submetralhadora, faca e granada evoluem separadamente, cada uma com os pontos dos próprios abates; cada nível libera uma **melhoria** com atributos reais. Os sete rifles dividem a progressão do rifle e as sete facas a da faca; o grampeador, o revólver, a garrucha e o pistolão dividem a da pistola, e a furadeira a da submetralhadora.
 2. **Nível da conta**: XP próprio, ganho com tempo vivo, abates, opressões e carpas.
 
 Não há moeda, loja nem desbloqueio comprado ([[Economy Design]]).
@@ -42,13 +49,13 @@ Não há moeda, loja nem desbloqueio comprado ([[Economy Design]]).
 
 ### Regra central
 
-> Cada abate rende seus pontos (abate + bônus) **só para a arma que matou**. Quem só usa o rifle só evolui o rifle.
+> Cada abate rende seus pontos (abate + bônus) **só para a arma que matou**. Quem só usa o rifle só evolui o rifle. Um rifle antigo evolui o rifle; uma faca antiga, a faca (`progOf`).
 > — `shared/data/progression.json` (`_doc`) e `shared/progression.ts`
 
 | Tipo de morte (`KillKind`) | Arma que recebe os pontos |
 | --- | --- |
-| `gun`, `head`, `groin` | a arma de fogo que atirou (`kill.arma`: rifle, pistola ou submetralhadora) |
-| `knife` | faca |
+| `gun`, `head`, `groin` | a progressão da arma de fogo que atirou (`kill.arma`: qualquer rifle → rifle; pistola, grampeador, revólver, garrucha, pistolão → pistola; submetralhadora, furadeira → submetralhadora) |
+| `knife` | faca (qualquer faca) |
 | `grenade` (inclui a mina) | granada |
 | `fall`, `void`, `explosion`, `dog` | nenhuma |
 
@@ -60,11 +67,23 @@ Não há moeda, loja nem desbloqueio comprado ([[Economy Design]]).
 
 Cada arma começa no **nível 1** (só os atributos base do seu JSON, ver [[Weapons]]). Cada nível seguinte libera **uma melhoria** que muda atributos de verdade, do tipo que combina com a arma. Os números dos efeitos são **multiplicadores** sobre a base (×0,8 = −20%), exceto os marcados com "+" (somam).
 
-- **Comuns**: ficam ativas assim que liberadas.
+- **Comuns**: ficam ativas assim que liberadas; o jogador pode **desligá-las** no [[Inventory UI|Arsenal]] (ex.: voltar à mira de ferro).
 - **Opcionais** (têm troca, "Opcional: tem troca" no Arsenal): começam **desligadas**; o jogador liga e desliga no [[Inventory UI|Arsenal]].
-- **Grupos**: num mesmo grupo só uma opcional fica ligada, e enquanto ligada ela **substitui as comuns do grupo** (a luneta tira o ponto vermelho).
+- **Grupos**: num mesmo grupo só uma fica ligada: uma opcional ligada **substitui as comuns do grupo** (a luneta tira o ponto vermelho), e ligar a comum desliga a opcional. Ver [[ADR - Árvore do Arsenal e armas liberadas por nível]].
 
-#### Rifle (primária) — 6 níveis
+### Armas trancadas
+
+Uma arma pode esperar pontos de uma progressão (`libera: { arma, pontos }` no JSON da arma, em `shared/data/weapons/`; `weaponUnlocked` em `shared/progression.ts`):
+
+| Espaço | Arma | Libera com |
+|---|---|---|
+| Primária | Remendado com Fita · da Tia do Zap · Pisca-Pisca de Natal · Tunado com Adesivo de Chama · do Vovô · Dourado Ostentação | 1.000 · 2.500 · 4.500 · 7.000 · 10.000 · 16.000 pts de **rifle** (os pontos dos níveis 2 a 6 e 8) |
+| Secundária | Grampeador do RH · Submetralhadora Liquidificador · Revólver do Delegado da Quadrilha · Furadeira do Vizinho de Domingo · Garrucha do Cangaceiro · Pistolão do Marombeiro | 700 · 1.800 · 3.200 · 5.200 · 7.000 · 9.000 pts de **pistola** (os níveis 2 a 5 da pistola, e dois além do último); a furadeira também libera com os de pistola, embora evolua com os da submetralhadora |
+| Faca | Colher de Pau · Frango de Borracha · Baguete · Peixe Congelado · Macarrão de Piscina · Sabre de Luz | 600 · 1.500 · 2.800 · 4.500 · 6.500 · 9.000 pts de **faca** |
+
+Quem **já fez algum ponto com a submetralhadora** fica com ela liberada (contas de antes da trava). Sem conta tudo fica no nível 1, então as armas com trava aparecem trancadas. Os bots não têm trava (sorteiam qualquer rifle, qualquer secundária e qualquer faca). O Arsenal mostra quantos pontos faltam ("faltam 600 pts de faca"), e quando uma arma libera aparece "… liberada: equipe no Arsenal" (ela não entra sozinha no espaço). Ver [[ADR - Rifles e facas antigos como armas próprias]] e [[ADR - Secundárias novas no Arsenal]].
+
+#### Rifle (primária, os sete rifles) — 9 níveis
 
 | Nv | XP | Melhoria | Efeito | Tipo |
 |---|---|---|---|---|
@@ -73,8 +92,13 @@ Cada arma começa no **nível 1** (só os atributos base do seu JSON, ver [[Weap
 | 4 | 4500 | Luneta do Vovô (3x) | luneta (visão de luneta), zoom 2,6x, dispersão mirando −60%, alcance +30%; **troca**: tempo de mira +35%, mobilidade −5% | opcional (grupo mira) |
 | 5 | 7000 | Pente Duplo com Silver Tape | pente +10 (40, reserva 160), recarga −10% | comum |
 | 6 | 10000 | Silenciador de Garrafa PET | tiro abafado e sem traçante para os outros; **troca**: dano −10%, alcance −15% | opcional |
+| 7 | 13000 | Holo com Lupa (1,5x) | holográfica com lupa, zoom 1,5x, dispersão mirando −45%; **troca**: tempo de mira +10% | opcional (grupo mira) |
+| 8 | 16000 | Luneta 2x | luneta (visão de luneta), zoom 2x, dispersão mirando −55%, alcance +15%; **troca**: tempo de mira +20%, mobilidade −3% | opcional (grupo mira) |
+| 9 | 20000 | Luneta 4x | luneta (visão de luneta), zoom 4x, dispersão mirando −65%, alcance +40%; **troca**: tempo de mira +50%, mobilidade −7% | opcional (grupo mira) |
 
-#### Pistola do Porteiro (secundária) — 5 níveis
+As miras dos níveis 7 a 9 voltaram das primeiras versões do jogo (PF-8). Nenhuma melhoria muda a pintura do rifle: cada rifle tem a sua ([[Weapon Models]]).
+
+#### Pistola do Porteiro (secundária; também o grampeador, o revólver, a garrucha e o pistolão) — 5 níveis
 
 | Nv | XP | Melhoria | Efeito | Tipo |
 |---|---|---|---|---|
@@ -83,7 +107,7 @@ Cada arma começa no **nível 1** (só os atributos base do seu JSON, ver [[Weap
 | 4 | 3200 | Coldre de Velcro | tempo de saque −50%, recarga −20% | comum |
 | 5 | 5200 | Silenciador de Batata | tiro abafado, sem traçante, recuo −15%; **troca**: dano −8% | opcional |
 
-#### Submetralhadora Liquidificador (secundária) — 5 níveis
+#### Submetralhadora Liquidificador (secundária; também a furadeira) — 5 níveis
 
 | Nv | XP | Melhoria | Efeito | Tipo |
 |---|---|---|---|---|
@@ -92,16 +116,16 @@ Cada arma começa no **nível 1** (só os atributos base do seu JSON, ver [[Weap
 | 4 | 3800 | Pente Tambor de Pipoqueira | pente +18 (50); **troca**: recarga +25%, saque +20%, mobilidade −4% | opcional |
 | 5 | 6000 | Coronha de Mangueira | recuo −25%, dispersão −15% | comum |
 
-#### Faca — 5 níveis
+#### Faca (as sete facas) — 3 níveis
 
-Todas as formas são letais com um golpe ([[Melee]]).
+Todas as facas são letais com um golpe; o Frango de Borracha e o Sabre de Luz, que eram formas da faca, agora são facas próprias ([[Melee]]).
 
 | Nv | XP | Melhoria | Efeito | Tipo |
 |---|---|---|---|---|
 | 2 | 600 | Afiador da Feira | intervalo entre golpes −20% | comum |
-| 3 | 1500 | Frango de Borracha | investida +0,8 m, velocidade da investida +10%; **troca**: todos ouvem o grito de longe | opcional (grupo forma) |
-| 4 | 2800 | Tênis de Molinha | investida +0,6 m, velocidade da investida +20% | comum |
-| 5 | 4500 | Sabre de Luz Paraguaio | alcance do golpe +0,7 m, investida +0,3 m; **troca**: intervalo +30%, todos ouvem o "vuuum" | opcional (grupo forma) |
+| 3 | 2800 | Tênis de Molinha | investida +0,6 m, velocidade da investida +20% | comum |
+
+Os pontos continuam contando depois do nível 3: as facas antigas liberam até 9.000 pontos de faca.
 
 #### Granada — 5 níveis
 
@@ -116,14 +140,15 @@ Nomes e descrições (com o humor) estão em `client/ui/strings.ts` (`upg_<arma>
 
 ### Escolha do Arsenal
 
-- O jogador escolhe a **secundária** (pistola ou submetralhadora) e liga/desliga as **opcionais** já liberadas no **Arsenal** (menu de início e de pausa). Isso é a `ArsenalChoice` (`{ secundaria, ligadas }`), guardada na conta.
-- O servidor **descarta melhorias não liberadas** (`sanitizeChoice` com os níveis; a API responde `nivel_bloqueado`) e uma secundária que não é secundária.
-- Ao subir de nível, uma melhoria **comum** já entra em efeito (o loadout é recalculado e os outros jogadores veem, `playerLoadout`); uma **opcional** espera o jogador ligar (o banner avisa "Ligue no Arsenal").
-- Online, o servidor aplica o dano, a cadência e o alcance de cada arma **com as melhorias do jogador**, e os outros veem os modelos certos (mira, pente, silenciador, frango/sabre).
+- O jogador equipa o **rifle**, a **secundária** e a **faca** (as já liberadas) e liga/desliga **qualquer melhoria já liberada** na árvore do **Arsenal** (aba da tela inicial; no menu de pausa, só leitura em partida e editável no campo de tiro). Isso é a `ArsenalChoice` (`{ primaria, secundaria, faca, ligadas, desligadas }`: opcionais ligadas e comuns desligadas, por progressão), guardada na conta. Todos começam no Rifle Padrão, na pistola e na faca de cozinha.
+- O servidor limpa a escolha com o **XP de cada progressão** (`sanitizeChoice(raw, xp)`): **descarta melhorias não liberadas** e volta à arma padrão do espaço (Rifle Padrão, pistola, faca de cozinha) uma arma **trancada** ou que não é daquele espaço; pela API, a requisição inteira é recusada (`nivel_bloqueado`).
+- Uma escolha guardada antes das facas antigas, com o frango ou o sabre ligado como forma, vira essa faca se os pontos de faca já a liberam (senão, a faca de cozinha).
+- Ao subir de nível, uma melhoria **comum** entra em efeito (na partida com equipamento travado, a partir da próxima; no campo de tiro, na hora); uma **opcional** espera o jogador ligar (o banner avisa "Ligue no Arsenal").
+- Online, o servidor aplica o dano, a cadência e o alcance de cada arma **com as melhorias do jogador**, e os outros veem os modelos certos (o rifle e a faca escolhidos, mira, pente, silenciador).
 
 ### Contas de antes das melhorias
 
-A migração `003_melhorias.sql` sobe os pontos de cada arma até o limiar do nível novo equivalente ao antigo, para ninguém perder o que já tinha (rifle e faca: nível antigo 2→2, 3–4→3, 5–6→4, 7→5; granada 2→2, 3→3). Quem tinha equipado um nível com luneta, frango, sabre, mina ou dose dupla continua com ela ligada (`legacyChoice`, aplicado enquanto a conta não salvou uma escolha nova). Ver [[Data Migrations]].
+A migração `003_melhorias.sql` sobe os pontos de cada arma até o limiar do nível novo equivalente ao antigo, para ninguém perder o que já tinha (rifle e faca: nível antigo 2→2, 3–4→3, 5–6→4, 7→5; granada 2→2, 3→3). Quem tinha equipado um nível com luneta, mina ou dose dupla continua com ela ligada (`legacyChoice`, aplicado enquanto a conta não salvou uma escolha nova). Os rifles e as facas antigos que essas contas equipavam não voltam sozinhos: todos começam no Rifle Padrão e na faca de cozinha. Ver [[Data Migrations]].
 
 ## 2. Nível da conta
 
@@ -163,7 +188,7 @@ No modo zumbi o abate de um zumbi **não** dá os 25 XP do abate de jogador nem 
 | Online, zumbi | **Não**: todos começam com o rifle sem melhorias; as armas vêm do Caixão Misterioso | Só **XP de conta** por zumbi, chefe, onda, reanimação e vitória; **sem pontos de arma** ([[ADR - Modo zumbi cooperativo com caixão e raridades]]) |
 | Contra bots (com conta) | Mata-mata: sim, travadas na partida · corrida armada: a escada · zumbi (solo): o caixão | **Não** |
 | Treino offline (com conta) | Sim | **Não** |
-| Sem conta (qualquer modo offline) | Não: sem melhorias (a secundária pode ser trocada no Arsenal da pausa, só para a partida) | Não |
+| Sem conta (qualquer modo offline) | Não: sem melhorias e com a submetralhadora trancada (o Arsenal da pausa do campo de tiro vale só para a partida) | Não |
 
 ## Persistência (resumo)
 
@@ -175,9 +200,9 @@ O progresso fica em memória no servidor (`LiveAccount`) e o delta é gravado no
 
 ## Código relacionado
 
-- `shared/progression.ts`: `PROGRESSION`, `levelForXp`, `xpForLevel`, `activeUpgrades`, `ArsenalChoice`, `sanitizeChoice`, `legacyChoice`, `weaponOfKill`
+- `shared/progression.ts`: `PROGRESSION`, `levelForXp`, `xpForLevel`, `levelsOfXp`, `weaponUnlocked`, `pointsToUnlock`, `activeUpgrades`, `ArsenalChoice`, `sanitizeChoice`, `legacyChoice`, `weaponOfKill`
 - `shared/arsenal.ts`: `resolveLoadout`, `gunStats`, `meleeStats`, `grenadeStats` (atributos com as melhorias; ver [[Shared Systems]])
 - `shared/accountLevel.ts`: `ACCOUNT_XP`, `levelCost`, `accountLevel`
-- `server/progress.ts`: `addWeaponXp`, `addAccountXp`, `addTime`, `equip`, `levelsOf`, `loadoutOf`, `progressMsg`
-- `client/gameplay/progress.ts`: estado local do progresso; `toggle`, `setSecondary` (PATCH `/api/perfil {arsenal}`)
-- `client/ui/arsenal.ts`: tela do Arsenal
+- `server/progress.ts`: `addWeaponXp`, `addAccountXp`, `addTime`, `equip`, `xpOf`, `levelsOf`, `loadoutOf`, `progressMsg`
+- `client/gameplay/progress.ts`: estado local do progresso; `toggle`, `setSecondary`, `unlocked`, `toUnlock` (PATCH `/api/perfil {arsenal}`, um por vez, desfeito se falha)
+- `client/ui/arsenal.ts` e `client/ui/arsenalTree.ts`: a árvore do Arsenal

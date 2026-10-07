@@ -7,7 +7,7 @@ import { sanitizeFace, type Appearance, type ItemChoice } from '@shared/appearan
 import { catalogItem, type Slot } from '@shared/catalog';
 import type { Sex } from '@shared/protocol';
 import { bodyStats } from '@shared/appearance';
-import { DEFAULT_LOADOUT, meleeStats, slotStats, type Loadout } from '@shared/arsenal';
+import { DEFAULT_LOADOUT, knifeOf, slotStats, type Loadout } from '@shared/arsenal';
 import { CharacterAnimator, type AvatarPose, type ZombiePose } from '../character/animator';
 import { Character, type CharacterConfig } from '../character/character';
 import { heldGrenade, heldGun, heldKnife } from './heldWeapons';
@@ -141,7 +141,7 @@ export class Avatar {
     const missing = bodyStats(this.look).missing;
     const knifeHand = missing.handR || missing.armR ? 'hand_L' : 'hand_R';
     const grenadeHand = missing.handL || missing.armL ? 'hand_R' : 'hand_L';
-    this.knife = heldKnife(meleeStats(lo.ativas.faca).forma);
+    this.knife = heldKnife(knifeOf(lo));
     this.knife.position.set(knifeHand === 'hand_R' ? 0.01 : -0.01, 0, 0);
     this.character.sockets[knifeHand].add(this.knife);
     this.grenade = heldGrenade();

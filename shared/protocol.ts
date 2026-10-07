@@ -3,7 +3,7 @@
 // the game code.
 import type { HitRegion } from './weapons';
 import { HUMILIATION, type PotionKind } from './constants';
-import type { ArsenalChoice, GunId, ProgWeapon } from './progression';
+import type { ArsenalChoice, GunId, ProgWeapon, WeaponId } from './progression';
 import type { Loadout } from './arsenal';
 import type { Appearance } from './appearance';
 import type { MapId } from './maps';
@@ -270,7 +270,7 @@ export type ServerMsg =
   | { t: 'swing'; id: number }
   | { t: 'damage'; target: number; attacker: number | null; amount: number; health: number; from: Vec3 | null }
   /** arma: the weapon that got the kill (and its points), when it was one. */
-  | { t: 'kill'; victim: number; attacker: number | null; kind: KillKind; arma?: ProgWeapon; awards: Award[]; corpse: CorpseInfo; players: PlayerInfo[] }
+  | { t: 'kill'; victim: number; attacker: number | null; kind: KillKind; /** The gun of a shot (an old rifle too), 'faca' for a stab, 'granada'. */ arma?: WeaponId; awards: Award[]; corpse: CorpseInfo; players: PlayerInfo[] }
   | { t: 'spawned'; id: number; p: Vec3; yaw: number }
   | { t: 'grenade'; owner: number; id: number; p: Vec3; v: Vec3; fuse: number; impact?: boolean; mine?: boolean; duck?: boolean }
   | { t: 'boom'; owner: number; id: number; p: Vec3 }

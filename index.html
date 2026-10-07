@@ -206,9 +206,20 @@
               </div>
             </div>
             <div id="tab-arsenal" class="home-pane hidden">
-              <h3 data-t="arsenal"></h3>
-              <p class="hint" data-t="arsenalHint"></p>
-              <div id="home-arsenal" class="arsenal-grid"></div>
+              <!-- The Arsenal as a canvas (client/ui/arsenalCanvas.ts): the touch hint replaces the mouse one on phones. -->
+              <div class="cv-head">
+                <div class="cv-head-text">
+                  <h3 data-t="arsenal"></h3>
+                  <p class="hint hint-mouse" data-t="arsenalCanvasHint"></p>
+                  <p class="hint hint-touch" data-t="arsenalCanvasHintTouch"></p>
+                </div>
+                <div class="cv-legend">
+                  <span><i class="on"></i><span data-t="upgradeOn"></span></span>
+                  <span><i class="off"></i><span data-t="upgradeOff"></span></span>
+                  <span><i class="locked"></i><span data-t="cvLegendLocked"></span></span>
+                </div>
+              </div>
+              <div id="home-arsenal"></div>
             </div>
             <div id="tab-album" class="home-pane hidden"></div>
             <div id="tab-profile" class="home-pane hidden"></div>
@@ -291,55 +302,116 @@
     <!-- Scope overlay (rifle levels with a magnified optic, fully aimed). -->
     <div id="scope" class="hidden"><div class="scope-h"></div><div class="scope-v"></div><div class="scope-dot"></div></div>
 
-    <div id="menu" class="screen hidden">
-      <div class="menu-card sticker">
-        <h1 class="logo small">OFFENSIVE <span>COMBAT</span></h1>
-        <p id="menu-subtitle" class="subtitle"></p>
-        <p id="gpu-warning" class="gpu-warning hidden"></p>
-        <button id="play-btn" class="big-btn"></button>
-        <p id="menu-resume-hint" class="hint hidden"></p>
-        <section class="arsenal">
-          <h3 id="arsenal-title"></h3>
-          <p id="arsenal-hint" class="hint"></p>
-          <div id="arsenal-grid" class="arsenal-grid"></div>
-        </section>
-        <div id="menu-settings" class="menu-columns">
-          <div>
-            <h3 id="controls-title"></h3>
-            <table id="controls-table"></table>
-            <p id="keys-notice" class="keys-notice hidden" role="status"></p>
-            <button id="keys-reset" type="button" class="link-btn hidden"></button>
+    <!-- The start card and the pause menu (client/ui/menu.ts; rules in client/ui/pauseMenu.ts): a rail on the left
+         (where we are, back to the game, the mode's tab and the settings' tab, the exit) and, once a tab is picked,
+         its panel on the right; the exit asks first. On phones and narrow screens the rail takes the width and a
+         tab opens over it as a page of its own. ◯/B presses the button marked data-pad-back on each level. -->
+    <div id="menu" class="screen hidden" data-pad-explicit>
+      <aside class="pm-rail" data-pad-scroll>
+        <div class="pm-logo">OFFENSIVE <span>COMBAT</span></div>
+        <div class="pm-where">
+          <div class="pm-chip-row"><span id="pm-chip" class="pm-chip"></span></div>
+          <div id="pm-map" class="pm-map"></div>
+          <div id="pm-line" class="pm-line"></div>
+          <p id="gpu-warning" class="gpu-warning hidden"></p>
+          <div id="pm-banner" class="pm-banner"><span id="pm-banner-mark" class="pm-banner-mark"></span><span id="pm-banner-text"></span></div>
+        </div>
+        <button id="play-btn" type="button" class="big-btn pm-resume"></button>
+        <nav class="pm-nav">
+          <button id="pm-nav-mode" type="button" class="pm-nav-item" data-tab="mode" aria-controls="pm-panel" aria-expanded="false">
+            <span id="pm-nav-mode-icon" class="pm-nav-icon"></span>
+            <span class="pm-nav-text"><span id="pm-nav-mode-label" class="pm-nav-label"></span><span id="pm-nav-mode-sub" class="pm-nav-sub"></span></span>
+            <span class="pm-nav-arrow">›</span>
+          </button>
+          <button id="pm-nav-config" type="button" class="pm-nav-item" data-tab="config" aria-controls="pm-panel" aria-expanded="false">
+            <span class="pm-nav-icon">⚙️</span>
+            <span class="pm-nav-text"><span id="pm-nav-config-label" class="pm-nav-label"></span><span id="pm-nav-config-sub" class="pm-nav-sub"></span></span>
+            <span class="pm-nav-arrow">›</span>
+          </button>
+        </nav>
+        <div class="pm-spacer"></div>
+        <button id="menu-exit" type="button" class="pm-exit"></button>
+        <div id="pm-hints" class="pm-hints"></div>
+      </aside>
+
+      <section id="pm-panel" class="pm-panel hidden" aria-labelledby="pm-title">
+        <header class="pm-head">
+          <div class="pm-head-text">
+            <div id="pm-title" class="pm-title"></div>
+            <div id="pm-hint" class="pm-hint"></div>
           </div>
-          <div>
-            <h3 id="settings-title"></h3>
-            <label class="desktop-only"><span id="lbl-sens"></span><input id="set-sens" type="range" min="0.3" max="8" step="0.05" /><output id="out-sens"></output></label>
-            <div id="pad-settings" class="pad-only">
-              <label><span id="lbl-pad-sens"></span><input id="set-pad-sens" type="range" min="0.3" max="2.5" step="0.05" /><output id="out-pad-sens"></output></label>
-            </div>
-            <label class="check assist-only"><input id="set-aim-assist" type="checkbox" /><span id="lbl-aim-assist"></span></label>
-            <div id="touch-settings" class="mobile-only">
-              <label><span id="lbl-touch-sens"></span><input id="set-touch-sens" type="range" min="0.3" max="3" step="0.05" /><output id="out-touch-sens"></output></label>
-              <label><span id="lbl-touch-scale"></span><input id="set-touch-scale" type="range" min="0.7" max="1.4" step="0.05" /><output id="out-touch-scale"></output></label>
-              <label><span id="lbl-touch-opacity"></span><input id="set-touch-opacity" type="range" min="0.2" max="1" step="0.05" /><output id="out-touch-opacity"></output></label>
-              <label class="check"><input id="set-ads-hold" type="checkbox" /><span id="lbl-ads-hold"></span></label>
-              <label class="check fs-only"><input id="set-fullscreen" type="checkbox" /><span id="lbl-fullscreen"></span></label>
-              <div class="touch-actions">
-                <button id="touch-edit-btn" type="button" class="link-btn"></button>
-                <button id="touch-fs-btn" type="button" class="link-btn fs-only"></button>
+          <span id="pm-badge" class="pm-badge hidden"></span>
+          <button id="pm-close" type="button" class="pm-close"><span id="pm-close-wide" class="pm-close-wide"></span><span id="pm-close-narrow" class="pm-close-narrow"></span><kbd id="pm-close-key"></kbd></button>
+        </header>
+        <div id="pm-body" class="pm-body" data-pad-scroll>
+          <!-- The mode's tab: the Arsenal (client/ui/arsenal.ts), the ladder (client/ui/ladder.ts) or the coffin
+               (client/zombies/ambience.ts), drawn by client/main.ts. -->
+          <div id="pm-mode" class="pm-page hidden"></div>
+          <div id="pm-config" class="pm-page hidden">
+            <!-- The settings, lent to the home's Settings tab while the home is open. -->
+            <div id="menu-settings" class="pm-settings">
+              <div class="pm-subtabs" role="tablist" data-pad-subtabs>
+                <button id="pm-sub-aim" type="button" role="tab" data-sub="aim"></button>
+                <button id="pm-sub-video" type="button" role="tab" data-sub="video"></button>
+                <button id="pm-sub-audio" type="button" role="tab" data-sub="audio"></button>
+                <button id="pm-sub-keys" type="button" role="tab" data-sub="keys"></button>
+                <button id="pm-sub-touch" type="button" role="tab" data-sub="touch" class="mobile-only"></button>
               </div>
-              <p id="ios-fs-hint" class="hint hidden"></p>
+              <div class="pm-sub" data-sub="aim">
+                <label class="pm-row desktop-only"><span class="pm-row-text"><span id="lbl-sens"></span><small id="desc-sens"></small></span><input id="set-sens" type="range" min="0.3" max="8" step="0.05" /><output id="out-sens"></output></label>
+                <label class="pm-row"><span class="pm-row-text"><span id="lbl-ads"></span><small id="desc-ads"></small></span><input id="set-ads" type="range" min="0.3" max="1.5" step="0.05" /><output id="out-ads"></output></label>
+                <label class="pm-row pad-only"><span class="pm-row-text"><span id="lbl-pad-sens"></span><small id="desc-pad-sens"></small></span><input id="set-pad-sens" type="range" min="0.3" max="2.5" step="0.05" /><output id="out-pad-sens"></output></label>
+                <div class="pm-row pm-row-toggle assist-only"><span class="pm-row-text"><span id="lbl-aim-assist"></span><small id="desc-aim-assist"></small></span><button id="set-aim-assist" type="button" class="pm-toggle"></button></div>
+                <div class="pm-row pm-row-toggle"><span class="pm-row-text"><span id="lbl-invert"></span><small id="desc-invert"></small></span><button id="set-invert" type="button" class="pm-toggle"></button></div>
+              </div>
+              <div class="pm-sub" data-sub="video">
+                <label class="pm-row"><span class="pm-row-text"><span id="lbl-fov"></span><small id="desc-fov"></small></span><input id="set-fov" type="range" min="55" max="95" step="1" /><output id="out-fov"></output></label>
+                <div class="pm-row pm-row-toggle"><span class="pm-row-text"><span id="lbl-quality"></span><small id="desc-quality"></small></span><div id="set-quality" class="pm-seg"></div></div>
+                <div id="fs-desktop" class="pm-row pm-row-toggle desktop-only"><span class="pm-row-text"><span id="lbl-fullscreen-desktop"></span><small id="desc-fullscreen-desktop"></small></span><button id="set-fullscreen-desktop" type="button" class="pm-toggle"></button></div>
+              </div>
+              <div class="pm-sub" data-sub="audio">
+                <label class="pm-row"><span class="pm-row-text"><span id="lbl-vol"></span><small id="desc-vol"></small></span><input id="set-vol" type="range" min="0" max="1" step="0.05" /><output id="out-vol"></output></label>
+                <div class="pm-row pm-row-toggle"><span class="pm-row-text"><span id="lbl-spatial"></span><small id="desc-spatial"></small></span><div id="set-spatial" class="pm-seg"></div></div>
+              </div>
+              <div id="pm-keys-page" class="pm-sub pm-keys-page" data-sub="keys">
+                <div id="controls-table" class="pm-keys"></div>
+                <div id="pm-key-notes" class="pm-key-notes">
+                  <p id="keys-notice" class="keys-notice hidden" role="status"></p>
+                  <div class="pm-esc"><kbd>Esc</kbd><span id="pm-esc-text"></span></div>
+                  <button id="keys-reset" type="button" class="link-btn"></button>
+                  <p id="menu-debug-hint" class="pm-debug-hint"></p>
+                </div>
+                <p id="pm-pad-note" class="pm-pad-note"></p>
+              </div>
+              <div id="touch-settings" class="pm-sub mobile-only" data-sub="touch">
+                <label class="pm-row"><span class="pm-row-text"><span id="lbl-touch-sens"></span></span><input id="set-touch-sens" type="range" min="0.3" max="3" step="0.05" /><output id="out-touch-sens"></output></label>
+                <label class="pm-row"><span class="pm-row-text"><span id="lbl-touch-scale"></span></span><input id="set-touch-scale" type="range" min="0.7" max="1.4" step="0.05" /><output id="out-touch-scale"></output></label>
+                <label class="pm-row"><span class="pm-row-text"><span id="lbl-touch-opacity"></span></span><input id="set-touch-opacity" type="range" min="0.2" max="1" step="0.05" /><output id="out-touch-opacity"></output></label>
+                <div class="pm-row pm-row-toggle"><span class="pm-row-text"><span id="lbl-ads-hold"></span></span><button id="set-ads-hold" type="button" class="pm-toggle"></button></div>
+                <div class="pm-row pm-row-toggle fs-only"><span class="pm-row-text"><span id="lbl-fullscreen"></span></span><button id="set-fullscreen" type="button" class="pm-toggle"></button></div>
+                <div class="touch-actions">
+                  <button id="touch-edit-btn" type="button" class="link-btn"></button>
+                  <button id="touch-fs-btn" type="button" class="link-btn fs-only"></button>
+                </div>
+                <p id="ios-fs-hint" class="hint hidden"></p>
+                <p id="touch-help" class="pm-touch-help"></p>
+              </div>
             </div>
-            <label><span id="lbl-ads"></span><input id="set-ads" type="range" min="0.3" max="1.5" step="0.05" /><output id="out-ads"></output></label>
-            <label><span id="lbl-fov"></span><input id="set-fov" type="range" min="55" max="95" step="1" /><output id="out-fov"></output></label>
-            <label><span id="lbl-vol"></span><input id="set-vol" type="range" min="0" max="1" step="0.05" /><output id="out-vol"></output></label>
-            <label><span id="lbl-spatial"></span><select id="set-spatial"></select><output></output></label>
-            <label><span id="lbl-quality"></span><select id="set-quality"></select><output></output></label>
-            <label class="check"><input id="set-invert" type="checkbox" /><span id="lbl-invert"></span></label>
-            <label id="fs-desktop" class="check desktop-only"><input id="set-fullscreen-desktop" type="checkbox" /><span id="lbl-fullscreen-desktop"></span></label>
           </div>
         </div>
-        <p id="menu-debug-hint" class="hint desktop-only"></p>
-        <button id="menu-exit" class="link-btn hidden"></button>
+        <footer id="pm-foot" class="pm-foot hidden"></footer>
+      </section>
+
+      <div id="pm-confirm" class="pm-confirm hidden" role="dialog" aria-modal="true" aria-labelledby="pm-confirm-title">
+        <div class="pm-dialog">
+          <div id="pm-confirm-title" class="pm-dialog-title"></div>
+          <p id="pm-confirm-body" class="pm-dialog-body"></p>
+          <div class="pm-dialog-btns">
+            <button id="pm-stay" type="button" class="big-btn pm-stay"></button>
+            <button id="pm-leave" type="button" class="big-btn pm-leave"></button>
+          </div>
+          <div id="pm-confirm-line" class="pm-dialog-hint"><kbd id="pm-confirm-key"></kbd><span id="pm-confirm-hint"></span></div>
+        </div>
       </div>
     </div>
 

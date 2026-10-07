@@ -8,6 +8,12 @@ source_paths:
   - client/render/viewmodel.ts
   - shared/gunGame.ts
   - shared/data/weapons/faca.json
+  - shared/data/weapons/colher.json
+  - shared/data/weapons/frango.json
+  - shared/data/weapons/baguete.json
+  - shared/data/weapons/peixe.json
+  - shared/data/weapons/macarrao.json
+  - shared/data/weapons/sabre.json
   - shared/weapons.ts
   - shared/progression.ts
   - shared/data/progression.json
@@ -22,23 +28,23 @@ tags:
   - gameplay
   - melee
   - knife
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Melee
 
 > [!info] Evidência
-> Configuração confirmada (`faca.json`, `progression.json`) e código confirmado (`client/weapons/melee.ts`, `startMelee`/`resolveMelee` em `client/main.ts`, `onStab` em `server/session.ts`).
+> Configuração confirmada (`faca.json` e os JSONs das outras facas, `progression.json`) e código confirmado (`client/weapons/melee.ts`, `startMelee`/`resolveMelee` em `client/main.ts`, `onStab` em `server/session.ts`).
 
 ## Objetivo
 
-Golpe rápido de faca que **mata com um acerto** ("In the original, a knife hit is always a one-hit kill"), com uma **investida** curta que puxa o jogador até um alvo próximo. Bônus por facada e por facada pelas costas.
+Golpe rápido com a faca escolhida no Arsenal que **mata com um acerto** ("In the original, a knife hit is always a one-hit kill"), com uma **investida** curta que puxa o jogador até um alvo próximo. Bônus por facada e por facada pelas costas.
 
 ## Como o jogador interage
 
 **F** (controle: R1/RB ou R3; toque: botão de faca). O golpe sai sem trocar de arma: a faca só aparece durante o golpe.
 
-**Exceção — lâmina na mão (só na corrida armada):** no último degrau da [[Gun Game|corrida armada]] o loadout é `soFaca` com o Sabre de Luz. Então a lâmina fica **sempre na mão** (primeira pessoa: `Viewmodel.setBladeOnly`, pose `VM_FEEL.blade`; terceira pessoa: `AvatarPose.blade`, pose de guarda, sem armas nas costas), o **botão de tiro também golpeia**, não há mira nem recarga e a velocidade de movimento é a base (×1). Nenhum outro modo permite andar com a faca na mão.
+**Exceção — lâmina na mão (só na corrida armada):** no último degrau da [[Gun Game|corrida armada]] o loadout é `soFaca` com a faca Sabre de Luz (`faca: 'sabre'`). Então a lâmina fica **sempre na mão** (primeira pessoa: `Viewmodel.setBladeOnly`, pose `VM_FEEL.blade`; terceira pessoa: `AvatarPose.blade`, pose de guarda, sem armas nas costas), o **botão de tiro também golpeia**, não há mira nem recarga e a velocidade de movimento é a base (×1). Nenhum outro modo permite andar com a faca na mão.
 
 ## Regras
 
@@ -53,7 +59,25 @@ Golpe rápido de faca que **mata com um acerto** ("In the original, a knife hit 
 | Intervalo entre golpes (`intervalo`) | 0,6 s |
 | Velocidade da investida | 14 m/s |
 
-Cada nível (2 a 5) libera uma melhoria, aplicada por `meleeStats(melhorias)` (`shared/arsenal.ts`): **Afiador** (intervalo ×0,8), **Frango de Borracha** (opcional: investida +0,8 m, velocidade ×1,1), **Tênis de Molinha** (investida +0,6 m, velocidade ×1,2) e **Sabre de Luz Paraguaio** (opcional: golpe +0,7 m, investida +0,3 m, intervalo ×1,3). O frango e o sabre são do grupo `forma`: só um fica ligado, e ele troca o modelo e o som que **todos** ouvem. Valores e custo em [[Weapons]].
+### As facas
+
+São sete, cada uma com o seu JSON em `shared/data/weapons/` (`KnifeId` em `shared/progression.ts`). Todas são letais; o que muda é o alcance do golpe, o da investida e o intervalo. As seis antigas voltaram das primeiras versões do jogo (PF-8) e **liberam com os pontos da faca** (`libera`); todas usam **os pontos, o nível e as melhorias da faca** ([[ADR - Rifles e facas antigos como armas próprias]]).
+
+| Faca (`KnifeId`) | Libera com | Golpe | Investida | Intervalo | Velocidade da investida |
+|---|---|---|---|---|---|
+| Faca de Cozinha (`faca`) | — | 1,8 m | 3,2 m | 0,6 s | 14 m/s |
+| Colher de Pau da Vó (`colher`) | 600 pts de faca | 1,95 m | 3,2 m | 0,66 s | 14 |
+| Frango de Borracha (`frango`) | 1.500 | 1,8 m | 4,0 m | 0,6 s | 15,4 |
+| Baguete Amanhecida (`baguete`) | 2.800 | 2,1 m | 3,2 m | 0,69 s | 14 |
+| Peixe Congelado (`peixe`) | 4.500 | 1,8 m | 4,4 m | 0,72 s | 14 |
+| Macarrão de Piscina (`macarrao`) | 6.500 | 2,4 m | 2,7 m | 0,78 s | 14 |
+| Sabre de Luz Paraguaio (`sabre`) | 9.000 | 2,5 m | 3,5 m | 0,78 s | 14 |
+
+Cada uma tem modelo e som próprios ([[Weapon Models]], [[SFX]]). Só a faca de cozinha é discreta: o som das outras **todos ouvem de longe**.
+
+### Melhorias
+
+A árvore da faca tem dois níveis, que valem para **todas** as facas, aplicados por `meleeStats(faca, melhorias)` (`shared/arsenal.ts`): **Afiador** (nível 2, 600 pts: intervalo ×0,8) e **Tênis de Molinha** (nível 3, 2.800 pts: investida +0,6 m, velocidade da investida ×1,2). Ambas são comuns (ligam sozinhas, desligáveis no Arsenal). Custos em [[Progression]].
 
 ### Sequência
 
@@ -72,7 +96,7 @@ Abate com faca: abate (100) + "Facada" (50) + "Pelas costas" (50, se aplicável)
 
 ## Entradas / Saídas
 
-Entrada: F, posição do olho, yaw, alvos. Saída: `MoveInput.lunge` para o [[Movement]], dano, som (`meleeSwing(forma)`: faca, frango ou sabre; os outros ouvem o golpe de faca só de perto e o frango e o sabre mais longe — ver [[SFX]]). Online: `swing` (cosmético) e `stab {target, behind}`.
+Entrada: F, posição do olho, yaw, alvos. Saída: `MoveInput.lunge` para o [[Movement]], dano, som (`meleeSwing(faca)`, um por faca; os outros ouvem o golpe da faca de cozinha só de perto e o das outras mais longe — ver [[SFX]]). Online: `swing` (cosmético) e `stab {target, behind}`.
 
 ## Dependências
 
@@ -83,19 +107,21 @@ Entrada: F, posição do olho, yaw, alvos. Saída: `MoveInput.lunge` para o [[Mo
 - **Não pode ser cancelado pelo tiro** (cancelar seria um exploit), mas não começa se há intenção de tiro no mesmo tick, durante a dança ou com granada na mão.
 - Durante o golpe: sem sprint e sem mira.
 - Investida não acontece se o alvo já está perto (≤ 60% do alcance) e encerra o slide.
-- Servidor: aceita `stab` se ambos vivos, intervalo ≥ 75% do `intervalo` e distância horizontal ≤ `alcanceInvestida` + 1,5 m, com os valores de `meleeStats` das melhorias do jogador. **O `behind` é confiado ao cliente.**
+- Servidor: aceita `stab` se ambos vivos, intervalo ≥ 75% do `intervalo` e distância horizontal ≤ `alcanceInvestida` + 1,5 m, com os valores da **faca do jogador** com as melhorias dele (`loadoutKnife`). Ex.: com o Tênis, a baguete alcança 3,8 + 1,5 m e o macarrão 3,3 + 1,5 m. **O `behind` é confiado ao cliente.**
 - Modo PCD sem a mão direita: a faca vai para a mão esquerda (visual, README).
-- Na corrida armada, **morrer por facada** (faca ou sabre) faz descer um degrau; a facada com a faca comum não conta para quem esfaqueia. Ver [[Gun Game]].
+- Na corrida armada, **morrer por facada** (faca ou sabre) tira um abate do degrau (sem abates nele, volta à arma anterior); a facada com a faca de cozinha **conta como um abate** para quem esfaqueia, igual a um abate com a arma do degrau (desde 2026-10-07; todo degrau de arma de fogo leva a faca de cozinha, qualquer que seja a do Arsenal). Ver [[Gun Game]].
+- **Bots** (offline) golpeiam pelas mesmas regras de alcance, cone e visão, sem investida, e só **uma vez por aproximação** a cada alvo; ver [[AI Decisions]] e [[ADR - Facada dos bots com uma chance por aproximação]].
 - Se `letal` for `false`, o código usa 55 de dano fixo (hoje nunca acontece).
 
 ## Código relacionado
 
-- `client/weapons/melee.ts` — `Melee` (tempo, cooldown, `lunging`), `findMeleeTarget`.
+- `client/weapons/melee.ts` — `Melee` (tempo, cooldown, `lunging`), `findMeleeTarget` (também usado pelos bots).
 - `client/main.ts` — `startMelee`, `resolveMelee`, cálculo de `lunge` no tick.
 - `client/entities/hitboxes.ts` — `isBehind`.
 - `server/session.ts` — `onStab`.
-- `shared/arsenal.ts` — `meleeStats` (`forma`, alcances e intervalo com as melhorias).
+- `shared/arsenal.ts` — `meleeStats(faca, melhorias)` (`forma` = o id da faca, alcances e intervalo com as melhorias), `knifeOf`, `loadoutKnife`.
+- `shared/weapons.ts` — `MELEE` (os dados de cada faca), `WeaponLock`.
 
 ## Configurações relacionadas
 
-`shared/data/weapons/faca.json`; `faca.melhorias` em `shared/data/progression.json`; `SCORE.knife`, `SCORE.backstab`. Ver [[Constants Reference]].
+`shared/data/weapons/faca.json`, `colher.json`, `frango.json`, `baguete.json`, `peixe.json`, `macarrao.json`, `sabre.json`; `faca.melhorias` em `shared/data/progression.json`; `SCORE.knife`, `SCORE.backstab`. Ver [[Constants Reference]].

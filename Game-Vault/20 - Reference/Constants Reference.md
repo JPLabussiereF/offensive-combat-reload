@@ -22,13 +22,18 @@ source_paths:
   - server/session.ts
   - shared/data/weapons/pistola.json
   - shared/data/weapons/smg.json
+  - shared/data/weapons/grampeador.json
+  - shared/data/weapons/revolver.json
+  - shared/data/weapons/furadeira.json
+  - shared/data/weapons/garrucha.json
+  - shared/data/weapons/pistolao.json
   - shared/arsenal.ts
   - client/ai/bot.ts
 tags:
   - reference
   - constants
   - gameplay
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Constants Reference
@@ -144,6 +149,8 @@ Posições: `PICKUPS`, `WITCHES`, `RATS`, `FISH` em `shared/maps.ts` (ver [[Maps
 
 ## Rifle (`rifle_padrao.json`, sem melhorias) → [[Weapons]], [[Damage System]]
 
+Os seis rifles antigos (`rifle_*.json`) mudam só os campos da troca de cada um; tabela em [[Weapons#Rifles]].
+
 | Campo | Valor |
 |---|---|
 | `dano` max/min, distMax/distMin | 30 / 20, 20 m / 45 m |
@@ -183,7 +190,31 @@ Melhorias (níveis 2–6) e os pontos para liberá-las (1000 / 2500 / 4500 / 700
 
 Melhorias: pistola 700 / 1800 / 3200 / 5200; submetralhadora 800 / 2000 / 3800 / 6000. Ver [[Weapons]].
 
+## Secundárias da PF-10, sem melhorias → [[Weapons#Secundárias]]
+
+O que não está aqui é igual à pistola (multiplicadores fora a cabeça, `dispersao.noAr`/`decaimento`, `recuo.retorno`, `tracanteACada`, `penetracao` — menos na garrucha).
+
+| Campo | Grampeador (`grampeador.json`) | Revólver (`revolver.json`) | Furadeira (`furadeira.json`) | Garrucha (`garrucha.json`) | Pistolão (`pistolao.json`) |
+|---|---|---|---|---|---|
+| `libera` (pts de pistola) | 700 | 3.200 | 5.200 | 7.000 | 9.000 |
+| progressão (`progOf`) | pistola | pistola | submetralhadora | pistola | pistola |
+| `modo` | `rajada` (`rajada`: 3 tiros, pausa 0,2 s) | `semi` | `auto` | `semi` (`bagos` 8, `cone` 4,5°) | `semi` |
+| `cadencia` | 1.100 rpm (na rajada) | 150 rpm | 1.200 rpm | 300 rpm | 170 rpm |
+| `dano` max/min, distMax/distMin | 24 / 15, 10 / 28 m | 50 / 32, 10 / 30 m | 17 / 9, 5 / 16 m | 20 / 4 por bago, 5 / 15 m (até 2026-10-07: 13 / 4, 3 / 12 m) | 60 / 40, 15 / 40 m |
+| cabeça | 2,5 | 2,0 | 1,8 | 1,5 | 2,0 |
+| `pente` / `reserva` | 18 / 72 | 6 / 36 | 20 / 80 | 2 / 16 | 7 / 28 |
+| `recarga` tática/vazia | 1,5 / 1,8 s | 2,4 / 2,4 s | 1,6 / 1,9 s | 2,2 / 2,2 s | 2,0 / 2,5 s |
+| `dispersao` (diferenças) | porTiro 0,3 | parado 0,5, porTiro 0,9 | parado 1,3, mirando 0,4, porTiro 0,35 | — | parado 1,0, andando 2,0, porTiro 1,2 |
+| `recuo` vertical / horizontal | 0,9 / ±0,4 | 2,6 / ±0,4 | 0,45 / ±0,9 | 1,6 / ±0,4 | 4,0 / ±0,4 |
+| `coiceVisual` | — (1) | 1,6 | — (1) | 2 | 2,5 |
+| `ads` tempo/zoom | 0,14 s / 0,9 | 0,18 s / 0,9 | 0,12 s / 0,95 | 0,14 s / 0,9 | 0,2 s / 0,9 |
+| `movimento` / `troca` | 1,06 / 0,3 s | 1,04 / 0,4 s | 1,08 / 0,25 s | 1,06 / 0,3 s | 1,0 / 0,5 s |
+| `alcanceMaximo` | 200 m | 200 m | 120 m | 40 m | 200 m |
+| `penetracao` | a da pistola | a da pistola | a da pistola | **nenhuma** | a da pistola |
+
 ## Faca (`faca.json`) → [[Melee]]
+
+As seis facas antigas mudam só alcance, investida e intervalo; tabela em [[Melee#As facas]].
 
 | Campo | Valor |
 |---|---|
@@ -234,7 +265,9 @@ Melhorias (níveis 2–5): `mina` (opcional, 700 XP), `dupla` (opcional, 1800), 
 | `server/session.ts` | `EYE` / `CHEST` | 1,6 / 1,1 m (alturas usadas na validação) | [[Validation]] |
 | `server/session.ts` | `LAG_SLACK` | 4 m (+10% da distância) | [[Anti Cheat]] |
 | `server/session.ts` | `SWITCH_GRACE_MS` | 1000 ms (acertos da arma recém-guardada ainda valem) | [[Anti Cheat]] |
-| `client/ai/bot.ts` | `pickGun` | rifle 60% · submetralhadora 25% · pistola 15% | [[Versus Bots]] |
+| `client/ai/botGuns.ts` | `pickGun` | rifle 60% (cada um dos 7 com a mesma chance) · secundária 40% (cada uma das 7 com a mesma chance) | [[Versus Bots]] |
+| `shared/weapons.ts` | `hitsPerSecond` | `(ceil(cadência/60) + 2) × bagos` acertos/s | [[Anti Cheat]] |
+| `client/render/viewmodel.ts` | `VM_FEEL.recoil` × `coiceVisual` | tranco na tela por tiro (back 0,028, up 0,045, side 0,012) × o `coiceVisual` da arma | [[Weapon Models]] |
 | `server/session.ts` | `PICKUP_SLACK` | 1,5 m | [[Pickups]] |
 | `server/session.ts` | limites de granadas vivas | 4 granadas / 3 minas | [[Grenades]] |
 

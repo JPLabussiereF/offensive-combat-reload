@@ -1,0 +1,19 @@
+{
+  "id": "peixe",
+  "nome": "Peixe Congelado",
+  "icone": "🐟",
+  "categoria": "corpo",
+  "slot": "corpo",
+  "libera": {
+    "arma": "faca",
+    "pontos": 4500
+  },
+  "letal": true,
+  "alcance": 1.8,
+  "alcanceInvestida": 4.4,
+  "anguloGraus": 45,
+  "duracao": 0.45,
+  "impacto": 0.14,
+  "intervalo": 0.72,
+  "velocidadeInvestida": 14
+}

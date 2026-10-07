@@ -1,18 +1,16 @@
-// Loading screen (with rotating tips) and the start/pause menu with settings (section 5).
+// Loading screen (with rotating tips), and the start card and pause menu (section 5, PF-11): a rail on the left
+// (where we are, back to the game, the mode's tab and the settings' tab, the exit) and, once a tab is picked, its
+// panel on the right; the exit asks first. Esc and ◯/B go back one level: the dialog, then the tab, then the game
+// (client/ui/pauseMenu.ts). The settings live in #menu-settings, by sub-tab (aim, video, audio, keys or the
+// controller, touch on phones); the home's Settings tab borrows that block. Below 900 × 560 px, and always on
+// phones, the rail takes the width and a tab opens over it as a page of its own.
 import { CAN_FULLSCREEN, CAN_KEEP_ESCAPE, enterFullscreen, IS_IOS, IS_MOBILE, STANDALONE } from '../core/device';
 import type { GamepadInput, PadButton } from '../core/gamepad';
-import {
-  assign,
-  clearSlot,
-  keyLabel,
-  mergeKeybinds,
-  REBINDABLE,
-  type LayoutMap,
-  type RebindableAction,
-  type Slot,
-} from '../core/keybinds';
+import { assign, clearSlot, keyLabel, mergeKeybinds, type LayoutMap, type RebindableAction, type Slot } from '../core/keybinds';
 import type { Settings } from '../core/settings';
 import type { Quality } from '../render/quality';
+import { esc } from './arsenal';
+import { backStep, KEY_GROUPS, type PauseContext } from './pauseMenu';
 import { getLang, t, TIPS, type StringKey } from './strings';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -41,23 +39,97 @@ const ACTION_NAME: Record<RebindableAction, StringKey> = {
 /** navigator.keyboard (Chrome and Edge only; not in TypeScript's DOM types). */
 type KeyboardApi = { getLayoutMap?: () => Promise<LayoutMap> };
 
+export type MenuTab = 'mode' | 'config';
+type SubTab = 'aim' | 'video' | 'audio' | 'keys' | 'touch';
+
+/** The mode's tab as main.ts fills it: its entry on the rail and its panel's header and footer. */
+export interface ModeTabMeta {
+  icon: string;
+  label: string;
+  sub: string;
+  title: string;
+  hint: string;
+  badge: 'readOnly' | 'editable' | null;
+  foot: string;
+}
+
+/** Sets an element's text only when it changed (the menu is refreshed many times a second while open). */
+const setText = (el: HTMLElement, text: string) => {
+  if (el.textContent !== text) el.textContent = text;
+};
+
+/** Below this the rail takes the width and each tab is a page over it (phones always). */
+const NARROW = matchMedia('(max-width: 899px), (max-height: 559px)');
+
 export class Screens {
   private tipTimer = 0;
+
+  /** The settings being edited (bindSettings), and what to call when they change. */
+  private settings: Settings | null = null;
+  private changed: (s: Settings) => void = () => {};
+  private layout: LayoutMap | undefined;
+  /** The keyboard's table is shown (not the controller's): computers without a controller in use. */
+  private keysShown = false;
+  /** The slot waiting for a key ("press…"), and how to stop listening. */
+  private capturing: { action: RebindableAction; slot: Slot } | null = null;
+  private endCapture: () => void = () => {};
+  private notice = '';
+  /** The controller in use (its family's glyphs), null on mouse or touch. */
+  private pad: GamepadInput | null = null;
+
+  /** 'start': the card before the first click (JOGAR, no banner); 'pause': the menu over a running match. */
+  private mode: 'start' | 'pause' = 'start';
+  /** The open tab (null: only the rail, the game in view) and whether the exit's confirmation is up. */
+  private tab: MenuTab | null = null;
+  private confirming = false;
+  private sub: SubTab = 'aim';
+  private modeMeta: ModeTabMeta | null = null;
+  private tabListeners: ((tab: MenuTab | null) => void)[] = [];
+  private exitCb: () => void = () => {};
 
   constructor() {
     this.startTips();
 
-    $('menu-subtitle').textContent = t('subtitle');
-    $('controls-title').textContent = t('controls');
-    $('settings-title').textContent = t('settings');
-    $('menu-debug-hint').textContent = t('debugHint');
-    $('arsenal-title').textContent = t('arsenal');
-    $('arsenal-hint').textContent = t('arsenalHint');
-    $('menu-resume-hint').textContent = t(IS_MOBILE ? 'tapToResume' : 'clickToResume');
-    const labels: [string, StringKey][] = [['lbl-sens', 'sensitivity'], ['lbl-ads', 'adsSensitivity'], ['lbl-fov', 'fov'], ['lbl-vol', 'volume'], ['lbl-spatial', 'spatialAudio'], ['lbl-invert', 'invertY'], ['lbl-quality', 'quality']];
+    const labels: [string, StringKey][] = [
+      ['lbl-sens', 'sensitivity'],
+      ['desc-sens', 'pmDescSens'],
+      ['lbl-ads', 'adsSensitivity'],
+      ['desc-ads', 'pmDescAds'],
+      ['lbl-pad-sens', 'padSensitivity'],
+      ['desc-pad-sens', 'pmDescPadSens'],
+      ['lbl-aim-assist', 'aimAssist'],
+      ['desc-aim-assist', 'pmDescAssist'],
+      ['lbl-invert', 'invertY'],
+      ['desc-invert', 'pmDescInvert'],
+      ['lbl-fov', 'fov'],
+      ['desc-fov', 'pmDescFov'],
+      ['lbl-quality', 'quality'],
+      ['desc-quality', 'pmDescQuality'],
+      ['lbl-fullscreen-desktop', 'fullscreenOnPlay'],
+      ['desc-fullscreen-desktop', 'pmDescFullscreen'],
+      ['lbl-vol', 'volume'],
+      ['desc-vol', 'pmDescVolume'],
+      ['lbl-spatial', 'spatialAudio'],
+      ['desc-spatial', 'pmDescSpatial'],
+      ['pm-sub-aim', 'pmSubAim'],
+      ['pm-sub-video', 'pmSubVideo'],
+      ['pm-sub-audio', 'pmSubAudio'],
+      ['pm-sub-touch', 'pmSubTouch'],
+      ['pm-esc-text', 'pmEscFixed'],
+      ['pm-pad-note', 'pmPadNote'],
+      ['menu-debug-hint', 'debugHint'],
+      ['keys-reset', 'keysReset'],
+      ['touch-help', 'touchControlsHelp'],
+      ['pm-nav-config-label', 'settings'],
+      ['pm-nav-config-sub', 'pmConfigSub'],
+      ['pm-stay', 'pmStay'],
+      ['pm-leave', 'pmLeave'],
+      ['pm-confirm-hint', 'pmStayHint'],
+      ['pm-close-wide', 'pmClose'],
+      ['pm-close-narrow', 'pmBack'],
+    ];
     for (const [id, key] of labels) $(id).textContent = t(key);
 
-    $('keys-reset').textContent = t('keysReset');
     $('keys-reset').addEventListener('click', () => {
       if (!this.settings) return;
       this.stopCapture();
@@ -75,15 +147,12 @@ export class Screens {
       },
       () => {},
     );
-    this.showControls(null);
     // Phones: touch settings, the layout editor's bar, the "turn the phone" notice.
     const touchLabels: [string, StringKey][] = [
       ['lbl-touch-sens', 'touchSensitivity'],
       ['lbl-touch-scale', 'touchScale'],
       ['lbl-touch-opacity', 'touchOpacity'],
-      ['lbl-aim-assist', 'aimAssist'],
       ['lbl-ads-hold', 'adsHold'],
-      ['lbl-pad-sens', 'padSensitivity'],
       ['lbl-fullscreen', 'fullscreenOnPlay'],
       ['touch-edit-btn', 'editLayout'],
       ['touch-fs-btn', 'fullscreen'],
@@ -100,18 +169,27 @@ export class Screens {
       $('ios-fs-hint').classList.remove('hidden');
     }
     $('touch-fs-btn').addEventListener('click', () => void enterFullscreen());
-  }
 
-  /** The settings being edited (bindSettings), and what to call when they change. */
-  private settings: Settings | null = null;
-  private changed: (s: Settings) => void = () => {};
-  private layout: LayoutMap | undefined;
-  /** The keyboard's table is shown (not the controller's or the touch help). */
-  private keysShown = false;
-  /** The slot waiting for a key ("press a key…"), and how to stop listening. */
-  private capturing: { action: RebindableAction; slot: Slot } | null = null;
-  private endCapture: () => void = () => {};
-  private notice = '';
+    // The rail's tabs open their panel (the same entry again closes it); the panel's button closes it.
+    for (const b of document.querySelectorAll<HTMLElement>('#menu .pm-nav-item')) {
+      b.addEventListener('click', () => {
+        const tab = b.dataset.tab as MenuTab;
+        this.openTab(this.tab === tab ? null : tab);
+      });
+    }
+    $('pm-close').addEventListener('click', () => this.openTab(null));
+    $('menu-exit').addEventListener('click', () => this.askExit(true));
+    $('pm-stay').addEventListener('click', () => this.askExit(false));
+    $('pm-leave').addEventListener('click', () => this.exitCb());
+    // The settings' sub-tabs (here and in the home's Settings tab).
+    for (const b of document.querySelectorAll<HTMLElement>('#menu-settings [role="tab"]')) b.addEventListener('click', () => this.showSub(b.dataset.sub as SubTab));
+    // The narrow layout (phones always): a class on <html>, so the home's borrowed settings follow it too.
+    const narrow = () => document.documentElement.classList.toggle('menu-narrow', IS_MOBILE || NARROW.matches);
+    NARROW.addEventListener('change', narrow);
+    narrow();
+    this.showControls(null);
+    this.showSub('aim');
+  }
 
   /** The name of the key an action is on (its primary, else its alternate), for hints like the HUD's. */
   keyName(action: RebindableAction): string {
@@ -123,25 +201,34 @@ export class Screens {
     return keyLabel(code, getLang(), this.layout, this.settings?.keyLabels);
   }
 
+  private get padInUse(): boolean {
+    return !!this.pad && this.pad.device === 'pad';
+  }
+
+  private glyph(b: PadButton): string {
+    return this.pad!.glyph(b);
+  }
+
   /**
-   * The controls help: the controller's buttons (PlayStation or Xbox glyphs) while one is in use, the touch
-   * help on phones, the remappable keys otherwise.
+   * The controls sub-tab: the controller's buttons (PlayStation or Xbox glyphs) while one is in use, the
+   * remappable keys on a computer otherwise (phones without a controller have the Touch sub-tab instead). Also
+   * the rail's button hints and the "back" keys shown on the panel and the dialog.
    */
   showControls(pad: GamepadInput | null) {
-    const table = $('controls-table');
-    $('menu-resume-hint').textContent =
-      pad && pad.device === 'pad' ? t('padToResume', { a: pad.glyph('a'), start: pad.glyph('start') }) : t(IS_MOBILE ? 'tapToResume' : 'clickToResume');
-    this.keysShown = !IS_MOBILE && !(pad && pad.device === 'pad');
-    if (!this.keysShown) {
-      this.stopCapture();
-      $('keys-notice').classList.add('hidden');
-      $('keys-reset').classList.add('hidden');
-    }
-    if (pad && pad.device === 'pad') {
-      const g = (b: PadButton) => `<kbd>${pad.glyph(b)}</kbd>`;
+    this.pad = pad;
+    const usePad = this.padInUse;
+    this.keysShown = !IS_MOBILE && !usePad;
+    const keysTab = $('pm-sub-keys');
+    setText(keysTab, t(usePad ? 'pmSubPad' : 'pmSubKeys'));
+    keysTab.classList.toggle('hidden', IS_MOBILE && !usePad);
+    if (keysTab.classList.contains('hidden') && this.sub === 'keys') this.showSub('aim');
+    if (!this.keysShown) this.stopCapture();
+    $('pm-keys-page').classList.toggle('pad', usePad);
+    if (usePad) {
+      const g = (b: PadButton) => `<kbd>${esc(this.glyph(b))}</kbd>`;
       const rows: [StringKey, string][] = [
-        ['keyMove', `${t('padLeftStick')}`],
-        ['padLook', `${t('padRightStick')}`],
+        ['keyMove', esc(t('padLeftStick'))],
+        ['padLook', esc(t('padRightStick'))],
         ['keyFire', g('rt')],
         ['keyAds', g('lt')],
         ['keyJump', g('a')],
@@ -154,14 +241,12 @@ export class Screens {
         ['keyTaunt', g('y')],
         ['keyPause', g('start')],
       ];
-      table.innerHTML = rows.map(([k, v]) => `<tr><td>${t(k)}</td><td>${v}</td></tr>`).join('');
-      return;
-    }
-    if (IS_MOBILE) table.innerHTML = `<tr><td>${t('touchControlsHelp')}</td></tr>`;
-    else this.renderKeys();
+      $('controls-table').innerHTML = rows.map(([k, v]) => `<div class="pm-padrow"><span>${esc(t(k))}</span><span>${v}</span></div>`).join('');
+    } else this.renderKeys();
+    this.sync();
   }
 
-  /** The keyboard's table: action, primary and alternate key; a click on a key waits for the new one. */
+  /** The keyboard's table, by group: action, primary and alternate key; a click on a key waits for the new one. */
   private renderKeys() {
     if (!this.keysShown || !this.settings) return;
     const kb = this.settings.keybinds;
@@ -171,52 +256,50 @@ export class Screens {
       if (cls) e.className = cls;
       return e;
     };
-    const head = el('tr');
-    for (const k of ['keyAction', 'keyPrimary', 'keyAlternate'] as const) head.appendChild(el('th', t(k)));
-    const rows = [head];
-    for (const action of REBINDABLE) {
-      const tr = el('tr');
-      tr.appendChild(el('td', t(ACTION_NAME[action])));
-      for (const slot of [0, 1] as const) {
-        const td = el('td');
-        const cell = el('span', '', 'bind');
-        const code = kb[action][slot];
-        const waiting = this.capturing?.action === action && this.capturing.slot === slot;
-        const key = el('button', waiting ? t('keyPress') : code ? this.label(code) : '—', 'bind-key');
-        key.type = 'button';
-        key.classList.toggle('empty', !code);
-        key.classList.toggle('capturing', waiting);
-        key.addEventListener('click', () => this.startCapture(action, slot));
-        cell.appendChild(key);
-        if (code && !waiting) {
-          const clear = el('button', '×', 'bind-clear');
-          clear.type = 'button';
-          clear.title = clear.ariaLabel = t('keyClear');
-          clear.addEventListener('click', () => {
-            this.stopCapture();
-            this.settings!.keybinds = clearSlot(this.settings!.keybinds, action, slot);
-            this.keysChanged('');
-          });
-          cell.appendChild(clear);
+    const groups = KEY_GROUPS.map(([title, actions]) => {
+      const box = el('div', '', 'pm-keygroup');
+      const head = el('div', '', 'pm-keyhead');
+      head.append(el('span', t(title)), el('span', t('keyPrimary')), el('span', t('keyAlternate')));
+      box.appendChild(head);
+      for (const action of actions) {
+        const row = el('div', '', 'pm-keyrow');
+        row.appendChild(el('span', t(ACTION_NAME[action])));
+        for (const slot of [0, 1] as const) {
+          const cell = el('span', '', 'bind');
+          const code = kb[action][slot];
+          const waiting = this.capturing?.action === action && this.capturing.slot === slot;
+          const key = el('button', waiting ? t('pmKeyPress') : code ? this.label(code) : '—', 'bind-key');
+          key.type = 'button';
+          key.title = waiting ? t('keyPress') : (key.textContent ?? '');
+          key.classList.toggle('empty', !code);
+          key.classList.toggle('capturing', waiting);
+          key.addEventListener('click', () => this.startCapture(action, slot));
+          cell.appendChild(key);
+          if (code && !waiting) {
+            const clear = el('button', '×', 'bind-clear');
+            clear.type = 'button';
+            clear.title = clear.ariaLabel = t('keyClear');
+            clear.addEventListener('click', () => {
+              this.stopCapture();
+              this.settings!.keybinds = clearSlot(this.settings!.keybinds, action, slot);
+              this.keysChanged('');
+            });
+            cell.appendChild(clear);
+          }
+          row.appendChild(cell);
         }
-        td.appendChild(cell);
-        tr.appendChild(td);
+        if (!kb[action][0] && !kb[action][1]) {
+          row.classList.add('unbound');
+          row.title = t('keyUnbound');
+        }
+        box.appendChild(row);
       }
-      if (!kb[action][0] && !kb[action][1]) {
-        tr.classList.add('unbound');
-        tr.title = t('keyUnbound');
-      }
-      rows.push(tr);
-    }
-    // Esc stays the browser's (it lets go of the mouse): shown, not remappable.
-    const esc = el('tr');
-    esc.append(el('td', t('keyPause')), el('td'), el('td'));
-    esc.children[1].appendChild(el('kbd', 'Esc'));
-    rows.push(esc);
-    $('controls-table').replaceChildren(...rows);
+      return box;
+    });
+    $('controls-table').replaceChildren(...groups);
+    // The notes beside the groups: the last refusal or move, Esc (shown, not remappable), the reset, F3/F4.
     $('keys-notice').textContent = this.notice;
     $('keys-notice').classList.toggle('hidden', !this.notice);
-    $('keys-reset').classList.remove('hidden');
   }
 
   /**
@@ -280,6 +363,7 @@ export class Screens {
     this.capturing = null;
     this.endCapture();
     this.endCapture = () => {};
+    this.renderKeys();
   }
 
   /** The key pressed while waiting: bound (the other action losing it is told), or refused with the reason. */
@@ -312,7 +396,140 @@ export class Screens {
     this.renderKeys();
   }
 
-  /** The "arrange buttons" entry of the pause menu and the editor bar (phones). */
+  /** Shows one of the settings' sub-tabs. */
+  private showSub(sub: SubTab) {
+    if (sub !== 'keys') this.stopCapture();
+    this.sub = sub;
+    for (const b of document.querySelectorAll<HTMLElement>('#menu-settings [role="tab"]')) b.setAttribute('aria-selected', String(b.dataset.sub === sub));
+    for (const p of document.querySelectorAll<HTMLElement>('#menu-settings .pm-sub')) p.classList.toggle('hidden', p.dataset.sub !== sub);
+  }
+
+  // --- The menu's levels -----------------------------------------------------------------------------------
+
+  /** The tab open in the panel (null: none). */
+  get openedTab(): MenuTab | null {
+    return this.tab;
+  }
+
+  /** The element the mode's tab draws into (the Arsenal, the ladder or the coffin; main.ts fills it). */
+  get modeBody(): HTMLElement {
+    return $('pm-mode');
+  }
+
+  /** Called when a tab opens or closes (main.ts draws the mode's tab as it opens). */
+  onTab(cb: (tab: MenuTab | null) => void) {
+    this.tabListeners.push(cb);
+  }
+
+  openTab(tab: MenuTab | null) {
+    if (tab !== 'config') this.stopCapture();
+    if (tab === this.tab) return;
+    this.tab = tab;
+    $('pm-body').scrollTop = 0;
+    this.sync();
+    for (const f of this.tabListeners) f(tab);
+  }
+
+  /** Opens (or closes) the exit's confirmation; focus goes to "stay", the safe answer, and back to the exit. */
+  private askExit(open: boolean) {
+    this.stopCapture();
+    this.confirming = open;
+    this.sync();
+    $(open ? 'pm-stay' : 'menu-exit').focus({ preventScroll: true });
+  }
+
+  /**
+   * Esc while the menu is open: closes the dialog, else the tab. False at the top level (the caller goes back to
+   * the game; key capture never gets here: it listens first).
+   */
+  back(): boolean {
+    const step = backStep({ confirm: this.confirming, tab: this.tab });
+    if (step === 'close-dialog') this.askExit(false);
+    else if (step === 'close-tab') this.openTab(null);
+    return step !== 'resume';
+  }
+
+  get visible(): boolean {
+    return !$('menu').classList.contains('hidden');
+  }
+
+  /** The rail: the mode's chip in its color, the map, the line under it, the banner and the exit's label. */
+  setContext(ctx: PauseContext, mapName: string) {
+    const menu = $('menu');
+    if (menu.style.getPropertyValue('--mode') !== ctx.color) menu.style.setProperty('--mode', ctx.color);
+    setText($('pm-chip'), ctx.chip);
+    setText($('pm-map'), mapName);
+    setText($('pm-line'), ctx.line);
+    $('pm-banner').classList.toggle('live', ctx.live);
+    setText($('pm-banner-mark'), ctx.live ? '' : 'II');
+    setText($('pm-banner-text'), ctx.banner);
+    setText($('menu-exit'), ctx.exit);
+    setText($('pm-confirm-title'), `${ctx.exit}?`);
+    setText($('pm-confirm-body'), ctx.confirm);
+  }
+
+  /** The mode's tab: its entry on the rail and, while open, its panel's header and footer. */
+  setModeTab(meta: ModeTabMeta) {
+    this.modeMeta = meta;
+    setText($('pm-nav-mode-icon'), meta.icon);
+    setText($('pm-nav-mode-label'), meta.label);
+    setText($('pm-nav-mode-sub'), meta.sub);
+    if (this.tab === 'mode') this.renderHead();
+  }
+
+  /** The panel's header (title, hint, badge) and footer for the open tab. */
+  private renderHead() {
+    const m = this.tab === 'mode' ? this.modeMeta : null;
+    setText($('pm-title'), m ? m.title : t('settings'));
+    setText($('pm-hint'), m ? m.hint : t('pmConfigHint'));
+    const badge = $('pm-badge');
+    badge.classList.toggle('hidden', !m?.badge);
+    badge.classList.toggle('editable', m?.badge === 'editable');
+    setText(badge, m?.badge ? t(m.badge === 'readOnly' ? 'pmBadgeReadOnly' : 'pmBadgeEditable') : '');
+    const foot = m?.foot ?? '';
+    $('pm-foot').classList.toggle('hidden', !foot);
+    setText($('pm-foot'), foot);
+  }
+
+  /** Everything that follows the levels: what is open, which button ◯/B presses, the hints and their keys. */
+  private sync() {
+    const menu = $('menu');
+    menu.classList.toggle('start', this.mode === 'start');
+    menu.classList.toggle('panel-open', !!this.tab);
+    $('pm-panel').classList.toggle('hidden', !this.tab);
+    $('pm-mode').classList.toggle('hidden', this.tab !== 'mode');
+    $('pm-config').classList.toggle('hidden', this.tab !== 'config');
+    $('pm-confirm').classList.toggle('hidden', !this.confirming);
+    for (const b of menu.querySelectorAll<HTMLElement>('.pm-nav-item')) {
+      const on = b.dataset.tab === this.tab;
+      b.classList.toggle('sel', on);
+      b.setAttribute('aria-expanded', String(on));
+    }
+    if (this.tab) this.renderHead();
+    // ◯/B presses exactly one button per level (never the exit, whose label starts with "Sair").
+    const back = this.confirming ? 'pm-stay' : this.tab ? 'pm-close' : this.mode === 'pause' ? 'play-btn' : null;
+    for (const id of ['pm-stay', 'pm-close', 'play-btn']) $(id).toggleAttribute('data-pad-back', id === back);
+    setText($('play-btn'), t(this.mode === 'start' ? 'play' : 'resume'));
+    // The keys that go back (Esc, or the controller's ◯/B); none on a touch screen.
+    const usePad = this.padInUse;
+    const backKey = usePad ? this.glyph('b') : IS_MOBILE ? '' : 'Esc';
+    for (const id of ['pm-close-key', 'pm-confirm-key']) {
+      setText($(id), backKey);
+      $(id).classList.toggle('hidden', !backKey);
+    }
+    $('pm-confirm-line').classList.toggle('hidden', !backKey);
+    const hints: [string, StringKey][] = usePad
+      ? [...(this.mode === 'pause' ? [[this.glyph('start'), 'pmHintResume'] as [string, StringKey]] : []), [this.glyph('b'), 'pmHintBack'], [this.glyph('a'), 'pmHintPick']]
+      : !IS_MOBILE && this.mode === 'pause'
+        ? [['Esc', 'pmHintResume']]
+        : [];
+    const html = hints.map(([k, s]) => `<span><kbd>${esc(k)}</kbd>${esc(t(s))}</span>`).join('');
+    const box = $('pm-hints');
+    if (box.innerHTML !== html) box.innerHTML = html;
+    box.classList.toggle('hidden', !hints.length);
+  }
+
+  /** The "arrange buttons" entry of the Touch sub-tab and the editor bar (phones); done comes back to the menu. */
   onEditLayout(start: () => void, done: () => void, reset: () => void) {
     $('touch-edit-btn').addEventListener('click', () => {
       this.hideMenu();
@@ -322,7 +539,7 @@ export class Screens {
     $('touch-edit-done').addEventListener('click', () => {
       $('touch-edit-bar').classList.add('hidden');
       done();
-      this.showMenu('pause');
+      this.showMenu('pause', true);
     });
     $('touch-edit-reset').addEventListener('click', reset);
   }
@@ -361,28 +578,28 @@ export class Screens {
     $('loading').classList.add('hidden');
   }
 
-  showMenu(mode: 'start' | 'pause') {
+  /** Opens the start card or the pause menu: only the rail, the game in view (`keep`: as it was left). */
+  showMenu(mode: 'start' | 'pause', keep = false) {
+    this.mode = mode;
+    if (!keep) {
+      this.confirming = false;
+      this.openTab(null);
+    }
     $('menu').classList.remove('hidden');
-    $('play-btn').textContent = mode === 'start' ? t('play') : t('resume');
-    $('menu-resume-hint').classList.toggle('hidden', mode === 'start');
+    this.sync();
   }
 
-  setSubtitle(text: string) {
-    $('menu-subtitle').textContent = text;
-  }
-
-  /** Shows the "back to home" button in the pause menu. */
-  onExit(label: string, cb: () => void) {
-    const b = $('menu-exit');
-    b.textContent = label;
-    b.classList.remove('hidden');
-    b.onclick = cb;
+  /** What SAIR does in the exit's confirmation. */
+  onExit(cb: () => void) {
+    this.exitCb = cb;
   }
 
   hideMenu() {
     this.stopCapture();
     this.notice = '';
     this.renderKeys();
+    this.confirming = false;
+    this.sync();
     $('menu').classList.add('hidden');
   }
 
@@ -394,7 +611,8 @@ export class Screens {
     this.settings = s;
     this.changed = changed;
     this.renderKeys();
-    const range = (id: string, out: string, key: 'sensitivity' | 'adsSensitivity' | 'fov' | 'volume', fmt: (v: number) => string) => {
+    type RangeKey = 'sensitivity' | 'adsSensitivity' | 'fov' | 'volume' | 'touchSensitivity' | 'touchScale' | 'touchOpacity' | 'padSensitivity';
+    const range = (id: string, out: string, key: RangeKey, fmt: (v: number) => string) => {
       const el = $<HTMLInputElement>(id);
       const o = $(out);
       el.value = String(s[key]);
@@ -409,57 +627,53 @@ export class Screens {
     range('set-ads', 'out-ads', 'adsSensitivity', (v) => v.toFixed(2));
     range('set-fov', 'out-fov', 'fov', (v) => `${v}°`);
     range('set-vol', 'out-vol', 'volume', (v) => `${Math.round(v * 100)}%`);
-    const sp = $<HTMLSelectElement>('set-spatial');
-    const spatial: [Settings['spatialAudio'], StringKey][] = [['auto', 'spatialAuto'], ['hrtf', 'spatialHeadphones'], ['stereo', 'spatialSpeakers']];
-    sp.innerHTML = spatial.map(([v, k]) => `<option value="${v}">${t(k)}</option>`).join('');
-    sp.value = s.spatialAudio;
-    sp.addEventListener('change', () => {
-      s.spatialAudio = sp.value as Settings['spatialAudio'];
-      changed(s);
-    });
-    const q = $<HTMLSelectElement>('set-quality');
-    const options: [Quality, StringKey][] = [['auto', 'qualityAuto'], ['baixa', 'qualityLow'], ['media', 'qualityMedium'], ['alta', 'qualityHigh']];
-    q.innerHTML = options.map(([v, k]) => `<option value="${v}">${t(k)}</option>`).join('');
-    q.value = s.quality;
-    q.addEventListener('change', () => {
-      s.quality = q.value as Quality;
-      changed(s);
-    });
-    const touchRange = (id: string, out: string, key: 'touchSensitivity' | 'touchScale' | 'touchOpacity' | 'padSensitivity', fmt: (v: number) => string) => {
-      const el = $<HTMLInputElement>(id);
-      const o = $(out);
-      el.value = String(s[key]);
-      o.textContent = fmt(s[key]);
-      el.addEventListener('input', () => {
-        s[key] = Number(el.value);
-        o.textContent = fmt(s[key]);
+    range('set-touch-sens', 'out-touch-sens', 'touchSensitivity', (v) => v.toFixed(2));
+    range('set-pad-sens', 'out-pad-sens', 'padSensitivity', (v) => v.toFixed(2));
+    range('set-touch-scale', 'out-touch-scale', 'touchScale', (v) => `${Math.round(v * 100)}%`);
+    range('set-touch-opacity', 'out-touch-opacity', 'touchOpacity', (v) => `${Math.round(v * 100)}%`);
+    // Choices as a row of buttons, the chosen one lit.
+    const segmented = <V extends string>(id: string, options: [V, StringKey][], get: () => V, set: (v: V) => void) => {
+      const box = $(id);
+      const paint = () => {
+        for (const b of box.querySelectorAll<HTMLElement>('button')) b.setAttribute('aria-pressed', String(b.dataset.v === get()));
+      };
+      box.innerHTML = options.map(([v, k]) => `<button type="button" data-v="${v}">${esc(t(k))}</button>`).join('');
+      box.addEventListener('click', (e) => {
+        const b = (e.target as HTMLElement).closest<HTMLElement>('button[data-v]');
+        if (!b || b.dataset.v === get()) return;
+        set(b.dataset.v as V);
+        paint();
+        changed(s);
+      });
+      paint();
+    };
+    segmented<Settings['spatialAudio']>('set-spatial', [['auto', 'spatialAuto'], ['hrtf', 'spatialHeadphones'], ['stereo', 'spatialSpeakers']], () => s.spatialAudio, (v) => (s.spatialAudio = v));
+    segmented<Quality>('set-quality', [['auto', 'qualityAuto'], ['baixa', 'qualityLow'], ['media', 'qualityMedium'], ['alta', 'qualityHigh']], () => s.quality, (v) => (s.quality = v));
+    // On/off switches (one setting may have two: "fullscreen when playing" on a phone and on a computer).
+    type ToggleKey = 'aimAssist' | 'fullscreen' | 'adsHold' | 'invertY';
+    const toggles: [string, ToggleKey][] = [];
+    const paintToggles = () => {
+      for (const [id, key] of toggles) {
+        const b = $(id);
+        b.setAttribute('aria-pressed', String(s[key]));
+        b.textContent = t(s[key] ? 'pmOn' : 'pmOff');
+      }
+    };
+    const toggle = (id: string, key: ToggleKey) => {
+      toggles.push([id, key]);
+      $(id).addEventListener('click', () => {
+        s[key] = !s[key];
+        paintToggles();
         changed(s);
       });
     };
-    touchRange('set-touch-sens', 'out-touch-sens', 'touchSensitivity', (v) => v.toFixed(2));
-    touchRange('set-pad-sens', 'out-pad-sens', 'padSensitivity', (v) => v.toFixed(2));
-    touchRange('set-touch-scale', 'out-touch-scale', 'touchScale', (v) => `${Math.round(v * 100)}%`);
-    touchRange('set-touch-opacity', 'out-touch-opacity', 'touchOpacity', (v) => `${Math.round(v * 100)}%`);
-    const check = (id: string, key: 'aimAssist' | 'fullscreen' | 'adsHold') => {
-      const el = $<HTMLInputElement>(id);
-      el.checked = s[key];
-      el.addEventListener('change', () => {
-        s[key] = el.checked;
-        changed(s);
-      });
-    };
-    check('set-aim-assist', 'aimAssist');
-    check('set-ads-hold', 'adsHold');
-    check('set-fullscreen', 'fullscreen');
+    toggle('set-aim-assist', 'aimAssist');
+    toggle('set-ads-hold', 'adsHold');
+    toggle('set-fullscreen', 'fullscreen');
+    toggle('set-invert', 'invertY');
     // Computer: the same setting, where fullscreen lets the game keep Esc (device.ts CAN_KEEP_ESCAPE).
-    $('lbl-fullscreen-desktop').textContent = t('fullscreenDesktop');
-    if (CAN_KEEP_ESCAPE) check('set-fullscreen-desktop', 'fullscreen');
+    if (CAN_KEEP_ESCAPE) toggle('set-fullscreen-desktop', 'fullscreen');
     else $('fs-desktop').classList.add('hidden');
-    const inv = $<HTMLInputElement>('set-invert');
-    inv.checked = s.invertY;
-    inv.addEventListener('change', () => {
-      s.invertY = inv.checked;
-      changed(s);
-    });
+    paintToggles();
   }
 }

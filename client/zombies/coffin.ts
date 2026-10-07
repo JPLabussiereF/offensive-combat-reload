@@ -186,7 +186,7 @@ export class Coffin {
     let m = this.models.get(it.id);
     if (m) return m;
     const g = new THREE.Group();
-    const inner = isGun(it.arma) ? heldGun(gunStats(it.arma, it.melhorias)) : heldKnife('sabre');
+    const inner = isGun(it.arma) ? heldGun(gunStats(it.arma, it.melhorias)) : heldKnife(it.faca ?? 'sabre');
     inner.position.set(0, 0, 0);
     g.add(inner);
     // Sideways, so it reads from the front; bigger than in a hand.

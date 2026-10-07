@@ -11,15 +11,19 @@ source_paths:
   - client/main.ts
   - client/ui/home.ts
   - client/ui/arsenal.ts
+  - client/ui/pauseMenu.ts
 tags:
   - game
   - decision
   - modes
   - weapons
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # ADR - Equipamento travado no mata-mata
+
+> [!info] Revisão (07/10/2026, PF-11)
+> [[ADR - Menu de pausa com trilho e abas]] mudou o item 5: na partida a aba Arsenal da pausa mostra o equipamento **em uso** (o loadout travado ao entrar, com nível e pontos ao vivo), só para consulta, com o selo "🔒 Só consulta"; uma melhoria liberada durante a partida aparece com "Vale na próxima partida". No **campo de tiro** a troca de arma passou para o cartão do espaço (as armas liberadas com Equipar) e as melhorias ligam e desligam ali. As regras de travamento (itens 1 a 4 e 6) não mudaram.
 
 ## Contexto
 
@@ -41,7 +45,7 @@ As partidas online não terminam ([[Problem - Partidas sem fim]]): é preciso de
 2. **Escolha no saguão**: a aba Arsenal da tela inicial continua editando a conta (`PATCH /api/perfil`); antes de `join`/`create` o cliente manda `loadout` com a escolha, e o servidor a aplica **no saguão** (fora de sessão). Isso também mantém a conta em memória do servidor igual à do banco.
 3. **Servidor recusa** `loadout` dentro de uma sessão com `lockedLoadout` (responde só `progresso` com a escolha que ficou; ninguém recebe `playerLoadout`).
 4. **Subir de nível** continua dando e gravando XP e níveis, mas **não muda as armas na mão**; o banner avisa "Vale a partir da próxima partida" (ou "Ligue no Arsenal antes da próxima partida", para melhorias opcionais).
-5. **Menu de pausa**: Arsenal só leitura (`new Arsenal(..., readOnly)`) com o aviso de travamento. No **campo de tiro** (sem modo de jogo) o Arsenal segue editável, para testar armas.
+5. **Menu de pausa**: Arsenal só leitura com o aviso de travamento. No **campo de tiro** (sem modo de jogo) o Arsenal segue editável, para testar armas. (Desde a PF-11: `ArsenalPanel` com `editable: false` mostra o que está em uso; ver a revisão acima.)
 6. Vale também contra bots no mata-mata (mesmas regras, sem progresso).
 
 ## Motivo

@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { FLAG, NET, type CorpseInfo, type NetState, type PlayerInfo, type Sex } from '@shared/protocol';
-import { DEFAULT_LOADOUT, gunIn, meleeStats, sanitizeLoadout, slotStats, type GunStats, type Loadout, type MeleeStats } from '@shared/arsenal';
+import { DEFAULT_LOADOUT, gunIn, loadoutKnife, sanitizeLoadout, slotStats, type GunStats, type Loadout, type MeleeStats } from '@shared/arsenal';
 import type { HitRegion } from '@shared/weapons';
 import { bodyStats, defaultAppearance, type Appearance } from '@shared/appearance';
 import { Avatar } from '../entities/avatar';
@@ -111,9 +111,9 @@ export class RemotePlayer implements Target {
     return slotStats(this.loadout, this.holdingSecondary ? 'secundaria' : 'primaria')!;
   }
 
-  /** Their knife, in its form (the sound of their swings). */
+  /** Their knife (the sound of their swings). */
   get knife(): MeleeStats {
-    return meleeStats(this.loadout.ativas.faca);
+    return loadoutKnife(this.loadout);
   }
 
   /** What the body is doing, from the flags: the avatar plays it and the hitboxes follow it. */

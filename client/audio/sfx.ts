@@ -6,8 +6,9 @@
 // low-pass for air and walls in between (occlusion, a ray cast against the map), and echo sends: a short room
 // reverb in enclosed spots, a long open-air tail for gunshots and explosions outside.
 import type { SurfaceMaterial } from '../world/physics';
-import type { GunId, KnifeForm } from '@shared/progression';
+import type { GunId, KnifeId } from '@shared/progression';
 import { distanceGain, Enclosure, SPATIAL_KINDS, voiceParams, type CastFn, type SpatialKindName, type Vec } from './spatial';
+import { shotVoiceOf } from './gunVoices';
 
 type Bus = 'sfx' | 'ui';
 /** 'hrtf' = 3D for headphones; 'stereo' = left/right only (speakers, lighter on phones). */
@@ -302,9 +303,10 @@ export class Sfx {
 
   /**
    * Three layers: crack, body, room tail; +-5% pitch variation so it never sounds identical. Each gun has its
-   * voice: the rifle's full bang, the pistol's sharper and shorter pop, the SMG's light, quick crack; a
-   * silenced one is a muffled "pff" (other players hear it only up close). Other players' shots play through
-   * `at(muzzle, ...)`, which handles their distance and direction.
+   * voice (SHOT_VOICES): the rifle's full bang, the pistol's sharper and shorter pop, the SMG's light, quick
+   * crack, and the newer secondaries' own extra layer; a silenced one is a muffled "pff" (other players hear it
+   * only up close). Other players' shots play through `at(muzzle, ...)`, which handles their distance and
+   * direction.
    */
   gunshot(volume = 1, voice: GunVoice = 'rifle') {
     if (!this.ready || volume < 0.02) return;
@@ -317,11 +319,36 @@ export class Sfx {
       return this.tone(t, 'sine', 120 * p, 60, 0.05, 0.25 * v);
     }
     // Pitch, body length and low end of each voice.
-    const [pitch, body, low] = voice === 'pistola' ? [1.35, 0.09, 0.55] : voice === 'smg' ? [1.2, 0.08, 0.5] : [1, 0.14, 0.8];
+    const { pitch, body, low, extra } = shotVoiceOf(voice);
     this.noiseBurst(t, 0.05, 'highpass', 2500 * p * pitch, 0.7, 0.55 * v * v, 'sfx', p);
     this.noiseBurst(t, body, 'lowpass', 1400 * p * pitch, 0.9, 0.9 * v, 'sfx', p);
     this.tone(t, 'sine', 150 * p * pitch, 45, body * 0.85, low * v);
     this.noiseBurst(t + 0.02, body * 2.5, 'bandpass', 700 * p * pitch, 0.6, 0.12 * Math.sqrt(v), 'sfx', p);
+    if (extra === 'grampo') {
+      // Tec: a staple's metal clack, and the spring snapping back.
+      this.noiseBurst(t, 0.03, 'bandpass', 4800 * p, 6, 0.35 * v, 'sfx', p);
+      this.tone(t, 'triangle', 2800 * p, 1900, 0.035, 0.18 * v);
+      this.tone(t + 0.025, 'square', 1500 * p, 1200, 0.02, 0.05 * v);
+    } else if (extra === 'estalo') {
+      // A long, deep crack rolling off the walls.
+      this.tone(t, 'sine', 95 * p, 32, 0.32, 0.55 * v);
+      this.noiseBurst(t + 0.03, 0.55, 'bandpass', 480 * p, 0.5, 0.16 * Math.sqrt(v), 'sfx', p);
+    } else if (extra === 'motor') {
+      // The drill's motor buzzing under every round.
+      this.tone(t, 'sawtooth', 210 * p, 185, 0.06, 0.09 * v);
+      this.tone(t, 'square', 420 * p, 380, 0.05, 0.03 * v);
+    } else if (extra === 'pow') {
+      // Two barrels' worth of black powder, deep and wide.
+      this.tone(t, 'sine', 75 * p, 28, 0.38, 1.0 * v);
+      this.noiseBurst(t, 0.3, 'lowpass', 650 * p, 0.7, 0.6 * v, 'sfx', p);
+      this.noiseBurst(t + 0.04, 0.6, 'bandpass', 380 * p, 0.5, 0.15 * Math.sqrt(v), 'sfx', p);
+    } else if (extra === 'canhao') {
+      // The deepest of all: a hand cannon's boom and a long tail.
+      this.tone(t, 'sine', 58 * p, 22, 0.5, 1.15 * v);
+      this.tone(t, 'triangle', 110 * p, 40, 0.25, 0.35 * v);
+      this.noiseBurst(t, 0.35, 'lowpass', 420 * p, 0.7, 0.7 * v, 'sfx', p);
+      this.noiseBurst(t + 0.05, 0.8, 'bandpass', 300 * p, 0.5, 0.18 * Math.sqrt(v), 'sfx', p);
+    }
   }
 
   /** Switching guns: cloth and a metallic click as the other one comes up. */
@@ -340,14 +367,42 @@ export class Sfx {
     this.tone(t, 'square', 1800, 900, 0.02, 0.05);
   }
 
-  /** Reload timeline: mag out, mag in, and (empty reload) bolt release. */
-  reload(duration: number, empty: boolean) {
+  /**
+   * Reload timeline: mag out, mag in, and (empty reload) bolt release. Some guns reload their own way: the
+   * revolver's cylinder swings out and spins, the garrucha snaps open and shut, the drill's battery clicks in.
+   */
+  reload(duration: number, empty: boolean, gun: GunId = 'rifle') {
     if (!this.ready) return;
     const t = this.ctx!.currentTime;
     const click = (at: number, f: number, peak: number) => {
       this.noiseBurst(t + at, 0.05, 'bandpass', f, 3, peak);
       this.tone(t + at, 'triangle', f / 3, f / 6, 0.05, peak * 0.4);
     };
+    if (gun === 'revolver') {
+      // Cylinder out, the ratchet spinning, six rounds dropped in, flicked shut.
+      click(duration * 0.12, 1500, 0.35);
+      for (let k = 0; k < 8; k++) click(duration * 0.2 + k * 0.035, 2600 - k * 60, 0.12);
+      for (let k = 0; k < 6; k++) click(duration * (0.45 + k * 0.05), 3200, 0.1);
+      click(duration * 0.88, 1200, 0.5);
+      return;
+    }
+    if (gun === 'garrucha') {
+      // The barrels break open with a clunk, two shells go in, and it snaps shut.
+      this.tone(t + duration * 0.1, 'sine', 320, 140, 0.12, 0.3);
+      click(duration * 0.1, 900, 0.45);
+      click(duration * 0.5, 2000, 0.2);
+      click(duration * 0.62, 2000, 0.2);
+      click(duration * 0.86, 2400, 0.6);
+      return;
+    }
+    if (gun === 'furadeira') {
+      // The battery slides out, the new one clicks in, and the trigger tests the motor.
+      this.noiseBurst(t + duration * 0.15, 0.12, 'lowpass', 600, 1, 0.2);
+      this.noiseBurst(t + duration * 0.5, 0.1, 'lowpass', 700, 1, 0.2);
+      click(duration * 0.6, 1400, 0.55);
+      this.tone(t + duration * 0.82, 'sawtooth', 190, 260, 0.14, 0.08);
+      return;
+    }
     click(duration * 0.2, 1800, 0.35);
     click(duration * 0.55, 1200, 0.5);
     if (empty) {
@@ -760,13 +815,25 @@ export class Sfx {
     }
   }
 
-  /** Swing sound of each knife form (the plain knife uses knifeSwing). */
-  meleeSwing(form: KnifeForm) {
+  /** Swing sound of each knife (the kitchen knife uses knifeSwing). */
+  meleeSwing(knife: KnifeId) {
     if (!this.ready) return;
     const t = this.ctx!.currentTime;
-    switch (form) {
+    switch (knife) {
       case 'faca':
         return this.knifeSwing();
+      case 'colher': // wooden spoon: hollow knock
+        this.tone(t + 0.08, 'triangle', 520, 300, 0.07, 0.35);
+        return this.noiseBurst(t, 0.1, 'bandpass', 700, 1.5, 0.15);
+      case 'baguete': // stale baguette: crunch
+        this.noiseBurst(t + 0.08, 0.05, 'highpass', 2500, 1, 0.45);
+        this.noiseBurst(t + 0.13, 0.04, 'highpass', 3200, 1, 0.3);
+        return this.noiseBurst(t, 0.12, 'bandpass', 900, 1, 0.12);
+      case 'peixe': // frozen fish: wet slap
+        this.noiseBurst(t + 0.09, 0.07, 'lowpass', 1400, 1, 0.6);
+        return this.tone(t + 0.09, 'sine', 220, 90, 0.1, 0.3);
+      case 'macarrao': // pool noodle
+        return this.boing();
       case 'frango': // rubber chicken: the classic squeal
         this.tone(t, 'square', 700, 1500, 0.09, 0.12, 'sfx', 0.004);
         this.tone(t + 0.09, 'square', 1500, 900, 0.22, 0.1, 'sfx', 0.004);

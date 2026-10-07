@@ -11,7 +11,7 @@ import { importNavMesh, init, type NavMesh } from 'recast-navigation';
 import nav from '@shared/data/navmesh/cemiterio.json';
 import { gunStats, resolveLoadout } from '@shared/arsenal';
 import { modeMaps, MODE_RULES } from '@shared/modes';
-import { MAX_LEVELS, PROG_WEAPONS, xpForLevel, type ArsenalChoice, type ProgWeapon } from '@shared/progression';
+import { MAX_LEVELS, progOf, PROG_WEAPONS, xpForLevel, type ArsenalChoice, type ProgWeapon } from '@shared/progression';
 import { FLAG, type ServerMsg, type Vec3 } from '@shared/protocol';
 import {
   BOX_ITEMS,
@@ -30,6 +30,7 @@ import {
   withItem,
   Z_KINDS,
   ZOMBIE,
+  zombieGunData,
   zombieLoadout,
   zombieProblems,
   type BossId,
@@ -76,7 +77,9 @@ describe('regras do modo zumbi', () => {
   });
 
   it('todo mundo começa com o rifle sem melhorias e a faca comum', () => {
-    expect(zombieLoadout(startItems())).toEqual({ primaria: 'rifle', secundaria: null, ativas: { rifle: [], pistola: [], smg: [], faca: [], granada: [] } });
+    expect(zombieLoadout(startItems())).toEqual({ primaria: 'rifle', secundaria: null, faca: 'faca', ativas: { rifle: [], pistola: [], smg: [], faca: [], granada: [] } });
+    // The coffin's saber is the saber knife.
+    expect(zombieLoadout({ ...startItems(), faca: 'sabre' })).toMatchObject({ faca: 'sabre', ativas: { faca: [] } });
   });
 
   it('as ondas crescem, escalam com os jogadores e têm chefes nas ondas marcadas', () => {
@@ -103,6 +106,24 @@ describe('regras do modo zumbi', () => {
     expect(count.epico).toBeGreaterThan(count.lendario);
     expect(count.lendario).toBeGreaterThan(50);
     expect(BOX_ITEMS.every((i) => itemSlot(i) === (i.arma === 'rifle' ? 'primaria' : i.arma === 'faca' ? 'faca' : 'secundaria'))).toBe(true);
+  });
+
+  it('as secundárias novas no caixão, sem melhorias: grampeador e revólver comuns, furadeira e garrucha raras, pistolão épico', () => {
+    const want = { grampeador: 'comum', revolver: 'comum', furadeira: 'raro', garrucha: 'raro', pistolao: 'epico' } as const;
+    for (const [id, raridade] of Object.entries(want) as [keyof typeof want, (typeof want)[keyof typeof want]][]) {
+      const it = itemOf(id)!;
+      expect({ id, it }).toEqual({ id, it: { id, arma: id, melhorias: [], raridade } });
+      expect(itemSlot(it)).toBe('secundaria');
+      // In the hand: the secondary slot, the rifle kept as the primary.
+      expect(zombieLoadout(withItem(startItems(), it, null))).toMatchObject({ primaria: 'rifle', secundaria: id });
+    }
+    // The coffin hands each of them out.
+    const rng = seeded(11);
+    const seen = new Set<string>();
+    for (let i = 0; i < 6000; i++) seen.add(rollBox(rng, startItems()).id);
+    for (const id of Object.keys(want)) expect({ id, seen: seen.has(id) }).toEqual({ id, seen: true });
+    // A damaged garrucha with fewer rounds still has one shell in the barrels.
+    expect(zombieGunData(gunStats('garrucha'), 'municao').pente).toBe(1);
   });
 
   it('a virilha mata um zumbi comum na hora, mas só dobra o dano num chefe; a raridade multiplica', () => {
@@ -746,7 +767,7 @@ describe('modo zumbi no servidor: progressão de armas, chefes e quem entra no m
     // The coffin's weapon: in its slot, with its own fixed upgrades, never the account's.
     const { item, lo } = await buyFromCoffin(a);
     expect(lo).toEqual(zombieLoadout({ ...startItems(), [itemSlot(item)]: item.id }));
-    expect(lo.ativas[item.arma]).toEqual(item.melhorias);
+    expect(lo.ativas[item.arma === 'faca' ? 'faca' : progOf(item.arma)]).toEqual(item.melhorias);
     expect(lo.ativas.granada).toEqual([]);
     // And its damage on the boss: that weapon with those upgrades, times its rarity.
     if (item.arma === 'faca') {
@@ -777,7 +798,7 @@ describe('modo zumbi no servidor: progressão de armas, chefes e quem entra no m
       // A blade has no rounds to lose: its flaw is always less damage.
       expect(got).toBe(item.arma === 'faca' ? 'dano' : flaw);
       // (the loadout lists every damaged weapon in hand: an earlier roll's may still be there in its own slot)
-      expect(lo.danificadas?.[item.arma]).toBe(got!);
+      expect(lo.danificadas?.[item.arma === 'faca' ? 'faca' : progOf(item.arma)]).toBe(got!);
       const mul = rarityMul(item.raridade) * (got === 'municao' ? 1 : ZOMBIE.caixa.danificada.dano);
       if (item.arma === 'faca') {
         a.p.send({ t: 'state', s: { p: close, yaw: 0, pitch: 0, f: FLAG.grounded } });

@@ -84,16 +84,21 @@
     { "id": "pistola", "arma": "pistola", "melhorias": [], "raridade": "comum" },
     { "id": "pistolaBatata", "arma": "pistola", "melhorias": ["batata"], "raridade": "comum" },
     { "id": "liquidificador", "arma": "smg", "melhorias": [], "raridade": "comum" },
+    { "id": "grampeador", "arma": "grampeador", "melhorias": [], "raridade": "comum" },
+    { "id": "revolver", "arma": "revolver", "melhorias": [], "raridade": "comum" },
     { "id": "rifleFirme", "arma": "rifle", "melhorias": ["pontoVermelho", "empunhadura"], "raridade": "raro" },
     { "id": "rifleVovo", "arma": "rifle", "melhorias": ["empunhadura", "luneta"], "raridade": "raro" },
     { "id": "pistolaLigeira", "arma": "pistola", "melhorias": ["gatilho", "pontoVermelho", "coldre"], "raridade": "raro" },
     { "id": "liquidificadorMotor", "arma": "smg", "melhorias": ["motor", "holo"], "raridade": "raro" },
+    { "id": "furadeira", "arma": "furadeira", "melhorias": [], "raridade": "raro" },
+    { "id": "garrucha", "arma": "garrucha", "melhorias": [], "raridade": "raro" },
     { "id": "rifleRemendado", "arma": "rifle", "melhorias": ["empunhadura", "pente"], "raridade": "epico" },
     { "id": "liquidificadorTurbo", "arma": "smg", "melhorias": ["motor", "holo", "coronha"], "raridade": "epico" },
     { "id": "liquidificadorPipoca", "arma": "smg", "melhorias": ["motor", "holo", "tambor"], "raridade": "epico" },
+    { "id": "pistolao", "arma": "pistolao", "melhorias": [], "raridade": "epico" },
     { "id": "rifleCompleto", "arma": "rifle", "melhorias": ["pontoVermelho", "empunhadura", "pente"], "raridade": "lendario" },
     { "id": "liquidificadorSupremo", "arma": "smg", "melhorias": ["motor", "holo", "tambor", "coronha"], "raridade": "lendario" },
-    { "id": "sabre", "arma": "faca", "melhorias": ["sabre"], "raridade": "lendario" }
+    { "id": "sabre", "arma": "faca", "faca": "sabre", "melhorias": [], "raridade": "lendario" }
   ],
   "mapas": {
     "cemiterio": {
