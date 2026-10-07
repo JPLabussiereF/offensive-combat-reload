@@ -55,7 +55,9 @@ import { BACK_OFFSET, BodySounds, occluderWeight, pathOcclusion, type Vec, type 
 import { Chat } from './ui/chat';
 import { Hud, type Buff, type FeedIcon } from './ui/hud';
 import { Screens } from './ui/menu';
-import { closeReason, gameModeName, showHome } from './ui/home';
+import { closeReason, gameModeName, showHome, type HomeChoice } from './ui/home';
+import { runEditor } from './editor/editor';
+import { devEditorChoice, editorChoice, handOff, takeHandoff, testChoice } from './editor/launch';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
 import { Arsenal, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
@@ -127,7 +129,22 @@ async function boot() {
 
   // --- Home: the account, then an online session, bots or offline training -------------------------
   screens.hideLoading();
-  const choice = await showHome();
+  // The map editor comes in through the home's choice (or, between reloads, its handoff: client/editor/launch.ts):
+  // coming back from testing a map, going to test one on the training range, or the development entry.
+  const handoff = takeHandoff();
+  // PROVISÓRIO (fase 4 da PF-6): "?editor" só em desenvolvimento, até a tela Mapas ter os botões Editar e Novo mapa.
+  const devEditor = import.meta.env.DEV ? devEditorChoice() : null;
+  const tested = handoff?.acao === 'testar' ? await testChoice(handoff) : null;
+  const picked: HomeChoice =
+    handoff?.acao === 'voltar' ? editorChoice(handoff.mapa, handoff) : devEditor ? editorChoice(devEditor === 'novo' ? null : devEditor) : (tested?.choice ?? (await showHome()));
+  if (picked.mode === 'editor') {
+    // The editor runs on its own loop: no input, player or HUD; leaving it reloads the page.
+    await runEditor({ ctx, physics, mapa: picked.mapa, rascunho: picked.rascunho });
+    return;
+  }
+  const choice = picked;
+  /** Testing a map from the editor: its draft is the map, and leaving goes back to the editor. */
+  const testing = tested ? handoff : null;
   const online = choice.mode === 'online' ? choice : null;
   const conn = online?.conn ?? null;
   const me = online?.joined.you ?? 0;
@@ -141,9 +158,9 @@ async function boot() {
   const mapUrl = new URLSearchParams(location.search).get('mapa');
   // Online: the version the session plays, downloaded from the server (cached). Offline: the official maps' data
   // ship with the client (shared/data/mapas), so training and bots work without the server.
-  const mapData = mapUrl ? null : online ? await fetchMapVersion(online.joined.session.map, online.joined.session.versao) : await loadOfficialMap(choice.map);
-  // An offline match counts as a play of the map (the server counts the online ones itself).
-  if (!online && !mapUrl) api('POST', `/api/mapas/${encodeURIComponent(choice.map)}/jogadas`).catch(() => {});
+  const mapData = tested ? tested.data : mapUrl ? null : online ? await fetchMapVersion(online.joined.session.map, online.joined.session.versao) : await loadOfficialMap(choice.map);
+  // An offline match counts as a play of the map (the server counts the online ones itself); a test from the editor doesn't.
+  if (!online && !mapUrl && !tested) api('POST', `/api/mapas/${encodeURIComponent(choice.map)}/jogadas`).catch(() => {});
   const buildMap = mapData ? buildMapFromData(mapData, { physics, scene: ctx.scene, renderer: ctx.renderer, sfx, modo: 'jogo' }) : buildGltfMap(mapUrl!, new MapBuilder(physics, ctx.scene), ctx.renderer);
   const [map] = await Promise.all([buildMap, textures]);
   const mapBuildMs = performance.now() - tMap;
@@ -1566,6 +1583,8 @@ async function boot() {
   }
   screens.onExit(t('exitToHome'), () => {
     conn?.close();
+    // Leaving a test goes back to the editor, on the same draft.
+    if (testing) handOff({ ...testing, acao: 'voltar' });
     location.reload();
   });
   // Desktop: clicking the game takes the mouse back (on phones the menu's button resumes).
