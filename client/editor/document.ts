@@ -83,6 +83,11 @@ export class EditorDocument {
   /** History size at the last save (or at opening): more means unsaved edits. */
   private savedAt = 0;
   private savedRedo = false;
+  /**
+   * Read-only while the map is played inside the editor (Play, etapa 4): every edit, undo and redo is refused,
+   * whatever asks for it (a panel, a key, a drop).
+   */
+  locked = false;
 
   /** `data` stays the same object for good (the scene's loader reads its files through it). */
   constructor(readonly data: MapData) {}
@@ -105,18 +110,20 @@ export class EditorDocument {
 
   /** Makes an edit (undoable). */
   commit(p: Patch) {
-    if (!p.pecas.length && !p.resto) return;
+    if (this.locked || (!p.pecas.length && !p.resto)) return;
     this.history.push(p);
     this.emit(applyPatch(this.data, p, 'forward'));
   }
 
   undo() {
+    if (this.locked) return false;
     const p = this.history.undo();
     if (p) this.emit(applyPatch(this.data, p, 'back'));
     return !!p;
   }
 
   redo() {
+    if (this.locked) return false;
     const p = this.history.redo();
     if (p) this.emit(applyPatch(this.data, p, 'forward'));
     return !!p;

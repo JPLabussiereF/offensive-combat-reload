@@ -1,4 +1,4 @@
-// New pieces from the palette: a kind's params copied from its first piece in the official maps (every kind
+// New pieces from the Project panel: a kind's params copied from its first piece in the official maps (every kind
 // they use has a sensible example there), or the catalog's defaults for the few they don't; its own id, seed
 // and gag id; and the server's places it needs (a giant rat's, the witch's). A 'livre' piece stands where it was
 // dropped; any other is placed there by its pose (the editor measures where its example built first).
@@ -62,8 +62,11 @@ export interface NewPiece {
   byPose: boolean;
 }
 
-/** A new piece of `tipo` dropped at `at` (null: the map has as many as the kind allows). */
-export function newPiece(data: MapData, tipo: string, at: Vec3, template?: Peca, rand = Math.random): NewPiece | null {
+/**
+ * A new piece of `tipo` dropped at `at` (in its group's frame) (null: the map has as many as the kind allows).
+ * `world`: the same point in the world, where the server's places go (a giant rat's, the witch's).
+ */
+export function newPiece(data: MapData, tipo: string, at: Vec3, template?: Peca, rand = Math.random, world: Vec3 = at): NewPiece | null {
   const k = MAP_CATALOG[tipo];
   if (!k) return null;
   const peca: Peca = { id: newPieceId(data, tipo), tipo, params: template ? clone(template.params) : defaultParams(k.params) };
@@ -83,10 +86,10 @@ export function newPiece(data: MapData, tipo: string, at: Vec3, template?: Peca,
   if (tipo === 'ratoGigante') {
     const id = newObjectId(data, 'rato');
     peca.params.id = id;
-    rest = (r) => r.objetos.ratos.push({ id, p: [...at] });
+    rest = (r) => r.objetos.ratos.push({ id, p: [...world] });
   } else if (tipo === 'bruxa') {
     if (data.objetos.bruxa) return null;
-    rest = (r) => (r.objetos.bruxa = [...at]);
+    rest = (r) => (r.objetos.bruxa = [...world]);
   }
   return { peca, rest, byPose: !free };
 }
