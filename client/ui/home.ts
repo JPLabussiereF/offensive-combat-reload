@@ -11,7 +11,8 @@ import { Progress } from '../gameplay/progress';
 import { api, fetchMe, fetchProfile } from '../net/api';
 import { Connection } from '../net/connection';
 import { Arsenal, weaponIcon } from './arsenal';
-import type { ProgWeapon } from '@shared/progression';
+import { progOf, type WeaponId } from '@shared/progression';
+import { knifeOf } from '@shared/arsenal';
 import { errorText, showAuth, type AuthView } from './auth';
 import { renderPortrait, showCustomizer, Stage } from './customize';
 import { showProfile } from './profile';
@@ -214,10 +215,10 @@ export function showHome(): Promise<HomeChoice> {
 
   const renderEquipped = () => {
     if (!progress) return;
-    // What goes into a match: the primary, the chosen secondary, the knife and the grenade (as their upgrades make them).
+    // What goes into a match: the chosen rifle, secondary and knife, and the grenade (as its upgrades make it).
     const lo = progress.loadout;
-    const carried: (ProgWeapon | null)[] = [lo.primaria, lo.secundaria, 'faca', 'granada'];
-    const icons = carried.flatMap((w) => (w ? [weaponIcon(w, lo.ativas[w])] : [])).join(' ');
+    const carried: (WeaponId | null)[] = [lo.primaria, lo.secundaria, knifeOf(lo), 'granada'];
+    const icons = carried.flatMap((w) => (w ? [weaponIcon(w, lo.ativas[progOf(w)])] : [])).join(' ');
     $('char-equipped').textContent = t('equippedLine', { icons });
   };
 

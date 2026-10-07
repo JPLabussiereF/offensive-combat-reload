@@ -1,13 +1,16 @@
 {
-  "_doc": "Evolução das armas por melhorias. Cada arma começa no nível 1 (só os atributos base do seu JSON) e cada nível seguinte libera UMA melhoria. xp = pontos acumulados COM ESSA ARMA para liberar o nível (cada abate rende os pontos do abate, bônus incluídos, só para a arma que matou). Melhorias comuns ligam sozinhas assim que liberadas; as 'opcionais' (com troca: perdem algo para ganhar algo) começam desligadas. O jogador liga e desliga qualquer melhoria liberada no Arsenal. Num mesmo 'grupo' só uma fica ligada: uma opcional ligada substitui as comuns do grupo, e ligar a comum desliga a opcional. 'libera' trava uma arma até a arma anterior do mesmo slot chegar a um nível ({ arma, nivel }); quem já fez pontos com a arma travada fica com ela liberada. Efeitos: números são multiplicadores, exceto pente/golpe/investida/granadas (somam) e zoom/mira/visual/forma/tipo (substituem). Nomes e descrições ficam em client/ui/strings.ts (upg_<arma>_<id>).",
+  "_doc": "Evolução das armas por melhorias. Cada arma começa no nível 1 (só os atributos base do seu JSON) e cada nível seguinte libera UMA melhoria. xp = pontos acumulados COM ESSA ARMA para liberar o nível (cada abate rende os pontos do abate, bônus incluídos, só para a arma que matou). Melhorias comuns ligam sozinhas assim que liberadas; as 'opcionais' (com troca: perdem algo para ganhar algo) começam desligadas. O jogador liga e desliga qualquer melhoria liberada no Arsenal. Num mesmo 'grupo' só uma fica ligada: uma opcional ligada substitui as comuns do grupo, e ligar a comum desliga a opcional. As armas de cada espaço (rifles antigos, secundárias, facas) ficam em data/weapons/*.json; uma arma pode ficar travada até a arma de progressão dela juntar pontos ('libera' no JSON da arma; quem já fez pontos com a própria arma travada fica com ela). Os rifles antigos usam os pontos e as melhorias do rifle, e as facas os da faca. Efeitos: números são multiplicadores, exceto pente/golpe/investida/granadas (somam) e zoom/mira/tipo (substituem). A pintura é de cada rifle, não das melhorias. Nomes e descrições ficam em client/ui/strings.ts (upg_<arma>_<id>).",
   "rifle": {
     "icone": "🔫",
     "melhorias": [
       { "nivel": 2, "xp": 1000, "id": "pontoVermelho", "icone": "🔴", "grupo": "mira", "efeitos": { "mira": "pontoVermelho", "zoom": 0.78, "mirando": 0.7 } },
       { "nivel": 3, "xp": 2500, "id": "empunhadura", "icone": "🧹", "efeitos": { "recuo": 0.8, "dispersao": 0.85 } },
-      { "nivel": 4, "xp": 4500, "id": "luneta", "icone": "🔭", "opcional": true, "grupo": "mira", "efeitos": { "mira": "luneta", "visual": "vovo", "zoom": 0.38, "mirando": 0.4, "alcance": 1.3, "adsTempo": 1.35, "movimento": 0.95 } },
-      { "nivel": 5, "xp": 7000, "id": "pente", "icone": "🩹", "efeitos": { "pente": 10, "recarga": 0.9, "visual": "fita" } },
-      { "nivel": 6, "xp": 10000, "id": "silenciador", "icone": "🍾", "opcional": true, "efeitos": { "silenciador": true, "dano": 0.9, "alcance": 0.85 } }
+      { "nivel": 4, "xp": 4500, "id": "luneta", "icone": "🔭", "opcional": true, "grupo": "mira", "efeitos": { "mira": "luneta", "zoom": 0.38, "mirando": 0.4, "alcance": 1.3, "adsTempo": 1.35, "movimento": 0.95 } },
+      { "nivel": 5, "xp": 7000, "id": "pente", "icone": "🩹", "efeitos": { "pente": 10, "recarga": 0.9 } },
+      { "nivel": 6, "xp": 10000, "id": "silenciador", "icone": "🍾", "opcional": true, "efeitos": { "silenciador": true, "dano": 0.9, "alcance": 0.85 } },
+      { "nivel": 7, "xp": 13000, "id": "holoLupa", "icone": "🔍", "opcional": true, "grupo": "mira", "efeitos": { "mira": "holoLupa", "zoom": 0.66, "mirando": 0.55, "adsTempo": 1.1 } },
+      { "nivel": 8, "xp": 16000, "id": "luneta2x", "icone": "🎯", "opcional": true, "grupo": "mira", "efeitos": { "mira": "luneta2x", "zoom": 0.5, "mirando": 0.45, "alcance": 1.15, "adsTempo": 1.2, "movimento": 0.97 } },
+      { "nivel": 9, "xp": 20000, "id": "luneta4x", "icone": "📡", "opcional": true, "grupo": "mira", "efeitos": { "mira": "luneta4x", "zoom": 0.25, "mirando": 0.35, "alcance": 1.4, "adsTempo": 1.5, "movimento": 0.93 } }
     ]
   },
   "pistola": {
@@ -21,7 +24,6 @@
   },
   "smg": {
     "icone": "🌀",
-    "libera": { "arma": "pistola", "nivel": 3 },
     "melhorias": [
       { "nivel": 2, "xp": 800, "id": "motor", "icone": "⚡", "efeitos": { "cadencia": 1.12 } },
       { "nivel": 3, "xp": 2000, "id": "holo", "icone": "😊", "efeitos": { "mira": "holo", "zoom": 0.82, "mirando": 0.6, "dispersao": 0.9 } },
@@ -33,9 +35,7 @@
     "icone": "🔪",
     "melhorias": [
       { "nivel": 2, "xp": 600, "id": "afiador", "icone": "🪨", "efeitos": { "intervalo": 0.8 } },
-      { "nivel": 3, "xp": 1500, "id": "frango", "icone": "🐔", "opcional": true, "grupo": "forma", "efeitos": { "forma": "frango", "investida": 0.8, "impulso": 1.1 } },
-      { "nivel": 4, "xp": 2800, "id": "tenis", "icone": "👟", "efeitos": { "investida": 0.6, "impulso": 1.2 } },
-      { "nivel": 5, "xp": 4500, "id": "sabre", "icone": "🗡️", "opcional": true, "grupo": "forma", "efeitos": { "forma": "sabre", "golpe": 0.7, "investida": 0.3, "intervalo": 1.3 } }
+      { "nivel": 3, "xp": 2800, "id": "tenis", "icone": "👟", "efeitos": { "investida": 0.6, "impulso": 1.2 } }
     ]
   },
   "granada": {

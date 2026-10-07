@@ -30,7 +30,7 @@ Interface sobreposta durante a partida (`#hud` em `index.html`, classe `Hud` em 
 | --- | --- | --- | --- |
 | **Retículo dinâmico** (`#crosshair`) | centro | 4 traços + ponto; o espaço entre eles é o **cone de dispersão projetado** da arma (`gap = tan(dispersão)/tan(FOV/2) · altura/2 + 3 px`). Some ao mirar (ADS ≥ 0,6), correr, morrer ou dançar. | [[Weapons]], [[Combat]] |
 | **Hitmarker** (`#hitmarker`) | centro | X animado; variantes `hit`, `head` e `kill` (0,18 s; 0,35 s no abate). Vibra o celular (12/40 ms) e o controle. | [[Damage System]] |
-| **Luneta** (`#scope`) | tela cheia | Overlay de mira telescópica quando o rifle tem a melhoria Luneta ligada e está totalmente mirado. | [[Weapons]] |
+| **Luneta** (`#scope`) | tela cheia | Overlay de mira telescópica quando o rifle tem uma luneta ligada (2x, a do Vovô 3x ou 4x) e está totalmente mirado. | [[Weapons]] |
 | **Vinheta** (`#vignette`) | bordas | Avermelha com vida < 30 (`--low`) e pisca ao levar dano (`damageFlash`, intensidade pelo dano; também vibra o controle). | [[Health System]] |
 | **Vida** (`#health`) | inferior esquerdo | Número + barra; barra cheia na vida máxima do corpo; classe `low` abaixo de 25; fica rosa com a Cereja do Dragão (`boost`). | [[Health System]], [[Pickups]] |
 | **Munição** (`#ammo`) | inferior direito | Com só o sabre na mão (corrida armada) a contagem, o status e as armas somem e fica o nome da arma (`hud.setMeleeOnly`). Pente/reserva; linha de status: "RECARREGANDO…" com barra de progresso, "RECARREGUE" com a tecla (R, glifo do controle, ou nada no celular) quando o pente ≤ 30%, "SEM MUNIÇÃO". Nome da arma em mãos embaixo (`setWeaponName`, texto de `arma_*` em `strings.ts`). | [[Weapons]] |

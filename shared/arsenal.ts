@@ -4,15 +4,20 @@
 //
 // Public API (for game modes and anything that hands out weapons):
 // - resolveLoadout(choice, levels): the account's Arsenal choice + weapon levels → Loadout.
-// - gunStats(gun, upgrades) / meleeStats(upgrades) / grenadeStats(upgrades): effective stats for a list of
-//   upgrade ids (any list: a mode can give a weapon with no upgrades, or with all of them).
+// - gunStats(gun, upgrades) / meleeStats(knife, upgrades) / grenadeStats(upgrades): effective stats for a list
+//   of upgrade ids of the weapon's progression (any list: a mode can give a weapon with no upgrades, or with all
+//   of them). The old rifles take the rifle's upgrades and every knife the knife's.
 // - Loadout.secundaria may be null (a mode where players start with the primary only).
 import { GRENADES, grenadeLevel, MELEE, WEAPONS, type GrenadeData, type GrenadeLevel, type MeleeData, type WeaponData } from './weapons';
 import {
   activeUpgrades,
   DEFAULT_CHOICE,
+  DEFAULT_KNIFE,
+  DEFAULT_PRIMARY,
   GUN_DATA_ID,
   isGun,
+  isKnife,
+  progOf,
   PROG_WEAPONS,
   PROGRESSION,
   START_LEVELS,
@@ -22,7 +27,7 @@ import {
   type GrenadeKind,
   type GunId,
   type GunLook,
-  type KnifeForm,
+  type KnifeId,
   type Levels,
   type ProgWeapon,
   type Sight,
@@ -40,10 +45,13 @@ export interface Loadout {
   primaria: GunId;
   /** Null: nothing in the secondary slot. */
   secundaria: GunId | null;
+  /** The knife carried (absent: the Kitchen Knife; see knifeOf). */
+  faca?: KnifeId;
+  /** Upgrades in effect per progression (an old rifle uses `ativas.rifle`, every knife `ativas.faca`). */
   ativas: Record<ProgWeapon, string[]>;
   /**
-   * Only the knife (in its form, e.g. the lightsaber), held all the time and swung with the fire button: the
-   * guns are put away and can't fire. Only corrida armada's last step hands this out.
+   * Only the knife (e.g. the lightsaber), held all the time and swung with the fire button: the guns are put
+   * away and can't fire. Only corrida armada's last step hands this out.
    */
   soFaca?: boolean;
   /**
@@ -59,15 +67,18 @@ export const WEAPON_FLAWS: readonly WeaponFlaw[] = ['municao', 'dano', 'ambos'];
 
 const noUpgrades =(): Record<ProgWeapon, string[]> => ({ rifle: [], pistola: [], smg: [], faca: [], granada: [] });
 
-/** The starting kit: rifle and pistol, no upgrades (players without an account, bots). */
-export const DEFAULT_LOADOUT: Loadout = { primaria: 'rifle', secundaria: DEFAULT_CHOICE.secundaria, ativas: noUpgrades() };
+/** The starting kit: the Standard Rifle, the pistol and the Kitchen Knife, no upgrades (players without an account). */
+export const DEFAULT_LOADOUT: Loadout = { primaria: DEFAULT_PRIMARY, secundaria: DEFAULT_CHOICE.secundaria, faca: DEFAULT_KNIFE, ativas: noUpgrades() };
 
 /** The account's choice at its weapon levels, as the loadout it plays with. */
 export function resolveLoadout(choice: ArsenalChoice, levels: Levels = START_LEVELS): Loadout {
   const ativas = noUpgrades();
   for (const w of PROG_WEAPONS) ativas[w] = activeUpgrades(w, levels[w], choice.ligadas[w] ?? [], choice.desligadas?.[w] ?? []);
-  return { primaria: 'rifle', secundaria: choice.secundaria, ativas };
+  return { primaria: choice.primaria ?? DEFAULT_PRIMARY, secundaria: choice.secundaria, faca: choice.faca ?? DEFAULT_KNIFE, ativas };
 }
+
+/** The knife a loadout carries (absent in loadouts from older clients and modes: the Kitchen Knife). */
+export const knifeOf = (lo: Pick<Loadout, 'faca'>): KnifeId => lo.faca ?? DEFAULT_KNIFE;
 
 /** The gun in a slot (null when the slot is empty). */
 export const gunIn = (lo: Loadout, slot: GunSlot): GunId | null => (slot === 'primaria' ? lo.primaria : lo.secundaria);
@@ -87,6 +98,7 @@ export function sanitizeLoadout(raw: unknown): Loadout {
   return {
     primaria: isGun(o.primaria) ? o.primaria : DEFAULT_LOADOUT.primaria,
     secundaria: o.secundaria === null ? null : isGun(o.secundaria) ? o.secundaria : DEFAULT_LOADOUT.secundaria,
+    faca: isKnife(o.faca) ? o.faca : DEFAULT_KNIFE,
     ativas,
     ...(o.soFaca === true ? { soFaca: true } : {}),
     ...(Object.keys(danificadas).length ? { danificadas } : {}),
@@ -118,13 +130,17 @@ export interface GunStats extends WeaponData {
 
 const gunCache = new Map<string, GunStats>();
 
-/** A gun's effective stats with `upgrades` (ids of that gun; unknown ones are ignored). Cached and shared: don't mutate. */
+/**
+ * A gun's effective stats: its own JSON with `upgrades` (ids of its progression's tree: an old rifle takes the
+ * rifle's; unknown ones are ignored). Cached and shared: don't mutate.
+ */
 export function gunStats(gun: GunId, upgrades: readonly string[] = []): GunStats {
   const key = `${gun}|${upgrades.join(',')}`;
   let d = gunCache.get(key);
   if (d) return d;
   const base = WEAPONS[GUN_DATA_ID[gun]];
-  const fx = effectsOf(gun, upgrades);
+  const prog = progOf(gun);
+  const fx = effectsOf(prog, upgrades);
   const dmg = product(fx, 'dano');
   const reach = product(fx, 'alcance');
   const hip = product(fx, 'dispersao');
@@ -135,7 +151,7 @@ export function gunStats(gun: GunId, upgrades: readonly string[] = []): GunStats
   d = {
     ...base,
     arma: gun,
-    melhorias: PROGRESSION[gun].melhorias.filter((u) => upgrades.includes(u.id)).map((u) => u.id),
+    melhorias: PROGRESSION[prog].melhorias.filter((u) => upgrades.includes(u.id)).map((u) => u.id),
     dano: { max: Math.round(base.dano.max * dmg), min: Math.round(base.dano.min * dmg), distMax: base.dano.distMax * reach, distMin: base.dano.distMin * reach },
     cadencia: Math.round(base.cadencia * product(fx, 'cadencia')),
     pente,
@@ -147,21 +163,21 @@ export function gunStats(gun: GunId, upgrades: readonly string[] = []): GunStats
     movimento: base.movimento * product(fx, 'movimento'),
     troca: base.troca * product(fx, 'troca'),
     mira: last(fx, 'mira') ?? 'ferro',
-    visual: last(fx, 'visual') ?? 'padrao',
+    visual: base.visual ?? 'padrao',
     silenciador: !!last(fx, 'silenciador'),
   };
   gunCache.set(key, d);
   return d;
 }
 
-/** The knife as it is held: reach and timing with the upgrades, and what is swung (and heard). */
+/** A knife as it is held: reach and timing with the upgrades, and which knife is swung (seen and heard by all). */
 export interface MeleeStats extends MeleeData {
-  forma: KnifeForm;
+  forma: KnifeId;
 }
 
-/** The knife's effective stats with `upgrades` (e.g. ['sabre'] for the lightsaber). */
-export function meleeStats(upgrades: readonly string[] = []): MeleeStats {
-  const base = MELEE.faca;
+/** A knife's effective stats: its own JSON with the knife tree's `upgrades` (e.g. meleeStats('sabre') for the lightsaber). */
+export function meleeStats(knife: KnifeId = DEFAULT_KNIFE, upgrades: readonly string[] = []): MeleeStats {
+  const base = MELEE[knife] ?? MELEE[DEFAULT_KNIFE];
   const fx = effectsOf('faca', upgrades);
   const interval = product(fx, 'intervalo');
   return {
@@ -170,9 +186,12 @@ export function meleeStats(upgrades: readonly string[] = []): MeleeStats {
     alcanceInvestida: base.alcanceInvestida + sum(fx, 'investida'),
     intervalo: base.intervalo * interval,
     velocidadeInvestida: base.velocidadeInvestida * product(fx, 'impulso'),
-    forma: last(fx, 'forma') ?? 'faca',
+    forma: isKnife(knife) ? knife : DEFAULT_KNIFE,
   };
 }
+
+/** The knife a loadout carries, with the knife's upgrades in effect. */
+export const loadoutKnife = (lo: Pick<Loadout, 'faca' | 'ativas'>): MeleeStats => meleeStats(knifeOf(lo), lo.ativas.faca);
 
 /** The grenade as it is carried: how many, how they come back, how far they're thrown, what G does and the blast. */
 export interface GrenadeStats extends GrenadeData {
@@ -200,5 +219,5 @@ export function grenadeStats(upgrades: readonly string[] = []): GrenadeStats {
 export function slotStats(lo: Loadout, slot: GunSlot): GunStats | null {
   // A melee-only loadout still names a primary (the models need one), but it never fires.
   const g = gunIn(lo, slot);
-  return g ? gunStats(g, lo.ativas[g]) : null;
+  return g ? gunStats(g, lo.ativas[progOf(g)]) : null;
 }

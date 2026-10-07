@@ -1,10 +1,10 @@
 // The weapons other players see in a character's hands (third person): the same models as the first-person
-// view, as the player's upgrades make them — each gun with its sight, magazine and silencer, the knife (or the
-// rubber chicken, the lightsaber), the grenade — merged into one mesh each (vertex colors, one shared toon
+// view, as the player's upgrades make them — each gun with its sight, magazine and silencer, the knife they
+// carry (kitchen knife, wooden spoon, rubber chicken, lightsaber…), the grenade — merged into one mesh each (vertex colors, one shared toon
 // material: a draw call per weapon), cached per look and shared by every character.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import type { KnifeForm } from '@shared/progression';
+import type { KnifeId } from '@shared/progression';
 import { toonGradient } from '../render/materials';
 import { gunModelKey, gunParts, knifeModel, type GunLookKey } from '../render/weaponModels';
 import { grenadeModel } from '../weapons/grenades';
@@ -66,8 +66,8 @@ export function heldGun(g: GunLookKey): THREE.Mesh {
   return mesh;
 }
 
-/** The knife in its form: blade out of the thumb side of the fist (hand socket space). */
-export function heldKnife(form: KnifeForm): THREE.Mesh {
+/** A knife: blade out of the thumb side of the fist (hand socket space). */
+export function heldKnife(form: KnifeId): THREE.Mesh {
   const mesh = new THREE.Mesh(
     cached(`knife|${form}`, () => knifeModel(form)),
     sharedMaterial(),

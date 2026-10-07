@@ -1,0 +1,19 @@
+{
+  "id": "sabre",
+  "nome": "Sabre de Luz Paraguaio",
+  "icone": "🗡️",
+  "categoria": "corpo",
+  "slot": "corpo",
+  "libera": {
+    "arma": "faca",
+    "pontos": 9000
+  },
+  "letal": true,
+  "alcance": 2.5,
+  "alcanceInvestida": 3.5,
+  "anguloGraus": 45,
+  "duracao": 0.45,
+  "impacto": 0.14,
+  "intervalo": 0.78,
+  "velocidadeInvestida": 14
+}

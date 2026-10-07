@@ -10,12 +10,15 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test';
 import { importNavMesh, init, type NavMesh } from 'recast-navigation';
 import nav from '@shared/data/navmesh/cemiterio.json';
 import type { ProfileResponse } from '@shared/account';
-import { DEFAULT_LOADOUT, grenadeStats, gunStats, meleeStats, resolveLoadout, slotStats, type GunStats, type Loadout } from '@shared/arsenal';
+import { DEFAULT_LOADOUT, grenadeStats, gunStats, loadoutKnife, meleeStats, resolveLoadout, slotStats, type GunStats, type Loadout } from '@shared/arsenal';
 import { FINAL_STEP, killCounts, LADDER, ladderLoadout } from '@shared/gunGame';
 import {
   DEFAULT_SECONDARY,
   GUN_IDS,
+  KNIVES,
   levelCount,
+  PRIMARIES,
+  progOf,
   PROG_WEAPONS,
   PROGRESSION,
   SECONDARIES,
@@ -38,7 +41,7 @@ function gunOk(g: GunStats) {
 /** What the game puts in the player's hands from a loadout (main.ts applyLoadout): each slot's gun, the knife, the grenade. */
 function armedOk(lo: Loadout) {
   const guns = (['primaria', 'secundaria'] as const).map((s) => slotStats(lo, s)).filter((g): g is GunStats => !!g);
-  const knife = meleeStats(lo.ativas.faca);
+  const knife = loadoutKnife(lo);
   const nade = grenadeStats(lo.ativas.granada);
   return guns.length > 0 && guns.every(gunOk) && knife.alcance > 0 && knife.intervalo > 0 && nade.quantidade > 0 && explosionDamage(nade.explosao, 0) > 0;
 }
@@ -158,6 +161,24 @@ describe('treino e contra bots: o Arsenal da conta (Progress)', () => {
     expect(veteran.choice.secundaria).toBe('smg');
   });
 
+  it('rifles e facas antigos: liberam com os pontos de rifle e de faca, e entram no equipamento', async () => {
+    saved = [];
+    const pr = new Progress(profileAt({ rifle: 2500, faca: 600 }, { secundaria: 'pistola', ligadas: {} }));
+    expect(PRIMARIES.filter((g) => pr.unlocked(g))).toEqual(['rifle', 'rifleFita', 'rifleTia']);
+    expect(KNIVES.filter((k) => pr.unlocked(k))).toEqual(['faca', 'colher']);
+    expect(pr.toUnlock('rifleNatal')).toBe(2000);
+    expect(pr.setPrimary('rifleNatal')).toBe(false);
+    expect(pr.setKnife('sabre')).toBe(false);
+    expect(pr.setPrimary('rifleTia')).toBe(true);
+    expect(pr.setKnife('colher')).toBe(true);
+    expect(pr.loadout).toMatchObject({ primaria: 'rifleTia', faca: 'colher' });
+    expect(slotStats(pr.loadout, 'primaria')).toMatchObject({ arma: 'rifleTia', visual: 'tia', melhorias: ['pontoVermelho', 'empunhadura'] });
+    expect(armedOk(pr.loadout)).toBe(true);
+    await pr.settled();
+    expect(saved.at(-1)!.body).toEqual({ arsenal: pr.choice });
+    expect(pr.choice).toMatchObject({ primaria: 'rifleTia', faca: 'colher' });
+  });
+
   it('um salvamento que falha volta para a escolha da conta e avisa', async () => {
     const pr = new Progress(profileAt({ pistola: xpForLevel('pistola', 3) }, { secundaria: 'pistola', ligadas: {} }));
     let heard = 0;
@@ -187,7 +208,7 @@ describe('treino e contra bots: o Arsenal da conta (Progress)', () => {
     expect(saved).toHaveLength(1);
     await pr.settled();
     expect(saved).toHaveLength(2);
-    expect(saved[1].body).toEqual({ arsenal: { secundaria: 'smg', ligadas: {}, desligadas: { rifle: ['pontoVermelho', 'empunhadura'] } } });
+    expect(saved[1].body).toEqual({ arsenal: { primaria: 'rifle', secundaria: 'smg', faca: 'faca', ligadas: {}, desligadas: { rifle: ['pontoVermelho', 'empunhadura'] } } });
     expect(pr.loadout.ativas.rifle).toEqual([]);
   });
 
@@ -201,7 +222,7 @@ describe('treino e contra bots: o Arsenal da conta (Progress)', () => {
     expect(heard).toBe(1);
     // The rifle's silencer is unlocked now; the knife is still at level 1 (no saber), and the SMG still waits
     // for the pistol.
-    expect(pr.choice).toEqual({ secundaria: 'pistola', ligadas: { rifle: ['silenciador'] }, desligadas: {} });
+    expect(pr.choice).toEqual({ primaria: 'rifle', secundaria: 'pistola', faca: 'faca', ligadas: { rifle: ['silenciador'] }, desligadas: {} });
     expect(pr.loadout.ativas.rifle).toContain('silenciador');
     expect(pr.loadout.ativas.faca).toEqual([]);
     expect(armedOk(pr.loadout)).toBe(true);
@@ -210,16 +231,16 @@ describe('treino e contra bots: o Arsenal da conta (Progress)', () => {
 
 describe('contra bots: as armas dos bots e da escada', () => {
   it('toda arma que um bot sorteia (sem melhorias) e todo degrau da escada armam bots e jogador com atributos válidos', () => {
-    // Mata-mata: a bot draws any gun, with no upgrades (client/ai/bot.ts), and holds the plain knife.
+    // Mata-mata: a bot draws any gun and any knife, with no upgrades (client/ai/bot.ts).
     for (const g of GUN_IDS) expect({ g, ok: gunOk(gunStats(g, [])) }).toEqual({ g, ok: true });
-    expect(meleeStats([]).letal).toBe(true);
+    for (const k of KNIVES) expect({ k, ok: armedOk({ ...DEFAULT_LOADOUT, faca: k }), letal: meleeStats(k).letal }).toEqual({ k, ok: true, letal: true });
     // Corrida armada: each step's weapons, as a bot takes them (the primary with its upgrades, the step's knife)
     // and as the player gets them (BotManager hooks.playerLoadout → applyLoadout).
     LADDER.forEach((step, i) => {
       const lo = ladderLoadout(i);
       expect({ step: step.id, ok: armedOk(lo) }).toEqual({ step: step.id, ok: true });
-      expect(gunOk(gunStats(lo.primaria, lo.ativas[lo.primaria]))).toBe(true);
-      const knife = meleeStats(lo.ativas.faca);
+      expect(gunOk(gunStats(lo.primaria, lo.ativas[progOf(lo.primaria)]))).toBe(true);
+      const knife = loadoutKnife(lo);
       if (i === FINAL_STEP) {
         expect(lo.soFaca).toBe(true);
         expect(knife.forma).toBe('sabre');
@@ -295,7 +316,7 @@ describe('zumbi sozinho (LocalZombies)', () => {
     expect(handed.at(-1)).toEqual(lo);
     expect(heard.at(-1)).toEqual(lo);
     expect(solo.loadout).toEqual(lo);
-    expect(lo.ativas[offer.arma]).toEqual(offer.melhorias);
+    expect(lo.ativas[offer.arma === 'faca' ? 'faca' : progOf(offer.arma)]).toEqual(offer.melhorias);
     // Its damage: that weapon with those upgrades, times its rarity.
     if (offer.arma === 'faca') expect(lost({ t: 'zstab', z: boss.id })).toBe(knifeDamageToZombie(rarityMul(offer.raridade)));
     else expect(lost({ t: 'zhit', z: boss.id, region: 'peito', dist: 10, w: offer.arma })).toBe(gunDamageToZombie(gunStats(offer.arma, offer.melhorias), 10, 'peito', 1, rarityMul(offer.raridade), true));
@@ -314,13 +335,13 @@ describe('zumbi sozinho (LocalZombies)', () => {
     const blo = zombieLoadout(withItem(held, bit, broken.flaw));
     expect(solo.loadout).toEqual(blo);
     expect(handed.at(-1)).toEqual(blo);
-    expect(blo.danificadas?.[bit.arma]).toBe(broken.flaw!);
+    expect(blo.danificadas?.[bit.arma === 'faca' ? 'faca' : progOf(bit.arma)]).toBe(broken.flaw!);
     const mul = rarityMul(bit.raridade) * ZOMBIE.caixa.danificada.dano;
     if (bit.arma === 'faca') expect(lost({ t: 'zstab', z: boss.id })).toBe(knifeDamageToZombie(mul));
     else {
       expect(lost({ t: 'zhit', z: boss.id, region: 'peito', dist: 10, w: bit.arma })).toBe(gunDamageToZombie(gunStats(bit.arma, bit.melhorias), 10, 'peito', 1, mul, true));
       const full = gunStats(bit.arma, bit.melhorias);
-      const ours = zombieGunData(full, blo.danificadas![bit.arma]);
+      const ours = zombieGunData(full, blo.danificadas![progOf(bit.arma)]);
       expect(ours.pente).toBe(Math.max(1, Math.round(full.pente * ZOMBIE.caixa.danificada.pente)));
       expect(ours.reserva).toBe(Math.max(1, Math.round(full.reserva * ZOMBIE.armas.municaoReserva * ZOMBIE.caixa.danificada.reserva)));
     }

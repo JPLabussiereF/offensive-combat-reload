@@ -42,7 +42,7 @@ O projeto se apresenta como **"Protótipo de tiro · Fase 1"** (texto da tela in
 ## Fantasia do jogador
 
 > [!info] Inferência
-> O conjunto de regras e textos sugere a fantasia de **"tiroteio de bairro entre amigos, levado a sério na mecânica e não levado a sério no tom"**: o tiro é preciso e guiado por dados (dispersão, recuo, multiplicadores por região), mas a recompensa máxima é **dançar sobre o corpo do adversário** ([[Humiliation]]), a faca pode virar um frango de borracha ou um sabre de luz paraguaio e o rifle ganha um silenciador de garrafa PET.
+> O conjunto de regras e textos sugere a fantasia de **"tiroteio de bairro entre amigos, levado a sério na mecânica e não levado a sério no tom"**: o tiro é preciso e guiado por dados (dispersão, recuo, multiplicadores por região), mas a recompensa máxima é **dançar sobre o corpo do adversário** ([[Humiliation]]), a faca pode ser um frango de borracha, uma baguete ou um sabre de luz paraguaio, o rifle pode ser o da Tia do Zap ou o Dourado Ostentação e ganha um silenciador de garrafa PET.
 
 Elementos que sustentam essa leitura:
 - Pontuação que premia a provocação: a Opressão vale **150 pontos**, mais que um abate (100). Ver [[Scoring]].

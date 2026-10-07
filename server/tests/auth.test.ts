@@ -169,7 +169,7 @@ describe('perfil', () => {
     await setWeaponXp(b, { pistola: xpForLevel('pistola', 3) });
     const ok = await b.req('PATCH', '/api/perfil', { arsenal: { secundaria: 'smg', ligadas: {} } });
     expect(ok.status).toBe(200);
-    expect(ok.body.arsenal).toEqual({ secundaria: 'smg', ligadas: {}, desligadas: {} });
+    expect(ok.body.arsenal).toEqual({ primaria: 'rifle', secundaria: 'smg', faca: 'faca', ligadas: {}, desligadas: {} });
     expect((await b.req('GET', '/api/perfil')).body.armas.smg).toEqual({ xp: 0, nivel: 1 });
   });
 
@@ -180,7 +180,33 @@ describe('perfil', () => {
     expect((await b.req('PATCH', '/api/perfil', { arsenal: { secundaria: 'pistola', ligadas: {}, desligadas: { rifle: ['empunhadura'] } } })).body.erro).toBe('nivel_bloqueado');
     const ok = await b.req('PATCH', '/api/perfil', { arsenal: { secundaria: 'pistola', ligadas: {}, desligadas: { rifle: ['pontoVermelho'] } } });
     expect(ok.status).toBe(200);
-    expect((await b.req('GET', '/api/perfil')).body.arsenal).toEqual({ secundaria: 'pistola', ligadas: {}, desligadas: { rifle: ['pontoVermelho'] } });
+    expect((await b.req('GET', '/api/perfil')).body.arsenal).toEqual({ primaria: 'rifle', secundaria: 'pistola', faca: 'faca', ligadas: {}, desligadas: { rifle: ['pontoVermelho'] } });
+  });
+
+  it('o rifle e a faca antigos: trancados, a escolha é recusada; com os pontos, ficam salvos', async () => {
+    const b = new Browser(game);
+    await b.register();
+    const old = { primaria: 'rifleOuro', secundaria: 'pistola', faca: 'sabre', ligadas: {} };
+    expect((await b.req('PATCH', '/api/perfil', { arsenal: { ...old, faca: 'faca' } })).body.erro).toBe('nivel_bloqueado');
+    expect((await b.req('PATCH', '/api/perfil', { arsenal: { ...old, primaria: 'rifle' } })).body.erro).toBe('nivel_bloqueado');
+    await setWeaponXp(b, { rifle: 16000, faca: 9000 });
+    const ok = await b.req('PATCH', '/api/perfil', { arsenal: old });
+    expect(ok.status).toBe(200);
+    expect(ok.body.arsenal).toEqual({ ...old, desligadas: {} });
+    expect((await b.req('GET', '/api/perfil')).body.arsenal).toMatchObject({ primaria: 'rifleOuro', faca: 'sabre' });
+  });
+
+  it('quem guardou o sabre ligado como forma da faca fica com a faca sabre, se os pontos de faca a liberarem', async () => {
+    const b = new Browser(game);
+    await b.register('Sabreiro');
+    const tag = (await b.req('GET', '/api/perfil')).body.tag as string;
+    const [name, disc] = tag.split('#');
+    // A choice saved before the old knives came back: the saber was an upgrade of the knife.
+    await game.deps.db.query(`UPDATE player_profile SET loadout = $3 WHERE display_name = $1 AND discriminator = $2`, [name, Number(disc), JSON.stringify({ secundaria: 'pistola', ligadas: { faca: ['sabre'] } })]);
+    await setWeaponXp(b, { faca: 6000 });
+    expect((await b.req('GET', '/api/perfil')).body.arsenal.faca).toBe('faca');
+    await setWeaponXp(b, { faca: 9000 });
+    expect((await b.req('GET', '/api/perfil')).body.arsenal.faca).toBe('sabre');
   });
 });
 

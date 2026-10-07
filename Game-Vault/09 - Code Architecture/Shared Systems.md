@@ -58,8 +58,8 @@ updated: 2026-10-06
 | `maps.ts` | `MAPS` (ids `rua`, `jardim`, `halloween`, `cemiterio`; `exclusivo` marca um mapa feito para um modo só), `MAP_IDS`, `PVP_MAPS` (os mapas sem `exclusivo`), `DEFAULT_MAP`, `PICKUPS`, `WITCHES`, `RATS`, `FISH`, `isMapId` — só posições que o servidor confere | sim | sim |
 | `weapons.ts` | Esquema `WeaponData`/`MeleeData`/`GrenadeData` (atributos **base**), carrega os JSON (`WEAPONS`: rifle, pistola, smg), `HIT_REGIONS`, `computeDamage`, `explosionDamage`, `clampExplosionDamage`, `idealTtk`, `minPenetrationKeep` | sim | sim |
 | `movement.ts` | `stepMovement` (passo de movimento em primeira pessoa sobre o Rapier), `createMoveState`, `configureController`, `eyeHeight` | sim (jogador e bots) | não (ainda) |
-| `progression.ts` | Ids das armas (`GunId`, `ProgWeapon`, `PRIMARIES`, `SECONDARIES`), árvores de melhorias de `data/progression.json` (`PROGRESSION`), níveis (`levelForXp`, `xpForLevel`, `levelCount`), melhorias em efeito (`activeUpgrades`), escolha do Arsenal (`ArsenalChoice`, `sanitizeChoice`, `legacyChoice`), `weaponOfKill` | sim | sim |
-| `arsenal.ts` | O que o jogador leva e os atributos **efetivos** (base + melhorias): `Loadout` (com `soFaca?`: só a faca na mão; `danificadas?`: armas danificadas do caixão do zumbi, por arma), `WeaponFlaw`, `resolveLoadout`, `gunStats`, `meleeStats`, `grenadeStats`, `slotStats`, `gunIn`, `sanitizeLoadout`, `DEFAULT_LOADOUT` | sim | sim |
+| `progression.ts` | Ids das armas (`GunId`, `KnifeId`, `WeaponId`, `ProgWeapon`, `PRIMARIES`, `SECONDARIES`, `KNIVES`; `progOf`: a progressão de cada arma; travas `lockOf`/`weaponUnlocked`), árvores de melhorias de `data/progression.json` (`PROGRESSION`), níveis (`levelForXp`, `xpForLevel`, `levelCount`), melhorias em efeito (`activeUpgrades`), escolha do Arsenal (`ArsenalChoice`, `sanitizeChoice`, `legacyChoice`), `weaponOfKill` | sim | sim |
+| `arsenal.ts` | O que o jogador leva e os atributos **efetivos** (base + melhorias): `Loadout` (com `soFaca?`: só a faca na mão; `danificadas?`: armas danificadas do caixão do zumbi, por arma), `WeaponFlaw`, `resolveLoadout`, `gunStats`, `meleeStats`, `grenadeStats`, `slotStats`, `gunIn`, `knifeOf`, `loadoutKnife`, `sanitizeLoadout`, `DEFAULT_LOADOUT` | sim | sim |
 | `modes.ts` | Modos de jogo: `GameModeId` (`mata-mata`, `corrida-armada`, `zumbi`), `MODE_RULES` (armas do Arsenal ou do modo, `lockedLoadout`, granadas, XP de arma, rodadas, bots, `coop`, `maps`), `isGameModeId`, `modeMaps` (a lista do modo ou `PVP_MAPS`) | sim (home, regras do cliente) | sim (`server/modes.ts`, lobby) |
 | `zombies.ts` | Modo zumbi: os números de `data/zumbi.json` (`ZOMBIE`) e as regras puras — ondas (`waveSpec`, `pickType`), vida e golpe por tipo, dano das armas nos zumbis com a raridade e o defeito (`gunDamageToZombie`, `knifeDamageToZombie`, `grenadeDamageToZombie`, `weaponMul`), dinheiro e XP por abate, o sorteio do caixão (`rollBox`, `rollFlaw`, `flawChance`), as penalidades de arma danificada (`flawDamageMul`, `flawAmmo`, `zombieGunData`), o que se carrega (`startItems`, `withItem`, `zombieLoadout`), flags `ZF` e o formato de rede `ZNet` | sim (`client/zombies/*`) | sim (`ZombieMode`) |
 | `barricades.ts` | Modo zumbi: as brechas do muro e as barricadas — geometria (`gapFrame`, `inGap`, `atGap`, `inReach`, `insideWall`), as caixas e flags que a navmesh marca por brecha (`gateAreas`, `gateFlag`, `WALK_FLAG`) e as regras das tábuas (`buildBarricade`, `nailBoard`, `hitBarricade`, `boardDamage`, `smashesThrough`, `barricadeHealth`) | sim (geração da navmesh, `client/zombies/*`) | sim (motor, bake) |
@@ -79,7 +79,7 @@ updated: 2026-10-06
 | Chamada | Uso |
 | --- | --- |
 | `gunStats(arma: GunId, melhorias?: string[]): GunStats` | Arma de fogo com as melhorias (ids da árvore dela; desconhecidos são ignorados). `GunStats` = `WeaponData` + `arma`, `melhorias`, `mira`, `visual`, `silenciador`. Cacheado e compartilhado: **não mutar**. |
-| `meleeStats(melhorias?): MeleeStats` | Faca com as melhorias; `forma` (`faca`/`frango`/`sabre`). `meleeStats(['sabre'])` é o **Sabre de Luz Paraguaio**. |
+| `meleeStats(faca?, melhorias?): MeleeStats` | Uma das sete facas (`KnifeId`, padrão `faca`) com as melhorias da faca; `forma` = o id da faca. `meleeStats('sabre', [])` é o **Sabre de Luz Paraguaio**. `loadoutKnife(lo)` = a faca de um loadout. |
 | `grenadeStats(melhorias?): GrenadeStats` | Granada: `tipo` (`granada`/`mina`/`dupla`), `quantidade`, `recargaSegundos`, `velocidadeLancamento`, `explosao` (raios e dano). |
 | `resolveLoadout(escolha, níveis): Loadout` | A escolha do Arsenal (`ArsenalChoice`) nos níveis da conta → `{ primaria, secundaria, ativas }`, com as comuns liberadas e as opcionais ligadas (`activeUpgrades`). |
 | `slotStats(loadout, 'primaria' \| 'secundaria')` | Atributos da arma de um espaço; `null` se o espaço está vazio (`Loadout.secundaria` pode ser `null`). |
@@ -88,7 +88,7 @@ updated: 2026-10-06
 Exemplos (inferência de uso para os próximos modos, não implementados ainda):
 - Loadout travado sem melhorias: `{ ...DEFAULT_LOADOUT }`; com tudo liberado: `resolveLoadout(escolha, MAX_LEVELS)`.
 - Começar só com a primária: `{ ...DEFAULT_LOADOUT, secundaria: null }`.
-- Arma sorteada: `gunStats('smg')`; a arma final de uma corrida armada: `meleeStats(['sabre'])`.
+- Arma sorteada: `gunStats('smg')`; a arma final de uma corrida armada: `meleeStats('sabre', [])`; um rifle antigo com as melhorias do rifle: `gunStats('rifleVovo', ['empunhadura'])`.
 
 No cliente, `Weapon.setData(gunStats(...))` troca a arma de um espaço; no servidor, `Session` resolve o loadout pela conta (`loadoutOf`) e usa `gunStats`/`meleeStats`/`grenadeStats` em `onHit`, `onStab` e nas granadas.
 

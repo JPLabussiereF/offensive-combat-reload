@@ -144,6 +144,8 @@ Posições: `PICKUPS`, `WITCHES`, `RATS`, `FISH` em `shared/maps.ts` (ver [[Maps
 
 ## Rifle (`rifle_padrao.json`, sem melhorias) → [[Weapons]], [[Damage System]]
 
+Os seis rifles antigos (`rifle_*.json`) mudam só os campos da troca de cada um; tabela em [[Weapons#Rifles]].
+
 | Campo | Valor |
 |---|---|
 | `dano` max/min, distMax/distMin | 30 / 20, 20 m / 45 m |
@@ -184,6 +186,8 @@ Melhorias (níveis 2–6) e os pontos para liberá-las (1000 / 2500 / 4500 / 700
 Melhorias: pistola 700 / 1800 / 3200 / 5200; submetralhadora 800 / 2000 / 3800 / 6000. Ver [[Weapons]].
 
 ## Faca (`faca.json`) → [[Melee]]
+
+As seis facas antigas mudam só alcance, investida e intervalo; tabela em [[Melee#As facas]].
 
 | Campo | Valor |
 |---|---|

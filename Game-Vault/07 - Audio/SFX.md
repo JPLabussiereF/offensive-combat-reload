@@ -56,7 +56,7 @@ O comentário do arquivo diz que cada função "mapeia para uma futura entrada d
 | `hurt()` | Dente de serra descendente + ruído. | Dano recebido. |
 | `sadTrombone()` | Trombone triste (4 notas descendentes). | Morte do próprio jogador. Ver [[Flow - Death and Respawn]]. |
 | `bird()` | Dois piados e apito descendente ("NO PÁSSARO!"). | Tiro na virilha. Ver [[Humiliation]]. |
-| `knifeSwing()` / `meleeSwing(forma)` / `knifeHit()` | Assobio de lâmina; cada forma da faca tem seu som (`faca` = `knifeSwing`, `frango` = guincho de borracha, `sabre` = "vuuum"); impacto. | [[Melee]]. O golpe de outro jogador toca o som da forma dele: a faca como `step`, o frango e o sabre como `normal` (ouvidos mais longe). |
+| `knifeSwing()` / `meleeSwing(faca)` / `knifeHit()` | Assobio de lâmina; cada faca tem seu som (`faca` = `knifeSwing`, `colher` = toque oco de madeira, `frango` = guincho de borracha, `baguete` = crocante, `peixe` = tapa molhado, `macarrao` = `boing()`, `sabre` = "vuuum"); impacto. | [[Melee]]. O golpe de outro jogador toca o som da faca dele: a faca de cozinha como `step`, as outras como `normal` (ouvidas mais longe). |
 | `levelUp()` | Fanfarra curta. | Novo nível de arma/conta. Ver [[Progression]]. |
 | `airHorn()` + `applause()` | Buzina de estádio e aplausos (ruído granulado). | Fim de uma humilhação ("OPRIMIDO!"). |
 

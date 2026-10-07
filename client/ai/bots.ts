@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { HUMILIATION, SCORE } from '@shared/constants';
 import { computeDamage, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
-import type { ProgWeapon } from '@shared/progression';
+import type { WeaponId } from '@shared/progression';
 import type { Loadout } from '@shared/arsenal';
 import type { GameModeId } from '@shared/modes';
 import { afterDeath, afterKill, GUN_GAME, ladderLoadout, ladderStart, type LadderPos } from '@shared/gunGame';
@@ -35,7 +35,7 @@ const BOT_NAMES: [string, Sex][] = [
 export interface HitInfo {
   kind: KillKind;
   /** The weapon that dealt it (named in the kill feed). */
-  w?: ProgWeapon;
+  w?: WeaponId;
   region?: HitRegion;
   dist?: number;
   behind?: boolean;
@@ -45,7 +45,7 @@ export interface BotHooks {
   /** Damage to the local player; returns the health left (the game applies it and handles death). */
   damagePlayer(amount: number, attacker: Combatant, from: THREE.Vector3): number;
   /** `weapon`: what got the kill (null for falls, the dog, your own grenade). */
-  kill(victim: Combatant, killer: Combatant | null, kind: KillKind, awards: Award[], corpse: Corpse, weapon: ProgWeapon | null): void;
+  kill(victim: Combatant, killer: Combatant | null, kind: KillKind, awards: Award[], corpse: Corpse, weapon: WeaponId | null): void;
   tauntStarted(dancer: Combatant, corpse: Corpse): void;
   humiliation(dancer: Combatant, corpse: Corpse, awards: Award[]): void;
   /** Corrida armada: the local player's ladder weapons changed (into our hands, full magazines). */
@@ -242,7 +242,7 @@ export class BotManager {
   }
 
   /** Corrida armada's rules for a kill (the server's, see server/modes.ts); true when it won the round. */
-  private climb(victim: Combatant, killer: Combatant | null, kind: KillKind, weapon: ProgWeapon | null): boolean {
+  private climb(victim: Combatant, killer: Combatant | null, kind: KillKind, weapon: WeaponId | null): boolean {
     if (!this.ladder || !this.combatOpen) return false;
     const before = this.ladder.get(victim.id) ?? ladderStart();
     const down = afterDeath(before, kind);
