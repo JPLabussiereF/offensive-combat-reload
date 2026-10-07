@@ -6,6 +6,7 @@ import { GAME_MODE_IDS } from '@shared/modes';
 import { LADDER } from '@shared/gunGame';
 import { setLang, t, type Lang, type StringKey } from '../ui/strings';
 import { TREE_ROWS } from '../ui/arsenalTree';
+import { UPGRADE_KINDS } from '../ui/arsenalCanvasLayout';
 
 describe('textos do Arsenal', () => {
   for (const lang of ['pt-BR', 'en'] as Lang[]) {
@@ -22,6 +23,7 @@ describe('textos do Arsenal', () => {
         check(`treeRow_${r.id}`);
         check(`cvRow_${r.id}`);
         check(`cvSlot_${r.id}`);
+        for (const k of UPGRADE_KINDS) check(`cvUpgRow_${k}`);
         for (const w of r.armas) {
           check(`arma_${w}`);
           check(`armaDesc_${w}`);

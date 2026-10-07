@@ -1,10 +1,11 @@
 // The Arsenal canvas of the home (client/ui/arsenalCanvasLayout.ts, PF-9): a frame per row in order, the row's
-// weapons side by side, the upgrade chain under the weapon shown (its progression's, locked when the weapon is), the
-// links' states, and the camera: zoom clamped to 25%..200% around a fixed point, "show all" fitting the free width.
+// weapons side by side, the upgrades under the weapon shown in rows by kind (sights, grenade modes, the rest; its
+// progression's, locked when the weapon is), the links' states, and the camera: zoom clamped to 25%..200% around a
+// fixed point, "show all" fitting the free width.
 import { describe, expect, it } from 'bun:test';
 import { DEFAULT_CHOICE, NO_XP, sanitizeChoice, type WeaponId, type WeaponXp } from '@shared/progression';
 import { arsenalTree, upgradeNodes, type RowId } from '../ui/arsenalTree';
-import { canvasLayout, fitView, homeView, revealView, rowView, UG, UW, UX0, WG, WH, WW, ZOOM_MAX, ZOOM_MIN, zoomAt, type Cam } from '../ui/arsenalCanvasLayout';
+import { canvasLayout, fitView, homeView, revealView, rowView, UG, UH, URG, UW, UX0, WG, WH, WW, ZOOM_MAX, ZOOM_MIN, zoomAt, type Cam } from '../ui/arsenalCanvasLayout';
 
 /** The layout the canvas draws for these points and this choice, with `shown` overriding the weapon under a row. */
 function layoutFor(xp: WeaponXp, raw: unknown = DEFAULT_CHOICE, shown: Partial<Record<RowId, WeaponId>> = {}) {
@@ -38,19 +39,51 @@ describe('canvas do Arsenal: layout', () => {
     for (const f of L.frames) expect(f.x >= L.bounds.x && f.y >= L.bounds.y && f.x + f.w <= L.bounds.x + L.bounds.w && f.y + f.h <= L.bounds.y + L.bounds.h).toBe(true);
   });
 
-  it('o ramo de melhorias pende da arma mostrada: 8 no rifle, 4 na pistola, 2 na faca e 4 na granada', () => {
+  it('as melhorias da arma mostrada ficam em linhas por tipo: miras, modos da granada e o resto, cada uma com rótulo', () => {
     const L = layoutFor(NO_XP);
-    const per = (row: RowId) => L.upgrades.filter((u) => u.row === row);
-    expect([per('primaria').length, per('secundaria').length, per('faca').length, per('granada').length]).toEqual([8, 4, 2, 4]);
-    // Starts right of the weapon shown (the Standard Rifle in hand) and goes on with the design's gap.
-    expect(per('primaria').map((u) => u.x)).toEqual([0, 1, 2, 3, 4, 5, 6, 7].map((j) => UX0 + j * (UW + UG)));
-    // Another rifle shown: the same rifle upgrades, moved under it.
+    // Each row of upgrades: its kind (from its label) and its ids in level order.
+    const rowsOf = (row: RowId) => {
+      const ys = [...new Set(L.upgrades.filter((u) => u.row === row).map((u) => u.y))].sort((a, b) => a - b);
+      return ys.map((y) => ({
+        kind: L.labels.find((l) => l.row === row && l.y === y - 24)?.kind,
+        ids: L.upgrades.filter((u) => u.row === row && u.y === y).map((u) => u.node.id),
+      }));
+    };
+    expect(rowsOf('primaria')).toEqual([
+      { kind: 'mira', ids: ['pontoVermelho', 'luneta', 'holoLupa', 'luneta2x', 'luneta4x'] },
+      { kind: 'resto', ids: ['empunhadura', 'pente', 'silenciador'] },
+    ]);
+    expect(rowsOf('secundaria')).toEqual([
+      { kind: 'mira', ids: ['pontoVermelho'] },
+      { kind: 'resto', ids: ['gatilho', 'coldre', 'batata'] },
+    ]);
+    expect(rowsOf('faca')).toEqual([{ kind: 'resto', ids: ['afiador', 'tenis'] }]);
+    expect(rowsOf('granada')).toEqual([
+      { kind: 'modo', ids: ['mina', 'dupla'] },
+      { kind: 'resto', ids: ['cinto', 'polvora'] },
+    ]);
+    // Every row starts right of the weapon shown (the Standard Rifle in hand), with the design's gaps; the rows
+    // stack with room for their labels, and the frame holds the last one.
+    const rifle = L.upgrades.filter((u) => u.row === 'primaria');
+    const first = rifle.filter((u) => u.y === rifle[0].y);
+    expect(first.map((u) => u.x)).toEqual([0, 1, 2, 3, 4].map((j) => UX0 + j * (UW + UG)));
+    const second = rifle.filter((u) => u.y !== rifle[0].y);
+    expect(second.map((u) => u.x)).toEqual([0, 1, 2].map((j) => UX0 + j * (UW + UG)));
+    expect(second[0].y).toBe(first[0].y + UH + URG);
+    const frame = L.frames.find((f) => f.id === 'primaria')!;
+    expect(second[0].y + UH).toBeLessThanOrEqual(frame.y + frame.h);
+    // One trunk per row of the tree, down from the weapon shown.
+    expect(L.links.filter((l) => l.kind === 'trunk').length).toBe(4);
+    // Another rifle shown: the same rifle upgrades, moved under it. The row ends at the last rifle or at the end of
+    // the longest row of upgrades, whichever is further (the Golden Rifle's sights go past the rifles).
     const tia = layoutFor({ ...NO_XP, rifle: 2500 }, DEFAULT_CHOICE, { primaria: 'rifleTia' });
     const tiaX = tia.weapons.find((w) => w.node.arma === 'rifleTia')!.x;
-    expect(tia.upgrades.filter((u) => u.row === 'primaria').map((u) => [u.arma, u.x])).toEqual(
-      [0, 1, 2, 3, 4, 5, 6, 7].map((j) => ['rifleTia', tiaX + UX0 + j * (UW + UG)]),
-    );
-    expect(tia.branchEnd.primaria).toBe(tiaX + UX0 + 7 * (UW + UG) + UW);
+    expect(tia.upgrades.filter((u) => u.row === 'primaria').every((u) => u.arma === 'rifleTia' && u.x >= tiaX + UX0)).toBe(true);
+    const lastRifle = 6 * (WW + WG) + WW;
+    expect(tia.branchEnd.primaria).toBe(Math.max(lastRifle, tiaX + UX0 + 4 * (UW + UG) + UW));
+    const gold = layoutFor(NO_XP, DEFAULT_CHOICE, { primaria: 'rifleOuro' });
+    const goldX = 6 * (WW + WG);
+    expect(gold.branchEnd.primaria).toBe(goldX + UX0 + 4 * (UW + UG) + UW);
   });
 
   it('linhas: laranja até a melhoria ligada, tracejada até a trancada; a arma trancada tranca o ramo dela', () => {
@@ -59,21 +92,24 @@ describe('canvas do Arsenal: layout', () => {
     const chain = L.upgrades.filter((u) => u.row === 'primaria');
     expect(chain.map((u) => [u.node.id, u.on, u.locked])).toEqual([
       ['pontoVermelho', true, false],
-      ['empunhadura', true, false],
       ['luneta', false, true],
-      ['pente', false, true],
-      ['silenciador', false, true],
       ['holoLupa', false, true],
       ['luneta2x', false, true],
       ['luneta4x', false, true],
+      ['empunhadura', true, false],
+      ['pente', false, true],
+      ['silenciador', false, true],
     ]);
     const links = L.links.filter((l) => l.kind === 'upgrade').slice(0, 8);
     expect(links.map((l) => [l.on, l.locked])).toEqual(chain.map((u) => [u.on, u.locked]));
+    // The trunk is solid while something under it can be used.
+    expect(L.links.find((l) => l.kind === 'trunk')!.locked).toBe(false);
     // The links between rifles: the locked ones (Fita is unlocked at 1,000) are drawn fainter.
     expect(L.links.filter((l) => l.kind === 'weapon').slice(0, 6).map((l) => l.locked)).toEqual([false, false, true, true, true, true]);
     // The Golden Rifle shown while locked: its upgrades read as locked even where the rifle has them on.
     const gold = layoutFor({ ...NO_XP, rifle: 2500 }, DEFAULT_CHOICE, { primaria: 'rifleOuro' });
     expect(gold.upgrades.filter((u) => u.row === 'primaria').every((u) => u.locked && !u.on)).toBe(true);
+    expect(gold.links.find((l) => l.kind === 'trunk')!.locked).toBe(true);
   });
 });
 
