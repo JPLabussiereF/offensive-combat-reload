@@ -88,11 +88,14 @@ const EXIT_NUDGE = 0.005;
 /** Random direction inside a cone of half-angle `spread` around `forward` (uniform over the disk). */
 export function applySpread(forward: THREE.Vector3, spread: number, out: THREE.Vector3): THREE.Vector3 {
   if (spread <= 0) return out.copy(forward);
+  return offsetDir(forward, spread * Math.sqrt(Math.random()), Math.random() * Math.PI * 2, out);
+}
+
+/** `forward` turned `theta` radians away from itself, toward the side `phi` (a scattergun's pellet; `out` may not be `forward`). */
+export function offsetDir(forward: THREE.Vector3, theta: number, phi: number, out: THREE.Vector3): THREE.Vector3 {
   const up = Math.abs(forward.y) > 0.99 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
   const right = new THREE.Vector3().crossVectors(forward, up).normalize();
   const realUp = new THREE.Vector3().crossVectors(right, forward).normalize();
-  const theta = spread * Math.sqrt(Math.random());
-  const phi = Math.random() * Math.PI * 2;
   const s = Math.sin(theta);
   return out
     .copy(forward)

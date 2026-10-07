@@ -5,7 +5,8 @@
 // the bots draw guns without upgrades or take corrida armada's ladder; the solo zombie game (client/zombies/local.ts)
 // runs the shared match engine and damage rules with the starting rifle and the coffin's weapons, and no XP.
 // What needs the browser (BotManager and Bot build meshes, physics and canvas nameplates; main.ts picks the
-// starting loadout inside its DOM closure) isn't run here: these are the pure pieces they call.
+// starting loadout inside its DOM closure) isn't run here: these are the pure pieces they call (the gun a bot
+// draws for a life, pickGun, among them).
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test';
 import { importNavMesh, init, type NavMesh } from 'recast-navigation';
 import nav from '@shared/data/navmesh/cemiterio.json';
@@ -30,6 +31,7 @@ import type { ServerMsg } from '@shared/protocol';
 import { computeDamage, explosionDamage, HIT_REGIONS } from '@shared/weapons';
 import { gunDamageToZombie, grenadeDamageToZombie, itemOf, itemSlot, knifeDamageToZombie, rarityMul, startItems, withItem, ZOMBIE, zombieGunData, zombieLoadout } from '@shared/zombies';
 import { Progress } from '../gameplay/progress';
+import { pickGun } from '../ai/botGuns';
 import { LocalZombies } from '../zombies/local';
 
 /** Every stat the weapon code reads is a finite, positive number, and so is every hit it can land. */
@@ -230,6 +232,36 @@ describe('treino e contra bots: o Arsenal da conta (Progress)', () => {
 });
 
 describe('contra bots: as armas dos bots e da escada', () => {
+  it('o bot sorteia um rifle em 60% das vidas e, nas outras 40%, qualquer uma das 7 secundárias com a mesma chance', () => {
+    expect(SECONDARIES.length).toBe(7);
+    // The first draw picks the slot, the second the gun in it.
+    const draws = (a: number, b: number) => {
+      const seq = [a, b];
+      return pickGun(() => seq.shift()!);
+    };
+    expect(PRIMARIES).toContain(draws(0.59, 0.5));
+    SECONDARIES.forEach((g, k) => expect(draws(0.6, (k + 0.5) / SECONDARIES.length)).toBe(g));
+    expect(draws(0.99, 0.999999)).toBe(SECONDARIES[SECONDARIES.length - 1]);
+    // Many lives: about 40% secondaries, each one about a seventh of them.
+    let a = 12345;
+    const rand = () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = Math.imul(a ^ (a >>> 15), a | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const count = new Map<string, number>();
+    const N = 70000;
+    for (let i = 0; i < N; i++) {
+      const g = pickGun(rand);
+      count.set(g, (count.get(g) ?? 0) + 1);
+    }
+    const secondary = SECONDARIES.reduce((n, g) => n + (count.get(g) ?? 0), 0);
+    expect(secondary / N).toBeGreaterThan(0.38);
+    expect(secondary / N).toBeLessThan(0.42);
+    for (const g of SECONDARIES) expect({ g, share: Math.abs((count.get(g) ?? 0) / secondary - 1 / 7) < 0.015 }).toEqual({ g, share: true });
+  });
+
   it('toda arma que um bot sorteia (sem melhorias) e todo degrau da escada armam bots e jogador com atributos válidos', () => {
     // Mata-mata: a bot draws any gun and any knife, with no upgrades (client/ai/bot.ts).
     for (const g of GUN_IDS) expect({ g, ok: gunOk(gunStats(g, [])) }).toEqual({ g, ok: true });

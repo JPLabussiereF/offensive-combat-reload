@@ -1,5 +1,6 @@
 // Every weapon and upgrade of shared/data/progression.json has its name and description in both languages
-// (client/ui/strings.ts): the Arsenal, the HUD and the kill feed show them by id.
+// (client/ui/strings.ts): the Arsenal, the HUD and the kill feed show them by id. The secondaries of PF-10 have
+// the names and descriptions of the plan, and so do their coffin items (zumbi) and ladder steps.
 import { describe, expect, it } from 'bun:test';
 import { PROG_WEAPONS, PROGRESSION } from '@shared/progression';
 import { GAME_MODE_IDS } from '@shared/modes';
@@ -66,6 +67,42 @@ describe('textos dos modos de jogo', () => {
       }
       for (const s of LADDER) check(`ladder_${s.id}`);
       expect(missing).toEqual([]);
+    });
+  }
+});
+
+describe('textos das secundárias novas', () => {
+  const NAMES = {
+    'pt-BR': {
+      grampeador: 'Grampeador do RH',
+      revolver: 'Revólver do Delegado da Quadrilha',
+      furadeira: 'Furadeira do Vizinho de Domingo',
+      garrucha: 'Garrucha do Cangaceiro',
+      pistolao: 'Pistolão do Marombeiro',
+    },
+    en: {
+      grampeador: 'HR Stapler',
+      revolver: "Square Dance Sheriff's Revolver",
+      furadeira: "Neighbor's Sunday Drill",
+      garrucha: "Cangaceiro's Double-Barrel",
+      pistolao: "Gym Bro's Hand Cannon",
+    },
+  } as const;
+  // The start of each description, enough to tell it's the plan's (and the language's).
+  const DESCS = {
+    'pt-BR': { grampeador: 'Tec-tec-tec', revolver: 'Do casamento caipira', furadeira: 'Oito da manhã de domingo', garrucha: 'Dois canos', pistolao: 'Treinou braço' },
+    en: { grampeador: 'Chk-chk-chk', revolver: 'From the square-dance', furadeira: '8 a.m. on a Sunday', garrucha: 'Two barrels', pistolao: 'Skipped leg day' },
+  } as const;
+  for (const lang of ['pt-BR', 'en'] as const) {
+    it(`nome, descrição, item do caixão e degrau de cada uma em ${lang}`, () => {
+      setLang(lang);
+      for (const [w, name] of Object.entries(NAMES[lang])) {
+        expect({ w, name: t(`arma_${w}` as StringKey) }).toEqual({ w, name });
+        expect(t(`armaDesc_${w}` as StringKey).startsWith(DESCS[lang][w as keyof (typeof DESCS)[typeof lang]])).toBe(true);
+        expect(t(`zitem_${w}` as StringKey)).toBe(name);
+      }
+      expect(t('ladder_garrucha')).toBe(NAMES[lang].garrucha);
+      expect(t('ladder_grampeador')).toBe(NAMES[lang].grampeador);
     });
   }
 });

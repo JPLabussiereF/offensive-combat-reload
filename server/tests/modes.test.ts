@@ -75,6 +75,21 @@ describe('escada da corrida armada (regras puras)', () => {
     }
   });
 
+  it('nove degraus: a garrucha e o grampeador entre o rifle silenciado e a pistola ligeira, sem melhorias; 25 abates vencem', () => {
+    expect(LADDER.map((s) => s.id)).toEqual(['rifleCompleto', 'smgTurbo', 'rifleLuneta', 'rifleSilenciado', 'garrucha', 'grampeador', 'pistolaRapida', 'pistolaBatata', 'sabre']);
+    expect(LADDER.slice(4, 6)).toEqual([
+      { id: 'garrucha', arma: 'garrucha', melhorias: [] },
+      { id: 'grampeador', arma: 'grampeador', melhorias: [] },
+    ]);
+    expect(LADDER.reduce((n, _s, i) => n + killsForStep(i), 0)).toBe(25);
+    // Each one alone in the hands, with the pistol's progression empty (the ladder never takes the account's).
+    for (const i of [4, 5]) {
+      expect(ladderLoadout(i)).toMatchObject({ primaria: LADDER[i].arma, secundaria: null, ativas: { pistola: [] } });
+      expect(afterKill({ step: i, kills: 2 }, 'gun', LADDER[i].arma)).toEqual({ pos: { step: i + 1, kills: 0 }, event: 'advanced' });
+      expect(afterKill({ step: i, kills: 0 }, 'gun', 'pistola').event).toBeNull();
+    }
+  });
+
   it('três abates com a arma do degrau sobem um degrau; outras armas não contam', () => {
     let pos = { step: 0, kills: 0 };
     const gun = stepWeapon(0);

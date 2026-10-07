@@ -22,7 +22,7 @@ tags:
   - game
   - ui
   - inventory
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Inventory UI
@@ -68,12 +68,12 @@ Textos: os do canvas são `arsenalCanvasHint`, `arsenalCanvasHintTouch`, `cvLege
 
 ## Arsenal (árvore)
 
-Painel do menu de início/pausa (`#arsenal-grid`, também no campo de tiro), montado pela classe `Arsenal` (`client/ui/arsenal.ts`) a partir do modelo puro `arsenalTree` (`client/ui/arsenalTree.ts`). Até a PF-9 ele também era a aba Arsenal da tela inicial. Decisões em [[ADR - Árvore do Arsenal e armas liberadas por nível]] e [[ADR - Rifles e facas antigos como armas próprias]].
+Painel do menu de início/pausa (`#arsenal-grid`, também no campo de tiro), montado pela classe `Arsenal` (`client/ui/arsenal.ts`) a partir do modelo puro `arsenalTree` (`client/ui/arsenalTree.ts`). Até a PF-9 ele também era a aba Arsenal da tela inicial. Decisões em [[ADR - Árvore do Arsenal e armas liberadas por nível]], [[ADR - Rifles e facas antigos como armas próprias]] e [[ADR - Secundárias novas no Arsenal]].
 
 ```text
 PRINCIPAL   [Rifle Padrão ✓ Equipada]──[Remendado com Fita]──[da Tia do Zap 🔒 faltam N pts de rifle]──…──[Dourado Ostentação 🔒]
              painel do rifle clicado → melhorias do rifle em cadeia: [Ponto vermelho]─[Empunhadura]─[Luneta]─[Pente 🔒]─…─[Luneta 4x 🔒]
-SECUNDÁRIA  [Pistola ✓ Equipada]──[Submetralhadora 🔒 faltam N pts de pistola]
+SECUNDÁRIA  [Pistola ✓ Equipada]──[Grampeador 🔒 faltam N pts de pistola]──[Submetralhadora 🔒]──[Revólver 🔒]──[Furadeira 🔒]──[Garrucha 🔒]──[Pistolão 🔒]
              painel da arma clicada (começa na equipada)
 FACA        [Faca de Cozinha ✓]──[Colher de Pau]──[Frango de Borracha 🔒]──…──[Sabre de Luz 🔒]
              painel da faca clicada → [Afiador]─[Tênis 🔒]
@@ -82,16 +82,17 @@ GRANADA     [Granada ✓]     painel com mina e dose dupla
 
 | Parte | O que mostra |
 | --- | --- |
-| Linha | Uma por espaço, as armas na ordem em que liberam: **Principal** (`PRIMARIES`: os sete rifles), **Secundária** (`SECONDARIES`: pistola, depois submetralhadora), **Faca** (`KNIVES`: as sete facas) e **Granada** (`TREE_ROWS`). No celular, as cadeias rolam para o lado |
+| Linha | Uma por espaço, as armas na ordem em que liberam: **Principal** (`PRIMARIES`: os sete rifles), **Secundária** (`SECONDARIES`: pistola, grampeador, submetralhadora, revólver, furadeira, garrucha e pistolão — todas trancadas pelos pontos de pistola, de 700 a 9.000), **Faca** (`KNIVES`: as sete facas) e **Granada** (`TREE_ROWS`). No celular, as cadeias rolam para o lado |
 | Nó de arma | Botão com ícone, nome e "✓ Equipada", "Nível N/total" ou, se trancada, "🔒 faltam N pts de {progressão}" (ex.: "faltam 600 pts de faca"; borda tracejada). Clicar mostra o painel dela, **inclusive de uma trancada** (ver o que vem) |
-| Painel | Ícone, "Nível N/total" (o da progressão: todo rifle mostra o nível do rifle), nome e: selo **✓ Equipada**, botão **Equipar** (arma liberada e não equipada, nas linhas Principal, Secundária e Faca) ou "Trancada: libera com {total} pontos de {progressão}. Faltam X." |
+| Painel | Ícone, "Nível N/total" (o da progressão: todo rifle mostra o nível do rifle; o grampeador, o revólver, a garrucha e o pistolão o da pistola; a furadeira o da submetralhadora), nome e: selo **✓ Equipada**, botão **Equipar** (arma liberada e não equipada, nas linhas Principal, Secundária e Faca) ou "Trancada: libera com {total} pontos de {progressão}. Faltam X." |
 | Pontos | Barra laranja e **"Faltam X pontos para o nível N"** (ou "Nível máximo!") |
 | Atributos | Nas armas de fogo: barras de Dano, Cadência, Precisão, Alcance e Mobilidade e "Pente N / reserva M", **já com as melhorias em efeito** (`gunStats`) |
 | Melhorias | Uma **cadeia em ordem de nível** com as melhorias da progressão da arma (as mesmas para os sete rifles, e para as sete facas): ícone, nível, nome e o estado — 🔒 com **os pontos que faltam** (trancada) ou um **interruptor Ligada/Desligada** (liberada, comum ou opcional). Uma comum desligada por causa de uma opcional do grupo mostra "Substituída por {opcional}". Abaixo, fichas com o que ela muda: verdes para o ganho, vermelhas para a troca, amarela "Opcional: tem troca" |
 | Descrição | A descrição engraçada da melhoria sob o mouse ou com foco; sem nenhuma, a da arma |
 
 - **Uma por grupo**: ligar uma opcional substitui as comuns do grupo e desliga a outra opcional (as quatro miras opcionais do rifle × o ponto vermelho; mina × dose dupla); ligar a comum desliga a opcional do grupo.
-- Ligar uma melhoria num rifle vale para todos os rifles (o interruptor é da progressão, `data-w` = `rifle`); o mesmo para as facas.
+- Ligar uma melhoria num rifle vale para todos os rifles (o interruptor é da progressão, `data-w` = `rifle`); o mesmo para as facas, para as secundárias da progressão da pistola (pistola, grampeador, revólver, garrucha, pistolão) e para a submetralhadora e a furadeira.
+- As barras de atributo mantêm a escala de antes (dano ÷ 40, cadência ÷ 1.100): o revólver e o pistolão enchem a barra de Dano e a furadeira a de Cadência ([[ADR - Secundárias novas no Arsenal]]).
 - Cada mudança chama `progress.toggle(progressão, id, ligada)` ou, no botão Equipar, `progress.setPrimary`, `setSecondary` ou `setKnife` (conforme a linha), que grava na conta (`PATCH /api/perfil {arsenal}`) **um salvamento por vez** (cliques rápidos: só a última escolha que esperava é enviada). Se o salvamento falha (sem internet, servidor recusou), a tela **volta à última escolha que a conta tem** e avisa "Não foi possível salvar o Arsenal" (na tela inicial, na linha de status; no campo de tiro, num aviso do HUD, e as armas na mão voltam junto). Ao entrar numa sessão, a home manda a escolha ao servidor (`loadout` no saguão).
 - **Na partida o Arsenal é só leitura** em todo modo de jogo (mata-mata online e contra bots): dá para clicar nas armas e ver as árvores, mas os interruptores ficam desabilitados, não há botão Equipar e aparece o aviso "Equipamento travado durante a partida: aqui você só consulta a árvore…" (`new Arsenal(..., readOnly = true)`). Só no **campo de tiro** ele segue editável, com `applyLoadout(progress.loadout, true)` pondo as armas novas na mão. Ver [[ADR - Equipamento travado no mata-mata]].
 - Na **corrida armada** o menu de pausa mostra a **escada** no lugar do Arsenal (`renderLadder`, `client/ui/ladder.ts`) e no **zumbi** o caixão. Ver [[Gun Game]].

@@ -30,6 +30,7 @@ import {
   withItem,
   Z_KINDS,
   ZOMBIE,
+  zombieGunData,
   zombieLoadout,
   zombieProblems,
   type BossId,
@@ -105,6 +106,24 @@ describe('regras do modo zumbi', () => {
     expect(count.epico).toBeGreaterThan(count.lendario);
     expect(count.lendario).toBeGreaterThan(50);
     expect(BOX_ITEMS.every((i) => itemSlot(i) === (i.arma === 'rifle' ? 'primaria' : i.arma === 'faca' ? 'faca' : 'secundaria'))).toBe(true);
+  });
+
+  it('as secundárias novas no caixão, sem melhorias: grampeador e revólver comuns, furadeira e garrucha raras, pistolão épico', () => {
+    const want = { grampeador: 'comum', revolver: 'comum', furadeira: 'raro', garrucha: 'raro', pistolao: 'epico' } as const;
+    for (const [id, raridade] of Object.entries(want) as [keyof typeof want, (typeof want)[keyof typeof want]][]) {
+      const it = itemOf(id)!;
+      expect({ id, it }).toEqual({ id, it: { id, arma: id, melhorias: [], raridade } });
+      expect(itemSlot(it)).toBe('secundaria');
+      // In the hand: the secondary slot, the rifle kept as the primary.
+      expect(zombieLoadout(withItem(startItems(), it, null))).toMatchObject({ primaria: 'rifle', secundaria: id });
+    }
+    // The coffin hands each of them out.
+    const rng = seeded(11);
+    const seen = new Set<string>();
+    for (let i = 0; i < 6000; i++) seen.add(rollBox(rng, startItems()).id);
+    for (const id of Object.keys(want)) expect({ id, seen: seen.has(id) }).toEqual({ id, seen: true });
+    // A damaged garrucha with fewer rounds still has one shell in the barrels.
+    expect(zombieGunData(gunStats('garrucha'), 'municao').pente).toBe(1);
   });
 
   it('a virilha mata um zumbi comum na hora, mas só dobra o dano num chefe; a raridade multiplica', () => {

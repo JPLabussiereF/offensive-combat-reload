@@ -26,7 +26,7 @@ import { holdOf } from './render/weaponModels';
 import { ANIM } from './character/animator';
 import { TuningPanel } from './ui/tuning';
 import { QualityManager } from './render/quality';
-import { createPhysics } from './world/physics';
+import { createPhysics, type SurfaceMaterial } from './world/physics';
 import { buildBlockoutMap, type CritterHit, type SpawnPoint } from './world/blockoutMap';
 import { buildDragonGardenMap } from './world/dragonGarden';
 import { buildHauntedTownMap } from './world/hauntedTown';
@@ -41,7 +41,7 @@ import { bodyStats, defaultAppearance } from '@shared/appearance';
 import { Weapon, type WeaponHooks } from './weapons/weapon';
 import { Melee, findMeleeTarget } from './weapons/melee';
 import { GrenadeProjectiles, GrenadeThrower } from './weapons/grenades';
-import { applySpread, traceShot } from './weapons/hitscan';
+import { applySpread, offsetDir, traceShot } from './weapons/hitscan';
 import { Taunt } from './gameplay/taunt';
 import { nearestHumiliable, type HitboxRegistry, type Humiliable, type Target } from './gameplay/targets';
 import { RemoteWorld, type RemotePlayer } from './net/remote';
@@ -54,14 +54,14 @@ import { Corpse } from './gameplay/corpse';
 import { Sfx } from './audio/sfx';
 import { BodySounds, OCCLUSION_WEIGHT, type Vec, type Walker } from './audio/spatial';
 import { Chat } from './ui/chat';
-import { Hud, type Buff, type FeedIcon } from './ui/hud';
+import { Hud, type Buff, type FeedIcon, type HitKind } from './ui/hud';
 import { Screens } from './ui/menu';
 import { closeReason, gameModeName, showHome } from './ui/home';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
 import { Arsenal, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
 import { stickerBadge, stickerUpText, titleText } from './ui/album';
-import { GUN_IDS, isKnife, KNIVES, progOf, upgradeAt, type KnifeId, type WeaponId } from '@shared/progression';
+import { GUN_IDS, isKnife, KNIVES, progOf, upgradeAt, type GunId, type KnifeId, type WeaponId } from '@shared/progression';
 import { DEFAULT_LOADOUT, grenadeStats, gunIn, knifeOf, loadoutKnife, sanitizeLoadout, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import { MODE_RULES, type GameModeId } from '@shared/modes';
 import { FINAL_STEP, GUN_GAME, killsForStep, ladderLoadout, type LadderPos } from '@shared/gunGame';
@@ -248,14 +248,14 @@ async function boot() {
     const hit = physics.world.castRay(groundProbe, 0.5, true, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, WORLD_ONLY);
     return (hit && physics.surfaces.get(hit.collider.handle)?.material) || 'concrete';
   };
-  const playBody = (id: number, w: Walker, dt: number, reloadTime: () => number) => {
+  const playBody = (id: number, w: Walker, dt: number, reloadTime: () => number, gun: () => GunId) => {
     const f = w.feet;
     for (const ev of bodySounds.update(id, w, dt)) {
       const at = { x: f.x, y: f.y + 0.4, z: f.z };
       if (ev.kind === 'step') sfx.at(at, 'step', (s) => s.footstep(groundAt(f), ev.loud * 2));
       else if (ev.kind === 'land') sfx.at(at, 'step', (s) => s.land(ev.hard));
       else if (ev.kind === 'slide') sfx.at(at, 'step', (s) => s.slide(groundAt(f)));
-      else sfx.at({ x: f.x, y: f.y + 1.2, z: f.z }, 'normal', (s) => s.reload(reloadTime(), false));
+      else sfx.at({ x: f.x, y: f.y + 1.2, z: f.z }, 'normal', (s) => s.reload(reloadTime(), false, gun()));
     }
   };
   // Phones and tablets: touch controls over the HUD; the pause button leaves to the menu.
@@ -711,111 +711,130 @@ async function boot() {
 
   // The gun hooks, shared by both slots: they act on the gun in hand (`weapon`).
   const gunHooks: WeaponHooks = {
-    shoot(spread, shotIndex) {
+    shoot(spread, shotIndex, pellets) {
       shots++;
       bots?.unprotect(playerTarget);
       player.eye(1, eye);
       computeAim(aimForward);
       applySpread(aimForward, spread, shotDir);
-      const { hit, through, keep, end } = traceShot(physics, registry, eye, shotDir, weapon.data.alcanceMaximo, playerRig?.body, weapon.data.penetracao);
+      // One ray per bullet: a scattergun's pellets each go their own way around the shot, each one a hit of its own.
+      const dirs = pellets ? pellets.map((p) => offsetDir(shotDir, p.theta, p.phi, new THREE.Vector3())) : [shotDir];
 
       // Muzzle position in world space (viewmodel is camera-relative).
       viewmodel.muzzleCameraSpace(muzzle).applyMatrix4(ctx.camera.matrixWorld);
       viewmodel.flash();
-      viewmodel.kick();
+      viewmodel.kick(weapon.data.coiceVisual ?? 1);
       gamepad.rumble(45, 0.1, 0.35);
       effects.flash(muzzle);
       sfx.gunshot(1, weapon.data.silenciador ? 'silenciado' : weapon.data.arma);
-      if (shotIndex % weapon.data.tracanteACada === 0) effects.tracer(muzzle, end);
-      conn?.send({ t: 'shot', o: vec3(muzzle), e: vec3(end) });
-      // Fish and fruit don't stop the bullet: whatever it hits further on is hit too.
-      const critter = map.critters?.shot(eye, shotDir, hit ? hit.distance : Math.min(120, weapon.data.alcanceMaximo));
-      if (critter) {
-        effects.burst('confetti', critter.point, tmp.copy(shotDir).negate(), 4, critter.fish ? 0xbfeaff : 0xc8102e);
-        hitCritter(critter);
-      }
 
-      // Through wood and glass: entry and exit holes, splinters out the far side.
-      for (const p of through) {
-        effects.decal(p.point, p.normal);
-        effects.decal(p.exit, p.exitNormal);
-        effects.burst('debris', p.point, p.normal, 3, 0x9a6a3a);
-        effects.burst('debris', p.exit, shotDir, 5, 0x9a6a3a);
-        sfx.at(p.point, 'normal', (s) => s.impact(p.surface.material));
-        p.surface.onShot?.(p.point);
-      }
-      if (!hit) return;
-      if (hit.target) {
-        const entity = hit.target.entity;
-        const region: HitRegion = entity.refineRegion(hit.point, hit.target.region);
-        const groin = region === 'virilha';
-        const head = region === 'cabeca';
-        tmp.copy(shotDir).negate();
-        if (zombies?.isZombie(entity)) {
-          // A zombie: reported to the match (the server online), which decides the damage and the kill.
-          if (entity.dead) return;
-          zombies.shot(entity, region, hit.distance, weapon.data, keep);
-          hits++;
-          lastHitDist = hit.distance;
-          effects.burst(head || groin ? 'star' : 'debris', hit.point, tmp, head || groin ? 10 : 7, 0x6f8a3a);
-          sfx.hitmarker(head || groin);
-          hud.hit(head ? 'head' : 'hit');
-          return;
+      // The shot's feedback, once however many pellets landed: the best of them (a kill, then a head, then a hit).
+      let landed = false;
+      let headMark = false;
+      let mark: HitKind | null = null;
+      let markedElsewhere = false;
+      let heardImpact = false;
+      const land = (dist: number, head: boolean, kind: HitKind | null) => {
+        landed = true;
+        lastHitDist = dist;
+        headMark ||= head;
+        if (kind === null) markedElsewhere = true;
+        else if (!mark || kind === 'kill' || (kind === 'head' && mark === 'hit')) mark = kind;
+      };
+      // Eight pellets on a wall make one impact sound, not eight.
+      const impact = (at: THREE.Vector3, material: SurfaceMaterial) => {
+        if (heardImpact) return;
+        heardImpact = true;
+        sfx.at(at, 'normal', (s) => s.impact(material));
+      };
+
+      dirs.forEach((dir, i) => {
+        const { hit, through, keep, end } = traceShot(physics, registry, eye, dir, weapon.data.alcanceMaximo, playerRig?.body, weapon.data.penetracao);
+        if (shotIndex % weapon.data.tracanteACada === 0) effects.tracer(muzzle, end);
+        // The others see and hear one shot, whatever its pellets did.
+        if (i === 0) conn?.send({ t: 'shot', o: vec3(muzzle), e: vec3(end) });
+        // Fish and fruit don't stop the bullet: whatever it hits further on is hit too.
+        const critter = map.critters?.shot(eye, dir, hit ? hit.distance : Math.min(120, weapon.data.alcanceMaximo));
+        if (critter) {
+          effects.burst('confetti', critter.point, tmp.copy(dir).negate(), 4, critter.fish ? 0xbfeaff : 0xc8102e);
+          hitCritter(critter);
         }
-        if (net) {
-          // Online: report the hit, show feedback now; the server confirms damage and kills.
-          if (entity.dead) return;
-          conn!.send({ t: 'hit', target: (entity as RemotePlayer).id, region, dist: +hit.distance.toFixed(2), w: weapon.data.arma, ...(keep < 1 ? { keep: +keep.toFixed(3) } : {}) });
-          hits++;
-          lastHitDist = hit.distance;
-          effects.burst(head || groin ? 'star' : 'confetti', hit.point, tmp, head || groin ? 10 : 6);
-          sfx.hitmarker(head || groin);
-          hud.hit(head ? 'head' : 'hit');
-          return;
+
+        // Through wood and glass: entry and exit holes, splinters out the far side.
+        for (const p of through) {
+          effects.decal(p.point, p.normal);
+          effects.decal(p.exit, p.exitNormal);
+          effects.burst('debris', p.point, p.normal, 3, 0x9a6a3a);
+          effects.burst('debris', p.exit, dir, 5, 0x9a6a3a);
+          impact(p.point, p.surface.material);
+          p.surface.onShot?.(p.point);
         }
-        if (entity instanceof Bot && bots) {
-          // Against bots: same rules as online; kills and popups come back through the bot hooks.
-          if (entity.dead) return;
-          const kind: KillKind = head ? 'head' : groin ? 'groin' : 'gun';
-          const res = bots.hit(entity, playerTarget, computeDamage(weapon.data, hit.distance, critRegion(region, potionKind === 'critico'), keep), { kind, region, dist: hit.distance, w: weapon.data.arma });
-          if (res.dealt <= 0) return;
-          hits++;
-          lastHitDist = hit.distance;
-          effects.burst(head || groin ? 'star' : 'confetti', hit.point, tmp, head || groin ? 10 : 6);
-          sfx.hitmarker(head || groin);
-          if (!res.killed) hud.hit(head ? 'head' : 'hit');
-          return;
-        }
-        const dummy = entity as Dummy;
-        const res = dummy.applyHit(computeDamage(weapon.data, hit.distance, critRegion(region, potionKind === 'critico'), keep), region, simTime, shotDir, groin ? 'forward' : 'back');
-        if (res.damage <= 0) return;
-        hits++;
-        lastHitDist = hit.distance;
-        effects.burst(res.headshot || groin ? 'star' : 'confetti', hit.point, tmp, res.headshot || groin ? 10 : 6);
-        sfx.hitmarker(res.headshot || groin);
-        hud.hit(res.killed ? 'kill' : res.headshot ? 'head' : 'hit');
-        if (res.killed) {
-          onKill(dummy, res, weaponName(weapon.data.arma), groin ? 'bird' : res.headshot ? 'head' : null);
-          if (res.headshot) award(t('headshot'), SCORE.headshot);
-          if (groin) {
-            award(t('groin'), SCORE.groin);
-            groinFx(hit.point);
+        if (!hit) return;
+        if (hit.target) {
+          const entity = hit.target.entity;
+          const region: HitRegion = entity.refineRegion(hit.point, hit.target.region);
+          const groin = region === 'virilha';
+          const head = region === 'cabeca';
+          tmp.copy(dir).negate();
+          if (zombies?.isZombie(entity)) {
+            // A zombie: reported to the match (the server online), which decides the damage and the kill.
+            if (entity.dead) return;
+            zombies.shot(entity, region, hit.distance, weapon.data, keep);
+            effects.burst(head || groin ? 'star' : 'debris', hit.point, tmp, head || groin ? 10 : 7, 0x6f8a3a);
+            land(hit.distance, head || groin, head ? 'head' : 'hit');
+            return;
           }
-          if (hit.distance > SCORE.longShotDistance) award(t('longShot'), SCORE.longShot);
+          if (net) {
+            // Online: report the hit, show feedback now; the server confirms damage and kills.
+            if (entity.dead) return;
+            conn!.send({ t: 'hit', target: (entity as RemotePlayer).id, region, dist: +hit.distance.toFixed(2), w: weapon.data.arma, ...(keep < 1 ? { keep: +keep.toFixed(3) } : {}) });
+            effects.burst(head || groin ? 'star' : 'confetti', hit.point, tmp, head || groin ? 10 : 6);
+            land(hit.distance, head || groin, head ? 'head' : 'hit');
+            return;
+          }
+          if (entity instanceof Bot && bots) {
+            // Against bots: same rules as online; kills and popups come back through the bot hooks.
+            if (entity.dead) return;
+            const kind: KillKind = head ? 'head' : groin ? 'groin' : 'gun';
+            const res = bots.hit(entity, playerTarget, computeDamage(weapon.data, hit.distance, critRegion(region, potionKind === 'critico'), keep), { kind, region, dist: hit.distance, w: weapon.data.arma });
+            if (res.dealt <= 0) return;
+            effects.burst(head || groin ? 'star' : 'confetti', hit.point, tmp, head || groin ? 10 : 6);
+            land(hit.distance, head || groin, res.killed ? null : head ? 'head' : 'hit');
+            return;
+          }
+          const dummy = entity as Dummy;
+          const res = dummy.applyHit(computeDamage(weapon.data, hit.distance, critRegion(region, potionKind === 'critico'), keep), region, simTime, dir, groin ? 'forward' : 'back');
+          if (res.damage <= 0) return;
+          effects.burst(res.headshot || groin ? 'star' : 'confetti', hit.point, tmp, res.headshot || groin ? 10 : 6);
+          land(hit.distance, res.headshot || groin, res.killed ? 'kill' : res.headshot ? 'head' : 'hit');
+          if (res.killed) {
+            onKill(dummy, res, weaponName(weapon.data.arma), groin ? 'bird' : res.headshot ? 'head' : null);
+            if (res.headshot) award(t('headshot'), SCORE.headshot);
+            if (groin) {
+              award(t('groin'), SCORE.groin);
+              groinFx(hit.point);
+            }
+            if (hit.distance > SCORE.longShotDistance) award(t('longShot'), SCORE.longShot);
+          }
+        } else {
+          effects.decal(hit.point, hit.normal);
+          effects.burst('debris', hit.point, hit.normal, 5, 0x9a8f80);
+          effects.burst('spark', hit.point, hit.normal, 3);
+          const surface = hit.surface;
+          if (surface) {
+            impact(hit.point, surface.material);
+            surface.onShot?.(hit.point);
+          }
         }
-      } else {
-        effects.decal(hit.point, hit.normal);
-        effects.burst('debris', hit.point, hit.normal, 5, 0x9a8f80);
-        effects.burst('spark', hit.point, hit.normal, 3);
-        const surface = hit.surface;
-        if (surface) {
-          sfx.at(hit.point, 'normal', (s) => s.impact(surface.material));
-          surface.onShot?.(hit.point);
-        }
-      }
+      });
+      if (!landed) return;
+      // One shot, one hit for the accuracy count; a bot's kill already marked itself.
+      hits++;
+      sfx.hitmarker(headMark);
+      if (mark && (mark === 'kill' || !markedElsewhere)) hud.hit(mark);
     },
     dryFire: () => sfx.dryFire(),
-    reloadStart: (duration, empty) => sfx.reload(duration, empty),
+    reloadStart: (duration, empty) => sfx.reload(duration, empty, weapon.data.arma),
     reloadEnd: () => {},
   };
   /** What we carry: the guns in each slot and every weapon's upgrades (refreshed by applyLoadout). */
@@ -1856,6 +1875,7 @@ async function boot() {
           grounded: player.move.grounded,
           crouched: player.move.crouched,
           speed: player.horizontalSpeed,
+          holdFire: busy,
         });
       }
     }
@@ -2153,12 +2173,12 @@ async function boot() {
     }
     for (const b of bots?.bots ?? []) {
       const m = b.move;
-      playBody(-b.id, { feet: b.position, alive: !b.dead, grounded: m.grounded, sprint: m.sprinting, crouch: m.crouched, slide: m.sliding, reload: b.weapon.reloading }, frameDt, () => b.weapon.reloadDuration);
+      playBody(-b.id, { feet: b.position, alive: !b.dead, grounded: m.grounded, sprint: m.sprinting, crouch: m.crouched, slide: m.sliding, reload: b.weapon.reloading }, frameDt, () => b.weapon.reloadDuration, () => b.gun);
     }
     for (const p of net?.players.values() ?? []) {
       const f = p.flags;
       const w = { feet: p.position, alive: p.alive, grounded: !!(f & FLAG.grounded), sprint: !!(f & FLAG.sprint), crouch: !!(f & FLAG.crouch), slide: !!(f & FLAG.slide), reload: !!(f & FLAG.reload) };
-      playBody(p.id, w, frameDt, () => p.gun.recarga.tatica);
+      playBody(p.id, w, frameDt, () => p.gun.recarga.tatica, () => p.gun.arma);
     }
     grenades.render(alpha);
     effects.update(frameDt);
