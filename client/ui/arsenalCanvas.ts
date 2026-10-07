@@ -1,9 +1,10 @@
 // The home's Arsenal tab as a canvas (PF-9, design "Arsenal Canvas"): a world the player drags around and zooms (the
 // wheel, a pinch, the − / + buttons; 25% to 200%), with one frame per slot, the slot's weapons linked side by side
-// and, under the weapon shown, its progression's upgrades as a chain. Each upgrade turns on and off right on its node;
-// clicking a weapon opens a panel on the right (equip, progress, stats, description, the upgrade picked). Jump
-// buttons, a minimap and "show all" move the camera. The data is the tree's (client/ui/arsenalTree.ts) and saving is
-// Progress's, as in the pause menu's tree (client/ui/arsenal.ts), which stays as it is. With a controller the focus
+// and, under the weapon shown, its progression's upgrades in labeled rows by kind (sights, grenade modes, the rest;
+// PF-9 revision 01). Each upgrade turns on and off right on its node; clicking a weapon opens a panel on the right
+// (equip, progress, stats, description, the upgrade picked). Jump buttons, a minimap and "show all" move the camera.
+// The data is the tree's (client/ui/arsenalTree.ts) and saving is Progress's, as in the pause menu's tree
+// (client/ui/arsenal.ts), which stays as it is. With a controller the focus
 // moves from node to node and the camera follows it; the right stick pans (client/ui/padNav.ts, `pad-pan`).
 // The geometry and the camera math are client/ui/arsenalCanvasLayout.ts.
 import { isGun, isKnife, progOf, upgradeOf, type ProgWeapon, type WeaponId } from '@shared/progression';
@@ -211,6 +212,7 @@ export class ArsenalCanvas {
       .map((l) => `<path class="cv-link${l.on ? ' on' : ''}${l.locked ? ' locked' : ''}${l.kind === 'weapon' ? ' w' : ''}" d="${l.d}"></path>`)
       .join('');
     this.nodes.innerHTML =
+      L.labels.map((l) => `<span class="cv-row-label" style="left:${l.x}px;top:${l.y}px">${esc(str(`cvUpgRow_${l.kind}`))}</span>`).join('') +
       L.upgrades.map((u) => this.upgradeNode(u.row, u.arma, u.node, u.x, u.y, u.locked, u.on)).join('') +
       L.weapons.map((b) => this.weaponNode(b.row, b.node, b.x, b.y)).join('');
 
@@ -358,7 +360,8 @@ export class ArsenalCanvas {
 
   private apply() {
     const { x, y, z } = this.cam;
-    this.world.style.transform = `translate(${x}px, ${y}px) scale(${z})`;
+    // Whole pixels and no will-change: the browser draws the text again at each zoom instead of stretching a picture.
+    this.world.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px) scale(${z})`;
     const g = 24 * z;
     this.vp.style.backgroundSize = `${g}px ${g}px`;
     this.vp.style.backgroundPosition = `${x}px ${y}px`;

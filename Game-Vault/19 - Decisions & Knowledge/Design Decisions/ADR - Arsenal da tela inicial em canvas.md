@@ -28,6 +28,9 @@ updated: 2026-10-06
 >
 > Origem: issue PF-9 do Jira ("Arsenal em canvas com arrastar, zoom e painel de detalhes"), com as decisões P1 a P7 respondidas pelo dev em 06/10/2026 (plano "PF-9 PLANO" no Confluence, espaço PF), a partir do design "Arsenal Canvas" (Claude Design, projeto "Interface de Arsenal Interativo").
 
+> [!info] Revisão (06/10/2026, PF-9 Revisions 01)
+> Depois de testar na sprint, o dev pediu duas mudanças (respostas P8 a P10 no chat). As melhorias da arma mostrada saíram de uma cadeia única para **linhas por tipo**: Miras, Modo (a granada) e Melhorias, cada uma com rótulo e saindo de um tronco sob a arma. E o canvas deixou de ficar **desfocado**: sem `will-change: transform` no mundo e com a câmera em pixels inteiros, o texto é redesenhado a cada zoom. O item 1 da Decisão abaixo vale com essas mudanças.
+
 ## Contexto
 
 A PF-7 desenhou o Arsenal como uma árvore em linhas, e a PF-8 pôs sete rifles e sete facas nela. As linhas de armas e as cadeias de melhorias ficaram longas: na aba Arsenal da tela inicial era preciso rolar de lado em cada linha e rolar a página entre elas.
@@ -65,10 +68,12 @@ Mostrar as quatro linhas, as armas e as melhorias de forma navegável, sem rolag
 - A página da tela inicial não rola na aba Arsenal.
 - `PadNav` ganhou o evento `pad-pan` para telas que se movem em vez de rolar.
 - Os textos de quadro e de espaço do canvas (`cvRow_*`, `cvSlot_*`) são diferentes dos da árvore (`treeRow_*`): "Corpo a corpo" e "Arremesso" no lugar de "Faca" e "Granada".
+- Sem `will-change`, arrastar e dar zoom redesenham o mundo a cada quadro em vez de mover uma imagem pronta. Com cerca de 40 nós o custo é pequeno, e é o preço da nitidez (Revisions 01). O tipo de cada melhoria vem dos efeitos dela (`mira` ou `tipo`), então uma melhoria nova de mira ou de modo vai para a linha certa sozinha.
 
 ## Código afetado
 
 - `client/ui/arsenalCanvasLayout.ts` (novo: geometria e câmera), `client/ui/arsenalCanvas.ts` (novo: o canvas), `client/ui/arsenal.ts` (exporta `esc`, `num` e `gunStatBars`), `client/ui/home.ts`, `client/ui/padNav.ts`, `client/ui/strings.ts`, `client/styles.css`, `index.html`
 - Testes: `client/tests/arsenalCanvasLayout.test.ts` (novo), `client/tests/arsenalText.test.ts`
+- Revisions 01: `client/ui/arsenalCanvasLayout.ts` (`upgradeKind`, `UPGRADE_KINDS`, linhas, tronco e rótulos), `client/ui/arsenalCanvas.ts` (rótulos, câmera em pixels inteiros), `client/styles.css` (`.cv-row-label`, sem `will-change`), `client/ui/strings.ts` (`cvUpgRow_*`)
 
 Relacionado: [[Inventory UI]] · [[Menus]] · [[Input & Controls]] · [[ADR - Árvore do Arsenal e armas liberadas por nível]]

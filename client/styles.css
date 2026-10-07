@@ -2582,6 +2582,7 @@ html:not(.mobile) #tab-arsenal .hint-touch {
 .cv-viewport.grabbing {
   cursor: grabbing;
 }
+/* No will-change: a layer kept for the transform is drawn once and then stretched, which blurs the text when zoomed. */
 .cv-world {
   position: absolute;
   left: 0;
@@ -2589,7 +2590,6 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   width: 1px;
   height: 1px;
   transform-origin: 0 0;
-  will-change: transform;
 }
 .cv-frame {
   position: absolute;
@@ -2719,6 +2719,19 @@ html:not(.mobile) #tab-arsenal .hint-touch {
 }
 .cv-weapon.equipped:not(.locked) .cv-wsub {
   color: #c75400;
+}
+.cv-row-label {
+  position: absolute;
+  padding: 2px 9px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 900 10px var(--body);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
 }
 .cv-upg {
   position: absolute;

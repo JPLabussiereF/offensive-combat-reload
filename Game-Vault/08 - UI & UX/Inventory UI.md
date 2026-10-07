@@ -36,7 +36,10 @@ A aba **Arsenal** da tela inicial (`#home-arsenal`) é um canvas que se arrasta 
 ```text
 ┌ PRINCIPAL  Equipada: Rifle da Tia do Zap ──────────────────────────────────────────────┐
 │ [Rifle Padrão]──[Remendado com Fita]──[Tia do Zap ✓]──[Pisca-Pisca]──…──[Dourado 🔒]   │
-│                                    └─[🔴 2 Ponto vermelho · DESLIGADA]──[🧹 3 Empunhadura · LIGADA]──…│
+│                                    │ (MIRAS)                                                │
+│                                    ├─[🔴 2 Ponto vermelho · DESLIGADA]──[🔭 4 Luneta do Vovô]──…│
+│                                    │ (MELHORIAS)                                            │
+│                                    └─[🧹 3 Empunhadura · LIGADA]──[🩹 5 Pente]──[🍾 6 Silenciador] │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ┌ SECUNDÁRIA … ┐  ┌ CORPO A CORPO … ┐  ┌ ARREMESSO  Sempre equipada ┐
 [PRINCIPAL | SECUNDÁRIA | CORPO A CORPO | ARREMESSO]  (pular)      painel à direita ao clicar numa arma
@@ -47,7 +50,7 @@ A aba **Arsenal** da tela inicial (`#home-arsenal`) é um canvas que se arrasta 
 | --- | --- |
 | Quadros | Um por espaço, um embaixo do outro: **Principal**, **Secundária**, **Corpo a corpo** e **Arremesso**, com "Equipada: {arma}" (o arremesso: "Sempre equipada") |
 | Nós de arma | As armas do espaço lado a lado, na ordem em que liberam, ligadas por uma linha (apagada até a trancada). Ícone num quadrado da cor do espaço, nome e "✓ Equipada · Nível N/total", "Nível N/total" ou "🔒 faltam N pts de {progressão}" (fundo cinza, borda tracejada) |
-| Cadeia de melhorias | Embaixo da arma mostrada (a clicada, senão a equipada), as melhorias da progressão dela ligadas em sequência. Cada nó tem ícone, nível, nome e o botão **Ligada/Desligada** (liga e desliga ali mesmo); trancada mostra "🔒 faltam N pts", e a de uma arma trancada "🔒 Arma bloqueada". A linha até uma melhoria ligada fica **laranja**; até uma trancada, pontilhada. Opcional liberada leva a etiqueta "Opcional" |
+| Melhorias em linhas | Embaixo da arma mostrada (a clicada, senão a equipada), as melhorias da progressão dela em **linhas por tipo**, cada uma com um rótulo: **Miras** (as que mudam a mira: ponto vermelho, lunetas, holo com lupa, holográfica), **Modo** (mina e dose dupla da granada) e **Melhorias** (o resto). Cada linha segue a ordem dos níveis; um tipo que a arma não tem não ganha linha (a faca fica com uma só). Um tronco desce da arma e cada linha sai dele (PF-9, Revisions 01). Cada nó tem ícone, nível, nome e o botão **Ligada/Desligada** (liga e desliga ali mesmo); trancada mostra "🔒 faltam N pts", e a de uma arma trancada "🔒 Arma bloqueada". A linha até uma melhoria ligada fica **laranja**; até uma trancada, pontilhada. Opcional liberada leva a etiqueta "Opcional" |
 | Painel | Abre à direita ao clicar numa arma (e a câmera enquadra a arma e a cadeia dela): espaço e nível, nome, **Equipar** ("Levar como secundária" na secundária) ou "✓ Equipada"/"Sua secundária"/"Sempre equipada" ou a trava em pontos; progresso; atributos das armas de fogo; descrição; "Melhorias: N de M ligadas" e o detalhe da melhoria clicada (descrição, fichas de ganho e troca, "Substituída por …", botão "Ligada · toque para desligar" ou a trava). Fecha no ✕, no Esc, no ◯/B ou tocando no fundo |
 | Câmera | Arrastar move; roda do mouse dá zoom em volta do ponteiro; rolagem lateral do trackpad move; pinça (dedos ou trackpad) dá zoom; **− / +** e as teclas − e + dão zoom pelo centro; **Ver tudo** (tecla 0) enquadra os quatro quadros; zoom de 25% a 200%. Um arrasto de mais de 4 px não conta como clique |
 | Pular | Botões no canto de cima levam a cada quadro; o do quadro da arma aberta fica escuro |
@@ -59,8 +62,9 @@ A aba **Arsenal** da tela inicial (`#home-arsenal`) é um canvas que se arrasta 
 - **Controle**: os nós são botões, então o D-pad passa de arma em arma e de melhoria em melhoria (`PadNav`), e a câmera voa até o nó com foco; o **analógico direito move o canvas** (o viewport tem `data-pad-pan` e recebe o evento `pad-pan`); o zoom fica nos botões − e +. No painel, o analógico direito rola o painel.
 - A primeira abertura enquadra tudo (se couber a 72% ou mais) ou o canto de cima a 72%. É **um canvas por página**: saindo da aba e voltando, a câmera, o zoom e o painel aberto ficam como estavam (a página recarrega ao sair de uma partida).
 - Ligar, desligar e equipar seguem as regras de baixo (uma por grupo, um salvamento por vez, falha desfaz e avisa na linha de status).
+- **Nitidez**: o mundo do canvas não tem `will-change` e a câmera anda em pixels inteiros, então o navegador redesenha o texto e os ícones a cada zoom em vez de esticar uma imagem (antes da PF-9 Revisions 01, o canvas ficava desfocado ao lado do resto da tela).
 
-Textos: os do canvas são `arsenalCanvasHint`, `arsenalCanvasHintTouch`, `cvLegendLocked`, `cvRow_*`, `cvSlot_*`, `cvFrameEquipped`, `cvAlwaysEquipped`, `cvEquipSecondary`, `cvYourSecondary`, `cvProgress`, `cvUpgrades`, `cvOnCount`, `cvOptional`, `cvWeaponLocked`, `cvUnlockWeaponFirst`, `cvToggleOn`/`cvToggleOff`, `cvPickUpgrade`, `cvFitAll`/`cvFitTitle`, `cvZoomIn`/`cvZoomOut` e `cvClose`, além dos da árvore (nomes, descrições, fichas, travas). `client/tests/arsenalCanvasLayout.test.ts` confere a geometria e a câmera.
+Textos: os do canvas são `arsenalCanvasHint`, `arsenalCanvasHintTouch`, `cvLegendLocked`, `cvRow_*`, `cvSlot_*`, `cvUpgRow_*` (rótulos das linhas de melhorias), `cvFrameEquipped`, `cvAlwaysEquipped`, `cvEquipSecondary`, `cvYourSecondary`, `cvProgress`, `cvUpgrades`, `cvOnCount`, `cvOptional`, `cvWeaponLocked`, `cvUnlockWeaponFirst`, `cvToggleOn`/`cvToggleOff`, `cvPickUpgrade`, `cvFitAll`/`cvFitTitle`, `cvZoomIn`/`cvZoomOut` e `cvClose`, além dos da árvore (nomes, descrições, fichas, travas). `client/tests/arsenalCanvasLayout.test.ts` confere a geometria e a câmera.
 
 ## Arsenal (árvore)
 
