@@ -1,9 +1,9 @@
 {
   "_doc": "Gerado por tools/bake-figurinhas.ts (bun run figurinhas); não edite. Por figurinha deste domínio: v e vm, o hash dos bytes de public/figurinhas/<id>.png (400 x 300) e <id>-mini.png (128 x 128), que vão na URL (?v=); px e pxm, o hash dos pixels (o bake só regrava a imagem quando eles mudam); kb, os tamanhos em KB (card, mini).",
-  "bate-ponto": {"v":"6f35c2ad","vm":"57a6bb32","px":"97c44b1bbd2d56a6","pxm":"791e6741a072beeb","kb":[46.2,7.5]},
-  "com-um-pe-na-cova": {"v":"255a651a","vm":"cfc8e549","px":"6df5895b7f725904","pxm":"7d111e11103cff9e","kb":[75.2,15.5]},
-  "eu-ja-ouvi": {"v":"9c9218f3","vm":"8d1b777d","px":"465f910f244dfeb8","pxm":"5e891009ad2afa36","kb":[30.7,10]},
-  "humanidade-restaurada": {"v":"7bc16cd1","vm":"8262fb69","px":"6fafbaac2c7a7ea6","pxm":"25ad944c3856b0a2","kb":[42.1,12.4]},
+  "bate-ponto": {"v":"d0c68d0f","vm":"57a6bb32","px":"1ee8d8b022ca58b2","pxm":"791e6741a072beeb","kb":[46.1,7.5]},
+  "com-um-pe-na-cova": {"v":"b78a576e","vm":"f8e149fe","px":"7a3c7dc30e197a35","pxm":"ef6777f9a665b1fc","kb":[70.7,19.9]},
+  "eu-ja-ouvi": {"v":"f2c609f0","vm":"8d1b777d","px":"b2a5a572e820532b","pxm":"5e891009ad2afa36","kb":[31.7,10]},
+  "humanidade-restaurada": {"v":"7bc16cd1","vm":"f421e6ab","px":"6fafbaac2c7a7ea6","pxm":"ce7eca2f3e6c52bd","kb":[42.1,13.1]},
   "mosca-no-alvo": {"v":"daf356ce","vm":"3c71e898","px":"2768c0fa10b2c046","pxm":"0a90d001a85b70f4","kb":[57.5,9.2]},
   "mudou-pro-mausoleu": {"v":"7611a56a","vm":"96c38fcf","px":"e2c3eae1b9a6bc37","pxm":"6c746d03692bca8b","kb":[43.8,9.4]},
   "patinhos-em-fila": {"v":"22ede496","vm":"fc868a44","px":"7526f95e90cddaa9","pxm":"ee34b506e96fd143","kb":[46.5,11.2]},

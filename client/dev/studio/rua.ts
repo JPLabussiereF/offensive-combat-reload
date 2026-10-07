@@ -328,26 +328,38 @@ export default defineDomain('rua', [
       const DOOR_W = 1.6;
       const DOOR_H = 2.3;
       const t = 0.3;
-      b.wall('x', 0, -1.2, 1.2, t, 2.85, 'reboco', [[-DOOR_W / 2, DOOR_W / 2, 0, DOOR_H]], 0, { tint: PALETTE.house, frame: { tint: TRIM } });
+      // The wall and the awning apart (the card's): the mini shows only the doorway's trim, so he fills it.
+      const facade = apart(k);
+      facade.b.wall('x', 0, -1.2, 1.5, t, 2.85, 'reboco', [[-DOOR_W / 2, DOOR_W / 2, 0, DOOR_H]], 0, { tint: PALETTE.house, frame: { tint: TRIM } });
+      facade.b.span(-1.1, DOOR_H + 0.25, t / 2, 1.1, DOOR_H + 0.35, t / 2 + 0.9, 'telhado', { tint: ROOF, collide: false });
+      facade.b.finish();
+      const trim = apart(k);
+      for (const [x0, y0, x1, y1] of [[-DOOR_W / 2 - 0.14, 0, -DOOR_W / 2, DOOR_H + 0.14], [DOOR_W / 2, 0, DOOR_W / 2 + 0.14, DOOR_H + 0.14], [-DOOR_W / 2, DOOR_H, DOOR_W / 2, DOOR_H + 0.14]] as const) {
+        trim.b.span(x0, y0, -t / 2, x1, y1, t / 2, 'pintura', { tint: TRIM, collide: false });
+      }
+      trim.b.finish();
       // Inside: a dark hall (floor, walls, back), so the doorway reads as a way in.
       const dark = { tint: 0x2a2230, collide: false };
-      b.span(-0.85, 0, -1.9, 0.85, 0.02, -t / 2, 'piso', { tint: 0x6a5242, collide: false });
-      b.span(-0.85, 0, -1.9, 0.85, DOOR_H, -1.8, 'pintura', dark);
-      b.span(-0.9, 0, -1.9, -0.8, DOOR_H, -t / 2, 'pintura', dark);
-      b.span(0.8, 0, -1.9, 0.9, DOOR_H, -t / 2, 'pintura', dark);
-      b.span(-0.85, DOOR_H, -1.9, 0.85, DOOR_H + 0.1, -t / 2, 'pintura', dark);
-      // The leaf swung in along the left jamb, the porch step, the awning (buildHouse's numbers).
-      b.span(-DOOR_W / 2, 0, -t / 2 - DOOR_W, -DOOR_W / 2 + 0.05, DOOR_H - 0.05, -t / 2, 'madeira', { tint: DOOR_LEAF, collide: false });
+      b.span(-0.85, 0, -1.5, 0.85, 0.02, -t / 2, 'piso', { tint: 0x6a5242, collide: false });
+      b.span(-0.85, 0, -1.5, 0.85, DOOR_H, -1.4, 'pintura', dark);
+      b.span(-0.9, 0, -1.5, -0.8, DOOR_H, -t / 2, 'pintura', dark);
+      b.span(0.8, 0, -1.5, 0.9, DOOR_H, -t / 2, 'pintura', dark);
+      b.span(-0.85, DOOR_H, -1.5, 0.85, DOOR_H + 0.1, -t / 2, 'pintura', dark);
+      // The leaf swung in along the left jamb and the porch step (buildHouse's numbers).
+      b.span(-DOOR_W / 2, 0, -1.4, -DOOR_W / 2 + 0.05, DOOR_H - 0.05, -t / 2, 'madeira', { tint: DOOR_LEAF, collide: false });
       b.span(-1, 0, t / 2, 1, 0.15, t / 2 + 0.8, 'concreto', { tint: 0xd6d1c4 });
-      b.span(-1.1, DOOR_H + 0.25, t / 2, 1.1, DOOR_H + 0.35, t / 2 + 0.9, 'telhado', { tint: ROOF, collide: false });
 
       const hero = k.avatar(HERO);
-      hero.root.position.set(0.05, 0.15, 0.55);
+      hero.root.position.set(0.05, 0.15, 0.45);
       // Walking in (facing -Z, away from the camera): at 0.83 s the stride is at its widest.
       for (let i = 0; i < 50; i++) hero.walk(DT, 3);
+      // Three-quarters from behind, so the stride shows in profile and the facade widens the die-cut.
+      const card: P3 = [0.1, 1.35, 0.3];
+      // The mini: the red cap going through a dark door, his back filling the trimmed opening.
+      const mini: P3 = [0.05, 1.12, 0.2];
       return {
-        card: { pos: orbit([0, 1.35, 0.3], 14, 4.5, 7.6), target: [0, 1.35, 0.3], fov: 30 },
-        mini: { pos: orbit([0, 1.33, 0.3], 5, 3.5, 7.1), target: [0, 1.33, 0.3], fov: 30 },
+        card: { pos: orbit(card, 30, 5, 7.95), target: card, fov: 30, hide: [trim.group] },
+        mini: { pos: orbit(mini, 20, 4, 6.3), target: mini, fov: 30, hide: [facade.group] },
       };
     },
   },
@@ -410,8 +422,8 @@ export default defineDomain('rua', [
       // page), thrown up by a Rua hydrant's gush (the map's hydrants launch whoever stands on them), surprised and
       // tipping back over the jet. The spray rains on her crown: one half still burns, the other is already white
       // steam. The stars on her shoulder: the hit that ended the streak.
-      // The hydrant and its curb at 0.8: she is the story, so she gets the size.
-      const SCALE = 0.8;
+      // The hydrant and its curb at 0.6: she is the story, so she gets the size.
+      const SCALE = 0.6;
       const street = apart(k);
       hydrantBody(street.b, 0, 0, 0);
       street.b.finish();
@@ -428,17 +440,17 @@ export default defineDomain('rua', [
       const column = hydrant['column'] as THREE.Mesh;
       const foam = hydrant['foam'] as THREE.Mesh;
       column.visible = foam.visible = true;
-      column.scale.set(0.8, FEET - TOP, 0.8);
+      column.scale.set(0.9, FEET - TOP, 0.9);
       foam.position.set(0, FEET, 0);
-      foam.scale.set(0.62, 0.34, 0.62);
-      for (const [mesh, color, opacity] of [[column, 0x7fcff7, 0.95], [foam, 0xe4f6ff, 1], [drops.mesh, 0x6cc6f2, 1]] as const) {
+      foam.scale.set(0.72, 0.32, 0.72);
+      for (const [mesh, color, opacity] of [[column, 0x4fb4ec, 1], [foam, 0xe4f6ff, 1], [drops.mesh, 0x4fb4ec, 1]] as const) {
         const m = mesh.material as THREE.MeshBasicMaterial;
         m.color.set(color);
         m.opacity = opacity;
       }
 
-      const card: P3 = [-0.2, 1.76, 0];
-      const cardPos = orbit(card, 196, 38, 5.38);
+      const card: P3 = [-0.05, 1.56, 0];
+      const cardPos = orbit(card, 196, 15, 8.0);
       const eye = new THREE.Vector3(...cardPos);
       // The card camera's screen-right direction, level: fire and steam split her crown by screen side.
       const right = new THREE.Vector3(...card).sub(eye).cross(new THREE.Vector3(0, 1, 0)).setY(0).normalize();
@@ -448,11 +460,12 @@ export default defineDomain('rua', [
       k.face(rival, [cardPos[0], FEET, cardPos[2]]);
       rival.root.rotation.y += 0.3;
       k.poses.flail(rival);
-      // Both arms thrown up, unevenly ("whoa!"): the right one high over her head, the left one out.
+      // Both arms flung up and out, unevenly ("whoa!"), under the flames.
       const p = k.pp(rival);
-      p.arm('R', 0.2, 0, 2.85, 0.45);
-      p.arm('L', 0.45, 0, -1.75, 0.55);
-      rival.character.body.rotation.set(0.3, 0, -0.45);
+      p.arm('R', 0.25, 0, 2.05, 0.5);
+      p.arm('L', 0.45, 0, -1.8, 0.55);
+      p.turn('head', -0.35, 0, 0); // chin down: her surprised face on the lens
+      rival.character.body.rotation.set(0.3, 0, 0); // launched, tipping back
       const head = rival.character.bones.head;
       const up = new THREE.Vector3(0, 1, 0);
       // The half of her crown on screen left still burns, as embalado's crown (opaque jets colored by age): fire
@@ -470,7 +483,7 @@ export default defineDomain('rua', [
       for (let i = 0; i < 24; i++) {
         if (i % 2 === 0) {
           const at = new THREE.Vector3((Math.random() - 0.5) * 0.3, FEET, (Math.random() - 0.5) * 0.3);
-          drops.emit(at.divideScalar(SPRAY), ((Math.random() - 0.5) * 2.6) / SPRAY, (1.0 + Math.random() * 1.6) / SPRAY, ((Math.random() - 0.5) * 1.4) / SPRAY, 0.1 / SPRAY);
+          drops.emit(at.divideScalar(SPRAY), ((Math.random() - 0.5) * 1.5) / SPRAY, (0.8 + Math.random() * 1.2) / SPRAY, ((Math.random() - 0.5) * 1.0) / SPRAY, 0.1 / SPRAY);
         }
         drops.update(DT);
       }
@@ -490,7 +503,7 @@ export default defineDomain('rua', [
         card: {
           pos: cardPos,
           target: card,
-          fov: 38,
+          fov: 30,
           hide: small,
           before() {
             k.renderer.localClippingEnabled = false;
@@ -715,54 +728,104 @@ export default defineDomain('rua', [
       hero.character.body.rotation.x = 0.5; // tipped back: he looks up at the edge he slipped off
       k.pp(hero).turn('head', -0.25, -0.2, 0.1); // less of a chin-up, so the red cap's crown still shows
       const card: P3 = [-0.6, 1.62, 0];
-      const mini: P3 = [-0.62, 1.62, 0];
+      // The mini: he fills the badge mid-flail, the island shrunk and hung with its rim on his higher hand, small in
+      // the corner over it (one die-cut).
+      const SMALL = 0.38;
+      const bones = hero.character.bones;
+      const hand = [k.at(bones.hand_L), k.at(bones.hand_R)].sort((p, q) => q.y - p.y)[0];
+      const hung = hand.clone().add(new THREE.Vector3(0, 0.06, 0)).addScaledVector(rim, -SMALL);
+      const place = (scale: number, at: THREE.Vector3) => {
+        chunk.group.scale.setScalar(scale);
+        chunk.group.position.copy(at);
+      };
+      const island = hung.clone().add(new THREE.Vector3(0, top * SMALL, 0));
+      const mini = k.at(bones.chest).lerp(island, 0.1).add(new THREE.Vector3(0, -0.08, 0)).toArray() as P3;
+      const cardAt = rim.clone().multiplyScalar(1 - ISLAND);
       return {
-        card: { pos: orbit(card, 190, 12, 8.15), target: card, fov: 30 },
-        mini: { pos: orbit(mini, 205, 12, 8.1), target: mini, fov: 30 },
+        card: { pos: orbit(card, 190, 12, 8.15), target: card, fov: 30, before: () => place(ISLAND, cardAt) },
+        mini: { pos: orbit(mini, 192, 8, 5.55), target: mini, fov: 30, before: () => place(SMALL, hung) },
       };
     },
   },
   {
     id: 'amora-mandou-lembrancas',
     async build(k) {
-      // Amora sends her regards: the Rua's black Chow Chow lunges out of her red doghouse at whoever stepped in
-      // front of its door (the lens: the one who earns the sticker), snarling. Three-quarters, close and low with
-      // a wide lens, so she looms and her house shrinks behind her. Her bite only reads from the front: side-on her
-      // face sinks into the ruff, and biting someone in the picture turns her face away from the lens.
+      // Amora sends her regards: the Rua's black Chow Chow, out of her red doghouse, rears up and sinks her teeth
+      // into the seat of the HERO's cargo pants as he bolts (the cartoon dog hanging on to the trousers), stars
+      // where she bit. Both are turned a little toward the lens: her snarl in three-quarters (side-on her face
+      // sinks into the ruff), his surprised face looking back at her.
       const yard = apart(k);
-      const HOUSE = 1.2; // the map's is 1.6: smaller here, so she dominates
+      const HOUSE = 1.2; // the map's is 1.6: smaller here, so the two of them dominate
       const gltf = await gltfLoader(k.renderer).loadAsync('/models/casinha_cachorro.glb');
       // As the map places it (blockoutMap.ts): the model's door faces -Z, turned around to open toward +Z.
-      addGltfToMap(gltf, yard.b, { position: new THREE.Vector3(0, 0, 0), yaw: Math.PI, scale: HOUSE });
+      const home = new THREE.Vector3(0.75, 0, -1.0);
+      addGltfToMap(gltf, yard.b, { position: home, yaw: Math.PI, scale: HOUSE });
       yard.b.finish();
-      const doorZ = 0.7 * HOUSE;
+      const doorZ = home.z + 0.7 * HOUSE;
       const plate = namePlate('Amora', 0.44 * HOUSE, 0.14 * HOUSE);
-      plate.position.set(0, (0.66 + 0.07) * HOUSE, doorZ + 0.02 * HOUSE + 0.004);
+      plate.position.set(home.x, (0.66 + 0.07) * HOUSE, doorZ + 0.02 * HOUSE + 0.004);
       yard.group.add(plate);
-      const lawn = k.island('grama', 2.7, 2.9, [0.1, 0, 0.75], { thick: 0.14 });
+      const lawn = k.island('grama', 3.1, 2.6, [0.1, 0, 0.05], { thick: 0.14 });
 
-      // Mid-bite at the lens, out of the door and a little to the side: 0.4 of the lunge, about half a metre out.
-      const spot = new THREE.Vector3(0, 0, doorZ + 0.45);
-      const dog = new ChowChow(k.group, k.physics, spot, Math.PI, new THREE.Box3(), k.sfx);
-      dog.bite(spot.clone().add(new THREE.Vector3(0.9, 0, 3)));
-      dog.update(0.2, []);
+      // The HERO bolting toward screen left (a little away from the lens, so his seat shows), the near arm up,
+      // looking back at her over his shoulder.
+      const hero = k.avatar(mood(HERO, 'grande', 'arqueada'));
+      hero.root.position.set(-0.45, 0, 0.85);
+      hero.root.rotation.y = Math.PI / 2 - 0.26;
+      k.settle(hero, { speed: 7, sprint: true }, 40);
+      k.hideBack(hero);
+      const hp = k.pp(hero);
+      hp.arm('L', 2.7, 0, -0.5, 0.4);
+      hp.arm('R', 1.4, 0, 0.3, 0.3);
+      hp.grip(0.1, 0.1);
+      hp.turn('chest', 0, 0.3);
+      hp.turn('head', 0.1, 0.8);
+      hero.character.body.rotation.x = -0.12; // leaning into the run
+      const ahead = new THREE.Vector3(-Math.sin(hero.root.rotation.y), 0, -Math.cos(hero.root.rotation.y));
+      const seat = k.at(hero.character.bones.hips, [0, -0.04, 0]).addScaledVector(ahead, -0.14);
+
+      // Amora reared up on her hind paws, forelegs off the grass, her jaws shut on the seat of his pants.
+      const dog = new ChowChow(k.group, k.physics, new THREE.Vector3(), Math.PI / 2 + 0.75, new THREE.Box3(), k.sfx);
       const head = dog['head'] as THREE.Object3D;
       const jaw = dog['jaw'] as THREE.Object3D;
+      dog.root.rotation.order = 'YXZ'; // the pitch in her own frame, then her yaw
+      dog.root.rotation.x = 0.45;
+      head.rotation.set(-0.3, 0.4, 0); // nose down onto the seat, the face turned on to the lens
       // The game's bite opens the jaw with +0.7, which swings it up through the muzzle: opened downward here.
-      jaw.rotation.x = -1.05;
-      head.rotation.x = -0.1;
+      const BITING = -0.45;
+      jaw.rotation.x = BITING;
       snarl(dog);
-      // Pouncing: tipped forward over her front paws (the game's lunge slides her, sitting).
-      dog.root.rotation.x = 0.2;
       k.rest(dog.root, 0);
+      const bite = local(head, 0, -0.1, -0.25);
+      dog.root.position.add(new THREE.Vector3(seat.x - bite.x, Math.max(0, seat.y - bite.y), seat.z - bite.z));
+      dog.root.updateMatrixWorld(true);
+      // The stars on his side of the bite, toward the lens and low (clear of her eyes).
+      const hit = k.stars(seat.clone().addScaledVector(ahead, 0.12).add(new THREE.Vector3(0, -0.06, 0.22)), { count: 5, spread: 0.2, size: 0.11, dir: [ahead.x, 0.2, ahead.z + 0.6] });
+
       const face = k.at(head);
-      const card: P3 = [0.2, 0.62, 1.15];
-      const mini: P3 = [face.x, face.y - 0.06, face.z];
+      const front = local(head, 0, 0, -1).sub(face).normalize();
+      const card: P3 = [0.12, 0.86, 0.3];
+      const mini = face.clone().add(new THREE.Vector3(0, -0.06, 0));
       return {
-        card: { pos: orbit([face.x, 0.85, face.z], 36, 6, 3.62), target: card, fov: 36 },
-        // The mini: her snarling face alone (body and tail hidden), from the front: ears, eyes, the red mouth, the
-        // fangs and the blue-black tongue.
-        mini: { pos: orbit(mini, 12, 8, 1.75), target: mini, fov: 30, hide: [dog['body'] as THREE.Object3D, dog['tail'] as THREE.Object3D, lawn, yard.group] },
+        card: {
+          pos: orbit(card, 4, 8, 6.35),
+          target: card,
+          fov: 30,
+          before() {
+            jaw.rotation.x = BITING;
+          },
+        },
+        // The mini: her snarling face alone (body and tail hidden), from its own front, the jaws wide: ears, eyes,
+        // the red mouth, the fangs and the blue-black tongue.
+        mini: {
+          pos: mini.clone().addScaledVector(front, 1.75).add(new THREE.Vector3(0, 0.25, 0)),
+          target: mini,
+          fov: 30,
+          hide: [dog['body'] as THREE.Object3D, dog['tail'] as THREE.Object3D, lawn, yard.group, hero.root, hit],
+          before() {
+            jaw.rotation.x = -1.05;
+          },
+        },
         rim: 1.2,
       };
     },

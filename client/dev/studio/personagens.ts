@@ -83,6 +83,35 @@ function bend(bone: THREE.Object3D, x: number, y = 0, z = 0) {
 }
 
 /**
+ * Twists an upper arm about its own length (on top of the pose it has, after k.pp's arm()), which turns the
+ * plane the elbow bends in: arm() alone can't always aim a bent forearm (across a face, drooping like a wing tip).
+ */
+function twistArm(av: Avatar, side: 'L' | 'R', angle: number) {
+  const upper = av.character.bones[`upperArm_${side}`];
+  const along = av.character.bones[`forearm_${side}`].position.clone().applyQuaternion(upper.quaternion).normalize();
+  upper.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(along, angle));
+}
+
+/**
+ * Aims an arm by world directions (after k.pp's arm(), which set the elbow's bend): the upper arm along `upper`,
+ * then turned about itself so the bent forearm points as near `fore` as the bend allows. Model-free: it measures
+ * the bones as they are, so it holds for any rest frame and for a lying body.
+ */
+function aimArm(av: Avatar, side: 'L' | 'R', upper: THREE.Vector3, fore: THREE.Vector3) {
+  const b = av.character.bones;
+  const arm = b[`upperArm_${side}`];
+  const parent = arm.parent!;
+  parent.updateWorldMatrix(true, false);
+  const inv = parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+  const u = upper.clone().applyQuaternion(inv).normalize();
+  const now = b[`forearm_${side}`].position.clone().applyQuaternion(arm.quaternion).normalize();
+  arm.quaternion.premultiply(new THREE.Quaternion().setFromUnitVectors(now, u));
+  const f = b[`hand_${side}`].position.clone().applyQuaternion(b[`forearm_${side}`].quaternion).applyQuaternion(arm.quaternion).projectOnPlane(u).normalize();
+  const g = fore.clone().applyQuaternion(inv).projectOnPlane(u).normalize();
+  arm.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(u, Math.atan2(u.dot(f.clone().cross(g)), f.dot(g))));
+}
+
+/**
  * Cuts an avatar flat where `plane` says (everything on its negative side goes), so a bust closes into one
  * sticker instead of running off the picture's bottom edge. The body's pieces own their materials (k.avatar
  * doesn't bake), so they take the plane as they are (cloning would drop their onBeforeCompile patch); the guns in
@@ -124,41 +153,48 @@ function viewCut(eye: V3, at: V3): THREE.Plane {
 
 /**
  * Doubled over in pain, deeper than the core's ouch (which reads as a mild crouch at card size): a big bow at the
- * hips with the butt out, knees knocked and bent, both hands cupping the groin, the face up in a grimace.
+ * hips with the butt out, knees knocked in and bent with the feet apart, both hands meeting at the groin (swung
+ * forward, the hands landed on the knees: catching his breath), the face up in a grimace.
  */
 function doubledOver(k: Kit, av: Avatar) {
   const p = k.pp(av);
   p.reset();
   // The thighs turn with the hips: give the bow back to them, plus the bend.
-  p.turn('hips', -0.75);
+  p.turn('hips', -0.55);
   // Thighs well forward and knees bent: the hips (butt out) behind the feet, so the level back balances.
-  p.leg('L', 1.5, 1.3, 0.2);
-  p.leg('R', 1.5, 1.3, -0.2);
-  p.turn('spine', -0.55);
-  p.turn('chest', -0.3);
+  p.leg('L', 1.2, 1.1, 0.12);
+  p.leg('R', 1.2, 1.1, -0.12);
+  // Knock-kneed: each thigh twisted inward about its length, so the knees meet and the bent shins splay out.
+  const { thigh_L, thigh_R } = av.character.bones;
+  thigh_L.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -0.45));
+  thigh_R.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.45));
+  p.turn('spine', -0.45);
+  p.turn('chest', -0.25);
   p.turn('neck', 0.5);
   p.turn('head', 0.5);
-  p.arm('L', 0.75, 0, 0.25, 0.7);
-  p.arm('R', 0.75, 0, -0.25, 0.7);
+  // Down the front of the bowed torso and in, the elbows a little bent: the hands meet at the groin.
+  p.arm('L', 0.25, 0, 0.55, 0.6);
+  p.arm('R', 0.25, 0, -0.55, 0.6);
   p.grip(0.8, 0.8);
   p.plant();
 }
 
 /**
- * A low kick (the core has no kick preset): the right leg swung forward and low with the knee nearly straight,
- * the standing leg bent, the torso leaning back over it, the arms out for balance (left forward, right back), the
- * head down at the target.
+ * A kick at someone on the ground (the core has no kick preset): the right leg swung through into the target, the knee
+ * a little bent (the toe whips in), the standing leg bent under the dropped hips, the torso leaning back over it, the arms flung wide
+ * for balance (left forward and up, right back), the head down at the target. (Low and straight, it read as a
+ * stride.)
  */
 function kick(k: Kit, av: Avatar) {
   const p = k.pp(av);
   p.reset();
-  p.leg('R', 0.85, 0.15, 0);
-  p.leg('L', -0.12, 0.3, 0);
-  p.turn('spine', 0.18);
-  p.turn('chest', 0.06);
-  p.turn('head', -0.4);
-  p.arm('L', 0.7, 0, -0.75, 0.45);
-  p.arm('R', -0.55, 0, 0.7, 0.35);
+  p.leg('R', 0.95, 0.25, 0);
+  p.leg('L', 0.1, 0.75, 0);
+  p.turn('spine', 0.28);
+  p.turn('chest', 0.04);
+  p.turn('head', -0.55);
+  p.arm('L', 1.6, 0, -0.85, 0.3);
+  p.arm('R', -0.95, 0, 0.85, 0.2);
   p.grip(0.85, 0.85);
   p.plant();
 }
@@ -166,7 +202,7 @@ function kick(k: Kit, av: Avatar) {
 /**
  * A baseball slide, feet first (the game's slide bends both knees under the hips and reads as sitting at card
  * size): the seat low, the torso leaning back, the lead (right, near) leg straight out along the ground and the
- * trailing one a little bent, the near arm up for balance and the far hand trailing on the ground. Speed lines and
+ * trailing one folded flat under it, the near arm up for balance and the far hand trailing on the ground. Speed lines and
  * dust carry the motion.
  */
 function slide(k: Kit, av: Avatar) {
@@ -174,32 +210,35 @@ function slide(k: Kit, av: Avatar) {
   p.reset();
   // The seat on the ground.
   p.hipsY(-0.72);
-  // The thighs turn with the hips (tipping them back swings the thighs forward).
+  // The thighs turn with the hips (tipping them back swings the thighs forward): the lead leg level along the
+  // ground (lower, its heel, or the trailing foot, set the body down and the seat floated over the deck).
   p.turn('hips', 0.35);
-  p.leg('R', 1.1, 0.05, 0);
-  // The trailing leg bent a little (folded under, its knee lifts the seat off the ground; straight, both legs
-  // read as lying down).
-  p.leg('L', 1.0, 0.75, -0.05);
+  p.leg('R', 1.22, 0.05, 0);
+  // The trailing leg folded flat: the thigh level too, twisted out about its length so the knee bends sideways
+  // and the shin lies on the deck under the lead leg (bent down, its foot lifted the seat).
+  p.leg('L', 1.2, 1.5, -0.25);
+  av.character.bones.thigh_L.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 1.2));
   p.turn('spine', 0.2);
   p.turn('chest', 0.08);
   p.turn('head', -0.35);
   p.arm('R', 2.6, 0, 0.35, 0.3);
-  p.arm('L', -0.85, 0, -0.5, 0.15);
+  // The far hand back on the boards.
+  p.arm('L', -1.55, 0, -0.45, 0.15);
   p.grip(0.3, 0.9);
 }
 
 /**
  * Comic speed lines trailing behind a moving figure (a studio extra, like the hit stars): flat ink strokes facing
- * the camera, drawn from `from` (a bone) back along the world direction `back`, one per [up m, length m, along
- * offset m]. Returns them (to hide them in a shot).
+ * the camera, drawn from `from` (a bone) back along the world direction `back`, one per [height above the ground
+ * m, length m, along offset m]. Returns them (to hide them in a shot).
  */
 function speedLines(k: Kit, from: THREE.Object3D, back: V3, strokes: readonly (readonly [number, number, number])[]): THREE.Mesh[] {
   const o = local(from, 0, 0, 0);
   const d = v3(back).normalize();
   const mat = new THREE.MeshBasicMaterial({ color: 0x1b1530, side: THREE.DoubleSide });
-  return strokes.map(([up, len, along]) => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.035), mat);
-    m.position.copy(o).addScaledVector(d, 0.45 + along + len / 2).y += up - 0.35;
+  return strokes.map(([y, len, along]) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.024), mat);
+    m.position.copy(o).addScaledVector(d, 0.3 + along + len / 2).y = y;
     // Turned to face a camera on -Z, the long side along `back`.
     m.rotation.y = -Math.atan2(d.z, d.x);
     k.group.add(m);
@@ -281,17 +320,16 @@ export default defineDomain('personagens', [
       bend(chest, 0.1);
       bend(neck, 0.1, -0.3);
       bend(head, 0.22, -0.2, 0.1);
-      const card: V3 = [0.1, 1.72, -1.9];
+      const card: V3 = [0.09, 1.7, -1.68];
       const brow = local(head, 0, 0.16, -0.11);
       // The hit: a comic impact burst right on the forehead (a dome of stars all around the head read as a dizzy
-      // halo), and a trail of the game's yellow stars flying off it, up and back with the snap of the head (one
-      // trail, touching: stars spread around the head close a pocket the die-cut rims in ink).
+      // halo), and a few of the game's yellow stars flying off it, close in on the head's upper left (farther out,
+      // the die-cut closed them into a plume that read as a hat).
       pow(k, brow, card, 0.075, { lift: 0.06 });
       const far = ring(k, brow, card, [
-        [118, 0.12, 0.034],
-        [128, 0.19, 0.029],
-        [136, 0.255, 0.024],
-        [62, 0.12, 0.026],
+        [108, 0.12, 0.034],
+        [140, 0.115, 0.028],
+        [62, 0.11, 0.026],
       ]);
       const cut = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
       clip(av, cut);
@@ -303,7 +341,7 @@ export default defineDomain('personagens', [
           fov: 30,
           before() {
             clipping(k, true);
-            cut.constant = -1.17;
+            cut.constant = -1.235;
           },
         },
         // The mini: the face and the burst on a bust cut under the shoulders (through the lens: a straight line),
@@ -338,26 +376,23 @@ export default defineDomain('personagens', [
       // ×N tag (the top-right corner) covers nobody's head.
       av.root.position.set(0.24, 0, 0);
       // 3/4, facing screen left: the bow reads from the side, the hands at the groin from the front.
-      const yaw = -0.6;
+      const yaw = -1.0;
       av.root.rotation.y = yaw;
       doubledOver(k, av);
       k.rest(av);
       const groin = local(av.character.bones.hips, 0, -0.12, -0.15);
-      const card: V3 = [0.5, 0.78, -3.52];
+      const card: V3 = [0.5, 0.72, -3.95];
       // The hit: a red impact star where it landed, the yellow pop around his hands (not over them: the hands are
       // half the joke).
       const impact = ring(k, groin, card, [[0, 0, 0.065]], { lift: 0.35, color: 0xff3b2f });
-      // Spraying out in front of him (screen left), toward the bird.
+      // Close around it (farther out they ran from his chest to his knees and onto the bird's back).
       const pop = ring(k, groin, card, [
-        [190, 0.24, 0.075],
-        [145, 0.25, 0.08],
-        [100, 0.22, 0.06],
-        [235, 0.22, 0.065],
-        [280, 0.2, 0.05],
-        [55, 0.21, 0.055],
-        [10, 0.2, 0.05],
-        [175, 0.4, 0.05],
-        [215, 0.38, 0.045],
+        [150, 0.14, 0.08],
+        [95, 0.15, 0.075],
+        [40, 0.14, 0.07],
+        [340, 0.13, 0.07],
+        [210, 0.14, 0.075],
+        [275, 0.13, 0.07],
       ], { lift: 0.3 });
       const flamingo = new THREE.Mesh(flamingoGeometry(), new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() }));
       flamingo.scale.setScalar(0.6);
@@ -368,7 +403,7 @@ export default defineDomain('personagens', [
       // The mini: the pair, closer and without the lawn: the pink bird (the page's one pink shape, the pun of the
       // name) with its back turned, and him doubled over at it, the pop between them in fewer, bigger stars that
       // still read at 30 px. (Alone, he is a dark blob with dots at that size.)
-      const mini: V3 = [0.45, 0.88, -3.35];
+      const mini: V3 = [0.44, 0.93, -3.7];
       const miniPop = [
         ...ring(k, groin, mini, [[0, 0, 0.085]], { lift: 0.35, color: 0xff3b2f }),
         ...ring(k, groin, mini, [
@@ -380,10 +415,10 @@ export default defineDomain('personagens', [
         ], { lift: 0.3 }),
       ];
       return {
-        card: { pos: card, target: [0.43, 0.53, 0.15], fov: 30, hide: miniPop },
+        card: { pos: card, target: [0.43, 0.64, 0.15], fov: 30, hide: miniPop },
         mini: {
           pos: mini,
-          target: [0.55, 0.55, -0.1],
+          target: [0.55, 0.6, -0.1],
           fov: 30,
           hide: [lawn, ...impact, ...pop],
           // The bird steps in front of him on the left, its back still turned on him (facing where he faces).
@@ -429,25 +464,54 @@ export default defineDomain('personagens', [
       // corner a counter's ×N tag covers.
       const hero = k.avatar(mood(HERO, 'caido', 'fina'));
       k.lying(hero, 1, [0, 0, 0], -(Math.PI / 2 + 0.25));
-      // The head rolled toward the lens and the near hand over the face: the weary 😩 of the icon, which reads at
-      // card size where 2 px eyes don't. The far arm lies limp on the grass (bent up too, it misses the turned
-      // face and sticks up in the air).
+      // The head rolled toward the lens and the near forearm laid across his eyes, the back of the wrist on the
+      // brow: the weary 😩 of the icon, which reads at card size where 2 px eyes don't. The far arm lies limp on
+      // the grass along his side (out on the grass, the elevated lens shows it poking up behind him).
       const p = k.pp(hero);
       p.turn('head', 0.15, 0.55, 0);
-      p.arm('L', 0.5, 0.5, 0.3, 2.35);
-      p.arm('R', 0.05, 0, 0.35, 0.4);
+      // The elbow out beside his head at eye level, the forearm laid across his eyes toward his far side (by
+      // directions in his own frame: Euler angles left the forearm in the air or across his chest).
+      p.arm('L', 0, 0, 0, 1.95);
+      const at = (name: string) => k.at(hero.character.bones[name]);
+      const up = at('head').sub(at('hips')).normalize();
+      const right = at('shoulder_R').sub(at('shoulder_L'));
+      right.addScaledVector(up, -right.dot(up)).normalize();
+      const front = up.clone().cross(right);
+      aimArm(hero, 'L', right.clone().multiplyScalar(-0.42).addScaledVector(up, 0.8).addScaledVector(front, 0.42), right.clone().addScaledVector(up, 0.12));
+      p.arm('R', 0.0, 0, -0.08, 0.2);
       p.grip(0.2, 0.35);
       k.rest(hero, 0);
-      const lawn = k.island('grama', 2.15, 0.95, [0, 0, 0]);
+      // Just under him (a bigger lawn, seen low, was two thirds of the picture).
+      const lawn = k.island('grama', 1.9, 0.7, [0, 0, 0], { thick: 0.08 });
       lawn.rotation.y = -0.25;
       // Low over his legs and middle (a gap between it and the body would leave pockets the die-cut rims in ink),
       // clear of his face.
       const stamp = k.label('OPRIMIDO!', [0.2, 0.32, -0.05], { tilt: 0.12, height: 0.36 });
+      // The mini: a close-up from above his face, the red cap and the forearm across his eyes, the body cut at the
+      // waist (one face shape, not a crop running off the badge) on a sliver of lawn.
+      const face = k.at(hero.character.bones.head);
+      const toHead = new THREE.Vector3(Math.sin(-(Math.PI / 2 + 0.25)), 0, Math.cos(-(Math.PI / 2 + 0.25)));
+      const cut = new THREE.Plane().setFromNormalAndCoplanarPoint(toHead, face.clone().addScaledVector(toHead, -0.42));
+      clip(hero, cut);
+      const center = face.clone().addScaledVector(toHead, -0.14);
+      const patch = k.island('grama', 0.62, 0.5, [center.x, 0, center.z], { thick: 0.08 });
+      patch.rotation.y = -0.25;
+      patch.visible = false;
+      const mini: V3 = [center.x, face.y + 1.9, center.z - 0.35];
       return {
-        card: { pos: [-0.06, 1.7, -3.58], target: [-0.06, 0.16, 0.1], fov: 30 },
-        // The mini: no stamp (no small text), just him flat on his lawn, a hand over his face, red cap on the
-        // right: the page's one badge without anybody standing.
-        mini: { pos: [-0.02, 2.9, -4.1], target: [-0.02, 0.2, 0.05], fov: 30, hide: [stamp] },
+        // From about 35° up: his body reads as a figure, not a strip on a slab.
+        card: { pos: [-0.06, 2.25, -2.85], target: [-0.06, 0.12, 0.1], fov: 30, before: () => clipping(k, false) },
+        // The mini: no stamp (no small text): one face shape, the page's one badge without anybody standing.
+        mini: {
+          pos: mini,
+          target: [center.x, face.y - 0.05, center.z],
+          fov: 30,
+          hide: [stamp, lawn],
+          before() {
+            patch.visible = true;
+            clipping(k, true);
+          },
+        },
       };
     },
   },
@@ -480,16 +544,16 @@ export default defineDomain('personagens', [
       k.rest(hero, 0);
       const stamp = k.label('OPRIMIDO!', [-0.35, 0.5, 0.1], { tilt: 0.12, height: 0.45 });
       // The mini's lawn: only under her and the HERO where the mini moves him.
-      const patch = k.island('grama', 2.2, 1.2, [-0.25, 0, 0.3]);
+      const patch = k.island('grama', 2.0, 0.9, [-0.25, 0, 0.35]);
       patch.visible = false;
       return {
         card: { pos: [0.05, 2.25, -5.0], target: [0.05, 0.66, 0.2], fov: 30 },
-        // The mini (no stamp): from her side, in front and to the right, the HERO moved up to stand just behind
-        // her hips (both fit the badge bigger): his red cap at the top, her turquoise bandana bottom right, and
-        // his pointing arm between them.
+        // The mini (no stamp): low and square to his pointing arm, the HERO moved up to stand just behind her
+        // hips (both fit the badge bigger), in profile: his red cap at the top and the arm one clear line down to
+        // her turquoise bandana (from high up it fell across his body, to his fly).
         mini: {
-          pos: [-2.6, 2.67, -4.4],
-          target: [-0.3, 0.8, 0.3],
+          pos: [-0.41, 1.5, -4.7],
+          target: [-0.22, 0.76, 0.4],
           fov: 30,
           hide: [stamp, lawn],
           before() {
@@ -512,46 +576,61 @@ export default defineDomain('personagens', [
       // The head on screen right, under the vulture; the legs on the left, where the killer aims.
       k.lying(body, 1, [0, 0, 0], -Math.PI / 2 + 0.1);
       // One street for the three of them: the body, the vulture behind it, the killer on the left.
-      const street = k.island('asfalto', 3.2, 1.6, [0.5, 0, 0.45]);
+      const street = k.island('asfalto', 2.6, 1.3, [0.35, 0, 0.35]);
       const hero = k.avatar(HERO);
       hero.root.position.set(-0.4, 0, 0.42);
       hero.root.rotation.y = 0.3;
       k.settle(hero, { crouch: true, pitch: -0.4 }, 40);
-      // The vulture mantling its prize: back hunched over it, the head low and thrust forward between raised
-      // shoulders, the wings spread wide and held a little forward over the body like a cape, the hands open like
-      // feathers (drooping forearms made a wrestler's stance, level ones a "ta-da").
+      // The vulture mantling its prize: back hunched over it, the head low and thrust forward between hunched
+      // shoulders, the wings raised over the bowed back in an M, the forearms drooping like folded wing tips, the
+      // hands open like feathers (arms down and out made a wrestler's or a goalkeeper's stance).
       const p = k.pp(hero);
       p.turn('spine', -0.7);
       p.turn('chest', -0.3);
-      p.turn('shoulder_L', 0, 0, 0.3);
-      p.turn('shoulder_R', 0, 0, -0.3);
+      p.turn('shoulder_L', 0, 0, 0.45);
+      p.turn('shoulder_R', 0, 0, -0.45);
       p.turn('neck', 0.6);
       p.turn('head', 0.0);
-      p.arm('L', 0.6, 0, -1.3, 0.35);
-      p.arm('R', 0.6, 0, 1.3, 0.35);
+      p.arm('L', 1.0, 0, -2.5, 1.2);
+      p.arm('R', 1.0, 0, 2.5, 1.2);
+      twistArm(hero, 'L', 1.57);
+      twistArm(hero, 'R', -1.57);
       p.grip(0, 0);
       k.rest(hero, 0);
-      // The killer, back on the left, still aiming down at the body's legs (not at the vulture).
+      // The killer, close on the left, her barrel dropped steeply onto the body's knees (aimed level, it ran to
+      // the vulture's chest: she read as about to shoot him).
       const rival = k.avatar(RIVAL, undefined, { armed: true });
-      rival.root.position.set(1.65, 0, 1.0);
-      k.face(rival, [0.35, 0, 0.0]);
-      k.settle(rival, { ads: true, pitch: -0.75, yaw: rival.root.rotation.y }, 40);
+      rival.root.position.set(1.2, 0, 0.55);
+      k.face(rival, [0.6, 0, 0.05]);
+      k.settle(rival, { ads: true, pitch: -1.2, yaw: rival.root.rotation.y }, 40);
       k.hideBack(rival);
-      // Her barrel still smoking (she made the kill): a wisp of grey puffs rising from the muzzle, one every few
-      // frames. The flash only marks where the muzzle is.
+      // The aim pitch alone kept the barrel at chest height: the whole upper body bows over the gun.
+      bend(rival.character.bones.spine, -0.4);
+      // Her barrel still smoking (she made the kill): a thin wisp of small grey puffs rising from the muzzle, one
+      // every few frames (bigger pale ones read as a white flag). The flash only marks where the muzzle is.
       const flash = k.muzzleFlash(rival, { size: 0.08 });
       flash.visible = false;
       const tip = flash.getWorldPosition(new THREE.Vector3());
-      for (let i = 0; i < 6; i++) {
-        k.puffs.emit(tip.clone(), (Math.random() - 0.5) * 0.08, 0.18 + Math.random() * 0.08, (Math.random() - 0.5) * 0.08, 1.4, 0.035, 0.085, i % 2 ? 0xbdb7cc : 0xdcd8e4);
-        k.step(7, (dt) => k.puffs.update(dt));
+      for (let i = 0; i < 3; i++) {
+        k.puffs.emit(tip.clone(), (Math.random() - 0.5) * 0.04, 0.2 + Math.random() * 0.05, (Math.random() - 0.5) * 0.04, 1.4, 0.02, 0.035, 0x8f8a99);
+        k.step(8, (dt) => k.puffs.update(dt));
       }
-      // The mini's own ground, under the body and the vulture only: the wings' wide crouched M over the body's
-      // bar (opressor's badge is a tall Y).
-      const patch = k.island('asfalto', 2.3, 1.15, [-0.08, 0, 0.22]);
+      // The mini's own ground, under the body and the vulture only, a sliver from its low camera.
+      const patch = k.island('asfalto', 1.95, 0.9, [-0.05, 0, 0.18]);
       return {
-        card: { pos: [0.4, 1.85, -5.2], target: [0.5, 0.68, 0.45], fov: 30, hide: [patch] },
-        mini: { pos: [-0.15, 2.3, -4.6], target: [-0.12, 0.45, 0.25], fov: 30, hide: [rival.root, street, k.puffs['mesh']] },
+        card: { pos: [0.3, 1.7, -4.7], target: [0.32, 0.64, 0.4], fov: 30, hide: [patch] },
+        // The mini: low in front of the vulture, turned to the lens, the raised wings and the hunched head one bold
+        // M over a sliver of the body, seen from its head end (seen square, it ran off the badge) (opressor's badge
+        // is a tall Y).
+        mini: {
+          pos: [-4.15, 1.2, -1.83],
+          target: [-0.29, 0.54, 0.25],
+          fov: 30,
+          hide: [rival.root, street, k.puffs['mesh']],
+          before() {
+            hero.root.rotation.y = 0.85;
+          },
+        },
       };
     },
   },
@@ -559,22 +638,52 @@ export default defineDomain('personagens', [
     id: 'chutando-cachorro-morto',
     build(k) {
       // Kicking them while they're down: a neighbor who died on his own lies face down on the sidewalk, and the
-      // HERO, at his feet, still lands a kick on him. No dog in sight (nobody should read it as Amora).
+      // HERO, beside his hips, still lands a kick in his ribs. No dog in sight (nobody should read it as Amora).
       // The HERO on the left kicking toward screen right: a counter keeps the top-right corner (its ×N tag) free
-      // of his head.
-      bodyOn(k, neighbor(12), -1, [-0.25, 0, 0], -Math.PI / 2, 'calcada', { w: 2.9, d: 1.05 });
+      // of his head. The body on a diagonal, its head away and to screen right, so its flank faces the kick (at
+      // its feet, the kick met the soles: a stride, or tripping over them).
+      const body = k.avatar(neighbor(12));
+      k.lying(body, -1, [-0.3, 0, 0], -Math.PI / 2 + 0.5);
+      const ribs = local(body.character.bones.chest, 0, 0, 0);
       const hero = k.avatar(mood(HERO, 'marcante', 'grossa'));
-      hero.root.position.set(1.05, 0, 0.05);
-      // Toward the body (screen right), a little toward the lens.
-      hero.root.rotation.y = Math.PI / 2 - 0.35;
+      // The kick's line: toward screen right and a little toward the lens.
+      const d = new THREE.Vector3(-0.8, 0, -0.6);
+      hero.root.rotation.y = Math.atan2(-d.x, -d.z);
       kick(k, hero);
       k.rest(hero, 0);
-      const foot = local(hero.character.bones.foot_R, 0, -0.03, -0.12);
-      const thud = k.stars(foot, { count: 5, spread: 0.2, size: 0.07, dir: [-0.3, 1, -0.5] });
+      // Moved so his toe lands on the flank (the near side of the ribs).
+      const toe = () => local(hero.character.bones.foot_R, 0, -0.03, -0.12);
+      const contact = ribs.clone().addScaledVector(d, -0.14);
+      const t0 = toe();
+      hero.root.position.x += contact.x - t0.x;
+      hero.root.position.z += contact.z - t0.z;
+      contact.y = toe().y;
+      const kicker = hero.root.position;
+      // One sidewalk for both, along the body and wide enough for the kicker beside it (n: across the body, toward
+      // him).
+      const n = new THREE.Vector3(Math.sin(0.5), 0, Math.cos(0.5));
+      const s = kicker.clone().sub(new THREE.Vector3(-0.3, 0, 0)).dot(n);
+      const ground = k.island('calcada', 2.5, s + 0.6, [-0.3 + (n.x * (s - 0.1)) / 2, 0, (n.z * (s - 0.1)) / 2]);
+      ground.rotation.y = 0.5;
+      const card: V3 = [-0.25, 2.2, -5.3];
+      const thud = ring(k, contact, card, [
+        [35, 0.14, 0.08],
+        [85, 0.17, 0.08],
+        [135, 0.15, 0.08],
+        [190, 0.13, 0.07],
+        [340, 0.13, 0.07],
+      ], { lift: 0.18 });
+      // The mini: square to the kicking leg (one long diagonal into the body), three big stars where it lands.
+      const mid = new THREE.Vector3((kicker.x + contact.x) / 2, 0.6, (kicker.z + contact.z) / 2);
+      const mini: V3 = [mid.x + 0.6 * 6.3, 1.7, mid.z - 0.8 * 6.3];
+      const miniThud = ring(k, contact, mini, [
+        [40, 0.14, 0.12],
+        [115, 0.15, 0.11],
+        [330, 0.13, 0.1],
+      ], { lift: 0.18 });
       return {
-        card: { pos: [-0.05, 1.9, -5.55], target: [-0.08, 0.74, 0.05], fov: 30 },
-        // The mini: from the kicker's front left, the kick big and the body receding behind it.
-        mini: { pos: [3.75, 1.75, -4.15], target: [0.12, 0.65, -0.05], fov: 30, hide: [thud] },
+        card: { pos: card, target: [-0.28, 0.68, 0.15], fov: 30, hide: miniThud },
+        mini: { pos: mini, target: mid, fov: 30, hide: thud },
       };
     },
   },
@@ -607,24 +716,31 @@ export default defineDomain('personagens', [
       hero.root.rotation.y = Math.PI / 2;
       slide(k, hero);
       k.rest(hero, 0);
-      // The dust of the slide: a trail behind him and a spray off the lead heel (the motion reads from it).
+      // His lead heel stopped about 0.1 m short of the body's feet (the ankles, plus a sole each).
+      const { foot_L, foot_R } = body.character.bones;
+      const feet = Math.max(local(foot_L, 0, 0, 0).x, local(foot_R, 0, 0, 0).x);
+      hero.root.position.x += feet + 0.22 - local(hero.character.bones.foot_R, 0, 0, 0).x;
+      const seat = local(hero.character.bones.hips, 0, 0, 0).x;
+      const heel = local(hero.character.bones.foot_R, 0, 0, 0).x;
+      // The dust of the slide: a trail behind his seat and a spray off the lead heel (the motion reads from it).
       const dust = (i: number) => (i % 2 ? 0xd2bd98 : 0xbfa67f);
       for (let i = 0; i < 6; i++) {
-        const a = new THREE.Vector3(1.85 + i * 0.09 + Math.random() * 0.05, 0.06, 0.3 + (Math.random() - 0.5) * 0.35);
+        const a = new THREE.Vector3(seat + 0.15 + i * 0.09 + Math.random() * 0.05, 0.06, 0.3 + (Math.random() - 0.5) * 0.35);
         k.puffs.emit(a, 0.5 + Math.random() * 0.4, 0.2 + Math.random() * 0.25, (Math.random() - 0.5) * 0.3, 1.0, 0.08, 0.2, dust(i));
       }
       for (let i = 0; i < 4; i++) {
-        const a = new THREE.Vector3(1.0 + Math.random() * 0.1, 0.08, 0.3 + (Math.random() - 0.5) * 0.25);
+        const a = new THREE.Vector3(heel - 0.08 + Math.random() * 0.1, 0.08, 0.3 + (Math.random() - 0.5) * 0.25);
         k.puffs.emit(a, -0.3 - Math.random() * 0.3, 0.5 + Math.random() * 0.3, (Math.random() - 0.5) * 0.4, 0.8, 0.05, 0.13, dust(i));
       }
       k.step(12, (dt) => k.puffs.update(dt));
+      // Low behind the seat, thin and long, well apart (up by his raised fist the die-cut fused them into a block
+      // that read as a thumbs-up).
       const lines = speedLines(k, hero.character.bones.hips, [1, 0, 0], [
-        [0.5, 0.36, 0.05],
-        [0.72, 0.48, 0.0],
-        [0.95, 0.34, 0.08],
+        [0.12, 0.5, 0.1],
+        [0.3, 0.62, 0.0],
       ]);
       return {
-        card: { pos: [0.64, 1.68, -6.4], target: [0.66, 1.02, 0.3], fov: 32, hide: [ring1] },
+        card: { pos: [0.64, 1.68, -6.65], target: [0.66, 1.02, 0.3], fov: 32, hide: [ring1] },
         // The mini: the ring with its "1", one round shape (the number reads as a shape, not as text).
         mini: { pos: [ring1.position.x, ring1.position.y, -2.85], target: [ring1.position.x, ring1.position.y, 0.3], fov: 30, hide: [timer.sprite, ...lines] },
       };
@@ -725,7 +841,7 @@ export default defineDomain('personagens', [
       return {
         card: { pos: [-0.45, 1.15, -5.2], target: [0, 1.0, 0.3], fov: 30, hide: tight, before: () => clipping(k, false) },
         mini: {
-          pos: [-0.12, 1.62, -1.95],
+          pos: [-0.12, 1.62, -2.03],
           target: [0.06, 1.48, 0.15],
           fov: 30,
           hide: trail,

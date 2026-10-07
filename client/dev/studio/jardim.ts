@@ -38,7 +38,7 @@ export default defineDomain('jardim', [
       // stance: the badge's one bold shape.
       const p = k.pp(hero);
       p.arm('R', 0.15, 0, 2.7, 0.05);
-      p.arm('L', 0.1, 0, -0.8, 0.05);
+      p.arm('L', 0.1, 0, -1.1, 0.05);
       p.grip(0.9, 0.9);
       p.leg('L', 0.12, 0.3, -0.45);
       p.turn('head', 0.2, 0, 0.12);
@@ -78,7 +78,7 @@ export default defineDomain('jardim', [
         card: { pos: [0, 1.45, -6.1], target: [-0.05, 0.95, 0.4], fov: 30 },
         // The badge: the dancer alone, the camera rolled 15 degrees (a dutch angle) so the line from the fist to
         // the planted foot runs along the square's diagonal.
-        mini: { pos: [0.035, 1.02, -4.45], target: [0.035, 0.865, 0], up: [-0.26, 0.97, 0], fov: 30, hide: [flamingo, pumpkin, lantern, stage] },
+        mini: { pos: [0.035, 1.02, -4.15], target: [0.035, 0.865, 0], up: [-0.26, 0.97, 0], fov: 30, hide: [flamingo, pumpkin, lantern, stage] },
       };
     },
   },
@@ -263,7 +263,7 @@ export default defineDomain('jardim', [
       k.group.add(bust);
       return {
         card: { pos: [-1.89, 1.86, 9.85], target: [-1.89, 1.86, 0], fov: 30, hide: [bust] },
-        mini: { pos: [-3.22, 2.95, 1.62], target: [-0.9, 3.16, 0.08], fov: 30, hide: [card, fire, sign] },
+        mini: { pos: [-3.45, 3.76, 0.6], target: [-0.9, 3.21, 0.05], fov: 30, hide: [card, fire, sign] },
       };
     },
   },
@@ -309,18 +309,16 @@ export default defineDomain('jardim', [
       const p = k.pp(hero);
       p.grip(0.15, 0.9);
       p.turn('head', 0.2, 0, 0);
-      // Two notes coming off the chicken's beak, to its right over the end of the frame's top beam.
+      // One big note coming off the chicken's beak, to its right over the end of the frame's top beam (two small
+      // ones were specks on the album card and only made the die-cut lumpy).
       const right = target.clone().sub(cam).cross(new THREE.Vector3(0, 1, 0)).normalize();
       const beak = (chicken: THREE.Object3D) => {
         chicken.updateMatrixWorld(true);
         return chicken.localToWorld(new THREE.Vector3(0, 0.01, -0.37));
       };
-      const tip = beak(baton);
-      for (const [r, u, s] of [[0.34, -0.04, 0.34], [0.74, -0.4, 0.28]] as const) {
-        const note = musicNote(s);
-        note.position.copy(tip).addScaledVector(right, r).add(new THREE.Vector3(0, u, 0));
-        k.group.add(note);
-      }
+      const cardNote = musicNote(0.48);
+      cardNote.position.copy(beak(baton)).addScaledVector(right, 0.4).add(new THREE.Vector3(0, -0.12, 0));
+      k.group.add(cardNote);
       // The badge, set up off to the side: the chicken alone from corner to corner (no bell: eu-ja-ouvi's badge, on
       // the same page, is one), held up by its feet in the HERO's fist, a note at its beak. Of him only the fist and
       // the end of his wine sleeve show: the rest is cut away by a plane across the forearm, its open end turned
@@ -352,7 +350,7 @@ export default defineDomain('jardim', [
       k.group.add(chicken);
       // Its legs through the fist, the body up and to the screen's right at 45 degrees, in profile to the camera
       // (straight down +Z at the middle of the picture, between the sleeve's end and the beak: found in two passes).
-      const D = 1.9;
+      const D = 1.75;
       const miniTarget = fist.clone();
       for (let pass = 0; pass < 2; pass++) {
         chicken.position.copy(fist);

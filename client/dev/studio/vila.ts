@@ -85,7 +85,7 @@ function lunge(k: Kit, av: Avatar, ground = 0, lift = 2.0) {
  * A thin island of a map surface (an oval, as k.island makes them) with a rectangular pit through it, and the
  * pit's inside: an ink box drawn from within (BackSide), so its far and side walls and its floor read through the
  * opening as one black hole while none of it shows from outside (com-um-pe-na-cova's open grave). The hole's own
- * walls through the slab are earth.
+ * walls through the slab take `o.earth` (ink too, for a hole that is black all round).
  */
 function pitIsland(k: Kit, w: number, d: number, center: [x: number, z: number], pit: { x0: number; z0: number; x1: number; z1: number }, o: { tint: number; earth: number; thick: number; depth: number }) {
   const shape = new THREE.Shape().absellipse(center[0], center[1], w / 2, d / 2, 0, Math.PI * 2, false, 0);
@@ -234,16 +234,16 @@ export default defineDomain('vila', [
       // Beside the clock (screen right) and well in front of it: nearer the camera he is bigger, and the two make a
       // wide picture instead of one tall column.
       worker.root.position.set(1.9, 0, 2.3);
-      // Toward the camera (on +Z), turned a little toward the clock on his right.
-      worker.root.rotation.y = Math.PI - 0.35;
+      // Toward the camera (on +Z) in 3/4, turned toward the clock on his right: his left side to the camera.
+      worker.root.rotation.y = Math.PI - 0.75;
       worker.idle(false, 0);
       const p = k.pp(worker);
-      // Checking the watch: the left upper arm out to the side, the elbow bent so the forearm lies level in front
-      // of his chin with the wrist up, against the backing rather than the shirt; the head bent to it, the face
-      // still under the brim.
-      p.arm('L', 0.4, -0.5, -1.25, 1.25);
-      p.turn('neck', -0.12, 0.2);
-      p.turn('head', -0.22, 0.3);
+      // Checking the watch: the left forearm raised a little above level and held out ahead of his chest, toward
+      // the clock, so the wrist shows against the backing rather than the shirt; the head turned down to it, the
+      // face still under the brim.
+      p.arm('L', 0.8, -0.4, -0.2, 1.12);
+      p.turn('neck', -0.06, 0.1);
+      p.turn('head', -0.1, 0.18);
       // A bigger watch face than the catalog's, so the gesture has its object.
       worker.root.updateMatrixWorld(true);
       const wrist = worker.character.sockets.wrist_L;
@@ -279,38 +279,38 @@ export default defineDomain('vila', [
     id: 'com-um-pe-na-cova',
     build(k) {
       // One foot in the grave, literally: you, nearly dead, still firing your pistol one-handed with your right
-      // leg sunk to the thigh in an open grave. The grave runs away from the camera through a thin island of the
-      // cemetery's dark grass, an ink-black hole; your right leg drops in at its near end, so the grass line
-      // swallows the thigh, and the left foot is planted on the grass in front. The dug-up earth lies beside the
-      // pit and the cross stands at its head, behind your back shoulder (screen left, clear of the ×N corner).
-      const pit = { x0: -0.18, z0: -0.09, x1: 0.5, z1: 1.0 };
-      const ground = pitIsland(k, 1.9, 1.96, [0.02, 0.55], pit, { tint: SPOOKY.grassDark, earth: SPOOKY.dirt, thick: 0.12, depth: 0.3 });
-      const mound = new THREE.Mesh(painted(new THREE.SphereGeometry(1, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(0.42, 0.26, 0.22), SPOOKY.dirt), surfaceMaterial('grama'));
-      mound.position.set(-0.2, -0.02, 1.22);
+      // leg sunk to the groin in an open grave. The grave runs away from the camera through a thin island of the
+      // cemetery's dark grass, ink-black inside, walls too; your right thigh drops in at its near end, so the grass
+      // line swallows it with the black round it, and the left foot is planted on the grass beside it. The cross
+      // stands at the grave's far end, behind your back shoulder, a little dug-up earth beside it.
+      const ink = 0x15101a;
+      const pit = { x0: -0.22, z0: -0.21, x1: 0.42, z1: 0.69 };
+      const ground = pitIsland(k, 1.55, 1.62, [0.04, 0.26], pit, { tint: SPOOKY.grassDark, earth: ink, thick: 0.08, depth: 0.2 });
+      const mound = new THREE.Mesh(painted(new THREE.SphereGeometry(1, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(0.2, 0.12, 0.13), SPOOKY.dirt), surfaceMaterial('grama'));
+      mound.position.set(0.36, -0.02, 0.84);
       ground.add(mound);
       // The cross smaller than the cemetery's, so it stays behind his shoulder instead of towering over him.
       const cross = nested(k, (b) => tombstone(b, 0, 0, Math.PI, 'cruz', () => 0.5, SPOOKY.moss));
-      cross.position.set(0.25, 0, 1.15);
+      cross.position.set(0.12, 0, 0.82);
       cross.scale.setScalar(0.6);
 
       const hero = k.avatar(mood(HERO, 'marcante', 'grossa'), 'm', { armed: true });
-      const yaw = 0.9; // his right side to the camera, facing screen right: the gun arm in front
-      hero.root.rotation.y = yaw;
-      // The right hip (about 0.09 m to his right) over the pit's near end, by the screen-right wall.
-      hero.root.position.set(0.0 - 0.09 * Math.cos(yaw), 0, 0.0 + 0.09 * Math.sin(yaw));
+      // His right side to the camera, facing screen right: the gun arm in front. His right hip (about 0.09 m to
+      // his right) lands over the grave's near end, a little right of its middle.
+      hero.root.rotation.y = 0.9;
       const aim = { secondary: true, hold: 'pistola' as const };
       k.settle(hero, aim, 40);
       hero.fire();
       k.settle(hero, aim, 1);
       k.hideBack(hero);
-      lunge(k, hero);
+      lunge(k, hero, 0, 2.3); // the left knee high, so the hips sink nearly to the grass
       const p = k.pp(hero);
       p.turn('spine', -0.3);
       p.turn('head', 0.15);
-      p.arm('R', 1.78, 0, 0.05, 0.05); // the pistol at arm's length, toward screen right
+      p.arm('R', 1.66, 0, 0.05, 0.05); // the pistol at arm's length toward screen right, a little down
       p.arm('L', -0.35, 0, -0.45, 0.4);
       p.grip(0.5, 1);
-      k.muzzleFlash(hero, { size: 0.42 });
+      const flash = k.muzzleFlash(hero, { size: 0.36 });
       // Nearly dead: a bandage round the gun arm's forearm (the album's icon for this sticker is a band-aid).
       const elbow = k.at(p.bones.forearm_R);
       const wrist = k.at(p.bones.hand_R);
@@ -320,20 +320,22 @@ export default defineDomain('vila', [
       k.group.add(bandage);
       p.bones.forearm_R.attach(bandage);
 
-      // The badge: closer, on a smaller island of its own (the card's would run off the square), the pit only a
-      // slot round his leg and the cross brought up behind his shoulder.
-      const slot = { x0: -0.18, z0: -0.09, x1: 0.4, z1: 0.56 };
-      const patch = pitIsland(k, 1.6, 1.36, [-0.1, 0.28], slot, { tint: SPOOKY.grassDark, earth: SPOOKY.dirt, thick: 0.07, depth: 0.3 });
+      // The badge, its own tighter shot: a smaller island with only a slot round his thigh, the cross brought up
+      // behind his back shoulder, the gun swung a little toward the camera and its flash smaller, so the square
+      // holds a red cap, a cross and a black slot.
+      const patch = pitIsland(k, 1.15, 0.8, [-0.1, -0.01], { x0: -0.22, z0: -0.21, x1: 0.3, z1: 0.2 }, { tint: SPOOKY.grass, earth: ink, thick: 0.05, depth: 0.2 });
       return {
-        card: { pos: [0.42, 1.96, -3.66], target: [-0.27, 0.39, 0.3], fov: 30, hide: [patch] },
+        card: { pos: [0.28, 1.72, -3.42], target: [-0.22, 0.36, 0.1], fov: 30, hide: [patch] },
         mini: {
-          pos: [0.27, 3.45, -3.0],
-          target: [-0.34, 0.4, 0.19],
+          pos: [0.235, 1.793, -2.8],
+          target: [-0.16, 0.435, 0],
           fov: 30,
           hide: [ground],
           before() {
-            cross.position.set(0.12, 0, 0.74);
-            cross.scale.setScalar(0.5);
+            cross.position.set(0.22, 0, 0.3);
+            cross.scale.setScalar(0.58);
+            p.arm('R', 2.15, 0, 0.45, 0.05); // swung toward the camera and up, so the flash stays in the square
+            flash.scale.setScalar(0.75);
           },
         },
       };
@@ -415,16 +417,27 @@ export default defineDomain('vila', [
       g.updateMatrixWorld(true);
       // Its humanity rising from the belly: a little lavender spirit (the HUD's humanity color) on a wavy tail.
       const belly = g.localToWorld(V(0, 0.25, 0.1));
-      soul(k, belly, 1.5);
-      // The badge: the head from the front in 3/4, upside down with its X eyes and buck teeth, the front paws up
-      // and the wisp rising behind; the long body hides behind the head (a side view is a long brown bar at 30 px).
+      const spirit = soul(k, belly, 1.5);
+      // The badge: the head from the front in 3/4, close, upside down with its X eyes and buck teeth, the front
+      // paws up; the long body hides behind the head (a side view is a long brown bar at 30 px), the tail with it.
+      // The spirit, smaller, rises from the chest right behind the head, so the square holds the face.
       const snout = g.localToWorld(V(0, 0.94, 2.15));
       const along = snout.clone().sub(g.localToWorld(V(0, 0.94, 0))).setY(0).normalize();
-      const front = along.clone().applyAxisAngle(V(0, 1, 0), -0.35).multiplyScalar(6.5).add(V(0, 2.15, 0));
+      const front = along.clone().applyAxisAngle(V(0, 1, 0), -0.3).multiplyScalar(5.0).add(V(0, 1.3, 0));
       const head = g.localToWorld(V(0, 0.9, 1.3));
+      const chest = g.localToWorld(V(0, 0.3, 0.9));
       return {
         card: { pos: [6.4, 3.95, 7.9], target: [0.2, 1.78, 0.25], fov: 32 },
-        mini: { pos: snout.clone().add(front), target: head.clone().add(V(0, 0.94, 0)), fov: 32 },
+        mini: {
+          pos: snout.clone().add(front),
+          target: head.clone().add(V(0.16, 0.46, -0.1)),
+          fov: 32,
+          hide: [tail],
+          before() {
+            spirit.position.copy(chest);
+            spirit.scale.setScalar(0.8);
+          },
+        },
       };
     },
   },
@@ -543,8 +556,9 @@ export default defineDomain('vila', [
   {
     id: 'eu-ja-ouvi',
     build(k) {
-      // The chapel bell rung five times in eight seconds, swung hard with its open mouth to the camera (the dark
-      // inside and the clapper make it a bell, not a funnel), answering with the map's own line.
+      // The chapel bell rung five times in eight seconds, swung out toward the camera's side and seen across the swing
+      // from below its lip: the dome, the flared lip and the dark mouth with its clapper make it a bell (seen into the
+      // mouth it was a megaphone, side-on a pennant), answering with the map's own line.
       const b = k.builder();
       const pivot = 2.0;
       const size = 1.6; // the chapel's is 1.1: bigger, it carries the picture
@@ -560,14 +574,14 @@ export default defineDomain('vila', [
       swing.add(inside);
       // A lighter clapper, so the ball reads against the dark inside.
       clapper.material = new THREE.MeshToonMaterial({ color: 0x8a7a6a, gradientMap: toonGradient() });
-      // Swung toward +Z, its mouth up toward the camera.
-      bell['angle'] = -1.0;
+      // Swung toward +Z, its mouth tipped up toward the camera's side.
+      bell['angle'] = -0.65;
       bell.update(0);
-      const line = k.bubble('EU JÁ\nOUVI.', [0.62, pivot - 0.22, -0.62]);
+      const line = k.bubble('EU JÁ\nOUVI.', [0.7, pivot - 0.38, -0.75]);
       line.material.depthTest = false; // over the beam's stub, which is nearer the camera
       const beam = staticMeshes(k.group);
       return {
-        card: { pos: [4.63, 1.22, 4.17], target: [0.37, 2.0, 0.12], fov: 30 },
+        card: { pos: [5.4, 1.12, 2.88], target: [0.336, 1.84, -0.16], fov: 30 },
         // The badge: the bell alone, the classic bell icon (dome, flared lip, dark mouth, the clapper), seen from
         // below and in front of its mouth.
         mini: {
