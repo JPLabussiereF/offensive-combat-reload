@@ -22,6 +22,8 @@ source_paths:
   - client/tests/mapData.test.ts
   - client/tests/budget.test.ts
   - client/tests/seeded.test.ts
+  - client/tests/mapPose.test.ts
+  - client/tests/editorHistory.test.ts
   - tools/snapshot-mapas.ts
   - tools/headless.ts
 tags:
@@ -111,6 +113,8 @@ Os mapas são montados **sem tela** no Bun (`tools/headless.ts`: canvas falso, `
 - `client/tests/roles.test.ts`: as regras de `shared/roles.ts` (agir sobre, punir, conceder, promover, rebaixar; o último admin fica; ninguém se pune).
 - `client/tests/budget.test.ts`: contagem de chamadas e triângulos (câmera, sombra, grupos de material, instâncias) e os 4 oficiais dentro de 400 chamadas e 750 mil triângulos (o teste imprime os números).
 - `client/tests/seeded.test.ts`: `seeded()` dá os mesmos números de antes e `seeded(r.state)` continua a sequência de `r`.
+- `client/tests/mapPose.test.ts` (P32, [[ADR - Editor de mapas no jogo]]): a pose vira matriz e volta igual; `validateMapData` aceita a pose e recusa uma quebrada; peça sem pose (ou com pose nula) monta idêntica; uma parede girada em ângulo livre nos três eixos tem cada colisor no lugar da pose, os lotes levados, o vão com o centro certo e a porta continua passagem (raio pela porta não bate, a 2 m dela bate); uma sala girada acha o ponto dentro da caixa girada e não o canto da caixa alinhada em volta; `ROOM_` girado guarda o referencial (sem giro, a caixa de sempre); o biscoito de um armário girado fica onde o servidor espera; no modo editor, tirar a peça leva colisores, sala e vão, e ela monta de novo igual.
+- `client/tests/editorHistory.test.ts`: desfazer e refazer de peças adicionadas, mudadas, apagadas (várias de uma vez, no lugar certo da lista) e do resto do mapa; o que cada edição manda reconstruir; o limite do histórico; "não salvo"; as teclas (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z); o gizmo (peça livre continua com `p` e `yaw`, inclinada ganha pose e perde ao ficar em pé, peça linear ou fixa só muda a pose, a bruxa leva o seu lugar junto); cada tipo do catálogo vira uma peça nova válida; ids, ids de piada e de objetos sem repetir; rato e bruxa novos e apagados com os seus `objetos`; duplicar; marcadores (pôr, mover, girar, tirar; modelo do zumbi válido, brecha presa ao muro, canto leva as brechas); pontas e vãos de paredes e cercas.
 
 O hash da navmesh do Cemitério (`server/tests/zombies.test.ts`) é refeito a partir do JSON e continua igual.
 

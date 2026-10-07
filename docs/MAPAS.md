@@ -19,7 +19,7 @@ Desde a PF-6 um mapa é um arquivo de dados, não código. Os quatro oficiais es
 
 - `formato` (hoje `1`: um arquivo de formato mais novo é recusado), `nome`, `exclusivo` (`zumbi` para um mapa só desse modo) e `cartao` (emoji e cor nos seletores).
 - `ambiente`: `ceu` (`atmosfera`: fundo, névoa, hemisfério, sol e as luzes da arma; `cupula`: `nuvens`, `lua` com a direção, ou `oriental`), `celula` (tamanho da célula de lote em metros), `sombra` (meia-largura da sombra do sol, quando o mapa é maior que o padrão), `killY` e `sons` (pássaro, corvo ou uivo: o primeiro depois de `primeiro` segundos, os outros a cada `intervalo`).
-- `pecas`: a lista de peças, montadas **em ordem**. Cada uma tem `id` (único no mapa), `tipo`, `p`/`yaw`/`escala` quando o tipo é livre, `params`, `semente` (o estado do gerador de onde a peça começa, nos tipos que sorteiam: a peça monta igual em qualquer lugar da lista), `prop` (o id da piada no `PropBus`, explícito) e `coletavel`.
+- `pecas`: a lista de peças, montadas **em ordem**. Cada uma tem `id` (único no mapa), `tipo`, `p`/`yaw`/`escala` quando o tipo é livre, `params`, `semente` (o estado do gerador de onde a peça começa, nos tipos que sorteiam: a peça monta igual em qualquer lugar da lista), `prop` (o id da piada no `PropBus`, explícito), `coletavel` e `pose` (abaixo).
 - `arquivos` (modelos `.glb` que as peças `glb` usam, por `id` e `url`), `spawns` (`a`, `b`, `ffa`), `bonecos` (com `patrulha`), `objetos` (coletáveis, bruxa, ratos e peixes: o que o servidor acompanha, com os ids da rede), `zumbi` (o muro, os surgimentos, o caixão, os chefes e as brechas, no Cemitério) e `servicos` (quantas luzes reais).
 
 `validateMapData` confere tudo isso contra o catálogo e devolve a lista de erros; roda igual no cliente e no servidor.
@@ -42,7 +42,32 @@ Online, todo mapa — oficial ou da comunidade — vive no servidor, com as **ve
 - **Jogar**: cada sala online joga uma versão; salvar não muda as partidas em andamento, só as novas. O cliente baixa os dados da versão (`GET /api/mapas/:id/versoes/:v`) e os guarda em memória e no IndexedDB. Treino e bots continuam usando os JSON do pacote.
 - **Modelos .glb** (`POST /api/mapas/arquivos`, corpo `model/gltf-binary`): até **10 MB**, glTF 2.0 legível, tudo dentro do arquivo (nenhuma URI para fora), só as extensões que o jogo carrega (sem Draco, sem meshopt, sem AVIF), texturas até **2048 px**, até 2000 nós. O arquivo fica guardado pelo SHA-256 (em `MAPAS_DIR`, padrão `./dados/mapas`; no Docker, o volume `oc-mapas`).
 
-O editor no jogo (fase 3) e as telas Mapas e Gerenciamento (fase 4) usam essas rotas; a lista completa está em `Game-Vault/13 - Backend & Services/APIs.md`.
+O editor no jogo (fase 3, abaixo) e as telas Mapas e Gerenciamento (fase 4) usam essas rotas; a lista completa está em `Game-Vault/13 - Backend & Services/APIs.md`.
+
+### Pose de uma peça (`Peca.pose`, P32)
+
+O gizmo do editor move e gira **qualquer** peça em **qualquer** ângulo, inclusive as `linear` e `fixa` (muros, telhados, setores), cujo lugar está nos parâmetros. Para isso a peça ganha uma **pose**: `{ p: [x, y, z], r: [x, y, z] }`, um giro (Euler XYZ, radianos) seguido de um deslocamento. A peça é montada onde os parâmetros dizem (o "referencial dela") e tudo o que ela faz é levado pela pose ([client/world/pose.ts](../client/world/pose.ts)):
+
+- a geometria parada entra nos lotes já transformada (`MapBuilder.pose`);
+- os colisores, criados por qualquer caminho, são movidos depois (`poseColliders`);
+- uma **sala** do som girada guarda a caixa no referencial dela e a matriz mundo→sala (`RoomVolume.local`): o som testa o ponto dentro da caixa girada, não na caixa alinhada em volta dela; uma caixa `ROOM_` girada num `.glb` (ou o `.glb` posto com giro) também;
+- um **vão** guarda os números no referencial da parede e a matriz da parede (`WallOpening.pose`; `openingCenter` dá o centro no mundo);
+- os objetos da peça ficam num grupo que a pose carrega, e o que ela entrega aos sistemas do mapa atravessa o referencial ([client/world/catalog/posed.ts](../client/world/catalog/posed.ts)): luzes, partículas, sons, os pés e ouvidos que as piadas olham, quem atirou, coletáveis, a poção, o cachorro e o que um tiro ou a faca acertam. Posições que vêm dos dados (o biscoito, a cereja, as voltas dos peixes) entram pelo `ctx.local`.
+
+Uma peça **sem** pose monta exatamente como antes (o golden dos 4 oficiais e o hash da navmesh não mudam). Uma peça `livre` só ganha pose quando é inclinada: movida e girada em torno do eixo vertical, continua só com `p`, `yaw` e `escala`. Limites conhecidos: as lanternas de papel e os buracos de lago (`holes`) de uma peça com pose não entram nas listas do mapa inteiro (as luzes noturnas das lanternas e os recortes do chão do Jardim).
+
+### Editor no jogo (PF-6, fase 3)
+
+[client/editor/](../client/editor/) roda no lugar de uma partida (sem jogador, HUD nem entrada do jogo); sair recarrega a página. Até a fase 4 criar os botões da tela Mapas, **em desenvolvimento** (`bun run dev`) ele abre por `?editor` (mapa novo) ou `?editor=<id>` (a versão atual do mapa; sem servidor, um oficial abre do pacote do cliente).
+
+- **Câmera**: WASD anda, Q e E descem e sobem, botão direito arrastado olha (o ponteiro só fica preso durante o arrasto), Shift acelera, a roda muda a velocidade, F centraliza.
+- **Selecionar e mexer**: clique numa peça ou marcador; o gizmo move (1), gira (2) e escala (3, só as peças com `escala`) com grade de 0,5 m e passos de 15° (Shift segurado tira o encaixe). Ctrl+Z desfaz, Ctrl+Y e Ctrl+Shift+Z refazem, Ctrl+D duplica, Delete apaga, Esc tira a seleção. Cada edição reconstrói só a peça mexida. Mover a bruxa, um rato gigante ou uma peça com coletável leva junto o lugar dele em `objetos`.
+- **Pontas e vãos**: muros, paredes, cercas, sebes, corrimãos, a ponte e o varal de lanternas mostram bolinhas nas pontas e nos lados de cada vão; arrastar uma desliza no eixo da peça. "+ vão" abre uma porta no meio da parede (ou uma brecha de 2 m na cerca).
+- **Paleta** (esquerda): os tipos do catálogo por categoria, com busca; uma peça nova cai no meio da tela, copiando o primeiro exemplo do tipo nos mapas oficiais (ou os padrões do esquema). Também os marcadores (spawns A, B e livres, bonecos, cereja, biscoito, rato, peixe; no modo zumbi, surgimentos e brechas) e a **importação de .glb** do computador (até 10 MB, enviado ao servidor e guardado pelo SHA-256; a peça `glb` mostra o modelo como o jogo).
+- **Propriedades** (direita): o formulário da peça gerado pelo esquema (posição, giro, escala, pose, semente, piada, coletável e cada parâmetro), o do marcador ou, sem seleção, os do mapa (killY, célula, sombra, céu, atmosfera e sons em JSON, luzes reais, "criar os dados do modo zumbi").
+- **Orçamento** (embaixo): um pouco depois de cada edição o mapa é montado de novo **como o jogo o monta** (lotes entre peças), fora da tela, e medido pela mesma função do servidor; acima de 400 chamadas ou 750 mil triângulos (ou com dados inválidos) Salvar fica desligado e a barra diz o que passou.
+- **Testar** grava o rascunho no IndexedDB (banco `oc-mapas`, store `rascunhos`) e recarrega a página no **treino** sobre ele; "Sair para o início" volta ao editor no mesmo rascunho.
+- **Salvar**: nome, emoji, cor, aberto ou exclusivo do zumbi e, num mapa novo, oficial (só admin e moderador) ou comunidade. Os dados são conferidos aqui (`validateMapData`) e no servidor; um mapa existente vai com a versão em que foi aberto (`baseVersao`). Se alguém salvou antes (409), nada é salvo e o rascunho continua; orçamento estourado e dados inválidos mostram os números e a lista de erros do servidor.
 
 ### Golden e conversão
 
@@ -206,7 +231,7 @@ A Vila é noturna: devolve `atmosphere` (lua azulada, névoa roxa) e `shadowExte
 
 ### Mapas por sessão
 
-Cada sessão online leva o id e a versão do mapa; as sessões abrem sob demanda (`play`: uma sala da versão atual com vaga, ou uma nova) e fecham vazias. Um mapa novo entra pelo servidor (`POST /api/mapas`, acima) e fica jogável online na hora. Um mapa oficial novo **no pacote do cliente** (para treino e bots offline): o id em `OFFICIAL_MAPS` ([shared/maps.ts](../shared/maps.ts)), o arquivo `shared/data/mapas/<id>.json` (seção 0), `OFFICIAL` e `OFFICIAL_INFO` em [client/world/mapLoader.ts](../client/world/mapLoader.ts); o servidor cria a versão 1 sozinho. Com o editor da PF-6 (fase 3), os mapas passam a ser criados no jogo.
+Cada sessão online leva o id e a versão do mapa; as sessões abrem sob demanda (`play`: uma sala da versão atual com vaga, ou uma nova) e fecham vazias. Um mapa novo entra pelo servidor (`POST /api/mapas`, acima) e fica jogável online na hora. Um mapa oficial novo **no pacote do cliente** (para treino e bots offline): o id em `OFFICIAL_MAPS` ([shared/maps.ts](../shared/maps.ts)), o arquivo `shared/data/mapas/<id>.json` (seção 0), `OFFICIAL` e `OFFICIAL_INFO` em [client/world/mapLoader.ts](../client/world/mapLoader.ts); o servidor cria a versão 1 sozinho. Com o editor da PF-6 (fase 3, seção 0), os mapas são criados no jogo.
 
 ### Piadas do cenário sincronizadas
 

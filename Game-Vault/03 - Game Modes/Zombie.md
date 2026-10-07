@@ -299,7 +299,7 @@ Tudo em `shared/data/zumbi.json`, menos os dados do mapa, que ficam no campo `zu
 
 ## Limites e próximos passos
 
-- Um mapa oficial só. Desde a PF-6 (fase 2), qualquer mapa salvo com `exclusivo: 'zumbi'` e o campo `zumbi` (muro, brechas, caixão, surgimentos) vira mapa do modo: o servidor gera a navmesh ao salvar (`server/mapWorker.ts`) e a guarda com a versão; o editor que monta esses dados é da fase 3.
+- Um mapa oficial só. Desde a PF-6 (fase 2), qualquer mapa salvo com `exclusivo: 'zumbi'` e o campo `zumbi` (muro, brechas, caixão, surgimentos) vira mapa do modo: o servidor gera a navmesh ao salvar (`server/mapWorker.ts`) e a guarda com a versão; o editor (fase 3) monta esses dados com marcadores (surgimentos, caixão, chefes, cantos do muro e brechas, que ficam na linha do muro) e um modelo inicial válido ([[ADR - Editor de mapas no jogo]]).
 - O "não há caminho aberto" é decidido pela caixa `dentro` do mapa: vale porque o muro é fechado e as brechas são a única ligação.
 - Zumbis não sobem em lugares fora da navmesh; o caixão e as tábuas têm colisão só para os jogadores (as tábuas são regra do motor). Ver [[Navigation]].
 - Arranhão sem linha de visão: um zumbi encostado no muro alcança um jogador colado do outro lado das grades ("braço pela grade").

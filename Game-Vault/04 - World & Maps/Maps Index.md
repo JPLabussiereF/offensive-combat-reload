@@ -94,7 +94,7 @@ Mapa de ferramenta (não aparece no seletor):
 
 Confirmado em código e em `docs/MAPAS.md`:
 
-**Pelo servidor (PF-6 fase 2):** `POST /api/mapas { tipo, dados }` com um `MapData` válido ([[APIs]]): o servidor valida os dados, monta o mapa numa thread própria (`server/mapWorker.ts`), recusa acima de 400 chamadas de desenho ou 750 mil triângulos e, se for zumbi (`exclusivo: 'zumbi'` com o campo `zumbi`), gera a navmesh. O mapa fica jogável online na hora. A fase 3 (editor no jogo) e a fase 4 (tela Mapas) usam essas rotas.
+**Pelo servidor (PF-6 fase 2):** `POST /api/mapas { tipo, dados }` com um `MapData` válido ([[APIs]]): o servidor valida os dados, monta o mapa numa thread própria (`server/mapWorker.ts`), recusa acima de 400 chamadas de desenho ou 750 mil triângulos e, se for zumbi (`exclusivo: 'zumbi'` com o campo `zumbi`), gera a navmesh. O mapa fica jogável online na hora. O editor no jogo (fase 3, [[ADR - Editor de mapas no jogo]]) salva por essas rotas; a tela Mapas (fase 4) também as usa.
 
 **Um mapa oficial novo no pacote do cliente** (para treino e bots offline):
 

@@ -15,6 +15,8 @@ source_paths:
   - client/world/catalog/types.ts
   - client/world/catalog/services.ts
   - client/world/budget.ts
+  - client/world/pose.ts
+  - client/world/catalog/posed.ts
   - client/world/conversao/recorder.ts
   - client/world/conversao/jardimSetores.ts
   - client/world/catalog/gardenPieces.ts
@@ -63,7 +65,7 @@ Como descrever um mapa em dados sem perder nada dos mapas atuais (colisão, piad
 ## Decisões do dev sobre o editor (registradas na fase 1)
 
 - **P31: setores do Jardim em peças individuais.** Na primeira conversão cada setor do [[Map - Jardim do Dragão]] (casa, anel, bonsai, lago, lanternas, guerreiros, bambu, santuário) virou uma peça só (o plano listava "setores do jardim" entre os adaptadores). O dev decidiu que eles devem ser convertidos chamada por chamada, como a Vila Assombrada, para o Jardim oficial ser editável no mesmo nível dos outros mapas. **Feito na fase 1:** `client/world/conversao/jardimSetores.ts` grava cada chamada dos antigos `buildCasa`, `buildRing`, `buildBonsai`, `buildLago`, `buildLanternas`, `buildGuerreiros`, `buildBambu` e `buildSantuario`; o catálogo ganhou as peças próprias dos setores (`client/world/catalog/gardenPieces.ts`: cerejeira do dragão com a cereja, fonte do dragão, sinos bianzhong, barracas do mercado, sinos, tambores, túmulos, estela, panda, portais, folhas de porta) e um `colisor` invisível; o `jardim.json` passou de 28 para 741 peças, igual ao golden, com o mesmo orçamento (310 chamadas, 704.428 triângulos). O tipo `setor` saiu do catálogo.
-- **P32: o gizmo move e gira todas as peças, com giro livre** (qualquer ângulo), inclusive as de transformação `linear` e `fixa`. É trabalho da fase 3 (o editor): hoje só as peças `livre` respondem a `p`, `yaw` e `escala`; colisores, salas e vãos alinhados aos eixos vão precisar de tratamento para giros que não são múltiplos de 90°.
+- **P32: o gizmo move e gira todas as peças, com giro livre** (qualquer ângulo), inclusive as de transformação `linear` e `fixa`. **Feito na fase 3** com uma **pose** por peça (`Peca.pose { p, r }`, opcional): a peça é montada no referencial dos seus parâmetros e a pose, uma transformação rígida, leva tudo o que ela faz (`client/world/pose.ts`): a geometria entra nos lotes já transformada (`MapBuilder.pose`), os colisores são movidos depois de criados (qualquer caminho, inclusive os que não passam pelo `MapBuilder`), a **sala** guarda a caixa no seu referencial com a matriz mundo→sala (`RoomVolume.local`, testada por `RoomVolumes.at`), o **vão** guarda a matriz da parede (`WallOpening.pose`), e os objetos, luzes, partículas, sons, piadas, coletáveis, poção, cachorro e acertos de tiro e faca atravessam o referencial em `client/world/catalog/posed.ts`. Caixas `ROOM_` giradas num `.glb` usam o mesmo referencial (`MapBuilder.orientedRoom`). Peça sem pose monta como antes (golden e navmesh iguais); peça `livre` só ganha pose quando inclinada. Ver [[ADR - Editor de mapas no jogo]].
 
 ## Motivo
 
@@ -75,6 +77,7 @@ Reaproveita todo o código de construção que já existe (os construtores viram
 - A ordem das peças continua definindo os lotes e a ordem dos colisores, mas o golden e a navmesh não dependem dela (testado), e as sementes por peça tornam cada peça independente das outras.
 - Um tipo de peça novo precisa do esquema em `shared/mapCatalog.ts` e do adaptador em `client/world/catalog/` (um teste confere que os dois casam).
 - **Fase 2 (feita):** o servidor guarda cada versão salva do mapa no banco (`map_version`) e lê `objetos`, `zumbi` e a navmesh dela; `PICKUPS`, `WITCHES`, `RATS`, `FISH` e `MAPS` saíram de `shared/maps.ts`. Salvar monta o mapa numa thread (`server/mapWorker.ts`) e confere `MAP_BUDGET`. Ver [[ADR - Sessões sob demanda por versão do mapa]].
+- **Fase 3 (feita):** o editor no jogo ([[ADR - Editor de mapas no jogo]]) usa o modo editor do carregador, reconstrói só a peça mexida (`MapBuild.remove` e `piece`) e grava a pose da P32.
 - Os dados de zumbi do Cemitério saíram de `shared/data/zumbi.json` e estão no campo `zumbi` de `cemiterio.json` (`ZOMBIE.mapas` continua igual).
 
 ## Código afetado
