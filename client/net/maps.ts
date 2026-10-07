@@ -4,9 +4,11 @@
 // Offline play (training, bots) builds the official maps shipped with the client instead
 // (client/world/mapLoader.ts).
 //
-// The map editor keeps its drafts in the same database (store "rascunhos", added in version 2 of it): "Testar"
-// writes the map being edited there and the training range builds it.
+// The map editor keeps its drafts in the same database (store "rascunhos", added in version 2 of it): written
+// at every edit (P40: offered back when the map opens again) and by "Testar" (the test builds it), forgotten
+// once the map is saved.
 import type { MapData } from '@shared/mapData';
+import { asDraft, type Draft } from '../editor/recovery';
 import { api } from './api';
 
 const DB_NAME = 'oc-mapas';
@@ -39,13 +41,13 @@ function database(): Promise<IDBDatabase | null> {
   return opened;
 }
 
-async function read(store: string, key: string): Promise<MapData | null> {
+async function read<T = MapData>(store: string, key: string): Promise<T | null> {
   const db = await database();
   if (!db) return null;
   return new Promise((resolve) => {
     try {
       const req = db.transaction(store, 'readonly').objectStore(store).get(key);
-      req.onsuccess = () => resolve((req.result as MapData | undefined) ?? null);
+      req.onsuccess = () => resolve((req.result as T | undefined) ?? null);
       req.onerror = () => resolve(null);
     } catch {
       resolve(null);
@@ -53,14 +55,15 @@ async function read(store: string, key: string): Promise<MapData | null> {
   });
 }
 
-/** Writes a value; true once it's stored (false: no database, or it's full or blocked). */
-async function write(store: string, key: string, data: MapData): Promise<boolean> {
+/** Writes a value (`undefined`: deletes it); true once it's done (false: no database, or it's full or blocked). */
+async function write(store: string, key: string, data: unknown): Promise<boolean> {
   const db = await database();
   if (!db) return false;
   return new Promise((resolve) => {
     try {
       const tx = db.transaction(store, 'readwrite');
-      tx.objectStore(store).put(data, key);
+      if (data === undefined) tx.objectStore(store).delete(key);
+      else tx.objectStore(store).put(data, key);
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => resolve(false);
       tx.onabort = () => resolve(false);
@@ -90,8 +93,14 @@ export function fetchMapVersion(id: string, versao: number): Promise<MapData> {
   return p;
 }
 
-/** Keeps the editor's draft of a map (`key`: the map's id, or "novo"). */
-export const saveDraft = (key: string, data: MapData) => write(DRAFTS, key, data);
+/**
+ * Keeps the editor's draft of a map (`key`: the map's id, or "novo"), with when it was written and the version
+ * it was edited from (`base`).
+ */
+export const saveDraft = (key: string, data: MapData, base: number | null) => write(DRAFTS, key, { dados: data, em: Date.now(), base } satisfies Draft);
 
 /** The editor's draft of a map, if one was kept. */
-export const loadDraft = (key: string) => read(DRAFTS, key);
+export const loadDraft = async (key: string): Promise<Draft | null> => asDraft(await read<unknown>(DRAFTS, key));
+
+/** Forgets the editor's draft of a map (saved, or thrown away). */
+export const deleteDraft = (key: string) => write(DRAFTS, key, undefined);

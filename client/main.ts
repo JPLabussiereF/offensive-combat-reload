@@ -57,7 +57,7 @@ import { Hud, type Buff, type FeedIcon } from './ui/hud';
 import { Screens } from './ui/menu';
 import { closeReason, gameModeName, showHome, type HomeChoice } from './ui/home';
 import { runEditor } from './editor/editor';
-import { devEditorChoice, editorChoice, handOff, takeHandoff, testChoice } from './editor/launch';
+import { editorChoice, handOff, takeHandoff, testChoice } from './editor/launch';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
 import { Arsenal, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
@@ -129,14 +129,13 @@ async function boot() {
 
   // --- Home: the account, then an online session, bots or offline training -------------------------
   screens.hideLoading();
-  // The map editor comes in through the home's choice (or, between reloads, its handoff: client/editor/launch.ts):
-  // coming back from testing a map, going to test one on the training range, or the development entry.
+  // The map editor comes in through the home's choice (the Mapas tab's Editar and Novo mapa) or, between
+  // reloads, its handoff (client/editor/launch.ts): coming back from testing a map, going to test one (the
+  // training range, or the zumbi match on a zumbi-only map), or opening a map's current version again.
   const handoff = takeHandoff();
-  // PROVISÓRIO (fase 4 da PF-6): "?editor" só em desenvolvimento, até a tela Mapas ter os botões Editar e Novo mapa.
-  const devEditor = import.meta.env.DEV ? devEditorChoice() : null;
   const tested = handoff?.acao === 'testar' ? await testChoice(handoff) : null;
   const picked: HomeChoice =
-    handoff?.acao === 'voltar' ? editorChoice(handoff.mapa, handoff) : devEditor ? editorChoice(devEditor === 'novo' ? null : devEditor) : (tested?.choice ?? (await showHome()));
+    handoff?.acao === 'voltar' ? editorChoice(handoff.mapa, handoff) : handoff?.acao === 'abrir' ? editorChoice(handoff.mapa) : (tested?.choice ?? (await showHome()));
   if (picked.mode === 'editor') {
     // The editor runs on its own loop: no input, player or HUD; leaving it reloads the page.
     await runEditor({ ctx, physics, mapa: picked.mapa, rascunho: picked.rascunho });

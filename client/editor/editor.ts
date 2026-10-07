@@ -3,7 +3,9 @@
 // game's own loader in its editor mode, and runs its own loop: a free camera, picking with a click, the gizmo
 // (move, turn, scale on a 0.5 m and 15° grid; Shift held for free moves), undo and redo, the palette, the
 // properties panel, the markers, the ends and holes of walls, GLB models from the computer, the live budget
-// bar, testing the map on the training range and saving it. Leaving reloads the page.
+// bar, testing the map (the training range, or the zumbi match on a zumbi-only map) and saving it. Every edit
+// keeps a draft in IndexedDB (P40), offered back when the map opens again; saving forgets it. Leaving reloads
+// the page.
 import * as THREE from 'three';
 import { MAP_FORMAT, type MapData, type Peca, type Vec3 } from '@shared/mapData';
 import { OFFICIAL_MAPS, isOfficialMap } from '@shared/maps';
@@ -13,7 +15,7 @@ import { applyAtmosphere, type RenderContext } from '../render/renderer';
 import type { Physics } from '../world/physics';
 import { atmosphereOf, loadOfficialMap } from '../world/mapLoader';
 import { api, fetchMe } from '../net/api';
-import { fetchMapVersion, loadDraft, saveDraft } from '../net/maps';
+import { deleteDraft, fetchMapVersion, loadDraft, saveDraft } from '../net/maps';
 import { EditorDocument, clone, newPieceId, type Rest } from './document';
 import { historyKey } from './history';
 import { MapView } from './view';
@@ -30,6 +32,7 @@ import { duplicatePiece, newPiece, removalRest, templatesFrom } from './create';
 import { fileEntry, pickGlb, uploadGlb } from './glbImport';
 import { showSaveDialog, type MapTarget } from './save';
 import { draftKey, handOff, type EditorMap } from './launch';
+import { draftIsNewer, recoveredBase, type Draft } from './recovery';
 import { injectEditorStyle } from './style';
 import { et } from './strings';
 import type { MapaResumo, TipoMapa } from '@shared/mapData';
@@ -58,26 +61,77 @@ export function blankMap(): MapData {
   };
 }
 
-/** Where the map comes from: a draft, a saved version, an official map shipped with the game, or a new one. */
-async function openMap(o: EditorOptions): Promise<{ data: MapData; target: MapTarget; restored: boolean }> {
+/**
+ * Where the map comes from: the draft being tested, a saved version, an official map shipped with the game, or a
+ * new one. A draft kept from an earlier visit and newer than the version (P40) is offered back first (`ask`:
+ * true to recover it); turned down, or older than the version, it's forgotten.
+ */
+async function openMap(o: EditorOptions, ask: (d: Draft, isNew: boolean) => Promise<boolean>): Promise<{ data: MapData; target: MapTarget; restored: boolean }> {
   if (o.rascunho) {
     const draft = await loadDraft(o.rascunho.chave);
-    if (draft) return { data: draft, target: { id: o.mapa?.id ?? null, versao: o.mapa?.versao ?? null, tipo: o.rascunho.tipo }, restored: true };
+    if (draft) return { data: draft.dados, target: { id: o.mapa?.id ?? null, versao: o.mapa?.versao ?? null, tipo: o.rascunho.tipo }, restored: true };
   }
-  if (!o.mapa) return { data: blankMap(), target: { id: null, versao: null, tipo: 'comunidade' }, restored: false };
+  const key = draftKey(o.mapa);
+  const kept = await loadDraft(key);
+  /** The kept draft, if it's newer than `current` and the editor wants it back. */
+  const recover = async (current: { atualizadoEm: string } | null) => {
+    if (kept && draftIsNewer(kept, current) && (await ask(kept, !o.mapa))) return kept;
+    if (kept) void deleteDraft(key);
+    return null;
+  };
+  if (!o.mapa) {
+    const d = await recover(null);
+    return { data: d ? clone(d.dados) : blankMap(), target: { id: null, versao: null, tipo: 'comunidade' }, restored: !!d };
+  }
   const { id } = o.mapa;
   let tipo: TipoMapa = isOfficialMap(id) ? 'oficial' : 'comunidade';
   let versao = o.mapa.versao;
+  let s: MapaResumo;
   try {
-    const s = await api<MapaResumo>('GET', `/api/mapas/${encodeURIComponent(id)}`);
-    tipo = s.tipo;
-    if (!versao) versao = s.versao;
-    return { data: clone(await fetchMapVersion(id, versao)), target: { id, versao, tipo }, restored: false };
+    s = await api<MapaResumo>('GET', `/api/mapas/${encodeURIComponent(id)}`);
   } catch (err) {
     // Without the server, an official map still opens from the game's own copy (to look at and test; saving needs the server).
     if (!isOfficialMap(id)) throw err;
-    return { data: clone(await loadOfficialMap(id)), target: { id, versao: versao || 1, tipo }, restored: false };
+    const d = await recover(null);
+    return { data: clone(d ? d.dados : await loadOfficialMap(id)), target: { id, versao: versao || 1, tipo }, restored: !!d };
   }
+  tipo = s.tipo;
+  if (!versao) versao = s.versao;
+  const d = await recover(s);
+  // A recovered draft saves over the version it was edited from: if another was saved since, the 409 says so.
+  if (d) return { data: clone(d.dados), target: { id, versao: recoveredBase(d, versao), tipo }, restored: true };
+  return { data: clone(await fetchMapVersion(id, versao)), target: { id, versao, tipo }, restored: false };
+}
+
+/** A question over the editor with two answers: resolves true for the first. */
+function choose(host: HTMLElement, title: string, text: string, yes: string, no: string): Promise<boolean> {
+  const box = document.createElement('div');
+  box.className = 'ed-modal';
+  const dialog = document.createElement('div');
+  dialog.className = 'ed-dialog';
+  const h = document.createElement('h3');
+  h.textContent = title;
+  const p = document.createElement('p');
+  p.textContent = text;
+  const actions = document.createElement('div');
+  actions.className = 'ed-actions';
+  const noBtn = document.createElement('button');
+  noBtn.textContent = no;
+  const yesBtn = document.createElement('button');
+  yesBtn.className = 'ed-primary';
+  yesBtn.textContent = yes;
+  actions.append(noBtn, yesBtn);
+  dialog.append(h, p, actions);
+  box.append(dialog);
+  host.append(box);
+  return new Promise((resolve) => {
+    const done = (v: boolean) => {
+      box.remove();
+      resolve(v);
+    };
+    yesBtn.onclick = () => done(true);
+    noBtn.onclick = () => done(false);
+  });
 }
 
 const snap = (v: number) => Math.round(v / GRID) * GRID;
@@ -126,8 +180,12 @@ export async function runEditor(o: EditorOptions): Promise<void> {
 
   // --- The map --------------------------------------------------------------------------------------------
   let opened: Awaited<ReturnType<typeof openMap>>;
+  const askDraft = (d: Draft, isNew: boolean) => {
+    const quando = new Date(d.em).toLocaleString();
+    return choose(root, et('draftTitle'), et(isNew ? 'draftTextNew' : 'draftText', { quando }), et('draftRecover'), et('draftDiscard'));
+  };
   try {
-    opened = await openMap(o);
+    opened = await openMap(o, askDraft);
   } catch (err) {
     loading.textContent = et('loadFailed', { erro: String((err as Error)?.message ?? err) });
     const back = document.createElement('button');
@@ -139,6 +197,8 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   const target = opened.target;
   let restored = opened.restored;
   const doc = new EditorDocument(opened.data);
+  /** The draft's key now (a new map's changes to its id once saved). */
+  const keyNow = () => draftKey(target.id ? { id: target.id, versao: target.versao ?? 0 } : null);
   const papeis: Papel[] = (await fetchMe()).me?.papeis ?? [];
   const title = () => ($('.ed-title').textContent = `${et('title')} · ${doc.data.cartao.emoji} ${doc.data.nome}${target.id ? ` (${target.id} v${target.versao})` : ''}${doc.dirty || restored ? ' •' : ''}`);
 
@@ -300,8 +360,25 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     selection.refresh();
     attach();
   };
+  // P40: every edit keeps the draft (a moment after it, so a burst of edits writes once); back at the saved
+  // state, it's forgotten.
+  let draftTimer: ReturnType<typeof setTimeout> | null = null;
+  const keepDraft = () => {
+    if (draftTimer) clearTimeout(draftTimer);
+    draftTimer = setTimeout(() => {
+      draftTimer = null;
+      if (doc.dirty || restored) void saveDraft(keyNow(), doc.data, target.versao);
+      else void deleteDraft(keyNow());
+    }, 150);
+  };
+  const forgetDraft = (...keys: string[]) => {
+    if (draftTimer) clearTimeout(draftTimer);
+    draftTimer = null;
+    return Promise.all(keys.map((k) => deleteDraft(k)));
+  };
   doc.onChange((c) => {
     title();
+    keepDraft();
     budget.schedule();
     const amb = JSON.stringify(doc.data.ambiente);
     if (amb !== ambiente) {
@@ -428,8 +505,9 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   const test = async () => {
     if (budget.state.kind === 'invalido') return status(et('testInvalid'), true);
     status(et('testing'));
-    const chave = draftKey(target.id ? { id: target.id, versao: target.versao ?? 0 } : null);
-    if (!(await saveDraft(chave, doc.data))) return status(et('errOther', { e: 'IndexedDB' }), true);
+    const chave = keyNow();
+    if (draftTimer) clearTimeout(draftTimer);
+    if (!(await saveDraft(chave, doc.data, target.versao))) return status(et('errOther', { e: 'IndexedDB' }), true);
     handOff({ acao: 'testar', mapa: target.id ? { id: target.id, versao: target.versao ?? 0 } : null, tipo: target.tipo, chave });
     location.reload();
   };
@@ -450,10 +528,21 @@ export async function runEditor(o: EditorOptions): Promise<void> {
         }),
     });
     if (!saved) return;
+    if (saved === 'abrirAtual') {
+      // P39: the edits are dropped (the draft too) and the editor opens the version saved meanwhile.
+      leaving = true;
+      await forgetDraft(keyNow());
+      handOff({ acao: 'abrir', mapa: { id: target.id!, versao: 0 }, tipo: target.tipo, chave: keyNow() });
+      location.reload();
+      return;
+    }
+    const before = keyNow();
     target.id = saved.id;
     target.versao = saved.versao;
     restored = false;
     doc.markSaved();
+    // Saved: the draft has nothing the server doesn't (a new map's, kept as "novo", goes too).
+    void forgetDraft(before, keyNow());
     title();
     status(et('saved', { v: saved.versao }));
   };
@@ -484,7 +573,8 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     exit: () => {
       if ((doc.dirty || restored) && !confirm(et('exitConfirm'))) return;
       leaving = true;
-      location.reload();
+      // Leaving on purpose throws the unsaved edits away (the question said so): the draft goes with them.
+      void forgetDraft(keyNow()).finally(() => location.reload());
     },
   };
   for (const [a, f] of Object.entries(actions)) button(a).onclick = f;
@@ -519,6 +609,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   title();
   attach();
   budget.schedule();
+  if (restored && !o.rascunho) status(et('draftRecovered'));
 
   // Dev-only handle for automated smoke tests and console poking (like the game's __oc).
   if (import.meta.env.DEV) {

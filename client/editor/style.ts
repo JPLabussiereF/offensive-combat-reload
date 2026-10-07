@@ -49,6 +49,9 @@ const CSS = `
 #editor .ed-msg.ed-err { color: #ff9a9a; }
 #editor .ed-msg.ed-ok { color: #8ff0b0; }
 #editor .ed-msg ul { margin: 4px 0; padding-left: 18px; max-height: 30vh; overflow: auto; font-size: 12px; }
+#editor .ed-stale { display: grid; gap: 4px; margin-top: 8px; }
+#editor .ed-stale[hidden] { display: none; }
+#editor .ed-stale small { opacity: 0.75; font-size: 12px; margin-bottom: 6px; }
 #editor .ed-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; background: rgba(10,12,18,0.6); pointer-events: auto; }
 `;
 

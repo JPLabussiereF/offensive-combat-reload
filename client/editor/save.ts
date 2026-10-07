@@ -3,10 +3,13 @@
 // moderator; the server checks it again). The data is checked here first (validateMapData, the same check the
 // server makes) and then sent: a new map with POST /api/mapas, a new version of one with PUT /api/mapas/:id and
 // the version it was opened at (baseVersao). What the server refuses is told as it is: someone saved meanwhile
-// (409 versao_desatualizada), over the budget (orcamento_excedido), invalid data (mapa_invalido).
+// (409 versao_desatualizada), over the budget (orcamento_excedido), invalid data (mapa_invalido). After a 409 the
+// dialog offers the two ways out of P39: save as a new version anyway (sent again over the version the server
+// named: the other one stays in the history) or open the current version (the local edits are dropped).
 import { MAP_BUDGET, validateMapData, type MapData, type TipoMapa } from '@shared/mapData';
 import { isEquipe, type Papel } from '@shared/roles';
 import { ApiError, api } from '../net/api';
+import { forceBase } from './recovery';
 import { et } from './strings';
 
 /** The map being edited on the server (id null: a new map, not saved yet). */
@@ -31,6 +34,8 @@ export class SaveError extends Error {
     message: string,
     readonly erros: string[] = [],
     readonly code: string = '',
+    /** 409: the map's current version. */
+    readonly atual: number | null = null,
   ) {
     super(message);
   }
@@ -59,7 +64,7 @@ export function saveErrorOf(err: unknown): SaveError {
   const x = err.extra;
   switch (err.code) {
     case 'versao_desatualizada':
-      return new SaveError(et('errStale', { v: String(x.atual ?? '?') }), [], err.code);
+      return new SaveError(et('errStale', { v: String(x.atual ?? '?') }), [], err.code, Number.isInteger(x.atual) ? (x.atual as number) : null);
     case 'orcamento_excedido': {
       const over = ((x.excedeu as string[]) ?? []).map((k) => (k === 'drawCalls' ? et('budgetDrawCalls') : et('budgetTriangles'))).join(', ');
       return new SaveError(et('errBudget', { o: over, dc: String(x.drawCalls ?? '?'), tri: Number(x.triangulos ?? 0).toLocaleString(), dcMax: MAP_BUDGET.drawCalls, triMax: MAP_BUDGET.triangulos.toLocaleString() }), [], err.code);
@@ -93,11 +98,15 @@ export async function saveMap(data: MapData, target: MapTarget): Promise<{ id: s
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
+/** How the dialog closed: saved (id and version), cancelled (null), or "open the current version" after a 409. */
+export type SaveOutcome = { id: string; versao: number } | 'abrirAtual' | null;
+
 /**
- * Asks for the name, card, modes and kind, then saves. Resolves with the saved meta, id and version, or null
- * when cancelled. `apply` puts the meta in the map being edited before it's sent (an undoable edit).
+ * Asks for the name, card, modes and kind, then saves. Resolves with the saved id and version, null when
+ * cancelled, or 'abrirAtual' (P39: the editor drops its edits and opens the map's current version). `apply` puts
+ * the meta in the map being edited before it's sent (an undoable edit).
  */
-export function showSaveDialog(o: { host: HTMLElement; data: () => MapData; target: MapTarget; papeis: readonly Papel[]; apply: (m: SaveMeta) => void }): Promise<{ id: string; versao: number } | null> {
+export function showSaveDialog(o: { host: HTMLElement; data: () => MapData; target: MapTarget; papeis: readonly Papel[]; apply: (m: SaveMeta) => void }): Promise<SaveOutcome> {
   const { host, target } = o;
   const m = metaOf(o.data(), target);
   const staff = canSaveOfficial(o.papeis);
@@ -120,6 +129,10 @@ export function showSaveDialog(o: { host: HTMLElement; data: () => MapData; targ
         ${staff ? '' : `<p class="ed-note">${esc(et('officialOnlyStaff'))}</p>`}
       </fieldset>
       <div class="ed-msg"></div>
+      <div class="ed-stale" hidden>
+        <button type="button" class="ed-primary" data-a="force"></button><small></small>
+        <button type="button" data-a="open"></button><small></small>
+      </div>
       <div class="ed-actions"><button type="button" class="ed-cancel">${esc(et('cancel'))}</button><button type="submit" class="ed-primary">${esc(et('saveConfirm'))}</button></div>
     </form>`;
   host.append(box);
@@ -139,14 +152,30 @@ export function showSaveDialog(o: { host: HTMLElement; data: () => MapData; targ
     msg.className = `ed-msg ${ok ? 'ed-ok' : 'ed-err'}`;
     msg.innerHTML = `<p>${esc(text)}</p>${erros.length ? `<ul>${erros.slice(0, 30).map((e) => `<li>${esc(e)}</li>`).join('')}</ul>` : ''}`;
   };
+  const stale = box.querySelector<HTMLElement>('.ed-stale')!;
+  const [forceBtn, openBtn] = stale.querySelectorAll<HTMLButtonElement>('button');
+  const [forceHint, openHint] = stale.querySelectorAll<HTMLElement>('small');
+  forceBtn.textContent = et('staleForce');
+  openBtn.textContent = et('staleOpen');
+  openHint.textContent = et('staleOpenHint');
   return new Promise((resolve) => {
-    const close = (v: { id: string; versao: number } | null) => {
+    const close = (v: SaveOutcome) => {
       box.remove();
       resolve(v);
     };
     box.querySelector<HTMLButtonElement>('.ed-cancel')!.onclick = () => close(null);
+    /** The current version a 409 named: "save anyway" goes over it. */
+    let atual: number | null = null;
+    forceBtn.onclick = () => {
+      if (atual === null) return;
+      const next = forceBase(target, atual);
+      target.versao = next.versao;
+      form.requestSubmit();
+    };
+    openBtn.onclick = () => close('abrirAtual');
     form.onsubmit = async (e) => {
       e.preventDefault();
+      stale.hidden = true;
       const meta: SaveMeta = {
         nome: field('nome').value,
         emoji: field('emoji').value,
@@ -168,6 +197,14 @@ export function showSaveDialog(o: { host: HTMLElement; data: () => MapData; targ
         const e = err instanceof SaveError ? err : new SaveError(String(err));
         show(e.message, e.erros);
         submit.disabled = false;
+        // P39: someone saved meanwhile. Saving again goes over their version (it stays in the history), or the
+        // editor opens it and drops these edits.
+        if (e.code === 'versao_desatualizada' && e.atual !== null) {
+          atual = e.atual;
+          forceHint.textContent = et('staleForceHint', { v: e.atual });
+          stale.hidden = false;
+          submit.disabled = true;
+        }
       }
     };
   });

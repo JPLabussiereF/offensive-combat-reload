@@ -112,7 +112,11 @@ const pt = {
   cancel: 'Cancelar',
   saving: 'Salvando…',
   saved: 'Salvo: versão {v}.',
-  errStale: 'Alguém salvou a versão {v} deste mapa enquanto você editava. O seu rascunho continua aqui; nada foi salvo.',
+  errStale: 'Alguém salvou a versão {v} deste mapa enquanto você editava. Nada foi salvo: escolha o que fazer.',
+  staleForce: 'Salvar como nova versão mesmo assim',
+  staleForceHint: 'A versão {v} continua no histórico.',
+  staleOpen: 'Abrir a versão atual',
+  staleOpenHint: 'Descarta as suas edições.',
   errBudget: 'O servidor recusou: {o} ({dc} chamadas, {tri} triângulos; limite {dcMax} e {triMax}).',
   errInvalid: 'O servidor recusou o mapa:',
   errPermission: 'Você não pode salvar este mapa.',
@@ -130,7 +134,12 @@ const pt = {
   glbFailed: 'Não deu para enviar o modelo ({e}).',
   buildFailed: 'A peça {id} não montou: {e}',
   limitReached: 'O mapa já tem o máximo de "{nome}".',
-  devEntry: 'Editor (dev)',
+  draftTitle: 'Rascunho guardado',
+  draftText: 'Este mapa tem um rascunho de {quando}, mais novo que a versão salva. Recuperar as edições?',
+  draftTextNew: 'Há um rascunho de mapa novo de {quando}. Recuperar?',
+  draftRecover: 'Recuperar o rascunho',
+  draftDiscard: 'Descartar',
+  draftRecovered: 'Rascunho recuperado (ainda não salvo).',
 };
 
 const en: Record<keyof typeof pt, string> = {
@@ -243,7 +252,11 @@ const en: Record<keyof typeof pt, string> = {
   cancel: 'Cancel',
   saving: 'Saving…',
   saved: 'Saved: version {v}.',
-  errStale: 'Someone saved version {v} of this map while you were editing. Your draft is still here; nothing was saved.',
+  errStale: 'Someone saved version {v} of this map while you were editing. Nothing was saved: choose what to do.',
+  staleForce: 'Save as a new version anyway',
+  staleForceHint: 'Version {v} stays in the history.',
+  staleOpen: 'Open the current version',
+  staleOpenHint: 'Drops your edits.',
   errBudget: 'The server refused it: {o} ({dc} draw calls, {tri} triangles; limit {dcMax} and {triMax}).',
   errInvalid: 'The server refused the map:',
   errPermission: "You can't save this map.",
@@ -261,7 +274,12 @@ const en: Record<keyof typeof pt, string> = {
   glbFailed: "Couldn't upload the model ({e}).",
   buildFailed: "Piece {id} didn't build: {e}",
   limitReached: 'The map already has the most "{nome}" it may have.',
-  devEntry: 'Editor (dev)',
+  draftTitle: 'Saved draft',
+  draftText: 'This map has a draft from {quando}, newer than the saved version. Recover the edits?',
+  draftTextNew: 'There is a draft of a new map from {quando}. Recover it?',
+  draftRecover: 'Recover the draft',
+  draftDiscard: 'Discard',
+  draftRecovered: 'Draft recovered (not saved yet).',
 };
 
 export type EditorKey = keyof typeof pt;
