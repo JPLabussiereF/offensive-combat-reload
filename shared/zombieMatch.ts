@@ -139,6 +139,8 @@ interface Part {
   bleedUntil: number;
   bleedNext: number;
   thornNext: number;
+  /** Joined during a wave and hasn't played yet: out (like the dead) until the break, and no end-of-match credit. */
+  waiting: boolean;
 }
 
 type Act = 'swipe' | 'fuse' | 'spit' | 'slam' | 'summon' | 'scream' | 'blink' | 'chargeWindup' | 'charge' | 'pound' | 'smash';
@@ -259,6 +261,8 @@ export class ZombieMatch {
   // --- Players ---------------------------------------------------------------------------------------------
 
   join(id: number, name: string) {
+    // During a wave nobody drops in: they wait, like the dead, and come in at the break.
+    const waiting = this.phase === 'wave';
     this.parts.set(id, {
       id,
       name,
@@ -269,7 +273,7 @@ export class ZombieMatch {
       downs: 0,
       revives: 0,
       xp: 0,
-      state: 'up',
+      state: waiting ? 'dead' : 'up',
       downUntil: 0,
       feet: [0, -50, 0],
       grounded: true,
@@ -280,6 +284,7 @@ export class ZombieMatch {
       bleedUntil: 0,
       bleedNext: 0,
       thornNext: 0,
+      waiting,
     });
     if (this.phase === 'waiting') this.countdown();
   }
@@ -705,8 +710,10 @@ export class ZombieMatch {
 
   private finish(won: boolean) {
     const now = this.now;
-    if (won) for (const p of this.parts.values()) this.xp(p, ZOMBIE.xp.vitoria);
+    // Whoever is still waiting to come in (joined during this wave) never played it: no victory, no match.
+    if (won) for (const p of this.parts.values()) if (!p.waiting) this.xp(p, ZOMBIE.xp.vitoria);
     for (const p of this.parts.values()) {
+      if (p.waiting) continue;
       // Lost with nobody left to revive them: whoever is still down never gets up, so it's a death.
       if (!won && p.state === 'down') this.host.stat?.(p.id, { e: 'death' });
       this.host.stat?.(p.id, { e: 'end', won, wave: this.wave, dead: p.state === 'dead' });
@@ -724,7 +731,7 @@ export class ZombieMatch {
   /** A new match for whoever is there: fresh money and weapons, no barricades, everyone back at once. */
   private restart() {
     for (const p of this.parts.values()) {
-      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0, bleedUntil: 0, bleedNext: 0, thornNext: 0 });
+      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0, bleedUntil: 0, bleedNext: 0, thornNext: 0, waiting: false });
       this.host.setLoadout(p.id, zombieLoadout(p.items));
     }
     this.resetBarricades(true);
@@ -886,7 +893,10 @@ export class ZombieMatch {
       p.feet = i.feet;
       p.grounded = i.grounded;
       // Came back (a respawn between waves).
-      if (i.alive && !p.alive && p.state === 'dead') p.state = 'up';
+      if (i.alive && !p.alive && p.state === 'dead') {
+        p.state = 'up';
+        p.waiting = false;
+      }
       p.alive = i.alive;
     }
     this.tickBox(now);
