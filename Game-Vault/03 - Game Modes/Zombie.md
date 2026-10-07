@@ -45,7 +45,7 @@ tags:
   - online
   - coop
   - zombies
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Zombie
@@ -298,7 +298,7 @@ Tudo em `shared/data/zumbi.json` (lido por `shared/zombies.ts` como o objeto `ZO
 - [[HUD]]: "ONDA 3/12 · 14 zumbis" (ou a contagem, ou o intervalo) sob o placar, barra do chefe, dinheiro sobre a vida, "+$100 Tiro na cabeça" nos pop-ups, nomes das armas na cor da raridade com a etiqueta "Danificada", **setas das brechas** em volta da mira, faixas de onda, de chefe e de arma danificada, "PULE A ONDA!", tela de caído, prompts do caixão, das barricadas ("Segure para erguer a barricada: Brecha Oeste ($300)", "Segure para pregar tábuas (2/5)", "Passagem ocupada") e de reanimar, cartão de resumo.
 - [[Scoreboard]]: colunas do modo.
 - [[Matchmaking UI]]: "Zumbi" no tipo de partida (online e contra bots: "ENCARAR A HORDA SOZINHO"), só o Cemitério da Capela nos mapas; o cemitério não aparece nos outros modos nem no campo de tiro.
-- [[Menus]]: a página do Caixão Misterioso na pausa.
+- [[Menus]]: a aba **Caixão** na pausa ("Você carrega" ao lado das "Chances · $950" por raridade); online o aviso diz "a horda não espera" e a saída avisa que o dinheiro da partida não é guardado (com equipe, "Sua equipe continua sem você"; sozinho online, a partida recomeça para o próximo que entrar; no solo, ela acaba).
 
 ## Limites e próximos passos
 

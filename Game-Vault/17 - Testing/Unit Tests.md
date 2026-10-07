@@ -20,11 +20,13 @@ source_paths:
   - server/tests/progression-modes.test.ts
   - client/tests/arsenalTree.test.ts
   - client/tests/arsenalCanvasLayout.test.ts
+  - client/tests/pauseMenu.test.ts
+  - client/ui/pauseMenu.ts
   - client/ui/arsenalTree.ts
 tags:
   - testes
   - unitarios
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Unit Tests
@@ -50,7 +52,8 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 
 ## `client/tests/arsenalText.test.ts` → [[Inventory UI]]
 
-- Um caso por idioma (pt-BR e en): toda arma e toda melhoria de `progression.json` tem nome e descrição (`arma_*`, `armaDesc_*`, `upg_<arma>_<id>`, `upgDesc_*`), todo efeito tem o seu rótulo (`fx_*`) e toda linha da árvore do Arsenal o seu (`treeRow_*`) em `client/ui/strings.ts`.
+- Um caso por idioma (pt-BR e en): toda arma e toda melhoria de `progression.json` tem nome e descrição (`arma_*`, `armaDesc_*`, `upg_<arma>_<id>`, `upgDesc_*`), todo efeito tem o seu rótulo (`fx_*`) e todo espaço do Arsenal o seu (`treeRow_*`, os nomes dos espaços no menu de pausa) em `client/ui/strings.ts`.
+- **Textos do menu de pausa** (PF-11), 3 casos: em cada idioma, todo texto do menu (`pm*`, `keyGroup*`) existe e preenche os seus parâmetros (nenhum `{…}` sobrando); e nenhum ficou igual nos dois idiomas (nada sem tradução).
 
 ## `client/tests/arsenalCanvasLayout.test.ts` → [[Inventory UI]]
 
@@ -59,6 +62,10 @@ A geometria e a câmera do canvas do Arsenal da tela inicial (`client/ui/arsenal
 ## `client/tests/arsenalTree.test.ts` → [[Inventory UI]]
 
 O modelo da árvore do Arsenal (`client/ui/arsenalTree.ts`, puro), 7 casos: as quatro linhas (Principal com os 7 rifles, Secundária com 2, Faca com as 7 facas, Granada) com as armas na ordem em que liberam e toda arma em uma linha; conta nova com os rifles e as facas antigos e a submetralhadora trancados, com os pontos que faltam de cada progressão; com 13.200 pontos de rifle, seis rifles liberados e o Dourado a 2.800 pontos, e o equipado é o escolhido; toda arma com um nó por melhoria da sua progressão; a submetralhadora liberada e equipada; o nível máximo sem próximo nível; o estado de cada melhoria (ligada, desligada, trancada com os pontos que faltam, substituída pela opcional do grupo); um nó por melhoria em ordem de nível.
+
+## `client/tests/pauseMenu.test.ts` → [[Menus]]
+
+As regras do menu de pausa (`client/ui/pauseMenu.ts`, puro; PF-11), 19 casos: os **8 casos de lugar × modo** de `pauseContext` (mata-mata online e contra bots, corrida armada online e contra bots, zumbi online com equipe, online sozinho e solo, campo de tiro: chip, cor, linha, aviso vermelho/verde, aba, só consulta, rótulo e texto da saída) e alguns em inglês; a **pilha do Esc** (janela → aba → jogo, `backStep`); **quem está na frente** da corrida armada (degrau, abates no degrau, depois pontos; "Você está na frente"; nenhum sem outro jogador) e a ordem do placar fora da corrida (pontos, abates, menos mortes); a linha **"Mais N melhorias a liberar"** (a próxima e os pontos que faltam, a forma de uma só, nenhuma linha com tudo liberado, inglês); o **nome do mapa na prévia glTF** ("Prévia: arquivo.glb"); e os **grupos da aba Teclas** (toda ação remapeável uma vez, em Movimento, Combate ou Outros). O desenho em DOM (`Screens`, `ArsenalPanel`, as abas) não roda aqui (sem navegador).
 
 ## `client/tests/spatial.test.ts` → [[Spatial Audio]]
 

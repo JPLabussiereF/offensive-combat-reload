@@ -14,7 +14,7 @@ source_paths:
 tags:
   - reference
   - file-structure
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # File Structure Reference
@@ -107,17 +107,20 @@ client/
 │   ├── viewmodel.ts        Braços + arma em 1ª pessoa (cena própria)
 │   ├── viewmodelArms.ts    Braços da 1ª pessoa
 │   └── weaponModels.ts     Modelos das armas de fogo com as melhorias e a pintura de cada rifle (gunParts), as sete facas e a mina
-├── tests/                  Testes bun:test de lógica pura do cliente (aimAssist, arsenalText, keybinds, spatial)
+├── tests/                  Testes bun:test de lógica pura do cliente (aimAssist, arsenalText, arsenalTree, arsenalCanvasLayout, keybinds, offlineModes, pauseMenu, spatial)
 ├── ui/
 │   ├── home.ts             Home: conta, lobby online, bots, treino (HomeChoice)
 │   ├── auth.ts             Formulários de login/cadastro/senha
 │   ├── profile.ts          Aba de perfil
 │   ├── customize.ts        Editor de personagem
-│   ├── menu.ts             Carregamento e menu inicial/pausa (Screens)
+│   ├── menu.ts             Carregamento, cartão de início e menu de pausa (Screens): trilho, abas, painel, subabas
+│   ├── pauseMenu.ts        Regras puras do menu de pausa (contexto por modo, Esc por nível, líder, grupos de teclas)
 │   ├── hud.ts              HUD em DOM (Hud)
 │   ├── chat.ts             Chat da sessão
 │   ├── scoreboard.ts       Placar (Tab)
-│   ├── arsenal.ts          Árvore do Arsenal (menu de pausa): armas, níveis e melhorias; nomes e fichas
+│   ├── arsenal.ts          Aba Arsenal do menu de pausa (ArsenalPanel: espaços em uso e o cartão do espaço); nomes e fichas
+│   ├── arsenalTree.ts      Modelo puro da progressão do Arsenal (linhas, armas, melhorias e pontos que faltam)
+│   ├── ladder.ts           Corrida armada: nomes dos degraus e a aba Escada do menu de pausa
 │   ├── arsenalCanvas.ts    Canvas do Arsenal da tela inicial (arrastar, zoom, painel, minimapa)
 │   ├── arsenalCanvasLayout.ts  Geometria e câmera do canvas do Arsenal (sem DOM)
 │   ├── corpseTimer.ts      Contagem sobre corpos oprimíveis

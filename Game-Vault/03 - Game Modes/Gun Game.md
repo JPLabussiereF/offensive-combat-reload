@@ -26,7 +26,7 @@ tags:
   - modes
   - online
   - bots
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Gun Game
@@ -143,6 +143,6 @@ Nenhum limite de rodada. Só o intervalo de 6 s entre rodadas.
 ## UI relacionada
 
 - [[HUD]]: faixa "ARMA N/7 · nome · ●●○" sob o placar (rosa no sabre), banners "Próxima arma!", "Esfaqueado! Perdeu um abate (n/3)", "Esfaqueado! Voltou para…", cartão do vencedor.
-- [[Menus]]: na pausa, a escada inteira (degrau atual em amarelo) no lugar do Arsenal.
+- [[Menus]]: na pausa, a aba **Escada** no lugar do Arsenal: todos os degraus numa linha (o do jogador em amarelo, com "Você · N/3"), os cartões Agora e Próxima (no último degrau, "Abate final"), as três regras com os números de `GUN_GAME`, quem está **na frente** (a ordem do placar) e, entre rodadas, o vencedor com a contagem. A saída online é "Sair da corrida" e avisa que o degrau se perde.
 - [[Scoreboard]]: coluna Arma e ordem pela escada.
 - [[Matchmaking UI]]: "Tipo de partida" e etiqueta do modo na lista de sessões.
