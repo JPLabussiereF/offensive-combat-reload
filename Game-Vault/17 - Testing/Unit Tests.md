@@ -22,6 +22,8 @@ source_paths:
   - server/tests/progression-modes.test.ts
   - client/tests/arsenalTree.test.ts
   - client/tests/arsenalCanvasLayout.test.ts
+  - client/tests/pauseMenu.test.ts
+  - client/ui/pauseMenu.ts
   - client/ui/arsenalTree.ts
 tags:
   - testes
@@ -53,6 +55,7 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 ## `client/tests/arsenalText.test.ts` → [[Inventory UI]]
 
 - Um caso por idioma (pt-BR e en) — e mais um por idioma para as secundárias da PF-10: o nome do plano, o começo da descrição, o item do caixão (`zitem_`) e os degraus `ladder_garrucha`/`ladder_grampeador` —: toda arma e toda melhoria de `progression.json` tem nome e descrição (`arma_*`, `armaDesc_*`, `upg_<arma>_<id>`, `upgDesc_*`), todo efeito tem o seu rótulo (`fx_*`) e toda linha da árvore do Arsenal o seu (`treeRow_*`) em `client/ui/strings.ts`.
+- **Textos do menu de pausa** (PF-11), 3 casos: em cada idioma, todo texto do menu (`pm*`, `keyGroup*`) existe e preenche os seus parâmetros (nenhum `{…}` sobrando); e nenhum ficou igual nos dois idiomas (nada sem tradução).
 
 ## `client/tests/arsenalCanvasLayout.test.ts` → [[Inventory UI]]
 
@@ -78,6 +81,10 @@ As secundárias da PF-10, 7 casos (6 puros e 1 online, ver [[Integration Tests]]
 - **Regra de equilíbrio (P10)**: o Rifle Padrão mata em 0,257 s até 30 m e 0,343 s a 40 m; com **qualquer combinação** das melhorias da progressão, nenhuma secundária nova mata mais rápido que ele a 15, 20, 25, 30, 35 e 40 m (TTK no peito sem recarga: o mais rápido possível, com a pausa da rajada e todos os bagos acertando); cada uma ganha de perto no seu nicho.
 - **Tiro único na cabeça** só de perto: o revólver a 10 m sim e a 11 m não, o pistolão a 27 m sim e a 28 m não, nunca além (varrendo de 0 a 60 m), e nunca no grampeador, na furadeira e na garrucha; o silenciador de batata tira o do revólver.
 - **Online**: com 7.000 pontos de pistola e o Gatilho desligado (300/min), o servidor aceita os 8 bagos de cada tiro — 56 acertos num segundo, 8× o limite de uma bala (7, que cortaria até um único disparo) — e recusa o acerto seguinte.
+
+## `client/tests/pauseMenu.test.ts` → [[Menus]]
+
+As regras do menu de pausa (`client/ui/pauseMenu.ts`, puro; PF-11), 21 casos: os **8 casos de lugar × modo** de `pauseContext` (mata-mata online e contra bots, corrida armada online e contra bots, zumbi online com equipe, online sozinho e solo, campo de tiro: chip, cor, linha, aviso vermelho/verde, aba, só consulta, rótulo e texto da saída), a linha do zumbi antes da primeira onda (o título da contagem do HUD no lugar de "Onda 0/12") e alguns em inglês; a **pilha do Esc** (janela → aba → jogo, `backStep`); **quem está na frente** da corrida armada (degrau e abates no degrau; "Você está na frente"; nenhum sem outro jogador nem com o primeiro empatado com o segundo, como no começo da rodada; empate mais abaixo não importa) e a ordem do placar fora da corrida (pontos, abates, menos mortes); a linha **"Mais N melhorias a liberar"** (a próxima e os pontos que faltam, a forma de uma só, nenhuma linha com tudo liberado, inglês); o **nome do mapa na prévia glTF** ("Prévia: arquivo.glb"); e os **grupos da aba Teclas** (toda ação remapeável uma vez, em Movimento, Combate ou Outros). O desenho em DOM (`Screens`, `ArsenalPanel`, as abas) não roda aqui (sem navegador).
 
 ## `client/tests/spatial.test.ts` → [[Spatial Audio]]
 

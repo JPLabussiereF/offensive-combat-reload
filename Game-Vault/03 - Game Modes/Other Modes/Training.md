@@ -17,7 +17,7 @@ tags:
   - game
   - modes
   - offline
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Training
@@ -45,11 +45,11 @@ Nenhum.
   - O boneco abatido fica oprimível por 6 s ([[Humiliation]]).
   - **Respawn do boneco:** 6,8 s depois de morrer se não for oprimido (janela de 6 s + 0,8 s afundando no chão), ou 2,4 s depois de uma opressão completa. Ele nunca renasce com alguém em cima.
 - **Coletáveis e gags do mapa** funcionam localmente (cereja, biscoito etc.) ([[Pickups]], [[Map Gags]]).
-- **Pausa:** offline, o mundo para quando o menu abre.
+- **Pausa:** offline, o mundo para quando o menu abre (aviso verde "Jogo pausado."). A aba **Arsenal** do menu é **editável** aqui (selo "Editável no treino"): em cada espaço, as armas liberadas com Equipar e as melhorias ligando e desligando, na mão na hora ([[Inventory UI]]). A saída é "Sair do treino", com confirmação.
 
 ## Fluxo da partida
 
-Home → "Campo de tiro" → o mapa é montado → o jogador nasce num ponto `spawnsA` → atira nos bonecos → `Esc` para pausar ou sair.
+Home → "Campo de tiro" → o mapa é montado → o jogador nasce num ponto `spawnsA` → atira nos bonecos → `Esc` para pausar (ou trocar armas no Arsenal) → "Sair do treino" e confirmar para voltar à tela inicial.
 
 ## Respawn
 

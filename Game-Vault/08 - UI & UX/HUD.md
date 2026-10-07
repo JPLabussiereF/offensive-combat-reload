@@ -17,12 +17,12 @@ tags:
   - game
   - ui
   - hud
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # HUD
 
-Interface sobreposta durante a partida (`#hud` em `index.html`, classe `Hud` em `client/ui/hud.ts`). Estilo minimalista: sem painéis, texto branco com sombra suave direto sobre o jogo; números na fonte de display (Lilita One). Escondido fora da partida e no menu de pausa.
+Interface sobreposta durante a partida (`#hud` em `index.html`, classe `Hud` em `client/ui/hud.ts`). Estilo minimalista: sem painéis, texto branco com sombra suave direto sobre o jogo; números na fonte de display (Lilita One). Escondido fora da partida e antes do primeiro JOGAR; no menu de pausa ele **continua na tela**, atrás do véu escuro do menu (o jogo fica visível ao lado do trilho, [[Menus]]). Exceção: no celular, depois de usar o editor de botões ("Ajustar botões") ele fica escondido até voltar ao jogo.
 
 ## Elementos
 

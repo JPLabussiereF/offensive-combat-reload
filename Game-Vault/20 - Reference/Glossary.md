@@ -35,7 +35,8 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 
 | Termo exibido | No código | Significado | Nota |
 |---|---|---|---|
-| Arsenal | `client/ui/arsenal.ts` (árvore, menu de pausa), `client/ui/arsenalCanvas.ts` (canvas, aba da home), `ArsenalChoice` | Tela para escolher o rifle, a secundária e a faca e ligar/desligar qualquer melhoria já liberada; mostra o nível, os pontos que faltam e os atributos de cada arma | [[Inventory UI]] · [[Progression]] · [[Menus]] |
+| Aba do modo | `ModeTab` (`'arsenal' \| 'escada' \| 'caixao'`), `pauseContext().tab`, `#pm-mode` | A primeira aba do menu de pausa, que muda com o modo: Arsenal, Escada (corrida armada) ou Caixão (zumbi) | [[Menus]] |
+| Arsenal | `client/ui/arsenal.ts` (`ArsenalPanel`, aba do menu de pausa), `client/ui/arsenalCanvas.ts` (canvas, aba da home), `ArsenalChoice` | Tela para escolher o rifle, a secundária e a faca e ligar/desligar qualquer melhoria já liberada; mostra o nível, os pontos que faltam e os atributos de cada arma. Na pausa mostra só o que está em uso (editável só no campo de tiro) | [[Inventory UI]] · [[Progression]] · [[Menus]] |
 | Banner | `hud.showBanner` | Texto grande animado (NO PÁSSARO!, OPRIMIDO!, nível) | [[Notifications]] |
 | Beber Poção | prompt `promptPotion` | Ação da tecla de contexto perto da bruxa | [[Interaction System]] |
 | Biscoito Scooby | `biscoito` | Coletável da Vila Assombrada: cura total; aparece com o armário da cozinha aberto | [[Pickups]] |
@@ -184,6 +185,8 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `__oc` | Handle de depuração no `window`, só em dev (perf, stats, trace) | [[Troubleshooting]] |
 | F3 / F4 / F6 | Overlay de depuração / hitboxes e navmesh / painel de ajuste | [[Troubleshooting]] |
 | PadNav | Navegação dos menus pelo controle | [[Input & Controls]] |
+| Trilho / painel do menu de pausa | O trilho (`.pm-rail`: onde se está, voltar, as duas abas, a saída) e o painel da aba aberta (`#pm-panel`) do menu de pausa e do cartão de início; `pauseContext` diz o que o trilho mostra em cada lugar × modo | [[Menus]] · [[ADR - Menu de pausa com trilho e abas]] |
+| `data-pad-back` / `data-pad-explicit` / `data-pad-subtabs` | Marcas para o `PadNav`: o botão que ◯/B aperta / tela que marca o seu voltar em cada nível (sem chutar pelo texto) / subabas que L1/R1 só trocam quando não há outra barra | [[Menus]] |
 | Canvas do Arsenal | `ArsenalCanvas`, `canvasLayout`, `data-pad-pan` | A aba Arsenal da tela inicial: quadros por espaço, armas e melhorias ligadas, câmera com arrastar e zoom, painel de detalhes | [[Inventory UI]] · [[ADR - Arsenal da tela inicial em canvas]] |
 | Primária / Alternativa | Os dois espaços de tecla de cada ação | [[ADR - Teclas remapeáveis com primária e alternativa]] |
 

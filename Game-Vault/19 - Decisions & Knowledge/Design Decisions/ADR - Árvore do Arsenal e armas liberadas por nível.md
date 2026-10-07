@@ -22,7 +22,7 @@ tags:
   - progression
   - weapons
   - ui
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # ADR - Árvore do Arsenal e armas liberadas por nível
@@ -37,6 +37,9 @@ updated: 2026-10-06
 
 > [!warning] Substituída em parte (06/10/2026, PF-9)
 > [[ADR - Arsenal da tela inicial em canvas]] trocou a árvore em linhas (item 1) por um canvas com arrastar e zoom **só na aba Arsenal da tela inicial**. O menu de pausa e o campo de tiro continuam com a árvore; as regras de trava, melhorias e salvamento continuam as desta ADR.
+
+> [!warning] Substituída em parte (07/10/2026, PF-11)
+> [[ADR - Menu de pausa com trilho e abas]] tirou a **apresentação em árvore** do jogo (a classe `Arsenal` de `client/ui/arsenal.ts` e o CSS dela): o menu de pausa mostra os quatro espaços em uso e o cartão do espaço escolhido, e no campo de tiro esse cartão lista as armas liberadas com Equipar (item 1 e o "Equipar" da árvore). O modelo de dados (`arsenalTree`, `upgradeNodes`) e as regras de trava, melhorias, "uma por grupo" e salvamento (itens 3 a 8) continuam valendo.
 
 ## Contexto
 

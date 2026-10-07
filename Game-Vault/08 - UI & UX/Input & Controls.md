@@ -10,6 +10,7 @@ source_paths:
   - client/core/device.ts
   - client/core/settings.ts
   - client/ui/menu.ts
+  - client/ui/pauseMenu.ts
   - client/ui/touch.ts
   - client/ui/padNav.ts
   - client/tests/keybinds.test.ts
@@ -19,7 +20,7 @@ tags:
   - ui
   - input
   - controls
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Input & Controls
@@ -54,7 +55,7 @@ flowchart LR
 | Oprimir / interagir | E | △ / Y | tocar no prompt |
 | Placar (segurar) | Tab | Share/View ou touchpad | botão (alterna) |
 | Chat | Enter, alternativa T | — | botão |
-| Pausa | Esc (fixo) | Options / Menu | botão |
+| Pausa (no menu: volta um nível) | Esc (fixo) | Options / Menu abre e volta ao jogo; ◯ / B volta um nível | botão |
 | Depuração | F3 (fixo) | — | — |
 | Hitboxes/colisores | F4 (fixo) | — | — |
 | Painel de ajuste | F6 (fixo) | — | — |
@@ -66,7 +67,7 @@ Mecânicas: [[Movement]], [[Combat]], [[Weapons]] (troca de arma), [[Grenades]],
 Decisão em [[ADR - Teclas remapeáveis com primária e alternativa]]. Regras (`client/core/keybinds.ts`, testadas em `client/tests/keybinds.test.ts`):
 
 - Cada ação tem **dois espaços**: primária e alternativa (qualquer um pode ficar vazio).
-- No menu, clicar numa tecla da tabela espera a próxima tecla, botão do mouse (inclusive laterais) ou passo da roda; Esc cancela; "×" esvazia o espaço; "Restaurar padrão" volta tudo.
+- Na subaba **Teclas** das Configurações (menu de pausa e tela inicial), as ações vêm em três grupos (**Movimento**, **Combate**, **Outros**, `KEY_GROUPS` em `client/ui/pauseMenu.ts`) com as colunas Principal e Alternativa. Clicar numa tecla espera a próxima tecla, botão do mouse (inclusive laterais) ou passo da roda ("Pressione…"); Esc cancela (e não fecha o menu); "×" esvazia o espaço; "Restaurar teclas padrão" volta tudo. Ao lado ficam o aviso da última recusa ou troca, "Esc abre o menu (fixa)" e a dica F3/F4.
 - Uma tecla só pode estar num lugar: atribuí-la a uma ação a tira da outra, e o menu avisa ("{tecla} estava em "{ação}", que ficou sem tecla primária/alternativa.").
 - **Proibidas:** Ctrl (Ctrl+W fecha a aba e não pode ser interceptado fora da tela cheia) e as teclas fixas F3/F4/F6. Por isso agachar fica no **C**.
 - **Roda do mouse** só vale para ações de um toque (pular, atirar, recarregar, faca, granada, primária, secundária, trocar de arma, oprimir) — não para ações de segurar nem para o chat (`WHEEL_ACTIONS`).
@@ -83,7 +84,7 @@ Decisão em [[ADR - Teclas remapeáveis com primária e alternativa]]. Regras (`
 
 ## Controle (Gamepad)
 
-- Detecta família pelo id (Xbox por nome/vendor 045e; Sony 054c/DualShock/DualSense; o resto é tratado como Xbox) e mostra os glifos certos (✕◯□△/L1… ou A B X Y/LB…) no HUD e na tabela de controles.
+- Detecta família pelo id (Xbox por nome/vendor 045e; Sony 054c/DualShock/DualSense; o resto é tratado como Xbox) e mostra os glifos certos (✕◯□△/L1… ou A B X Y/LB…) no HUD, nas dicas do menu de pausa e na subaba **Controle** das Configurações (que substitui a de Teclas enquanto o controle está em uso).
 - Zona morta radial (movimento 0,16; olhar 0,12), gatilhos acima de 0,35; olhar com curva de resposta (expoente 1,8), 220°/s a sensibilidade 1, e **impulso de 1,6×** ao segurar no limite para virar.
 - Vibra em acertos, abates e dano (Chrome/Edge; Safari ignora).
 - Jogar no controle **não prende o mouse**; um clique no jogo devolve o controle ao mouse. O "dispositivo atual" (`mouse` | `touch` | `pad`) muda com o último usado.
@@ -103,5 +104,6 @@ Ver [[Touch Controls]].
 - `client/core/keybinds.ts` — `Action`, `DEFAULT_KEYBINDS`, `FIXED_KEYS`, `REBINDABLE`, `assign`, `clearSlot`, `mergeKeybinds`, `toBindings`, `keyLabel`, `WHEEL_ACTIONS`.
 - `client/core/gamepad.ts` — `GamepadInput`, `gamepad`, `GLYPHS`.
 - `client/core/device.ts` — `IS_MOBILE`, `IS_IOS`, `CAN_FULLSCREEN`, `CAN_KEEP_ESCAPE`, `enterFullscreen`, `keepEscape`.
-- `client/ui/menu.ts` — tabela de controles e captura de teclas.
+- `client/ui/menu.ts` — subabas Teclas (por grupo) e Controle, captura de teclas.
+- `client/ui/pauseMenu.ts` — `KEY_GROUPS`.
 - `client/tests/keybinds.test.ts` — testes de atribuição. Ver [[Unit Tests]].

@@ -2,6 +2,9 @@
 // to the nearest visible control in that direction, ✕/A presses it (a checkbox toggles, a select cycles, a
 // slider moves with left/right), ◯/B goes back, L1/R1 switch tabs, the right stick scrolls (or pans a canvas: the
 // home's Arsenal). Works on whatever is on top: a control counts only if it's visible and not covered by another layer.
+// An open dialog (aria-modal) keeps the focus inside it. A screen marked data-pad-explicit (the pause menu) names its
+// back button on each level (data-pad-back), so ◯/B never guesses by the text there ("Sair da sessão" is no "back").
+// Sub-tabs (data-pad-subtabs, the settings') switch with L1/R1 only where no other tab bar is on screen.
 
 import type { GamepadInput } from '../core/gamepad';
 
@@ -40,7 +43,9 @@ export class PadNav {
   }
 
   private candidates(): HTMLElement[] {
-    return [...document.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(reachable);
+    // A dialog on screen: only its controls (the pause menu's exit confirmation).
+    const modal = [...document.querySelectorAll<HTMLElement>('[aria-modal="true"]')].find((m) => !m.closest('[hidden], .hidden') && m.getClientRects().length > 0);
+    return [...(modal ?? document).querySelectorAll<HTMLElement>(FOCUSABLE)].filter(reachable);
   }
 
   private clear() {
@@ -118,13 +123,17 @@ export class PadNav {
   /** ◯/B: the screen's back/close/cancel button, if any. */
   private back() {
     const list = this.candidates();
-    const btn = list.find((e) => e.hasAttribute('data-pad-back')) ?? list.find((e) => e.tagName === 'BUTTON' && BACK_TEXT.test((e.textContent ?? '').trim()));
+    const btn =
+      list.find((e) => e.hasAttribute('data-pad-back')) ??
+      list.find((e) => e.tagName === 'BUTTON' && !e.closest('[data-pad-explicit]') && BACK_TEXT.test((e.textContent ?? '').trim()));
     btn?.click();
   }
 
-  /** L1/R1: the previous/next tab of the tab bar on screen. */
+  /** L1/R1: the previous/next tab of the tab bar on screen (sub-tabs only when they are the only bar). */
   private tab(sign: number) {
-    const tabs = this.candidates().filter((e) => e.getAttribute('role') === 'tab');
+    const all = this.candidates().filter((e) => e.getAttribute('role') === 'tab');
+    const outer = all.filter((e) => !e.closest('[data-pad-subtabs]'));
+    const tabs = outer.length ? outer : all;
     if (!tabs.length) return;
     const i = tabs.findIndex((t) => t.getAttribute('aria-selected') === 'true');
     const next = tabs[(Math.max(0, i) + sign + tabs.length) % tabs.length];

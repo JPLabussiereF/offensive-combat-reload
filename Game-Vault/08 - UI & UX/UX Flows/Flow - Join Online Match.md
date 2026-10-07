@@ -14,7 +14,7 @@ tags:
   - ux
   - flow
   - multiplayer
-updated: 2026-10-05
+updated: 2026-10-07
 ---
 
 # Flow - Join Online Match
@@ -58,7 +58,7 @@ sequenceDiagram
 4. **Escolha:** **JOGAR ONLINE** entra direto na sessão mais cheia não lotada dos mapas marcados. Na lista, cada sessão mostra nome, mapa e jogadores/máximo (máx. 10); sessão cheia tem **LOTADA** desabilitado; também dá para criar uma nova (nome até 24 caracteres + mapa).
 5. **Entrada:** "Entrando…" → `join`/`create` → `joined`. A conexão passa a **segurar** as mensagens que chegam (`hold`) enquanto o mapa é construído, para que nada se perca antes de existirem os handlers.
 5. **Carregamento do mapa da sessão** (não o do seletor da tela inicial). O relógio local é sincronizado com o do servidor (`seed`).
-6. **Menu inicial** com subtítulo "Sessão: {nome} · mata-mata livre"; a conexão libera as mensagens guardadas (`release`). O mundo online **já está rodando** mesmo antes de clicar JOGAR.
+6. **Cartão de início** (o trilho do menu de pausa com JOGAR, sem o aviso): chip do modo, mapa e "Sessão: {nome} · {N}/{máx} jogadores"; dá para abrir a aba do modo e as Configurações antes de jogar. A conexão libera as mensagens guardadas (`release`). O mundo online **já está rodando** mesmo antes de clicar JOGAR.
 7. **JOGAR:** captura do mouse, partida. Chat habilitado ([[Chat]]), placar com Tab ([[Scoreboard]]), avisos de entrada/saída no feed ([[Notifications]]).
 
 ## Falhas e saídas
@@ -73,7 +73,7 @@ sequenceDiagram
 | Sessão revogada (4001) | "Sua sessão foi encerrada (saída da conta, troca de senha, exclusão ou suspensão)." |
 | Mesma conta em outro lugar (4002) | "Sua conta entrou no jogo em outro lugar." |
 | Trocar para Contra bots / Campo de tiro | Fecha a conexão. |
-| Sair para o início (pausa) | Fecha a conexão e recarrega a página. |
+| Sair da sessão / partida / corrida (pausa) | Janela de confirmação com o que se perde no modo; SAIR fecha a conexão e recarrega a página, FICAR (ou Esc/◯) volta ao menu. |
 
 > [!info]
 > Não há reconexão automática nem retorno à mesma sessão após queda: inferido pela ausência de lógica de reconexão em `client/main.ts` (o `onClose` só mostra o status). Ver [[Error Handling]].
