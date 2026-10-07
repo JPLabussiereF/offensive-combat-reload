@@ -49,7 +49,7 @@ Os dois arquivos têm as mesmas regras; mudam o `upstream` (`jogo:8787` no Docke
 | --- | --- |
 | `= /ws` | Proxy WebSocket (`Upgrade`/`Connection`), `proxy_buffering off`, timeouts de 1 h, **máx. 6 conexões por IP** (`limit_conn oc_conn 6`). |
 | `/api/` | Proxy com `Cache-Control: no-store`, `limit_req` ~40 r/s por IP (rajada 40). |
-| `^~ /api/mapas/` | Mapas (PF-6): `client_max_body_size 2m`; o `Cache-Control` do servidor passa (versões imutáveis com cache longo). |
+| `^~ /api/mapas` | Mapas (PF-6): `client_max_body_size 2m`; o `Cache-Control` do servidor passa (versões imutáveis com cache longo). **Sem barra no fim**: com `/api/mapas/`, o nginx respondia a lista (`/api/mapas?...`) com 301 para `/api/mapas/` em vez de repassá-la, e o jogo mostrava "Servidor fora do ar" (corrigido em 2026-10-07). |
 | `^~ /api/mapas/arquivos` | Modelos GLB: `client_max_body_size 11m` (o servidor recusa acima de 10 MB). O `^~` impede que a regra de `*.glb` sirva do disco. |
 | `~ ^/api/auth/(entrar\|cadastro\|recuperar\|redefinir)$` | Limite extra de **10 r/min por IP** (rajada 10). |
 | `/assets/` | Cache de 1 ano, `immutable` (arquivos com hash). |
