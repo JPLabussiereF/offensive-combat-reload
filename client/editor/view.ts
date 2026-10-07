@@ -113,6 +113,13 @@ export class MapView {
     }
   }
 
+  /** The pieces' bounds (the sky's dome and the like left out). */
+  bounds(): THREE.Box3 {
+    const box = new THREE.Box3();
+    for (const { group } of this.map?.pieces?.values() ?? []) box.union(new THREE.Box3().setFromObject(group));
+    return box;
+  }
+
   /** Takes the whole map out of the scene and the physics world (to build it again). */
   dispose() {
     for (const id of [...(this.map?.pieces?.keys() ?? [])]) this.build.remove(id);

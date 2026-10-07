@@ -50,7 +50,7 @@ export function blankMap(): MapData {
     nome: et('newMap'),
     cartao: { emoji: '🗺️', cor: '#cfe8ff' },
     ambiente: { ceu: { cupula: { tipo: 'nuvens' } }, celula: 40, killY: -20 },
-    pecas: [{ id: 'chao', tipo: 'caixa', p: [0, -0.5, 0], params: { tamanho: [40, 1, 40], superficie: 'grama' } }],
+    pecas: [{ id: 'chao', tipo: 'caixa', p: [0, -0.5, 0], params: { tamanho: [40, 1, 40], superficie: 'grama', cor: 0x6cbf4a } }],
     arquivos: [],
     spawns: { a: [{ p: [0, 0, -15], yaw: Math.PI }], b: [{ p: [0, 0, 15], yaw: 0 }], ffa: [{ p: [10, 0, 0], yaw: Math.PI / 2 }] },
     bonecos: [],
@@ -162,7 +162,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   const canvas = ctx.renderer.domElement;
   const fly = new FlyCamera(camera, canvas);
   {
-    const box = new THREE.Box3().setFromObject(view.root);
+    const box = view.bounds();
     const sp = doc.data.spawns.ffa[0]?.p ?? [0, 0, 0];
     if (box.isEmpty()) fly.place(new THREE.Vector3(sp[0], sp[1] + 12, sp[2] + 18), new THREE.Vector3(...sp));
     else {
@@ -419,7 +419,8 @@ export async function runEditor(o: EditorOptions): Promise<void> {
 
   const focus = () => {
     const s = selection.current;
-    const o = s ? (s.kind === 'marcador' ? markers.get(s.key) : view.group(s.id)) : view.root;
+    if (!s) return fly.frame(view.bounds());
+    const o = s.kind === 'marcador' ? markers.get(s.key) : view.group(s.id);
     if (o) fly.frame(new THREE.Box3().setFromObject(o));
   };
 
@@ -460,6 +461,9 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   budget.onChange = () => (button('save').disabled = !budget.fits);
   button('save').disabled = true;
 
+  /** Leaving on purpose (the Exit button asked already). */
+  let leaving = false;
+
   // --- Buttons and keys ---------------------------------------------------------------------------------------
   const setMode = (m: 'translate' | 'rotate' | 'scale') => {
     gizmo.setMode(m);
@@ -479,6 +483,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     save: () => void save(),
     exit: () => {
       if ((doc.dirty || restored) && !confirm(et('exitConfirm'))) return;
+      leaving = true;
       location.reload();
     },
   };
@@ -506,8 +511,9 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     else if (e.code === 'KeyF') focus();
     else if (e.code === 'Escape') selection.set(null);
   });
+  // Closing the tab with unsaved edits asks first (leaving by the Exit button already asked; testing keeps the draft).
   window.addEventListener('beforeunload', (e) => {
-    if (doc.dirty && !sessionStorage.getItem('oc.editor')) e.preventDefault();
+    if (doc.dirty && !leaving && !sessionStorage.getItem('oc.editor')) e.preventDefault();
   });
 
   title();

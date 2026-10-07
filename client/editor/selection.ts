@@ -65,6 +65,8 @@ export class Selection {
     const r = this.canvas.getBoundingClientRect();
     this.ray.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), this.camera);
     for (const t of this.targets()) {
+      // Markers and handles drawn since the last frame have no world matrix yet.
+      t.updateMatrixWorld(true);
       const hits = this.ray.intersectObject(t, true).filter((h) => h.object.visible && !(h.object as THREE.Mesh & { isLine?: boolean }).isLine);
       const hit = hits.find((h) => selectedOf(h.object));
       if (hit) return selectedOf(hit.object);
