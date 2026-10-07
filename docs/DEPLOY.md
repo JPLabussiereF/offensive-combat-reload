@@ -129,6 +129,10 @@ PG_SENHA=troque-isto
 # Outros endereços que podem chamar a API, além do próprio site (separados por vírgula)
 ORIGENS_PERMITIDAS=
 
+# Admin inicial: criado ao subir enquanto nenhuma conta é admin (padrão admin@cadu.com / admin: troque a senha)
+ADMIN_BOOTSTRAP_EMAIL=admin@cadu.com
+ADMIN_BOOTSTRAP_PASSWORD=troque-isto
+
 # Gmail: e-mail de recuperação de senha
 SMTP_USUARIO=seu.email@gmail.com
 SMTP_SENHA_APP=abcdabcdabcdabcd

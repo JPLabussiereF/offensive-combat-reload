@@ -33,7 +33,7 @@ source_paths:
 tags:
   - architecture
   - configuration
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Configuration
@@ -68,11 +68,12 @@ Lidas uma vez na importação de `server/config.ts` (objeto `CONFIG`) e em `serv
 | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` | vazio | `server/config.ts` | OAuth Discord (sem eles o botão some) |
 | `DISCORD_RETORNOS` | vazio | `server/config.ts` | URLs de retorno registradas, uma por endereço de acesso |
 | `SMTP_USUARIO`, `SMTP_SENHA_APP`, `SMTP_REMETENTE` | vazio | `server/config.ts` → `server/email.ts` | E-mail; sem eles o link sai no log |
+| `ADMIN_BOOTSTRAP_EMAIL`, `ADMIN_BOOTSTRAP_PASSWORD` | `admin@cadu.com`, `admin` | `server/config.ts` → `server/bootstrapAdmin.ts` | Admin inicial, criado ao subir enquanto nenhuma conta é admin ([[Moderation]]) |
 | `DATABASE_URL_TESTE`, `REDIS_URL_TESTE` | `.../oc_teste`, `redis://localhost:6392/1` | `server/tests/env.ts` | Banco e Redis dos testes (usados na CI) |
 | `PG_SENHA`, `PG_PORTA`, `REDIS_PORTA`, `PORTA` | `oc`, `5442`, `6392`, `8080` | `docker-compose.yml` (e `PORTA` em `tools/offensive.ts`) | Senha do Postgres e portas publicadas |
 
 > [!warning]
-> Segredos (`DISCORD_CLIENT_SECRET`, `SMTP_SENHA_APP`, `PG_SENHA`) vêm de um `.env` ao lado do `docker-compose.yml` (que está no `.gitignore`). O Vault só registra os nomes. Ver [[Sensitive Data]] e [[Environments]].
+> Segredos (`DISCORD_CLIENT_SECRET`, `SMTP_SENHA_APP`, `PG_SENHA`, `ADMIN_BOOTSTRAP_PASSWORD`) vêm de um `.env` ao lado do `docker-compose.yml` (que está no `.gitignore`). O Vault só registra os nomes. Ver [[Sensitive Data]] e [[Environments]].
 
 ## 2. Constantes compartilhadas (código)
 

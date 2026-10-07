@@ -9,6 +9,8 @@ source_paths:
   - server/roles.ts
   - shared/roles.ts
   - tools/admin.ts
+  - server/bootstrapAdmin.ts
+  - server/config.ts
   - server/accounts.ts
   - server/session.ts
   - server/app.ts
@@ -23,7 +25,7 @@ tags:
   - backend
   - moderacao
   - staff
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Moderation
@@ -41,7 +43,9 @@ A moderação é feita por dois caminhos que chamam as mesmas funções (`server
 | `moderador` | Tudo o que o admin pode, **menos** agir sobre a conta de um admin (editar, punir, rebaixar) e promover alguém a admin. |
 | (sem papel) | Nada de equipe. |
 
-Ninguém se pune, e o último admin não pode ser removido. Os papéis são lidos do banco em todo pedido (`server/roles.ts`): um papel tirado vale na hora.
+Ninguém se pune, e o último admin não pode ser removido.
+
+**Admin inicial.** Ao subir, o servidor cria o primeiro admin enquanto nenhuma conta é admin (`server/bootstrapAdmin.ts`, chamado em `startServer` logo depois das migrations). O e-mail e a senha vêm de `ADMIN_BOOTSTRAP_EMAIL` e `ADMIN_BOOTSTRAP_PASSWORD` (padrão `admin@cadu.com` e `admin`, só para desenvolvimento). A conta se chama `Admin`. Se o e-mail já tem conta, ela só ganha o papel e mantém a própria senha. Havendo qualquer admin, nada é feito, então trocar a senha ou o papel depois vale. Em produção com a senha padrão, o servidor avisa no log. O papel fica no histórico (`role_grant`, detalhe `admin (bootstrap)`). Os testes desligam isso (`adminBootstrap: false`). O console continua podendo promover alguém (`bun run admin papel`). Os papéis são lidos do banco em todo pedido (`server/roles.ts`): um papel tirado vale na hora.
 
 ## API de Gerenciamento
 

@@ -22,7 +22,7 @@ tags:
   - adr
   - security
   - moderation
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # ADR - Papéis da equipe conferidos no servidor
@@ -61,6 +61,7 @@ A equipe troca o nome de uma conta sem o tempo de espera, e a troca grava `name_
 
 - Uma consulta a mais (`account_role`) por pedido da equipe e por pedido de mapa que depende de papel.
 - O primeiro admin continua vindo do console (`bun run admin papel "Nome#1234" admin`).
+  - Atualização de 07/10/2026: o servidor também cria o primeiro admin ao subir, enquanto nenhuma conta é admin, com `ADMIN_BOOTSTRAP_EMAIL` e `ADMIN_BOOTSTRAP_PASSWORD` (`server/bootstrapAdmin.ts`, ver [[Moderation]]). O console continua valendo.
 - O console age com acesso direto ao banco e ainda grava `by = null` (o console não sabe quem o executa).
 
 ## Código afetado

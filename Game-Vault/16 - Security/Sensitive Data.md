@@ -22,7 +22,7 @@ tags:
   - security
   - privacy
   - secrets
-updated: 2026-10-05
+updated: 2026-10-07
 ---
 
 # Sensitive Data
@@ -58,6 +58,8 @@ O navegador **não guarda nenhum token legível por script**: nada de autentica�
 | `DISCORD_CLIENT_ID`, `DISCORD_RETORNOS` | Id e URLs de retorno (não secretos, mas configuração sensível) | `server/auth/discord.ts` | `.env` |
 | `SMTP_SENHA_APP` | Senha de app do Gmail (não a senha da conta) | `server/email.ts` | `.env` |
 | `SMTP_USUARIO`, `SMTP_REMETENTE` | Conta de envio | `server/email.ts` | `.env` |
+| `ADMIN_BOOTSTRAP_PASSWORD` | Senha do admin inicial (usada só ao criar a conta) | `server/bootstrapAdmin.ts` | `.env`; padrão `admin` só para dev — **trocar antes de expor** (o servidor avisa em produção) |
+| `ADMIN_BOOTSTRAP_EMAIL` | E-mail do admin inicial | `server/bootstrapAdmin.ts` | `.env` |
 | `ORIGENS_PERMITIDAS` | Origens extras confiáveis (não secreta; afeta segurança) | `server/http.ts` | `.env` |
 | `DATABASE_URL_TESTE`, `REDIS_URL_TESTE` | Bancos de teste | `server/tests/env.ts` | ambiente local |
 

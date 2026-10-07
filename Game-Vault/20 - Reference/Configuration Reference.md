@@ -24,7 +24,7 @@ tags:
   - referencia
   - configuracao
   - env
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Configuration Reference
@@ -47,8 +47,10 @@ Todas as variáveis de ambiente encontradas no projeto. **Nenhum valor de segred
 | `SMTP_USUARIO` | Conta Gmail que envia | vazio (e-mail vai para o log) | não (dado pessoal) | `server/email.ts` |
 | `SMTP_SENHA_APP` | **Senha de app** do Google (não a senha da conta) | vazio | **sim** | `server/email.ts` |
 | `SMTP_REMETENTE` | Endereço "From" | `SMTP_USUARIO` | não | `server/email.ts` |
+| `ADMIN_BOOTSTRAP_EMAIL` | E-mail do admin inicial, criado ao subir enquanto nenhuma conta é admin | `admin@cadu.com` | não | `server/config.ts` → `server/bootstrapAdmin.ts` |
+| `ADMIN_BOOTSTRAP_PASSWORD` | Senha do admin inicial (só ao criar a conta) | `admin` (só desenvolvimento: trocar antes de expor) | **sim** | `server/config.ts` → `server/bootstrapAdmin.ts` |
 
-No compose, o serviço `jogo` recebe `DATABASE_URL` e `REDIS_URL` montados internamente (`banco:5432`, `redis:6379`) e repassa as demais do `.env` com default vazio.
+No compose, o serviço `jogo` recebe `DATABASE_URL` e `REDIS_URL` montados internamente (`banco:5432`, `redis:6379`) e repassa as demais do `.env` com default vazio (as do admin inicial com os mesmos padrões do código).
 
 ## Docker Compose (`docker-compose.yml`)
 

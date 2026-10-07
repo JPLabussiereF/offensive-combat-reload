@@ -11,7 +11,7 @@ import { TEST_DATABASE_URL, TEST_REDIS_URL } from './env';
 
 const wsUrl = (game: GameServer, ticket: string) => `ws://127.0.0.1:${game.port}/ws?ticket=${encodeURIComponent(ticket)}`;
 
-export const startTestServer = () => startServer({ port: 0, host: '127.0.0.1', databaseUrl: TEST_DATABASE_URL, redisUrl: TEST_REDIS_URL, jobs: false });
+export const startTestServer = () => startServer({ port: 0, host: '127.0.0.1', databaseUrl: TEST_DATABASE_URL, redisUrl: TEST_REDIS_URL, jobs: false, adminBootstrap: false });
 
 let ipCounter = 1;
 let emailCounter = 1;

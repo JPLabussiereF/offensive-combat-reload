@@ -14,6 +14,7 @@ import { PROG_WEAPONS } from '@shared/progression';
 import { activeBan, chatMutedUntil, emptyDelta, flushProgress, getAccount, loadGameProfile, openParticipation } from './accounts';
 import { handleApi, ticketKey } from './api';
 import type { Deps } from './auth/sessions';
+import { bootstrapAdmin, type AdminBootstrap } from './bootstrapAdmin';
 import { CONFIG } from './config';
 import { createDb, migrate } from './db';
 import { originAllowed, setPeer } from './http';
@@ -59,6 +60,8 @@ interface Options {
   redisUrl?: string;
   /** Housekeeping jobs (partitions, anonymization); off in tests. */
   jobs?: boolean;
+  /** The first admin while there is none (CONFIG.adminBootstrap by default); false skips it (tests). */
+  adminBootstrap?: AdminBootstrap | false;
 }
 
 export async function startServer(opts: Options): Promise<GameServer> {
@@ -67,6 +70,10 @@ export async function startServer(opts: Options): Promise<GameServer> {
   const sub = createRedis(opts.redisUrl ?? CONFIG.redisUrl);
   const deps: Deps = { db, redis };
   await migrate(db);
+  if (opts.adminBootstrap !== false) {
+    const admin = await bootstrapAdmin(db, opts.adminBootstrap);
+    if (admin) console.log(`[servidor] admin inicial: ${admin}`);
+  }
   await seedOfficialMaps(db, mapBuilder);
   const maps = new MapStore(db);
   const stopJobs = opts.jobs === false ? () => {} : scheduleJobs(db);

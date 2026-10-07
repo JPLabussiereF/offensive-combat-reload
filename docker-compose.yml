@@ -21,6 +21,9 @@ services:
       SMTP_USUARIO: ${SMTP_USUARIO:-}
       SMTP_SENHA_APP: ${SMTP_SENHA_APP:-}
       SMTP_REMETENTE: ${SMTP_REMETENTE:-}
+      # First admin, made at start while no account is admin.
+      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-admin@cadu.com}
+      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-admin}
       # GLB models uploaded for the maps (editor), one file per SHA-256: kept across rebuilds.
       MAPAS_DIR: /app/dados/mapas
     volumes: ['oc-mapas:/app/dados/mapas']
