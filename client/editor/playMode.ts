@@ -164,3 +164,12 @@ export class PlaySession<S> {
     this.onState(s);
   }
 }
+
+/**
+ * P52: whether the game, its map built, starts at once (takes the mouse and starts the sound, as its "Jogar" card
+ * would): while the ▶ click's user activation still counts in its page (the UserActivation API; a browser without it:
+ * the card asks for a click).
+ */
+export function autoStarts(nav: { userActivation?: { isActive: boolean } | null }): boolean {
+  return nav.userActivation?.isActive ?? false;
+}

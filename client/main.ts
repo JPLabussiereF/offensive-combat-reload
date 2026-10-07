@@ -2297,7 +2297,7 @@ async function boot() {
     Object.assign(window, {
       __oc: {
         player, guns, melee, taunt, thrower, grenades, input, dummies, net, conn, me, ctx, physics, quality, map, effects, bots, nav, RAPIER,
-        mines, progress, zombies, localZombies,
+        mines, progress, zombies, localZombies, sfx,
         get weapon() {
           return weapon;
         },
@@ -2363,6 +2363,13 @@ async function boot() {
     },
     memory: () => ({ geometries: ctx.renderer.info.memory.geometries, textures: ctx.renderer.info.memory.textures }),
   });
+  // P52: the editor's ▶ click still counts in this page (the browser hands a click's activation to the same-origin
+  // pages of the tab, for a few seconds): the sound and the mouse start at once, as the "Jogar" card would. When it
+  // doesn't (the map took too long to build, or the browser won't), the card stays and asks for a click.
+  if (embed.activated()) {
+    sfx.unlock();
+    void input.lock();
+  }
 }
 
 /** The map editor's game (its Game tab), if this page is one: it's told when the game can't start. */

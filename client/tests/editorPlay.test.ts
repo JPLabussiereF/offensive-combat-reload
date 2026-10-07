@@ -8,7 +8,7 @@ import { describe, expect, it } from 'bun:test';
 import * as THREE from 'three';
 import { MAP_FORMAT, type MapData } from '@shared/mapData';
 import { EditorDocument, clone } from '../editor/document';
-import { buttonsOf, cameraOn, editable, PlaySession, pickingOn, shortcutAllowed, transition, type GameRun, type PlayState } from '../editor/playMode';
+import { autoStarts, buttonsOf, cameraOn, editable, PlaySession, pickingOn, shortcutAllowed, transition, type GameRun, type PlayState } from '../editor/playMode';
 import { shortcutOf, type EditorAction } from '../editor/shortcuts';
 
 function map(): MapData {
@@ -244,5 +244,14 @@ describe('Play dentro do editor: a sessão', () => {
     expect(g.runs[0].disposed).toBe(1);
     s2.ended();
     expect(g.runs[0].disposed).toBe(1);
+  });
+});
+
+describe('Play dentro do editor: o jogo começa direto (P52)', () => {
+  it('com o clique do ▶ ainda valendo na página do jogo, prende o mouse e liga o som; sem ele (ou sem a API), fica o cartão', () => {
+    expect(autoStarts({ userActivation: { isActive: true } })).toBe(true);
+    expect(autoStarts({ userActivation: { isActive: false } })).toBe(false);
+    expect(autoStarts({})).toBe(false);
+    expect(autoStarts({ userActivation: null })).toBe(false);
   });
 });

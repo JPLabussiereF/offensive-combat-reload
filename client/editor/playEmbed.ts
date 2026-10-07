@@ -2,13 +2,17 @@
 // tab ("?jogoEditor=<token>", client/editor/playBridge.ts). boot() (client/main.ts) asks editorPlay() first: in
 // such a page it skips the home and plays the editor's map (the document being edited, not saved) in the mode the
 // old "Testar" opened (P41): the zumbi match alone against the horde on a zumbi-only map, the training range on
-// any other; the player's name and look come from their account, if signed in. Paused by the editor (❚❚), the game
-// is frozen under a veil that takes the clicks (a click must not take the mouse back while it's frozen).
+// any other; the player's name and look come from their account, if signed in. Once its map is built the game starts
+// at once (P52): the ▶ click still counts here (a click's user activation reaches the same-origin pages of the tab,
+// for a few seconds), so it takes the mouse and starts the sound; the "Jogar" card stays only when it doesn't. Paused
+// by the editor (❚❚), the game is frozen under a veil that takes the clicks (a click must not take the mouse back
+// while it's frozen).
 import type { MapData } from '@shared/mapData';
 import { DEFAULT_MAP } from '@shared/maps';
 import type { HomeChoice } from '../ui/home';
 import { fetchMe, fetchProfile } from '../net/api';
 import { testGame } from './recovery';
+import { autoStarts } from './playMode';
 import { BRIDGES, PLAY_PARAM, type BridgeWindow, type PlayBridge, type PlayControls } from './playBridge';
 import { et } from './strings';
 
@@ -25,6 +29,8 @@ export interface EditorPlay {
   exit(): void;
   /** Shows or hides the veil over the frozen game. */
   veil(on: boolean): void;
+  /** Whether a click (the editor's ▶) still allows taking the mouse and starting the sound. */
+  activated(): boolean;
 }
 
 /** The editor's game, when this page is one (null: the game as always). */
@@ -72,6 +78,7 @@ export function editorPlay(): EditorPlay | null {
         veil = null;
       }
     },
+    activated: () => autoStarts(navigator),
   };
 }
 
