@@ -11,14 +11,14 @@
 // with a lag tolerance.
 import type { ServerWebSocket } from 'bun';
 import { BISCUIT, CHERRY, HEALTH, HUMILIATION, KOI, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
-import { clampExplosionDamage, computeDamage, explosionDamage, HIT_REGIONS, LETHAL_DAMAGE, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
+import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, HIT_REGIONS, LETHAL_DAMAGE, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
 import { ACCOUNT_XP } from '@shared/accountLevel';
 import { bodyStats } from '@shared/appearance';
-import { FISH, PICKUPS, RATS, WITCHES, type MapId, type PickupKind } from '@shared/maps';
+import { CHECKED_PROPS, FISH, PICKUPS, PROP_RANGE, PROPS, RATS, WITCHES, type MapId, type PickupKind } from '@shared/maps';
 import { isGun, weaponOfKill, type GunId, type ProgWeapon } from '@shared/progression';
 import { DEFAULT_LOADOUT, grenadeStats, meleeStats, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import type { GameModeId } from '@shared/modes';
-import { accountLevelOf, addAccountXp, addTime, addWeaponXp, equip, loadoutOf, progressMsg, type LevelUp, type LiveAccount } from './progress';
+import { accountLevelOf, addAccountXp, addTime, addWeaponXp, equip, loadoutOf, progressMsg, stickerAdd, stickerMax, stickerUps, type LevelUp, type LiveAccount } from './progress';
 import { createMode, type SessionMode } from './modes';
 import { FLAG, NET, sanitizeChat, type Award, type ClientMsg, type CorpseInfo, type KillKind, type NetState, type PlayerInfo, type ServerMsg, type Sex, type SessionInfo, type Vec3 } from '@shared/protocol';
 
@@ -75,8 +75,9 @@ export interface SPlayer {
   chatTokens: number;
   chatAt: number;
   /** Live grenades and mines, with the blast they had when thrown (upgrades can't grow it afterwards). */
-  grenades: Map<number, { thrownAt: number; fuse: number; impact: boolean; mine: boolean; origin: Vec3; speed: number; blast: GrenadeLevel }>;
-  dance: { corpse: number; since: number } | null;
+  grenades: Map<number, { thrownAt: number; fuse: number; impact: boolean; mine: boolean; origin: Vec3; speed: number; blast: GrenadeLevel; inHand: boolean }>;
+  /** The dance going on: on which corpse, since when, and how much of the corpse's window was left then. */
+  dance: { corpse: number; since: number; left: number } | null;
   /** Server time when the cherry's extra health runs out (0: none). */
   boostUntil: number;
   /** Carries a giant rat's humanity: extra max health until death. */
@@ -89,12 +90,47 @@ export interface SPlayer {
   /** The witch's potion being felt (until: server time) and when the next one can be drunk. */
   potion: { kind: PotionKind; until: number } | null;
   potionReady: number;
+  // For the sticker album (shared/achievements.ts):
+  /** Kills since the last death, kills in a row at most COMBO_MS apart, and when the last one was. */
+  streak: number;
+  combo: number;
+  lastKillAt: number;
+  /** Who killed this player last and who last danced on their body (null: nobody, or it was paid back). */
+  lastKiller: number | null;
+  lastOppressor: number | null;
+  /** When the biscuit was last eaten, and whether health was low (30 or less) right before. */
+  biscuitAt: number;
+  biscuitLow: boolean;
+  /** The checked map gags this player hit lately (the album's sequences) and when the truck last counted. */
+  propLog: { id: string; at: number }[];
+  truckAt: number;
+  /** The last player who hurt this one and when (null: none since the last death): a push off the map. */
+  lastHitBy: number | null;
+  lastHitAt: number;
 }
+
+/** Sticker album: the longest gap between two kills of a combo, and how long after the biscuit a kill counts. */
+const COMBO_MS = 4000;
+const SCOOBY_MS = 10_000;
+const SCOOBY_HEALTH = 30;
+/** Sticker album: a killing spree worth breaking, and how many kills ahead in the match make a Goliath. */
+const SPREE = 5;
+const GOLIATH_KILLS = 10;
+/** Sticker album: deaths with nobody to blame. */
+/** Sticker album: how soon after a hit a fall still counts as a push, a kill with this little health left, a laggy death. */
+const PUSH_MS = 5000;
+/** Sticker album: how long the map gags a player hit are kept for the sequences (the longest is 30 s). */
+const PROP_MEMORY_MS = 30_000;
+const LOW_HEALTH = 10;
+const LAG_MS = 250;
+const SELF_DEATH_STICKERS: Partial<Record<KillKind, string>> = { fall: 'gravidade', void: 'fora-do-mapa', dog: 'amora-mandou-lembrancas', explosion: 'tiro-no-pe' };
 
 interface Corpse extends CorpseInfo {
   createdAt: number;
   humiliated: boolean;
   claimedBy: number | null;
+  /** Who made it (null: a fall, the dog, their own grenade); the album's stickers ask. */
+  killer: number | null;
 }
 
 /** How far (m) the server lets a pickup be from the player's last reported feet (latency). */
@@ -185,8 +221,16 @@ export class Session {
       humiliations: p.humiliations,
       alive: p.alive,
       ping: p.ping,
+      ...this.showcase(p.conn.account),
       ...this.mode.info(p),
     };
+  }
+
+  /** The album sticker and title a player chose to show: the sticker with the finish it has right now. */
+  private showcase(a: LiveAccount): Pick<PlayerInfo, 'fig' | 'tit'> {
+    const { sticker, title } = a.profile.showcase ?? { sticker: null, title: null };
+    const tier = sticker ? (a.stickerTiers[sticker] ?? 0) : 0;
+    return { ...(sticker && tier ? { fig: [sticker, tier] as [string, number] } : {}), ...(title ? { tit: title } : {}) };
   }
 
   /** To everyone in the session, serialized once; `except` is the player whose action caused it. */
@@ -242,6 +286,17 @@ export class Session {
       downed: false,
       potion: null,
       potionReady: 0,
+      streak: 0,
+      combo: 0,
+      lastKillAt: 0,
+      lastKiller: null,
+      lastOppressor: null,
+      biscuitAt: 0,
+      biscuitLow: false,
+      lastHitBy: null,
+      lastHitAt: 0,
+      propLog: [],
+      truckAt: -Infinity,
     };
     // Fixed for the match in modes with a locked loadout (mata-mata: the account's Arsenal as it is now).
     p.loadout = p.loadoutBefore = this.mode.joinLoadout(p);
@@ -310,8 +365,14 @@ export class Session {
         return;
       }
       case 'prop': {
-        // Cosmetic relay; ids look like "hidrante:1", limited to a few per second per player.
+        // Ids look like "hidrante:1", limited to a few per second per player. Most are a cosmetic relay; the
+        // ones the album counts (PROPS) are checked: on this map, alive, within reach.
         if (typeof msg.id !== 'string' || !/^[a-z]{1,16}(:\d{1,3})?$/.test(msg.id) || now - p.lastProp < 150) return;
+        if (CHECKED_PROPS.has(msg.id)) {
+          const spot = PROPS[this.map].find((s) => s.id === msg.id);
+          if (!spot || !p.alive || dist3(p.state.p, spot.p) > PROP_RANGE) return;
+          this.albumProp(p, msg.id, now);
+        }
         p.lastProp = now;
         this.broadcast({ t: 'prop', id: msg.id, by: p.id }, p.id);
         return;
@@ -353,7 +414,9 @@ export class Session {
         const impact = !mine && !!msg.impact && grenade.impacto;
         const fuse = mine ? 0 : Math.max(0, Math.min(impact ? grenade.tempoMaximoVoo : grenade.pavio, msg.fuse));
         const speed = Math.hypot(msg.v[0], msg.v[1], msg.v[2]);
-        p.grenades.set(msg.id, { thrownAt: now, fuse, impact, mine, origin: msg.p, speed, blast: grenade.explosao });
+        // Cooked too long, it goes off in the hand: no fuse left, never thrown (an album sticker asks).
+        const inHand = !mine && !impact && fuse === 0 && speed === 0;
+        p.grenades.set(msg.id, { thrownAt: now, fuse, impact, mine, origin: msg.p, speed, blast: grenade.explosao, inHand });
         // A duck (the witch's potion) is only how it looks and sounds.
         this.broadcast({ t: 'grenade', owner: p.id, id: msg.id, p: msg.p, v: msg.v, fuse, impact, ...(mine ? { mine } : {}), ...(!mine && msg.duck === true ? { duck: true } : {}) }, p.id);
         return;
@@ -415,6 +478,8 @@ export class Session {
     if (Math.hypot(x - k.p[0], z - k.p[2]) > radius + PICKUP_SLACK || Math.abs(y - k.p[1]) > 2) return;
     if (k.kind === 'biscoito') {
       k.ready = now + BISCUIT.respawn * 1000;
+      p.biscuitAt = now;
+      p.biscuitLow = p.health <= SCOOBY_HEALTH;
       p.health = this.maxHealth(p, now);
       this.broadcast({ t: 'pickup', id: id as string, by: p.id, ready: k.ready, until: 0 });
       return;
@@ -434,6 +499,7 @@ export class Session {
     const until = kind === 'pato' ? 0 : now + POTION.duration * 1000;
     p.potionReady = now + POTION.cooldown * 1000;
     p.potion = kind === 'pato' ? null : { kind, until };
+    stickerAdd(p.conn.account, `provador-da-bruxa:${kind}`);
     this.broadcast({ t: 'potion', by: p.id, kind, until });
   }
 
@@ -462,6 +528,8 @@ export class Session {
     const [min, max] = KOI.respawn;
     f.ready = now + Math.round((min + Math.random() * (max - min)) * 1000);
     f.golden = Math.random() < KOI.goldenChance;
+    stickerAdd(p.conn.account, 'pescador');
+    if (prize === 'dourada') stickerAdd(p.conn.account, 'peixe-de-ouro');
     this.progress(p, [addAccountXp(p.conn.account, prize === 'dourada' ? KOI.goldenXp : KOI.xp)]);
     const until = prize === 'dourada' ? now + KOI.goldenDuration * 1000 : undefined;
     this.broadcast({ t: 'fish', id: id as string, by: p.id, prize, ready: f.ready, golden: f.golden, ...(until ? { until } : {}) });
@@ -519,9 +587,10 @@ export class Session {
     if (dist > SCORE.longShotDistance) awards.push({ label: 'longShot', value: SCORE.longShot });
     // Went through wood/glass: never less than the weapon allows, never more than a clean hit.
     const keep = finite(reportedKeep) ? Math.min(1, Math.max(minPenetrationKeep(gun), reportedKeep!)) : 1;
-    // The critical potion: every bullet does a head's damage (the hit still counts where it landed).
+    // The critical potion: every bullet does a head's damage (the hit still counts where it landed), except a
+    // groin hit, which stays an instant kill.
     const crit = p.potion?.kind === 'critico' && p.potion.until > now;
-    this.damage(target, p, computeDamage(gun, dist, crit ? 'cabeca' : region, keep), kind, eye(p), awards, gun.arma);
+    this.damage(target, p, computeDamage(gun, dist, critRegion(region, crit), keep), kind, eye(p), awards, gun.arma);
   }
 
   private onStab(p: SPlayer, targetId: number, behind: boolean, now: number) {
@@ -554,6 +623,8 @@ export class Session {
     // The mode's enemies the blast reached (zumbi), checked with the same tolerance as players.
     if (Array.isArray(msg.zs)) this.mode.blast?.(p, msg.p, msg.zs, g.blast);
     const seen = new Set<number>();
+    let kills = 0;
+    let self = false;
     for (const h of msg.hits.slice(0, NET.maxPlayers)) {
       const target = this.players.get(h?.target);
       if (!target || !target.alive || seen.has(target.id) || !finite(h.dist)) continue;
@@ -564,6 +635,16 @@ export class Session {
       const raw = explosionDamage(g.blast, h.dist);
       const dmg = target === p ? raw : clampExplosionDamage(g.blast, raw, target.health);
       if (dmg > 0) this.damage(target, target === p ? null : p, dmg, target === p ? 'explosion' : 'grenade', msg.p, [], target === p ? null : 'granada');
+      if (!target.alive) {
+        if (target === p) self = true;
+        else kills++;
+      }
+    }
+    // Sticker album: several with one grenade, the one that went off in the hand, taking them with you.
+    if (kills) {
+      stickerMax(p.conn.account, 'strike', kills);
+      if (g.inHand) stickerAdd(p.conn.account, 'abraco-de-urso');
+      if (self) stickerAdd(p.conn.account, 'kamikaze');
     }
   }
 
@@ -574,7 +655,7 @@ export class Session {
     if (!c || !p.alive || p.dance || c.humiliated || c.claimedBy !== null || now > c.until || c.victim === p.id) return;
     if (Math.hypot(p.state.p[0] - c.p[0], p.state.p[2] - c.p[2]) > HUMILIATION.radius + 1.5) return;
     c.claimedBy = p.id;
-    p.dance = { corpse: c.id, since: now };
+    p.dance = { corpse: c.id, since: now, left: c.until - now };
     this.broadcast({ t: 'taunt', id: p.id, corpse: c.id });
   }
 
@@ -582,6 +663,7 @@ export class Session {
     const c = this.corpses.get(corpseId);
     if (!p.dance || p.dance.corpse !== corpseId || !c) return;
     const completed = done && now - p.dance.since >= HUMILIATION.duration * 1000 - 400;
+    const left = p.dance.left;
     p.dance = null;
     c.claimedBy = null;
     const awards: Award[] = [];
@@ -594,6 +676,7 @@ export class Session {
       d.humiliations++;
       d.score += SCORE.humiliation;
       this.progress(p, [addAccountXp(p.conn.account, ACCOUNT_XP.perHumiliation)]);
+      this.albumHumiliation(p, c, left);
     } else {
       c.until = Math.max(c.until, now + 1500);
     }
@@ -610,6 +693,10 @@ export class Session {
     const dealt = Math.min(target.health, amount);
     target.health -= dealt;
     target.lastDamageAt = this.now();
+    if (attacker && attacker !== target) {
+      target.lastHitBy = attacker.id;
+      target.lastHitAt = target.lastDamageAt;
+    }
     this.broadcast({ t: 'damage', target: target.id, attacker: attacker?.id ?? null, amount: dealt, health: target.health, from });
     if (target.health > 0) return;
     // The mode may take over instead of a death (zumbi: down, waiting for a revive).
@@ -629,11 +716,22 @@ export class Session {
     victim.deaths++;
     victim.deadAt = now;
     victim.grenades.clear();
+    const dancing = !!victim.dance;
+    const spree = victim.streak;
+    victim.streak = victim.combo = 0;
     // Only death ends a dance (damage doesn't): the corpse is released without points.
     if (victim.dance) this.onTauntEnd(victim, victim.dance.corpse, false, now);
     const awards: Award[] = [];
     // A co-op death isn't another player's kill: the account's kill/death stats don't change.
     if (!this.mode.rules.coop) victim.conn.account.delta.deaths++;
+    // Sticker album: dying on your own (a fall, the void, the dog, your own grenade).
+    const own = attacker && attacker !== victim ? null : SELF_DEATH_STICKERS[kind];
+    if (own) stickerAdd(victim.conn.account, own);
+    // ...and whoever hit them a moment before gets the credit for the push (not for their own grenade).
+    const pusher = victim.lastHitBy !== null && (kind === 'fall' || kind === 'void' || kind === 'dog') && now - victim.lastHitAt <= PUSH_MS ? this.players.get(victim.lastHitBy) : undefined;
+    if (pusher && pusher !== victim) stickerAdd(pusher.conn.account, 'empurraozinho');
+    victim.lastHitBy = null;
+    if (victim.ping > LAG_MS) stickerAdd(victim.conn.account, 'rip-lag');
     if (attacker && attacker !== victim) {
       awards.push({ label: 'kill', value: SCORE.kill }, ...bonus);
       const points = awards.reduce((s, a) => s + a.value, 0);
@@ -652,6 +750,8 @@ export class Session {
       // Weapon points only where players fight with their own Arsenal (not with a mode's ladder).
       const w = this.mode.rules.weaponXp ? weaponOfKill(kind, isGun(weapon) ? weapon : null) : null;
       this.progress(attacker, [w ? addWeaponXp(acct, w, points) : null, addAccountXp(acct, ACCOUNT_XP.perKill)]);
+      this.albumKill(attacker, victim, spree, dancing, now);
+      victim.lastKiller = attacker.id;
     }
     // The mode's rules for the kill (ladder steps, the end of the round), before the players are announced.
     const after = this.mode.onKill(victim, attacker && attacker !== victim ? attacker : null, kind, weapon);
@@ -667,12 +767,110 @@ export class Session {
       createdAt: now,
       humiliated: false,
       claimedBy: null,
+      killer: attacker && attacker !== victim ? attacker.id : null,
     };
     this.corpses.set(corpse.id, corpse);
     const players = [this.playerInfo(victim), ...(attacker && attacker !== victim ? [this.playerInfo(attacker)] : [])];
     const { id, victim: v, name, sex, ap, p, yaw, until } = corpse;
     this.broadcast({ t: 'kill', victim: victim.id, attacker: attacker?.id ?? null, kind, ...(weapon && attacker && attacker !== victim ? { arma: weapon } : {}), awards, corpse: { id, victim: v, name, sex, ap, p, yaw, until }, players });
     for (const m of after) this.broadcast(m);
+  }
+
+  /** The sticker album's counters for a player's kill of another (`spree`: the victim's kills before dying). */
+  private albumKill(a: SPlayer, victim: SPlayer, spree: number, dancing: boolean, now: number) {
+    const acct = a.conn.account;
+    a.streak++;
+    a.combo = now - a.lastKillAt <= COMBO_MS ? a.combo + 1 : 1;
+    a.lastKillAt = now;
+    stickerMax(acct, 'embalado', a.streak);
+    stickerMax(acct, 'combo', a.combo);
+    if (a.lastKiller === victim.id) {
+      stickerAdd(acct, 'vinganca');
+      a.lastKiller = null;
+    }
+    if (spree >= SPREE) stickerAdd(acct, 'estraga-sequencia');
+    if (dancing) stickerAdd(acct, 'estraga-prazer');
+    if (a.alive && a.health <= LOW_HEALTH) stickerAdd(acct, 'com-um-pe-na-cova');
+    if (a.humanity) stickerAdd(acct, 'humanidade-restaurada');
+    if (a.boostUntil > now) stickerAdd(acct, 'cereja-do-bolo');
+    if (a.potion?.kind === 'bebado' && a.potion.until > now) stickerAdd(acct, 'saude-hic');
+    // The biscuit saved them: counts once per biscuit.
+    if (a.biscuitLow && now - a.biscuitAt <= SCOOBY_MS) {
+      stickerAdd(acct, 'scooby-dooby-doo');
+      a.biscuitLow = false;
+    }
+  }
+
+  /** The sticker album's counters for a dance completed on corpse `c` (`left`: the window it started with). */
+  private albumHumiliation(p: SPlayer, c: Corpse, left: number) {
+    const acct = p.conn.account;
+    const victim = this.players.get(c.victim);
+    if (victim) {
+      stickerAdd(victim.conn.account, 'oprimido');
+      if (victim.kills - p.kills >= GOLIATH_KILLS) stickerAdd(acct, 'davi-contra-golias');
+    }
+    if (p.lastOppressor === c.victim) {
+      stickerAdd(acct, 'troco');
+      p.lastOppressor = null;
+    }
+    if (victim) victim.lastOppressor = p.id;
+    if (c.killer === null) stickerAdd(acct, 'chutando-cachorro-morto');
+    else if (c.killer !== p.id) stickerAdd(acct, 'oportunista');
+    if (left <= 1000) stickerAdd(acct, 'no-ultimo-segundo');
+    stickerAdd(acct, `pe-de-valsa:${this.map}`);
+  }
+
+  /**
+   * The sticker album's map gags: a checked prop this player hit (`recent`: their last ones, for the sequences:
+   * the chime's scale, the drums and the gong, the bell and the horn that lose patience, the shooting gallery).
+   */
+  private albumProp(p: SPlayer, id: string, now: number) {
+    const acct = p.conn.account;
+    const recent = (p.propLog = [...p.propLog.filter((e) => now - e.at < PROP_MEMORY_MS), { id, at: now }]);
+    const within = (ms: number, test: (id: string) => boolean) => recent.filter((e) => now - e.at <= ms && test(e.id));
+    const forget = (test: (id: string) => boolean) => (p.propLog = recent.filter((e) => !test(e.id)));
+    if (id === 'caminhao') {
+      // The jingle plays at most every 4 s (client/world/blockoutMap.ts): one count per jingle.
+      if (now - p.truckAt >= 4000) {
+        p.truckAt = now;
+        stickerAdd(acct, 'sorveteiro-fantasma');
+      }
+    } else if (id === 'dragao') stickerAdd(acct, 'proibido-acordar');
+    else if (id === 'fantasma') stickerAdd(acct, 'mudou-pro-mausoleu');
+    else if (id === 'caldeirao') stickerAdd(acct, 'patinhos-em-fila');
+    else if (id.startsWith('carrilhao:')) {
+      // Dó, ré, mi, fá, sol: the last five chime notes in order, within 6 s.
+      const last = recent.filter((e) => e.id.startsWith('carrilhao:')).slice(-5);
+      if (last.length === 5 && now - last[0].at <= 6000 && last.every((e, i) => e.id === `carrilhao:${i}`)) {
+        stickerAdd(acct, 'maestro');
+        forget((x) => x.startsWith('carrilhao:'));
+      }
+    } else if (id.startsWith('tambor:') || id === 'gongo') {
+      // The four drums and the gong, within 30 s.
+      const band = new Set(within(30_000, (x) => x.startsWith('tambor:') || x === 'gongo').map((e) => e.id));
+      if (band.size === 5) {
+        stickerAdd(acct, 'banda-marcial');
+        forget((x) => x.startsWith('tambor:') || x === 'gongo');
+      }
+    } else if (id === 'sinocapela') {
+      // The chapel bell: 5 rings within 8 s and it says "EU JÁ OUVI." (client/world/hauntedTown.ts).
+      if (within(8000, (x) => x === id).length >= 5) {
+        stickerAdd(acct, 'eu-ja-ouvi');
+        forget((x) => x === id);
+      }
+    } else if (id === 'buzina') {
+      // The horn: 6 honks within 6 s and the neighbour yells "CHEGA.".
+      if (within(6000, (x) => x === id).length >= 6) {
+        stickerAdd(acct, 'chega');
+        forget((x) => x === id);
+      }
+    } else if (id.startsWith('alvo:')) {
+      // The shooting gallery: all seven targets before the first stands back up (5 s).
+      if (new Set(within(5000, (x) => x.startsWith('alvo:')).map((e) => e.id)).size === 7) {
+        stickerAdd(acct, 'mosca-no-alvo');
+        forget((x) => x.startsWith('alvo:'));
+      }
+    }
   }
 
   private tick() {
@@ -709,6 +907,8 @@ export class Session {
     if (this.scoreTimer >= 1) {
       this.scoreTimer = 0;
       this.broadcast({ t: 'scores', players: [...this.players.values()].map((p) => this.playerInfo(p)) });
+      // Album stickers that went up (from anything: kills, dances, the zumbi stats, time played), to their owner.
+      for (const p of this.players.values()) for (const up of stickerUps(p.conn.account)) p.conn.send({ t: 'figurinha', ...up });
     }
   }
 
@@ -749,5 +949,6 @@ export class Session {
     p.potion = null;
     p.potionReady = 0;
     p.grenades.clear();
+    p.streak = p.combo = 0;
   }
 }

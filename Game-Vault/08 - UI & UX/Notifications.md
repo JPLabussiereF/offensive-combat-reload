@@ -68,6 +68,6 @@ Não há notificações fora da partida (push, e-mail no jogo, convites de amigo
 ## Código relacionado
 
 - `client/ui/hud.ts` — `killfeed`, `notice`, `showBanner`, `popup`, `setNetStatus`, `showDeath`.
-- `client/main.ts` — `KIND_ICON`, `AWARD_TEXT`, `weaponNameFor`, handler de `progresso` (faixa de melhoria), chamadas de notificação.
+- `client/main.ts` — `KIND_ICON`, `AWARD_TEXT`, `weaponNameFor`, handler de `progresso` (faixa de melhoria), handler de `figurinha` (faixa "Figurinha Brilhante: Na Testa!", em fila de 2 s quando chegam várias, com o som de subir de nível; texto em `stickerUpText`, `client/ui/album.ts`), chamadas de notificação.
 - `client/ui/arsenal.ts` — `weaponName`, `upgradeName`, `weaponLabel`.
 - `client/ui/strings.ts` — textos.

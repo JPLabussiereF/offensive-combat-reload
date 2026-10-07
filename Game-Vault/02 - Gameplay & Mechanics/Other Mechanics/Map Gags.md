@@ -43,6 +43,7 @@ Recompensar a curiosidade e dar humor: quase tudo de destaque no cenário **reag
 2. Um tiro (ou a faca, quando o objeto aceita `stab`) dispara o handler **localmente** e chama `onLocal(id)`.
 3. Online, o cliente envia `prop {id}`; o servidor só valida o formato (`/^[a-z]{1,16}(:\d{1,3})?$/`) e limita a **uma a cada 150 ms por jogador**, e retransmite `prop {id, by}` para os outros, que executam a mesma piada (com a posição de quem disparou, quando conhecida — o fantasma se vira para o atirador).
 4. O servidor **não conhece o estado** das piadas: elas são cosméticas e não são reenviadas a quem entra depois.
+5. **Exceção (desde 2026-10-06):** as piadas que contam figurinha do álbum ([[Achievements]], página Mapas) estão em `PROPS` (`shared/maps.ts`) com a posição: caminhão (Rua), dragão, gongo, 4 tambores e o carrilhão (Jardim), sino da capela, buzina, fantasma, caldeirão e os 7 alvos (Vila). O servidor só aceita (e só repassa) um toque desses no mapa certo, de quem está vivo e a até `PROP_RANGE` (80 m) do objeto. As outras continuam só repassadas.
 
 ## Catálogo por mapa
 

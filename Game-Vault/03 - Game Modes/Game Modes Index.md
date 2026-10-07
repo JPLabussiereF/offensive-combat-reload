@@ -39,7 +39,7 @@ As diferenças entre modos estão declaradas em `MODE_RULES` e, no servidor, em 
 | Modo (nome no jogo) | Nota | `GameModeId` | Regra | Online | Contra bots |
 | --- | --- | --- | --- | --- | --- |
 | **Mata-mata** | [[Free For All]] (online) · [[Versus Bots]] (offline) | `mata-mata` | todos contra todos com o Arsenal escolhido **antes** da partida, travado durante ela | Sim | Sim |
-| **Corrida armada** | [[Gun Game]] | `corrida-armada` | escada de 7 armas fixas: 3 abates sobem, facada desce, abate com o Sabre de Luz vence a rodada | Sim | Sim |
+| **Corrida armada** | [[Gun Game]] | `corrida-armada` | escada de 7 armas fixas: 3 abates sobem, facada tira um abate, abate com o Sabre de Luz vence a rodada | Sim | Sim |
 | **Zumbi** | [[Zombie]] | `zumbi` | em equipe contra 12 ondas de zumbis e 3 chefes no Cemitério da Capela (mapa só dele); armas do Caixão Misterioso (às vezes danificadas) e barricadas nas brechas do muro, compradas com o dinheiro da partida; caído/reanimar | Sim (só no Cemitério da Capela) | Solo (você contra a horda) |
 
 ## Onde jogar

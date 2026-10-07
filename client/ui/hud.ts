@@ -56,6 +56,7 @@ export class Hud {
   private vignette = $('vignette');
   private death = $('death');
   private deathMsg = $('death-msg');
+  private deathShowcase = $('death-showcase');
   private deathTimer = $('death-timer');
   private debug = $('debug');
   private banner = $('banner');
@@ -476,6 +477,17 @@ export class Hud {
   showDeath(message: string | null) {
     this.death.classList.toggle('hidden', message === null);
     if (message !== null) this.deathMsg.textContent = message;
+  }
+
+  /** The killer's album sticker (its HTML) and title on the death card; both empty: nothing to show. */
+  setDeathShowcase(badge: string, title: string) {
+    this.deathShowcase.classList.toggle('hidden', !badge && !title);
+    this.deathShowcase.innerHTML = badge;
+    if (!title) return;
+    const span = document.createElement('span');
+    span.className = 'death-title';
+    span.textContent = title;
+    this.deathShowcase.append(span);
   }
 
   setDeathTimer(seconds: number) {

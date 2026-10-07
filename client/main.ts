@@ -8,7 +8,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { pickSafeSpawn } from './gameplay/spawnPicker';
 import { BISCUIT, CHERRY, GROUP, groups, HEALTH, HUMILIATION, KOI, MOVE, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
 import { PICKUPS } from '@shared/maps';
-import { clampExplosionDamage, computeDamage, explosionDamage, idealTtk, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
+import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, idealTtk, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
 import { eyeHeight, type MoveInput } from '@shared/movement';
 import { CLOSE, FLAG, NET, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
 import { startLoop } from './core/loop';
@@ -60,6 +60,7 @@ import { closeReason, gameModeName, showHome } from './ui/home';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
 import { Arsenal, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
+import { stickerBadge, stickerUpText, titleText } from './ui/album';
 import { PROG_WEAPONS, upgradeAt, type KnifeForm, type ProgWeapon } from '@shared/progression';
 import { DEFAULT_LOADOUT, grenadeStats, gunIn, meleeStats, sanitizeLoadout, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import { MODE_RULES, type GameModeId } from '@shared/modes';
@@ -776,7 +777,7 @@ async function boot() {
           // Against bots: same rules as online; kills and popups come back through the bot hooks.
           if (entity.dead) return;
           const kind: KillKind = head ? 'head' : groin ? 'groin' : 'gun';
-          const res = bots.hit(entity, playerTarget, computeDamage(weapon.data, hit.distance, potionKind === 'critico' ? 'cabeca' : region, keep), { kind, region, dist: hit.distance, w: weapon.data.arma });
+          const res = bots.hit(entity, playerTarget, computeDamage(weapon.data, hit.distance, critRegion(region, potionKind === 'critico'), keep), { kind, region, dist: hit.distance, w: weapon.data.arma });
           if (res.dealt <= 0) return;
           hits++;
           lastHitDist = hit.distance;
@@ -786,7 +787,7 @@ async function boot() {
           return;
         }
         const dummy = entity as Dummy;
-        const res = dummy.applyHit(computeDamage(weapon.data, hit.distance, potionKind === 'critico' ? 'cabeca' : region, keep), region, simTime, shotDir, groin ? 'forward' : 'back');
+        const res = dummy.applyHit(computeDamage(weapon.data, hit.distance, critRegion(region, potionKind === 'critico'), keep), region, simTime, shotDir, groin ? 'forward' : 'back');
         if (res.damage <= 0) return;
         hits++;
         lastHitDist = hit.distance;
@@ -919,6 +920,23 @@ async function boot() {
       for (const freed of lockedBefore.filter((x) => progress.unlocked(x))) hud.notice(t('weaponUnlocked', { weapon: weaponName(freed) }));
     }
     sfx.levelUp();
+  });
+  // An album sticker went up (online, from the server): one banner after the other when several come at once.
+  const stickerLines: string[] = [];
+  let stickerShowing = false;
+  const nextSticker = () => {
+    const line = stickerLines.shift();
+    stickerShowing = !!line;
+    if (!line) return;
+    hud.showBanner(line, 'level');
+    sfx.levelUp();
+    setTimeout(nextSticker, 2000);
+  };
+  conn?.on('figurinha', (m) => {
+    const line = stickerUpText(m.id, m.nivel);
+    if (!line) return;
+    stickerLines.push(line);
+    if (!stickerShowing) nextSticker();
   });
   // The pause menu: corrida armada shows its ladder (the mode hands out the weapons); otherwise the Arsenal,
   // read-only during a match with a locked loadout (mata-mata), editable on the training range.
@@ -1408,6 +1426,9 @@ async function boot() {
         player.kill(simTime);
         sfx.sadTrombone();
         const killer = m.attacker !== null && m.attacker !== me ? nameOf(m.attacker) : null;
+        // The killer's calling card: the album sticker they show and the title they wear.
+        const killerInfo = killer ? net.info.get(m.attacker!) : undefined;
+        hud.setDeathShowcase(stickerBadge(killerInfo?.fig), titleText(killerInfo?.tit));
         const msg = killer
           ? t('killedByWith', { name: killer, weapon: weaponName })
           : pick(DEATH_MESSAGES[getLang()][m.kind === 'void' ? 'void' : m.kind === 'fall' ? 'fall' : m.kind === 'dog' ? 'dog' : m.kind === 'zombie' ? 'zombie' : 'explosion']);
@@ -1492,7 +1513,12 @@ async function boot() {
     shownLadder = l;
     if (before?.step === l.step && before.kills === l.kills) return;
     renderLadder(arsenalGrid, l);
-    if (!before || before.step === l.step) return;
+    if (!before) return;
+    // A stab on a step with kills: one of them lost, same weapon.
+    if (before.step === l.step) {
+      if (l.kills === before.kills - 1) hud.showBanner(t('ladderLostKill', { n: l.kills, total: killsForStep(l.step) }), 'bird');
+      return;
+    }
     if (l.step > before.step) {
       hud.showBanner(l.step === FINAL_STEP ? t('ladderFinal') : t('ladderNext', { weapon: stepName(l.step) }), 'level');
       sfx.levelUp();

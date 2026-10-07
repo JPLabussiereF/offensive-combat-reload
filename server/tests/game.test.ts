@@ -148,6 +148,8 @@ describe('progresso', () => {
     expect(profileA.body.xp).toBe(25);
     expect(profileA.body.totais.abates).toBe(1);
     expect(profileA.body.totais.cabeca).toBe(1);
+    // Never played zumbi: no zombie_stats row yet, all zero.
+    expect(profileA.body.totais.zumbi).toMatchObject({ partidas: 0, abates: 0, melhorOnda: 0 });
     expect(profileA.body.participacoes[0]).toMatchObject({ sessao: 'Rua dos Vizinhos', abates: 1 });
     expect(profileA.body.participacoes[0].saida).not.toBeNull();
     const profileV = await v.req('GET', '/api/perfil');
@@ -213,7 +215,8 @@ describe('cereja do jardim', () => {
     B.p.send({ t: 'pickup', id: 'cereja' });
     const taken = await A.p.next('pickup');
     expect(taken).toMatchObject({ id: 'cereja', by: bId });
-    expect(taken.ready - taken.until).toBe((CHERRY.respawn - CHERRY.duration) * 1000);
+    // Server times are performance.now() (fractions of a ms): their difference can be off by a hair.
+    expect(taken.ready - taken.until).toBeCloseTo((CHERRY.respawn - CHERRY.duration) * 1000);
     await B.p.next('snap', (m) => m.players.find((x) => x.id === bId)?.h === HEALTH.max + CHERRY.extraHealth);
 
     // Gone until it grows back: walking up to it doesn't give it again.

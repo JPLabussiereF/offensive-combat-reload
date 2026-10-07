@@ -34,7 +34,7 @@ updated: 2026-10-06
 - Consultas **sempre parametrizadas** (`$1, $2...`). A única interpolação de string em SQL é o nome/datas de partição em `server/jobs.ts`, gerados pelo próprio código a partir da data.
 - `transaction(db, fn)` — `BEGIN`/`COMMIT`/`ROLLBACK` com um cliente do pool.
 
-## Tabelas (migrations `001_contas.sql`, `002_aparencia.sql` e `003_melhorias.sql`)
+## Tabelas (migrations `001_contas.sql` a `006_destaque.sql`)
 
 | Tabela | Chave | Colunas principais | Observações |
 |---|---|---|---|
@@ -42,9 +42,11 @@ updated: 2026-10-06
 | `password_credential` | `account_id` | `password_hash` (Argon2id), `updated_at` | Separada para que nenhuma consulta de conta carregue o hash |
 | `auth_identity` | `id` | `account_id`, `provider` (CHECK `discord`), `provider_subject`, `linked_at` | UNIQUE (`provider`, `provider_subject`) e (`account_id`, `provider`) |
 | `session` | `id` | `account_id`, `token_hash bytea UNIQUE`, `device_label`, `ip inet`, `created_at`, `last_used_at`, `expires_at`, `revoked_at` | Índice parcial `session_account_idx` onde não revogada |
-| `player_profile` | `id` | `account_id`, `display_name`, `discriminator smallint` (1–9999), `sex` (`m`/`f`), `avatar_url`, `bio`, `name_changed_at`, `created_at`, `appearance jsonb` (002), `loadout jsonb` (003: a escolha do Arsenal, `ArsenalChoice`; `NULL` = ainda não escolheu) | Índice único `(lower(display_name), discriminator)` |
+| `player_profile` | `id` | `account_id`, `display_name`, `discriminator smallint` (1–9999), `sex` (`m`/`f`), `avatar_url`, `bio`, `name_changed_at`, `created_at`, `appearance jsonb` (002), `loadout jsonb` (003: a escolha do Arsenal, `ArsenalChoice`; `NULL` = ainda não escolheu), `featured_sticker text` e `title text` (006: figurinha em destaque e título do [[Achievements\|álbum]], conferidos pelo servidor; `NULL` = nenhum) | Índice único `(lower(display_name), discriminator)` |
 | `display_name_history` | `id` | `profile_id`, `display_name`, `discriminator`, `changed_at` | Índice `(profile_id, changed_at DESC)` |
 | `player_stats` | `profile_id` | `level`, `xp bigint`, `mmr` (não usado), `matches_played`, `kills`, `deaths`, `headshots`, `groin_kills`, `knife_kills`, `backstabs`, `grenade_kills`, `humiliations`, `seconds_played bigint`, `updated_at` | "Linha quente" estreita, separada do perfil |
+| `zombie_stats` | `profile_id` | `matches`, `wins`, `best_wave` (a maior onda alcançada), `waves` (ondas sobrevividas), `kills`, `headshots`, `groin_kills`, `knife_kills`, `grenade_kills`, `bosses`, `coveiro_kills`, `noiva_kills`, `prefeito_kills`, `downs`, `revives`, `deaths`, `coffin_rolls`, `updated_at` (004) | Totais do [[Zombie\|modo zumbi]], à parte de `player_stats`. Criada na primeira gravação (*upsert*), sem linha no cadastro |
+| `achievement_progress` | (`profile_id`, `sticker`) | `progress bigint`, `updated_at` (005) | Contadores próprios do [[Achievements\|álbum de figurinhas]]: uma linha por figurinha (o id) ou por item de coleção (`id:item`). Totais somados, recordes com `GREATEST`; criada na primeira gravação |
 | `weapon_progress` | (`profile_id`, `weapon`) | `xp bigint`, `equipped_level` (legado: só lido uma vez para derivar a escolha de contas antigas, `legacyChoice`) | `weapon` CHECK `rifle`/`pistola`/`smg`/`faca`/`granada` (003) |
 | `session_participation` | `id` | `profile_id`, `session_name`, `joined_at`, `left_at`, `kills`, `deaths`, `score`, `humiliations`, `account_xp` | Uma linha por estadia numa sala ("a partida", já que as salas são FFA sem fim). Índice `(profile_id, joined_at DESC)` |
 | `sanction` | `id` | `account_id`, `type` (CHECK `ban`, `chat_mute`, `ranked_ban`, `shadow_ban`), `reason`, `issued_by`, `starts_at`, `expires_at` (NULL = permanente), `revoked_at` | "Punições como histórico, nunca uma flag". Só `ban` e `chat_mute` são usados no código |
@@ -62,7 +64,7 @@ Todas as FKs para `account`/`player_profile` usam `ON DELETE CASCADE` (na práti
 | Cadastro (`createAccount`) | account, password_credential/auth_identity, player_profile, display_name_history, player_stats, weapon_progress ×5 (uma por arma de `PROG_WEAPONS`) | sim; até 3 tentativas em violação de unicidade da tag |
 | Login / renovação | session (INSERT; `last_used_at`/`expires_at` no máx. 1×/hora) | não |
 | Troca de nome | player_profile (`FOR UPDATE`), display_name_history, auth_event | sim |
-| Gravação de progresso | player_stats, weapon_progress (upsert do XP), player_profile.loadout (escolha do Arsenal), session_participation | sim ([[Save System]]) |
+| Gravação de progresso | player_stats, zombie_stats (upsert, só se houve zumbi), achievement_progress (upsert por chave), weapon_progress (upsert do XP), player_profile.loadout (escolha do Arsenal), session_participation | sim ([[Save System]]) |
 | Anonimização | account, password_credential, auth_identity, session, player_profile, display_name_history, auth_event | sim, por conta |
 | Auditoria (`audit`) | auth_event | não aguardada; falha só vai para o log |
 

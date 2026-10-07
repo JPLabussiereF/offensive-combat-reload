@@ -1,7 +1,8 @@
 // Accounts, profiles, progress and audit: every SQL query about players lives here.
 import { accountLevel } from '@shared/accountLevel';
+import { album, canFeature, sourcesFromProfile, titlesOf, type Own } from '@shared/achievements';
 import { sanitizeAppearance, type Appearance } from '@shared/appearance';
-import { DELETION_GRACE_DAYS, formatTag, NAME_COOLDOWN_DAYS, type Participation, type ProfileResponse, type Totals } from '@shared/account';
+import { DELETION_GRACE_DAYS, formatTag, NAME_COOLDOWN_DAYS, type Participation, type ProfileResponse, type Totals, type ZombieTotals } from '@shared/account';
 import { legacyChoice, levelForXp, PROG_WEAPONS, sanitizeChoice, type ArsenalChoice, type ProgWeapon, type WeaponXp } from '@shared/progression';
 import type { Sex } from '@shared/protocol';
 import { transaction, type Db, type Queryable } from './db';
@@ -163,12 +164,15 @@ interface ProfileRow {
   /** The Arsenal choice (JSON), null until the player makes one. */
   loadout: unknown;
   name_changed_at: Date | null;
+  /** The album sticker shown and the title worn (a page id); null: none. */
+  featured_sticker: string | null;
+  title: string | null;
 }
 
 /** The account's game profile (one per account for now; the oldest one). */
 export async function profileOf(db: Queryable, accountId: string): Promise<ProfileRow> {
   const { rows } = await db.query<ProfileRow>(
-    'SELECT id, display_name, discriminator, sex, appearance, loadout, name_changed_at FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1',
+    'SELECT id, display_name, discriminator, sex, appearance, loadout, name_changed_at, featured_sticker, title FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1',
     [accountId],
   );
   if (!rows[0]) throw new HttpError(404, 'nao_encontrado');
@@ -207,32 +211,68 @@ async function weapons(db: Queryable, profile: Pick<ProfileRow, 'id' | 'loadout'
 
 const xpOf = (armas: Record<ProgWeapon, { xp: number }>) => Object.fromEntries(PROG_WEAPONS.map((w) => [w, armas[w].xp])) as WeaponXp;
 
+/** A zombie_stats row (or none yet: all zero) as the API sends it. */
+const zombieTotals = (z: Record<string, number | undefined>): ZombieTotals => ({
+  partidas: z.matches ?? 0,
+  vitorias: z.wins ?? 0,
+  melhorOnda: z.best_wave ?? 0,
+  ondas: z.waves ?? 0,
+  abates: z.kills ?? 0,
+  cabeca: z.headshots ?? 0,
+  passaro: z.groin_kills ?? 0,
+  facadas: z.knife_kills ?? 0,
+  granadas: z.grenade_kills ?? 0,
+  chefes: z.bosses ?? 0,
+  coveiro: z.coveiro_kills ?? 0,
+  noiva: z.noiva_kills ?? 0,
+  prefeito: z.prefeito_kills ?? 0,
+  quedas: z.downs ?? 0,
+  reanimacoes: z.revives ?? 0,
+  mortes: z.deaths ?? 0,
+  caixao: z.coffin_rolls ?? 0,
+});
+
+/** A player_stats row and a zombie_stats row (either may be missing: all zero) as the API sends them. */
+const totalsOf = (s: Record<string, number | string | undefined>, z: Record<string, number | undefined>): Totals => ({
+  abates: Number(s.kills ?? 0),
+  mortes: Number(s.deaths ?? 0),
+  cabeca: Number(s.headshots ?? 0),
+  passaro: Number(s.groin_kills ?? 0),
+  facadas: Number(s.knife_kills ?? 0),
+  pelasCostas: Number(s.backstabs ?? 0),
+  granadas: Number(s.grenade_kills ?? 0),
+  opressoes: Number(s.humiliations ?? 0),
+  segundosJogados: Number(s.seconds_played ?? 0),
+  participacoes: Number(s.matches_played ?? 0),
+  zumbi: zombieTotals(z),
+});
+
+/** An account that never played: every total at zero. */
+export const emptyTotals = () => totalsOf({}, {});
+
+/** The stickers' own counters (achievement_progress), by key. */
+async function ownCounters(db: Queryable, profileId: string): Promise<Own> {
+  const { rows } = await db.query<{ sticker: string; progress: string }>('SELECT sticker, progress FROM achievement_progress WHERE profile_id = $1', [profileId]);
+  return Object.fromEntries(rows.map((r) => [r.sticker, Number(r.progress)]));
+}
+
 export async function fullProfile(db: Db, accountId: string): Promise<ProfileResponse> {
   const [account, profile, prov] = await Promise.all([getAccount(db, accountId), profileOf(db, accountId), providers(db, accountId)]);
-  const [stats, { armas, arsenal }, parts] = await Promise.all([
+  const [stats, zstats, { armas, arsenal }, parts, album] = await Promise.all([
     db.query('SELECT * FROM player_stats WHERE profile_id = $1', [profile.id]),
+    db.query('SELECT * FROM zombie_stats WHERE profile_id = $1', [profile.id]),
     weapons(db, profile),
     db.query(
       `SELECT session_name, joined_at, left_at, kills, deaths, score, humiliations, account_xp
          FROM session_participation WHERE profile_id = $1 ORDER BY joined_at DESC LIMIT 10`,
       [profile.id],
     ),
+    ownCounters(db, profile.id),
   ]);
   const s = stats.rows[0] ?? {};
   const xp = Number(s.xp ?? 0);
   const lvl = accountLevel(xp);
-  const totais: Totals = {
-    abates: s.kills ?? 0,
-    mortes: s.deaths ?? 0,
-    cabeca: s.headshots ?? 0,
-    passaro: s.groin_kills ?? 0,
-    facadas: s.knife_kills ?? 0,
-    pelasCostas: s.backstabs ?? 0,
-    granadas: s.grenade_kills ?? 0,
-    opressoes: s.humiliations ?? 0,
-    segundosJogados: Number(s.seconds_played ?? 0),
-    participacoes: s.matches_played ?? 0,
-  };
+  const totais = totalsOf(s, zstats.rows[0] ?? {});
   const participacoes: Participation[] = parts.rows.map((r) => ({
     sessao: r.session_name,
     entrada: r.joined_at.toISOString(),
@@ -256,6 +296,9 @@ export async function fullProfile(db: Db, accountId: string): Promise<ProfileRes
     armas,
     arsenal,
     totais,
+    album,
+    destaque: profile.featured_sticker,
+    titulo: profile.title,
     participacoes,
     nomeLiberaEm: libera && libera.getTime() > Date.now() ? libera.toISOString() : null,
     provedores: prov,
@@ -310,6 +353,24 @@ export async function setArsenal(db: Db, accountId: string, raw: unknown): Promi
   return choice;
 }
 
+/**
+ * The showcase: the album sticker shown and the title worn (undefined: unchanged, null: none). Only what the
+ * account has: a sticker stuck in, a page completed (shared/achievements.ts); otherwise 400 figurinha_bloqueada.
+ */
+export async function setShowcase(db: Db, accountId: string, sticker: unknown, title: unknown) {
+  const p = await fullProfile(db, accountId);
+  const states = album(sourcesFromProfile(p), p.album);
+  const pick = (v: unknown, ok: (id: string) => boolean) => {
+    if (v === null) return null;
+    if (typeof v !== 'string' || !ok(v)) throw new HttpError(400, 'figurinha_bloqueada');
+    return v;
+  };
+  const s = sticker === undefined ? p.destaque : pick(sticker, (id) => canFeature(states, id));
+  const t = title === undefined ? p.titulo : pick(title, (id) => titlesOf(states).includes(id));
+  const profile = await profileOf(db, accountId);
+  await db.query('UPDATE player_profile SET featured_sticker = $2, title = $3 WHERE id = $1', [profile.id, s, t]);
+}
+
 // --- Deletion (LGPD) --------------------------------------------------------------------------------------
 
 export async function requestDeletion(db: Queryable, accountId: string) {
@@ -361,11 +422,22 @@ export interface GameProfile {
   weapons: Record<ProgWeapon, { xp: number }>;
   /** The Arsenal choice (sanitized against the levels whenever it's used). */
   arsenal: ArsenalChoice;
+  /** Totals as of the last write (plus the delta, they are the live numbers the album reads). */
+  totals: Totals;
+  /** The stickers' own counters as of the last write. */
+  album: Own;
+  /** The album sticker shown and the title worn (checked when they were chosen). */
+  showcase?: { sticker: string | null; title: string | null };
 }
 
 export async function loadGameProfile(db: Db, accountId: string): Promise<GameProfile> {
   const profile = await profileOf(db, accountId);
-  const [stats, { armas, arsenal }] = await Promise.all([db.query<{ xp: string }>('SELECT xp FROM player_stats WHERE profile_id = $1', [profile.id]), weapons(db, profile)]);
+  const [stats, zstats, { armas, arsenal }, album] = await Promise.all([
+    db.query('SELECT * FROM player_stats WHERE profile_id = $1', [profile.id]),
+    db.query('SELECT * FROM zombie_stats WHERE profile_id = $1', [profile.id]),
+    weapons(db, profile),
+    ownCounters(db, profile.id),
+  ]);
   const w = {} as GameProfile['weapons'];
   for (const k of PROG_WEAPONS) w[k] = { xp: armas[k].xp };
   return {
@@ -377,6 +449,9 @@ export async function loadGameProfile(db: Db, accountId: string): Promise<GamePr
     xp: Number(stats.rows[0]?.xp ?? 0),
     weapons: w,
     arsenal,
+    totals: totalsOf(stats.rows[0] ?? {}, zstats.rows[0] ?? {}),
+    album,
+    showcase: { sticker: profile.featured_sticker, title: profile.title },
   };
 }
 
@@ -394,7 +469,52 @@ export interface ProgressDelta {
   humiliations: number;
   secondsPlayed: number;
   score: number;
+  /** Zumbi mode, apart from the player-vs-player numbers above (table zombie_stats). */
+  zumbi: ZombieDelta;
+  /** The stickers' own counters (table achievement_progress): totals to add, and records to keep the highest of. */
+  album: { add: Own; max: Own };
 }
+
+/** Zumbi stats since the last write. `bestWave` is the highest wave reached (kept as a maximum, not added). */
+export interface ZombieDelta {
+  matches: number;
+  wins: number;
+  bestWave: number;
+  waves: number;
+  kills: number;
+  headshots: number;
+  groinKills: number;
+  knifeKills: number;
+  grenadeKills: number;
+  bosses: number;
+  coveiroKills: number;
+  noivaKills: number;
+  prefeitoKills: number;
+  downs: number;
+  revives: number;
+  deaths: number;
+  coffinRolls: number;
+}
+
+export const emptyZombieDelta = (): ZombieDelta => ({
+  matches: 0,
+  wins: 0,
+  bestWave: 0,
+  waves: 0,
+  kills: 0,
+  headshots: 0,
+  groinKills: 0,
+  knifeKills: 0,
+  grenadeKills: 0,
+  bosses: 0,
+  coveiroKills: 0,
+  noivaKills: 0,
+  prefeitoKills: 0,
+  downs: 0,
+  revives: 0,
+  deaths: 0,
+  coffinRolls: 0,
+});
 
 export const emptyDelta = (): ProgressDelta => ({
   accountXp: 0,
@@ -409,6 +529,8 @@ export const emptyDelta = (): ProgressDelta => ({
   humiliations: 0,
   secondsPlayed: 0,
   score: 0,
+  zumbi: emptyZombieDelta(),
+  album: { add: {}, max: {} },
 });
 
 export async function openParticipation(db: Db, profileId: string, sessionName: string): Promise<string> {
@@ -439,6 +561,40 @@ export async function flushProgress(db: Db, profileId: string, participationId: 
         `INSERT INTO weapon_progress (profile_id, weapon, xp) VALUES ($1, $2, $3)
          ON CONFLICT (profile_id, weapon) DO UPDATE SET xp = weapon_progress.xp + EXCLUDED.xp`,
         [profileId, w, d.weaponXp[w]],
+      );
+    }
+    const z = d.zumbi;
+    if (Object.values(z).some((v) => v !== 0)) {
+      // An upsert: the row is made on the first zumbi write.
+      await c.query(
+        `INSERT INTO zombie_stats AS s (profile_id, matches, wins, best_wave, waves, kills, headshots, groin_kills, knife_kills,
+                grenade_kills, bosses, coveiro_kills, noiva_kills, prefeito_kills, downs, revives, deaths, coffin_rolls)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+         ON CONFLICT (profile_id) DO UPDATE SET
+                matches = s.matches + EXCLUDED.matches, wins = s.wins + EXCLUDED.wins,
+                best_wave = GREATEST(s.best_wave, EXCLUDED.best_wave), waves = s.waves + EXCLUDED.waves,
+                kills = s.kills + EXCLUDED.kills, headshots = s.headshots + EXCLUDED.headshots,
+                groin_kills = s.groin_kills + EXCLUDED.groin_kills, knife_kills = s.knife_kills + EXCLUDED.knife_kills,
+                grenade_kills = s.grenade_kills + EXCLUDED.grenade_kills, bosses = s.bosses + EXCLUDED.bosses,
+                coveiro_kills = s.coveiro_kills + EXCLUDED.coveiro_kills, noiva_kills = s.noiva_kills + EXCLUDED.noiva_kills,
+                prefeito_kills = s.prefeito_kills + EXCLUDED.prefeito_kills, downs = s.downs + EXCLUDED.downs,
+                revives = s.revives + EXCLUDED.revives, deaths = s.deaths + EXCLUDED.deaths,
+                coffin_rolls = s.coffin_rolls + EXCLUDED.coffin_rolls, updated_at = now()`,
+        [profileId, z.matches, z.wins, z.bestWave, z.waves, z.kills, z.headshots, z.groinKills, z.knifeKills, z.grenadeKills, z.bosses, z.coveiroKills, z.noivaKills, z.prefeitoKills, z.downs, z.revives, z.deaths, z.coffinRolls],
+      );
+    }
+    // The stickers' own counters, a row per key (made on the first write): totals added, records the highest.
+    for (const [counts, set] of [
+      [d.album.add, 'progress = a.progress + EXCLUDED.progress'],
+      [d.album.max, 'progress = GREATEST(a.progress, EXCLUDED.progress)'],
+    ] as const) {
+      const keys = Object.keys(counts);
+      if (!keys.length) continue;
+      await c.query(
+        `INSERT INTO achievement_progress AS a (profile_id, sticker, progress)
+         SELECT $1, k, v FROM unnest($2::text[], $3::bigint[]) AS t(k, v)
+         ON CONFLICT (profile_id, sticker) DO UPDATE SET ${set}, updated_at = now()`,
+        [profileId, keys, keys.map((k) => counts[k])],
       );
     }
     if (arsenal) await c.query('UPDATE player_profile SET loadout = $2 WHERE id = $1', [profileId, JSON.stringify(arsenal)]);

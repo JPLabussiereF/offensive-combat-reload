@@ -33,7 +33,7 @@ Porta de entrada do cofre. Ele explica **o que existe no jogo, por que existe, c
 
 | Área | Índice / nota de entrada |
 |---|---|
-| 01 · Visão e design | [[Game Concept]], [[Core Pillars]], [[Core Loop]], [[Game Rules]], [[Progression]] |
+| 01 · Visão e design | [[Game Concept]], [[Core Pillars]], [[Core Loop]], [[Game Rules]], [[Progression]], [[Achievements]] |
 | 02 · Gameplay e mecânicas | [[Mechanics Index]] |
 | 03 · Modos de jogo | [[Game Modes Index]] |
 | 04 · Mundo e mapas | [[Maps Index]] |

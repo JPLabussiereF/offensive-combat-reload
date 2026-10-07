@@ -176,7 +176,7 @@ O progresso fica em memória no servidor (`LiveAccount`) e o delta é gravado no
 
 ## Notas relacionadas
 
-[[Weapons]] · [[Scoring]] · [[Core Loop]] · [[Economy Design]] · [[Player Data]] · [[Configuration Data]] · [[Inventory UI]]
+[[Weapons]] · [[Scoring]] · [[Core Loop]] · [[Economy Design]] · [[Player Data]] · [[Configuration Data]] · [[Inventory UI]] · [[Achievements]] (álbum de figurinhas, calculado das estatísticas da conta)
 
 ## Código relacionado
 

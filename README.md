@@ -35,6 +35,29 @@ Funciona no navegador do **PC** (USB ou Bluetooth) e do **celular** (Bluetooth: 
 - **Configurações**: sensibilidade do controle e **assistência de mira** (a mesma do celular: desligada por padrão; ligada, a mira desacelera sobre um inimigo e acompanha o movimento dele enquanto você mira, sem nunca puxar a mira de longe; nunca vale para o mouse).
 - No PC, jogar com controle não prende o mouse; um clique no jogo devolve o controle ao mouse. No celular, os botões de toque somem enquanto o controle está em uso e voltam ao tocar na tela.
 
+## Banco e Redis (desenvolvimento)
+
+O modo online, as contas e os testes do servidor precisam do **PostgreSQL 18** e do **Redis 8**. Os dois vêm prontos no `docker-compose.yml`; só é preciso ter o [Docker Desktop](https://www.docker.com/products/docker-desktop/) aberto. O treino offline e o modo contra bots funcionam sem eles.
+
+```bash
+docker compose up -d banco redis    # sobe os dois em segundo plano (voltam sozinhos ao reiniciar o Docker)
+docker compose ps                   # confere: banco "healthy" e redis "running"
+docker compose logs -f banco redis  # acompanha os logs
+docker compose stop banco redis     # para, sem perder os dados
+docker compose down -v              # apaga tudo, inclusive as contas (volume oc-pg)
+```
+
+| Serviço | Endereço no seu computador | Usuário / senha / banco |
+| --- | --- | --- |
+| PostgreSQL | `localhost:5442` | `oc` / `oc` / `oc` (testes usam o banco `oc_teste`) |
+| Redis | `localhost:6392` | sem senha (testes usam o db `1`) |
+
+- As portas ficam presas a `127.0.0.1`, então ninguém de fora acessa. Se 5442 ou 6392 já estiverem em uso, troque com `PG_PORTA` e `REDIS_PORTA` num arquivo `.env` na raiz (o Docker Compose lê esse arquivo) e aponte o jogo para a porta nova com as variáveis `DATABASE_URL` e `REDIS_URL` no terminal (o servidor não lê o `.env`). Por exemplo, com `PG_PORTA=5450` no `.env`, rode no PowerShell `$env:DATABASE_URL="postgres://oc:oc@localhost:5450/oc"; npm run dev:online`.
+- As tabelas são criadas sozinhas: ao iniciar, o servidor aplica as migrations de [server/migrations/](server/migrations/) que ainda não rodaram. `npm test` recria o banco `oc_teste` e limpa o db `1` do Redis a cada execução, sem tocar nos dados do jogo.
+- O Redis roda sem persistência: guarda só limites de tentativas, tickets do WebSocket e links de troca de senha, então reiniciá-lo não perde nada importante.
+- Para olhar o banco: `docker compose exec banco psql -U oc oc` (por exemplo `SELECT display_name, discriminator FROM player_profile;`). Para o Redis: `docker compose exec redis redis-cli`.
+- Moderação (banir, papéis): `npm run admin -- banir "Nome#1234" "motivo" 7d`. Veja [tools/admin.ts](tools/admin.ts).
+
 ## Jogar online
 
 Ao abrir o jogo, a **home** mostra a sua **conta** e três opções. O **sexo do personagem** é escolhido no **Perfil** (masculino ou feminino: a personagem tem cabelo com rabo de cavalo e silhueta própria; todos veem a escolha, online e nos corpos); sem conta, o personagem é o masculino.

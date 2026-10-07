@@ -75,10 +75,15 @@ export function afterKill(pos: LadderPos, kind: KillKind, weapon: ProgWeapon | n
   return { pos: { step: pos.step + 1, kills: 0 }, event: 'advanced' };
 }
 
-/** The victim's position after dying: a stab sends them one step down and they lose the step's kills. */
+/**
+ * The victim's position after dying: a stab takes one kill away. With none on the step, it takes the last one of
+ * the step below (back to that weapon, one kill short of climbing again); at the very bottom, nothing to lose.
+ */
 export function afterDeath(pos: LadderPos, kind: KillKind): LadderPos {
   if (kind !== 'knife') return pos;
-  return { step: Math.max(0, pos.step - 1), kills: 0 };
+  if (pos.kills > 0) return { step: pos.step, kills: pos.kills - 1 };
+  if (pos.step === 0) return pos;
+  return { step: pos.step - 1, kills: killsForStep(pos.step - 1) - 1 };
 }
 
 /** The ladder is consistent with the weapons (checked by the tests): known guns and upgrades, the lightsaber last. */

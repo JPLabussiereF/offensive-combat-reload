@@ -10,11 +10,11 @@ import { MODE_RULES, type GameModeId, type ModeRules } from '@shared/modes';
 import { meleeStats, type GunStats, type Loadout } from '@shared/arsenal';
 import type { ProgWeapon } from '@shared/progression';
 import type { MapId } from '@shared/maps';
-import { explosionDamage, HIT_REGIONS, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
+import { critRegion, explosionDamage, HIT_REGIONS, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
 import { afterDeath, afterKill, GUN_GAME, ladderLoadout, ladderStart, type LadderPos } from '@shared/gunGame';
 import { grenadeDamageToZombie, gunDamageToZombie, isBoss, kindScale, knifeDamageToZombie, startItems, weaponMul, ZOMBIE, zombieLoadout, type ZKind } from '@shared/zombies';
 import { ZombieMatch, type ZombieHost } from '@shared/zombieMatch';
-import { loadoutOf } from './progress';
+import { addZombieStat, loadoutOf, stickerAdd } from './progress';
 import { loadNavmesh } from './navmesh';
 import { EYE, LAG_SLACK, type SPlayer } from './session';
 
@@ -148,6 +148,8 @@ class GunGameMode implements SessionMode {
     this.ladder.set(victim.id, down);
     if (down.step !== before.step) this.host.setLoadout(victim, ladderLoadout(down.step));
     if (!attacker || attacker === victim) return [];
+    // A kill taken away with the knife (album: Esfaqueador).
+    if (down.step < before.step || down.kills < before.kills) stickerAdd(attacker.conn.account, 'esfaqueador');
     const from = this.pos(attacker);
     const { pos, event } = afterKill(from, kind, weapon);
     this.ladder.set(attacker.id, pos);
@@ -156,6 +158,8 @@ class GunGameMode implements SessionMode {
     // The last kill of the ladder: the round is over.
     this.restartAt = this.host.now() + GUN_GAME.restartSeconds * 1000;
     this.host.giveAccountXp(attacker, GUN_GAME.winXp);
+    stickerAdd(attacker.conn.account, 'corredor');
+    if (attacker.deaths === 0) stickerAdd(attacker.conn.account, 'volta-olimpica');
     return [{ t: 'roundEnd', mode: this.id, winner: attacker.id, name: attacker.name, restartAt: this.restartAt }];
   }
 
@@ -222,6 +226,10 @@ class ZombieMode implements SessionMode {
       giveXp: (id, xp) => {
         const p = this.player(id);
         if (p) host.giveAccountXp(p, xp);
+      },
+      stat: (id, s) => {
+        const p = this.player(id);
+        if (p) addZombieStat(p.conn.account, s);
       },
       setLoadout: (id, lo) => {
         const p = this.player(id);
@@ -359,7 +367,7 @@ class ZombieMode implements SessionMode {
     const k = typeof keep === 'number' && Number.isFinite(keep) ? Math.min(1, Math.max(minPenetrationKeep(gun), keep)) : 1;
     const crit = p.potion?.kind === 'critico' && p.potion.until > now;
     const r = region as HitRegion;
-    const dmg = gunDamageToZombie(gun, Math.min(dist, gun.alcanceMaximo), crit && r !== 'virilha' ? 'cabeca' : r, k, weaponMul(m.itemsOf(p.id), gun.arma), isBoss(z.kind));
+    const dmg = gunDamageToZombie(gun, Math.min(dist, gun.alcanceMaximo), critRegion(r, crit), k, weaponMul(m.itemsOf(p.id), gun.arma), isBoss(z.kind));
     m.damage(z.id, p.id, dmg, r === 'cabeca' ? 'head' : r === 'virilha' ? 'groin' : 'gun');
   }
 

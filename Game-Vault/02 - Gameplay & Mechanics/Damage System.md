@@ -78,7 +78,7 @@ dano = max(1, round( danoPorDistância(dist) × multiplicador[região] × keep )
 
 3. **`keep`** (penetração): produto das frações de cada superfície atravessada (madeira 0,6, vidro 0,9, papel 0,95; até 2 superfícies). Menor `keep` possível do rifle = 0,6² = 0,36; da pistola e da submetralhadora (1 superfície, madeira 0,5) = 0,5.
 4. **Virilha ignora tudo**: mata mesmo atravessando madeira.
-5. **Poção do crítico**: enquanto ativa, todo tiro do jogador é calculado como `cabeca` (o acerto continua contando onde caiu para pontos). Ver [[Buffs & Debuffs]].
+5. **Poção do crítico**: enquanto ativa, todo tiro do jogador é calculado como `cabeca` (o acerto continua contando onde caiu para pontos), **exceto a virilha**, que continua morte instantânea. A regra é `critRegion` (`shared/weapons.ts`), usada no servidor (jogadores e zumbis) e no jogo offline (bots e campo de tiro). Até 2026-10-06 a virilha também virava cabeça: o abate contava "No pássaro" mas com dano de cabeça. Ver [[Buffs & Debuffs]].
 
 ## Hitboxes
 
