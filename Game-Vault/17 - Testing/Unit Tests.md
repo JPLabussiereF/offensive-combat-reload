@@ -24,6 +24,7 @@ source_paths:
   - client/tests/arsenalTree.test.ts
   - client/tests/arsenalCanvasLayout.test.ts
   - client/tests/pauseMenu.test.ts
+  - client/tests/damageNumbers.test.ts
   - client/tests/arsenalKnifeStats.test.ts
   - client/ui/arsenalStats.ts
   - client/ui/pauseMenu.ts
@@ -94,6 +95,10 @@ As secundárias da PF-10, 7 casos (6 puros e 1 online, ver [[Integration Tests]]
 ## `client/tests/pauseMenu.test.ts` → [[Menus]]
 
 As regras do menu de pausa (`client/ui/pauseMenu.ts`, puro; PF-11), 21 casos: os **8 casos de lugar × modo** de `pauseContext` (mata-mata online e contra bots, corrida armada online e contra bots, zumbi online com equipe, online sozinho e solo, campo de tiro: chip, cor, linha, aviso vermelho/verde, aba, só consulta, rótulo e texto da saída), a linha do zumbi antes da primeira onda (o título da contagem do HUD no lugar de "Onda 0/12") e alguns em inglês; a **pilha do Esc** (janela → aba → jogo, `backStep`); **quem está na frente** da corrida armada (degrau e abates no degrau; "Você está na frente"; nenhum sem outro jogador nem com o primeiro empatado com o segundo, como no começo da rodada; empate mais abaixo não importa) e a ordem do placar fora da corrida (pontos, abates, menos mortes); a linha **"Mais N melhorias a liberar"** (a próxima e os pontos que faltam, a forma de uma só, nenhuma linha com tudo liberado, inglês); o **nome do mapa na prévia glTF** ("Prévia: arquivo.glb"); e os **grupos da aba Teclas** (toda ação remapeável uma vez, em Movimento, Combate ou Outros). O desenho em DOM (`Screens`, `ArsenalPanel`, as abas) não roda aqui (sem navegador).
+
+## `client/tests/damageNumbers.test.ts` → [[HUD]], [[Damage System]]
+
+Os números de dano flutuantes (`client/ui/damageNumbers.ts`), 12 casos: a **cor** de cada região (corpo amarelo, cabeça laranja, virilha vermelha; com a poção do crítico tudo laranja, menos a virilha) e que o laranja é o mesmo dano de cabeça da fórmula; **um número por alvo** em cada disparo (bagos somados, cor do acerto mais forte, lugar do primeiro bago, ponto copiado), com o pássaro limitado à vida do alvo em vez de 9999; a **animação** (nasce 1,45×, volta a 1× em 12% da vida, some nos últimos 40%, sobe 44 px); e a **camada** sobre um DOM falso (número arredondado com a classe da cor, nada para dano zero, projeção no centro da tela para um ponto à frente, some após 0,7 s, invisível atrás da câmera, no máximo 24 com o mais antigo saindo primeiro).
 
 ## `client/tests/spatial.test.ts` → [[Spatial Audio]]
 
