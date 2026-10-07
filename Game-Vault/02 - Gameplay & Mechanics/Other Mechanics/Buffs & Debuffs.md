@@ -9,13 +9,13 @@ source_paths:
   - shared/appearance.ts
   - client/main.ts
   - client/weapons/weapon.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - server/session.ts
 tags:
   - game
   - gameplay
   - buffs
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Buffs & Debuffs
@@ -85,8 +85,8 @@ Cada efeito guarda o fim (relógio do jogo: simulação offline, servidor online
 - `client/main.ts` — `startBoost`/`endBoost`, `gainHumanity`/`loseHumanity`, `applyPotion`/`drinkPotion`/`endPotion`, `startAim`/`endAim`, `hitCritter`, `buffs()`, `POTION_BUFFS`.
 - `client/weapons/weapon.ts` — `spreadMul`, `recoilMul`.
 - `server/session.ts` — `onPickup`, `onRat`, `onFish`, `onPotion`, `onHit` (crítico), `kill` (limpa efeitos).
-- `shared/maps.ts` — `WITCHES`, `RATS`, `FISH`.
-- `client/world/hauntedTown.ts` — galeria de tiro (`aimBonus`), rato, bruxa.
+- `objetos` dos dados do mapa (`shared/mapData.ts`; online, da versão da sala) — bruxa, ratos e peixes.
+- `client/world/catalog/objects.ts` — galeria de tiro (`aimBonus`), rato, bruxa.
 
 ## Configurações relacionadas
 

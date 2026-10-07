@@ -7,14 +7,15 @@ source_paths:
   - client/audio/sfx.ts
   - client/main.ts
   - client/gameplay/taunt.ts
-  - client/world/blockoutMap.ts
-  - client/world/hauntedTown.ts
+  - client/world/gameMap.ts
+  - shared/data/mapas/rua.json
+  - shared/data/mapas/halloween.json
   - client/world/jardim/lanternas.ts
 tags:
   - game
   - audio
   - music
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Music
@@ -53,7 +54,7 @@ A duração vem da dança (`HUMILIATION.duration` = 3,2 s em `shared/constants.t
 
 - `client/audio/sfx.ts` — `danceMusic`, `iceCream`, `carnivalJingle`, `bell`, `levelUp`, `sadTrombone`.
 - `client/main.ts` — chamada de `danceMusic` ao iniciar a dança.
-- `client/world/blockoutMap.ts`, `client/world/hauntedTown.ts`, `client/world/jardim/lanternas.ts` — jingles de props.
+- `client/world/catalog/vehicles.ts` (caminhão de sorvete), `client/world/catalog/objects.ts` (tiro ao alvo), `client/world/jardim/lanternas.ts` — jingles de props.
 
 ## Ver também
 

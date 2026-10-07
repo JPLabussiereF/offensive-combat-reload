@@ -72,7 +72,7 @@ Lista consolidada da dívida técnica encontrada ao documentar o código (2026-1
 - A coluna `weapon_progress.equipped_level` não é mais escrita; só é lida para derivar a escolha do Arsenal de contas antigas (`legacyChoice`, [[Data Migrations]]).
 - Campos sem uso no esquema: `player_stats.mmr`, `avatar_url`, `bio`, o status `suspended`, as sanções `ranked_ban`/`shadow_ban`. Também `matches_played` conta entradas em sala, não partidas ([[Database]]).
 - `spawnsB` e os spawns de time não são lidos por nenhum modo ([[Spawn Design]], [[Team Deathmatch]]).
-- Os contadores de "segredos" da Vila não são lidos por ninguém. A máquina de refrigerante, o esqueleto do palco e os olhos dos retratos são promessas sem implementação (`client/world/halloween.ts`, `hauntedTown.ts`).
+- Os contadores de "segredos" da Vila não são lidos por ninguém. A máquina de refrigerante, o esqueleto do palco e os olhos dos retratos são promessas sem implementação (`client/world/halloween.ts`, `shared/data/mapas/halloween.json`).
 
 ## Comentários e documentação desatualizados
 

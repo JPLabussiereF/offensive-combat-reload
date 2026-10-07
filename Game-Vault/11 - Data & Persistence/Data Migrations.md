@@ -16,6 +16,9 @@ source_paths:
   - client/ui/home.ts
   - server/migrations/003_melhorias.sql
   - server/migrations/003_melhorias.down.sql
+  - server/migrations/004_mapas.sql
+  - server/migrations/004_mapas.down.sql
+  - server/maps.ts
   - shared/progression.ts
   - server/accounts.ts
   - server/tests/arsenal.test.ts
@@ -46,7 +49,7 @@ O caminho resolve para `<repo>/server/migrations` tanto em dev (`server/db.ts`) 
 
 ### Rollback
 
-Os arquivos `.down.sql` são **rollbacks manuais** (não executados pelo código): `psql -f server/migrations/001_contas.down.sql`. Cada um também apaga sua linha de `schema_migrations`. O `003_melhorias.down.sql` remove a coluna `loadout`, as linhas de `pistola`/`smg` e volta o CHECK, mas **não** desfaz o aumento de XP.
+Os arquivos `.down.sql` são **rollbacks manuais** (não executados pelo código): `psql -f server/migrations/001_contas.down.sql`. Cada um também apaga sua linha de `schema_migrations`. O `003_melhorias.down.sql` remove a coluna `loadout`, as linhas de `pistola`/`smg` e volta o CHECK, mas **não** desfaz o aumento de XP. O `004_mapas.down.sql` apaga as tabelas de mapas, `auth_event.actor_id` e `session_participation.map_id` e volta a descrição do moderador; os arquivos `.glb` em `MAPAS_DIR` ficam no disco.
 
 ### Migrations existentes
 
@@ -54,6 +57,7 @@ Os arquivos `.down.sql` são **rollbacks manuais** (não executados pelo código
 |---|---|
 | `001_contas.sql` | Extensão `citext`; tabelas `account`, `password_credential`, `auth_identity`, `session`, `player_profile`, `display_name_history`, `player_stats`, `weapon_progress`, `session_participation`, `sanction`, `role` (com `admin` e `moderador`), `account_role`, `auth_event` (particionada) e índices |
 | `002_aparencia.sql` | `ALTER TABLE player_profile ADD COLUMN appearance jsonb` |
+| `004_mapas.sql` | Mapas como dados (PF-6): extensão `pg_trgm`; tabelas `map`, `map_version` (imutável por gatilho), `map_asset` e `map_version_asset` ([[Database]]); `auth_event.actor_id`; nova descrição do papel `moderador`; `session_participation.map_id`. Depois de `migrate()`, `seedOfficialMaps` (`server/maps.ts`) cria a versão 1 dos 4 mapas oficiais a partir de `shared/data/mapas/*.json` (ignorando os `*.golden.json`), com a navmesh do Cemitério, se ainda não existirem |
 | `003_melhorias.sql` | Progressão por melhorias e armas secundárias ([[ADR - Progressão por melhorias de arma]]): o CHECK de `weapon_progress.weapon` passa a aceitar `pistola` e `smg`; insere as linhas dessas armas para os perfis existentes; `ALTER TABLE player_profile ADD COLUMN loadout jsonb` (a escolha do Arsenal); **sobe o XP** de rifle, faca e granada para o limiar do nível novo equivalente ao antigo, para ninguém perder o que tinha (rifle e faca 2→2, 3–4→3, 5–6→4, 7→5; granada 2→2, 3→3; ex.: rifle com ≥ 5500 → 7000). A coluna `equipped_level` fica, só para leitura |
 
 Schema detalhado em [[Database]].

@@ -7,7 +7,6 @@ import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { pickSafeSpawn } from './gameplay/spawnPicker';
 import { BISCUIT, CHERRY, GROUP, groups, HEALTH, HUMILIATION, KOI, MOVE, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
-import { PICKUPS } from '@shared/maps';
 import { clampExplosionDamage, computeDamage, explosionDamage, idealTtk, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
 import { eyeHeight, type MoveInput } from '@shared/movement';
 import { CLOSE, FLAG, NET, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
@@ -27,10 +26,10 @@ import { ANIM } from './character/animator';
 import { TuningPanel } from './ui/tuning';
 import { QualityManager } from './render/quality';
 import { createPhysics } from './world/physics';
-import { buildBlockoutMap, type CritterHit, type SpawnPoint } from './world/blockoutMap';
-import { buildDragonGardenMap } from './world/dragonGarden';
-import { buildHauntedTownMap } from './world/hauntedTown';
-import { buildCemeteryMap } from './world/cemetery';
+import type { CritterHit, SpawnPoint } from './world/gameMap';
+import { buildMapFromData, loadOfficialMap } from './world/mapLoader';
+import { fetchMapVersion } from './net/maps';
+import { api } from './net/api';
 import { loadTextureOverrides } from './world/surfaces';
 import { buildGltfMap } from './world/gltfMap';
 import { MapBuilder } from './world/mapBuilder';
@@ -57,7 +56,9 @@ import { BACK_OFFSET, BodySounds, occluderWeight, pathOcclusion, type Vec, type 
 import { Chat } from './ui/chat';
 import { Hud, type Buff, type FeedIcon } from './ui/hud';
 import { Screens } from './ui/menu';
-import { closeReason, gameModeName, showHome } from './ui/home';
+import { closeReason, gameModeName, showHome, type HomeChoice } from './ui/home';
+import { runEditor } from './editor/editor';
+import { editorChoice, handOff, takeHandoff, testChoice } from './editor/launch';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
 import { Arsenal, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
@@ -129,7 +130,21 @@ async function boot() {
 
   // --- Home: the account, then an online session, bots or offline training -------------------------
   screens.hideLoading();
-  const choice = await showHome();
+  // The map editor comes in through the home's choice (the Mapas tab's Editar and Novo mapa) or, between
+  // reloads, its handoff (client/editor/launch.ts): coming back from testing a map, going to test one (the
+  // training range, or the zumbi match on a zumbi-only map), or opening a map's current version again.
+  const handoff = takeHandoff();
+  const tested = handoff?.acao === 'testar' ? await testChoice(handoff) : null;
+  const picked: HomeChoice =
+    handoff?.acao === 'voltar' ? editorChoice(handoff.mapa, handoff) : handoff?.acao === 'abrir' ? editorChoice(handoff.mapa) : (tested?.choice ?? (await showHome()));
+  if (picked.mode === 'editor') {
+    // The editor runs on its own loop: no input, player or HUD; leaving it reloads the page.
+    await runEditor({ ctx, physics, mapa: picked.mapa, rascunho: picked.rascunho });
+    return;
+  }
+  const choice = picked;
+  /** Testing a map from the editor: its draft is the map, and leaving goes back to the editor. */
+  const testing = tested ? handoff : null;
   const online = choice.mode === 'online' ? choice : null;
   const conn = online?.conn ?? null;
   const me = online?.joined.you ?? 0;
@@ -141,15 +156,21 @@ async function boot() {
   const tMap = performance.now();
   // ?mapa=/maps/arquivo.glb loads a map made in Blender over whatever was picked (map makers' preview).
   const mapUrl = new URLSearchParams(location.search).get('mapa');
-  const buildMap = mapUrl
-    ? buildGltfMap(mapUrl, new MapBuilder(physics, ctx.scene), ctx.renderer)
-    : choice.map === 'jardim'
-      ? buildDragonGardenMap(physics, ctx.scene, sfx)
-      : choice.map === 'halloween'
-        ? buildHauntedTownMap(physics, ctx.scene, sfx)
-        : choice.map === 'cemiterio'
-          ? buildCemeteryMap(physics, ctx.scene, sfx)
-          : buildBlockoutMap(physics, ctx.scene, ctx.renderer, sfx);
+  // Online: the version the session plays, downloaded from the server (cached). Offline: the official maps' data
+  // ship with the client (shared/data/mapas), so training and bots work without the server.
+  // A map picked in the Mapas tab for bots or the range (P43) comes at its version from the server, like online.
+  const mapData = tested
+    ? tested.data
+    : mapUrl
+      ? null
+      : online
+        ? await fetchMapVersion(online.joined.session.map, online.joined.session.versao)
+        : choice.versao
+          ? await fetchMapVersion(choice.map, choice.versao)
+          : await loadOfficialMap(choice.map);
+  // An offline match counts as a play of the map (the server counts the online ones itself); a test from the editor doesn't.
+  if (!online && !mapUrl && !tested) api('POST', `/api/mapas/${encodeURIComponent(choice.map)}/jogadas`).catch(() => {});
+  const buildMap = mapData ? buildMapFromData(mapData, { physics, scene: ctx.scene, renderer: ctx.renderer, sfx, modo: 'jogo' }) : buildGltfMap(mapUrl!, new MapBuilder(physics, ctx.scene), ctx.renderer);
   const [map] = await Promise.all([buildMap, textures]);
   const mapBuildMs = performance.now() - tMap;
   if (map.atmosphere) applyAtmosphere(ctx, map.atmosphere);
@@ -296,7 +317,8 @@ async function boot() {
   let bots: BotManager | null = null;
   // Bots route around Amora's bite zone (a little wider than the zone itself). The solo zumbi game builds the
   // mesh the server bakes: the wall's gaps as polygons of their own, for its barricades (shared/barricades.ts).
-  const zombieNavMap = zombieMode ? ZOMBIE.mapas[choice.map] : undefined;
+  // (a glTF preview, ?mapa=, has no data: the cemetery's layout stands in)
+  const zombieNavMap = zombieMode ? (mapData?.zumbi ?? ZOMBIE.mapas.cemiterio) : undefined;
   const nav = botMode ? await NavMap.build(physics, map.dog ? [map.dog.zone.clone().expandByScalar(0.3)] : [], zombieNavMap ? gateAreas(zombieNavMap) : []) : null;
   const playerPos = new THREE.Vector3();
   const playerTarget: Combatant & { yaw: number } = {
@@ -330,7 +352,7 @@ async function boot() {
   let zombies: ZombieClient | null = null;
   let localZombies: LocalZombies | null = null;
   if (zombieMode) {
-    const zmap = ZOMBIE.mapas[choice.map] ?? ZOMBIE.mapas.cemiterio!;
+    const zmap = zombieNavMap!;
     let link: ZombieLink | null = null;
     if (conn) {
       link = { online: true, send: (m) => conn.send(m), on: (type, fn) => conn.on(type, fn), now: () => conn.serverNow(), renderTime: () => conn.serverNow() - NET.interpDelayMs };
@@ -384,7 +406,7 @@ async function boot() {
             if (head) effects.burst('star', at, UP, 12);
           },
         },
-        choice.map,
+        zmap,
         online?.joined.zumbi ?? localZombies?.match.sync(),
       );
       // The horde's bodies are built now, on the loading screen, not when the first wave comes.
@@ -457,8 +479,8 @@ async function boot() {
   let boostEnds = 0;
   /** Online: when we last asked the server for a pickup (once is enough while it answers). */
   let pickupAsked = 0;
-  /** What each collectible does (cherry or biscuit), from the map's table. */
-  const pickupKind = (id: string) => (mapUrl ? undefined : PICKUPS[choice.map].find((k) => k.id === id)?.kind);
+  /** What each collectible does (cherry or biscuit), from the map's objects. */
+  const pickupKind = (id: string) => mapData?.objetos.coletaveis.find((k) => k.id === id)?.tipo;
   /** A giant rat's humanity (RAT): extra max health until we die. */
   let humanity = false;
   /** Max health: the body's, the cherry's while it lasts and the humanity's. */
@@ -1590,6 +1612,8 @@ async function boot() {
   }
   screens.onExit(t('exitToHome'), () => {
     conn?.close();
+    // Leaving a test goes back to the editor, on the same draft.
+    if (testing) handOff({ ...testing, acao: 'voltar' });
     location.reload();
   });
   // Desktop: clicking the game takes the mouse back (on phones the menu's button resumes).

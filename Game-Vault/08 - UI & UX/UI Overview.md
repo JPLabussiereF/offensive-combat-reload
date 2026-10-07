@@ -9,6 +9,8 @@ source_paths:
   - client/main.ts
   - client/ui/menu.ts
   - client/ui/home.ts
+  - client/ui/maps.ts
+  - client/ui/management.ts
   - client/ui/hud.ts
   - client/ui/strings.ts
   - client/ui/padNav.ts
@@ -34,7 +36,7 @@ Visual: estilo "sticker" (painéis com contorno grosso e sombra dura deslocada),
 | --- | --- | --- |
 | `#game` | canvas do renderizador | [[Rendering Overview]] |
 | `#loading` | `Screens` (`client/ui/menu.ts`) | [[Menus]] — carregamento com dicas |
-| `#home` (`#home-in`: abas `#tab-play`, `#tab-arsenal`, `#tab-profile`, `#tab-settings`; `#home-out`: landing com `#home-auth`) | `showHome` (`client/ui/home.ts`), `auth.ts`, `profile.ts`, `customize.ts` | [[Menus]], [[Matchmaking UI]], [[Flow - First Access]] |
+| `#home` (`#home-in`: abas `#tab-play`, `#tab-maps`, `#tab-arsenal`, `#tab-profile`, `#tab-settings` e, para a equipe, `#tab-management`; `#home-out`: landing com `#home-auth`) | `showHome` (`client/ui/home.ts`), `maps.ts`, `management.ts`, `auth.ts`, `profile.ts`, `customize.ts` | [[Menus]], [[Matchmaking UI]], [[Flow - First Access]], [[Moderation]] |
 | `#menu` | `Screens` | [[Menus]] (início/pausa), [[Settings]], [[Input & Controls]] |
 | `#hud` | `Hud` (`client/ui/hud.ts`) | [[HUD]] |
 | `#scoreboard` (dentro do HUD) | `Scoreboard` | [[Scoreboard]] |

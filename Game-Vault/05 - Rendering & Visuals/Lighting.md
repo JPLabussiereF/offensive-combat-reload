@@ -8,9 +8,9 @@ source_paths:
   - client/render/quality.ts
   - client/render/effects.ts
   - client/world/halloween.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/world/jardim/luzes.ts
-  - client/world/dragonGarden.ts
+  - shared/data/mapas/jardim.json
   - client/world/mapBuilder.ts
   - client/main.ts
   - client/ui/customize.ts
@@ -20,7 +20,7 @@ tags:
   - rendering
   - lighting
   - shadows
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Lighting

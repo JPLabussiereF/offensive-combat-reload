@@ -21,6 +21,9 @@ services:
       SMTP_USUARIO: ${SMTP_USUARIO:-}
       SMTP_SENHA_APP: ${SMTP_SENHA_APP:-}
       SMTP_REMETENTE: ${SMTP_REMETENTE:-}
+      # GLB models uploaded for the maps (editor), one file per SHA-256: kept across rebuilds.
+      MAPAS_DIR: /app/dados/mapas
+    volumes: ['oc-mapas:/app/dados/mapas']
 
   web:
     build: { context: ., target: web }
@@ -54,3 +57,4 @@ services:
 
 volumes:
   oc-pg:
+  oc-mapas:

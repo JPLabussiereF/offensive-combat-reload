@@ -4,6 +4,7 @@ type: mode
 status: documented
 area: game-modes
 source_paths:
+  - server/maps.ts
   - shared/data/zumbi.json
   - shared/zombies.ts
   - shared/zombieMatch.ts
@@ -18,7 +19,7 @@ source_paths:
   - server/navmesh.ts
   - server/app.ts
   - tools/bake-navmesh.ts
-  - client/world/cemetery.ts
+  - shared/data/mapas/cemiterio.json
   - client/zombies/client.ts
   - client/zombies/view.ts
   - client/zombies/coffin.ts
@@ -56,7 +57,7 @@ updated: 2026-10-06
 
 ## Ambientação
 
-- **Onde:** só no Cemitério da Capela (`MODE_RULES.zumbi.maps = ['cemiterio']`), e o cemitério só neste modo (`MAPS.cemiterio.exclusivo = 'zumbi'`: fora das salas, dos seletores e do campo de tiro dos outros modos). Pátio murado de 40 × 36 m em volta de uma capela num pedestal, campo de covas antigas fora do muro, sebe e mata seca em volta. Feito para **ler a horda**: muro de pedra baixa (0,6 m) com grades até 2,4 m (vê-se e atira-se através), covas baixas, lanternas em cada brecha.
+- **Onde:** só em mapas feitos para o modo (`MODE_RULES.zumbi.ownMaps`; o oficial é o Cemitério da Capela, ou uma cópia dele na comunidade), e o cemitério só neste modo (`exclusivo: 'zumbi'` nos dados: fora das salas, dos seletores e do campo de tiro dos outros modos; `modeAllowsMap`). Pátio murado de 40 × 36 m em volta de uma capela num pedestal, campo de covas antigas fora do muro, sebe e mata seca em volta. Feito para **ler a horda**: muro de pedra baixa (0,6 m) com grades até 2,4 m (vê-se e atira-se através), covas baixas, lanternas em cada brecha.
 - **Clima** (o próprio mapa e `client/zombies/ambience.ts`): noite de lua, **névoa verde `#2c3a30` afastada (18–85 m)** para as brechas e o campo continuarem visíveis de qualquer ponto do pátio; numa **onda de chefe** a névoa vai ficando vermelho-sangue.
 - **Som** ([[SFX]], Web Audio procedural): o **sino da capela** toca três vezes a cada onda (mais grave numa onda de chefe), um acorde de órgão quando ela acaba, gemidos dos 6 zumbis mais próximos, **terra rachando e um gemido alto no ponto onde um zumbi vai sair** (3D), o "ka-ching" da caixa registradora a cada dinheiro, a caixinha de música do caixão e um **acorde azedo** quando sai arma danificada, **serrote e martelo** ao erguer barricada, martelada a cada tábua, pancadas e madeira estalando quando a horda bate, rugidos e telegrafias dos chefes, batimento cardíaco quando você está caído.
 - **Os zumbis são os vizinhos** (`client/zombies/looks.ts`), montados com o mesmo sistema de personagens dos jogadores ([[Character Customization]]): pele verde-acinzentada, olhos amarelos ou vermelhos e caídos, cicatrizes, roupas do catálogo. O vizinho de pijama, o turista de camisa havaiana, o mecânico **sem um braço** (modo PCD: sem braço e sem a hitbox dele), o executivo de gravata, a roqueira, a vovó de cardigã. Os chefes ganham adereços próprios: a pá do Coveiro, o véu da Noiva, a faixa de prefeito.
@@ -114,7 +115,7 @@ Zumbis por onda para 1 jogador; com mais gente, × (1 + 0,6 × (jogadores − 1)
 
 ### De onde vem a horda
 
-- Os zumbis **sobem só no campo de covas fora do muro** (24 pontos, `mapas.cemiterio.surgir`), nos 6 mais próximos de alguém que estão a pelo menos 14 m de todo jogador de pé (a altura conta dobrado). Nunca dentro do muro (`zombieProblems` confere os dados; o motor confere o ponto sorteado).
+- Os zumbis **sobem só no campo de covas fora do muro** (24 pontos, `zumbi.surgir` em `shared/data/mapas/cemiterio.json`), nos 6 mais próximos de alguém que estão a pelo menos 14 m de todo jogador de pé (a altura conta dobrado). Nunca dentro do muro (`zombieProblems` confere os dados; o motor confere o ponto sorteado).
 - **Telegrafia** (`zfx 'rise'`): **0,9 s antes** de cada zumbi aparecer, o ponto se acende — disco verde no chão, **duas mãos saindo da terra**, um **feixe de luz verde** de 3,2 m que se vê por cima do muro, terra rachando e um **gemido alto** (3D). Depois o zumbi sai do chão (1,2 s; já pode levar tiro).
 - Eles entram **só pelas brechas** do muro, pela aberta mais curta até o alvo (ver Barricadas).
 - **Setas no HUD**: em volta da mira, uma seta para cada brecha com zumbis chegando (até 10 m fora dela), verde/laranja/vermelha por quantos (1–2 / 3–5 / 6+), com o número, ou o símbolo de tábuas se a brecha está barricada.
@@ -251,7 +252,7 @@ Nenhum limite por onda. Contagem de 15 s, intervalos de 20/25 s, resumo de 15 s.
 
 ## Configurações
 
-Tudo em `shared/data/zumbi.json` (lido por `shared/zombies.ts` como o objeto `ZOMBIE`; os testes encurtam os tempos e preços nele):
+Tudo em `shared/data/zumbi.json`, menos os dados do mapa, que ficam no campo `zumbi` do JSON do mapa (lido por `shared/zombies.ts` como o objeto `ZOMBIE`; os testes encurtam os tempos e preços nele):
 
 | Chave | Valor | O que é |
 |---|---|---|
@@ -269,7 +270,7 @@ Tudo em `shared/data/zumbi.json` (lido por `shared/zombies.ts` como o objeto `ZO
 | `caixa.danificada` | chance por raridade 25/18/12/6%; defeitos 45/45/10%; pente ×0,6, reserva ×0,5, dano ×0,75 | armas danificadas |
 | `barricadas` | 5 tábuas × 150, $300, erguer 2,5 s, repregar 0,8 s, +$10 até $150/onda, alcance 2,4 m, `dano` por tipo | barricadas |
 | `raridades`, `itens`, `inicial` | | o caixão |
-| `mapas.cemiterio` | `dentro` (o muro), 24 pontos de surgimento (fora do muro), o lugar do caixão, onde cada chefe surge, as 5 brechas (`barricadas`: eixo, centro, largura) | o mapa (o construtor do mapa corta o muro com estes dados) |
+| `zumbi` (em `shared/data/mapas/cemiterio.json`) | `dentro` (o muro), 24 pontos de surgimento (fora do muro), o lugar do caixão, onde cada chefe surge, as 5 brechas (`barricadas`: eixo, centro, largura) | o mapa (o muro foi cortado nas brechas na conversão; `ZOMBIE.mapas.cemiterio`; `checkZombieMap`) |
 | `MODE_RULES.zumbi` | `weapons: 'mode'`, `lockedLoadout`, `grenades`, sem XP de arma, `rounds`, `bots` (jogo solo), `coop`, `maps: ['cemiterio']` | `shared/modes.ts` |
 | Sala fixa | `zumbi-cemiterio` | `server/app.ts` |
 
@@ -284,7 +285,7 @@ Tudo em `shared/data/zumbi.json` (lido por `shared/zombies.ts` como o objeto `ZO
 - `shared/barricades.ts`: as brechas (geometria: `gapFrame`, `inGap`, `atGap`, `inReach`, `insideWall`; as caixas e flags da navmesh: `gateAreas`, `gateFlag`, `WALK_FLAG`) e as regras das tábuas (`buildBarricade`, `nailBoard`, `hitBarricade`, `boardDamage`, `smashesThrough`).
 - `shared/zombieMatch.ts`: o motor da partida (`ZombieMatch`): ondas com telegrafia de surgimento, zumbis numa `Crowd` do Detour com dois filtros (contornar / atravessar barricadas), ataques e arrombamento, chefes, cuspes e ondas de choque, o caixão, as barricadas (`barricadeWork`, `tickWork`), caído/reanimar, resumo. Roda no servidor e no navegador (solo).
 - `server/modes.ts` (`ZombieMode`): liga o motor à `Session`, valida `zhit`/`zstab`/granadas contra as posições do servidor (dano com a raridade e o defeito da arma), repassa `barricade`, dá o XP. `server/navmesh.ts`: carrega a navmesh pré-gerada. `server/session.ts`: ganchos e o estado `downed`.
-- `client/world/cemetery.ts`: o mapa ([[Map - Cemitério da Capela]]). `tools/bake-navmesh.ts` (`bun run navmesh`) e `shared/data/navmesh/cemiterio.json`: a navmesh do servidor, com as brechas marcadas ([[ADR - Barricadas como polígonos próprios na navmesh]]); `client/ai/navmesh.ts` (`soloNavMeshWithAreas`).
+- `shared/data/mapas/cemiterio.json` (peças em `client/world/catalog/cemetery.ts`): o mapa ([[Map - Cemitério da Capela]]). `tools/bake-navmesh.ts` (`bun run navmesh`) e `shared/data/navmesh/cemiterio.json`: a navmesh do servidor, com as brechas marcadas ([[ADR - Barricadas como polígonos próprios na navmesh]]); `client/ai/navmesh.ts` (`soloNavMeshWithAreas`).
 - `client/zombies/`: `client.ts` (eventos, HUD, `E` no caixão, nas barricadas e para reanimar, setas das brechas, caído, renascimento), `view.ts` (zumbis desenhados e interpolados, hitboxes, telegrafias, a de surgimento com mãos e feixe), `coffin.ts` (o caixão fixo, a placa de danificada), `barricades.ts` (as tábuas, o colisor delas, sons), `looks.ts` (visuais), `local.ts` (o jogo solo: o mesmo motor no navegador), `link.ts` (a interface `ZombieLink`), `ambience.ts` (névoa e a página do caixão na pausa, `flawText`).
 - `client/character/animator.ts`, `client/entities/rig.ts`, `client/entities/avatar.ts`, `client/net/remote.ts`: poses, hitboxes com escala, colega caído.
 - Testes: `server/tests/zombies.test.ts` (regras, motor, servidor real, progressão de armas, chefes, entrar no meio, arma danificada na validação do servidor, barricadas no servidor e sincronia de quem entra no meio), `server/tests/zombieBarricades.test.ts` (mapa exclusivo, brechas na navmesh, barricadas no motor, armas danificadas), `server/tests/progression-modes.test.ts` (matriz com todas as combinações do caixão, danificadas incluídas) e `client/tests/offlineModes.test.ts` (jogo solo, arma danificada e barricada). Ver [[Integration Tests]].
@@ -298,7 +299,7 @@ Tudo em `shared/data/zumbi.json` (lido por `shared/zombies.ts` como o objeto `ZO
 
 ## Limites e próximos passos
 
-- Só um mapa. Outro mapa precisa de `mapas.<id>` no JSON (com o muro e as brechas), de uma navmesh pré-gerada (`BUILDERS` em `tools/bake-navmesh.ts`, `BAKED` em `server/navmesh.ts`), de entrar em `MODE_RULES.zumbi.maps` e de `exclusivo: 'zumbi'` em `MAPS` se for só do modo.
+- Um mapa oficial só. Desde a PF-6 (fase 2), qualquer mapa salvo com `exclusivo: 'zumbi'` e o campo `zumbi` (muro, brechas, caixão, surgimentos) vira mapa do modo: o servidor gera a navmesh ao salvar (`server/mapWorker.ts`) e a guarda com a versão; o editor (fase 3) monta esses dados com marcadores (surgimentos, caixão, chefes, cantos do muro e brechas, que ficam na linha do muro) e um modelo inicial válido ([[ADR - Editor de mapas no jogo]]).
 - O "não há caminho aberto" é decidido pela caixa `dentro` do mapa: vale porque o muro é fechado e as brechas são a única ligação.
 - Zumbis não sobem em lugares fora da navmesh; o caixão e as tábuas têm colisão só para os jogadores (as tábuas são regra do motor). Ver [[Navigation]].
 - Arranhão sem linha de visão: um zumbi encostado no muro alcança um jogador colado do outro lado das grades ("braço pela grade").

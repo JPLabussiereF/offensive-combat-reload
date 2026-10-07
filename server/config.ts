@@ -15,6 +15,8 @@ export const CONFIG = {
    * by this server, by nginx or through Vite's proxy) are always allowed.
    */
   origins: list(process.env.ORIGENS_PERMITIDAS),
+  /** Where the GLB models uploaded for the maps are kept, one file per SHA-256 (a Docker volume in production). */
+  mapAssetsDir: process.env.MAPAS_DIR ?? './dados/mapas',
   discord: {
     clientId: process.env.DISCORD_CLIENT_ID ?? '',
     clientSecret: process.env.DISCORD_CLIENT_SECRET ?? '',

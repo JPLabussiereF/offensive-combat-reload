@@ -22,6 +22,11 @@ const ERRORS: Partial<Record<ApiErrorCode | 'offline', StringKey>> = {
   discord_indisponivel: 'errDiscordUnavailable',
   discord_ja_vinculado: 'errDiscordLinked',
   nao_autorizado: 'errUnauthorized',
+  sem_permissao: 'errNoPermission',
+  nao_encontrado: 'errNotFound',
+  mapa_oculto: 'errNotFound',
+  json_invalido: 'errBadInput',
+  mapa_protegido: 'errProtectedMap',
   offline: 'errOffline',
 };
 
@@ -31,6 +36,7 @@ export const formatDate = (iso: string) => new Date(iso).toLocaleDateString(unde
 export function errorText(err: unknown): string {
   const code = err instanceof ApiError ? err.code : typeof err === 'string' ? err : null;
   if (code === 'cooldown_nome' && err instanceof ApiError && typeof err.extra.liberaEm === 'string') return t('errNameCooldown', { date: formatDate(err.extra.liberaEm) });
+  if (code === 'sem_permissao' && err instanceof ApiError && err.extra.motivo === 'ultimo_admin') return t('errLastAdmin');
   const key = code ? ERRORS[code as ApiErrorCode] : undefined;
   return t(key ?? 'errGeneric');
 }

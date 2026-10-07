@@ -7,9 +7,9 @@ source_paths:
   - client/render/quality.ts
   - client/render/renderer.ts
   - client/world/mapBuilder.ts
-  - client/world/dragonGarden.ts
+  - shared/data/mapas/jardim.json
   - client/world/halloween.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/world/hydrant.ts
   - client/character/character.ts
   - client/main.ts
@@ -17,7 +17,7 @@ tags:
   - performance
   - gpu
   - rendering
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # GPU
@@ -30,7 +30,7 @@ Otimizações que reduzem custo de GPU (pixels, draw calls, sombras, luzes). O p
 - **Sintoma:** muitas draw calls; CPU do driver saturada.
 - **Causa:** cada `Mesh` é uma draw call.
 - **Métrica:** não há número de antes/depois. O F3 mostra `draw calls` e `map.stats` (`pieces`, `meshes`, `triangles`).
-- **Solução:** `MapBuilder` (`client/world/mapBuilder.ts`) junta geometria estática por **(material, célula de 40 m)** com `mergeGeometries` e gera um `Mesh` por lote (`matrixAutoUpdate = false`). Células fora da câmera são descartadas pelo *frustum culling*. Um mapa pode escolher o tamanho da célula: o Jardim do Dragão usa **45 m** porque, segundo o comentário em `dragonGarden.ts`, células de 40 m cortavam a propriedade em 16 pedaços, **dobrando as draw calls**.
+- **Solução:** `MapBuilder` (`client/world/mapBuilder.ts`) junta geometria estática por **(material, célula de 40 m)** com `mergeGeometries` e gera um `Mesh` por lote (`matrixAutoUpdate = false`). Células fora da câmera são descartadas pelo *frustum culling*. Um mapa pode escolher o tamanho da célula: o Jardim do Dragão usa **45 m** porque, segundo o comentário do antigo `dragonGarden.ts` (hoje `ambiente.celula` em `jardim.json`), células de 40 m cortavam a propriedade em 16 pedaços, **dobrando as draw calls**.
 - **Trade-off:** células grandes desenham geometria fora da tela; células pequenas aumentam draw calls. Peças em lote não podem se mover individualmente (adereços animados ficam fora dos lotes).
 - **Como medir novamente:** F3 (`draw calls`, `tris`) em pontos fixos do mapa; `__oc.perf().map`.
 
@@ -79,7 +79,7 @@ Decisão: [[ADR - Qualidade automática com resolução dinâmica]].
 ## 6. Pool fixo de luzes reais (`LightPool`)
 
 - **Problema:** a Vila Assombrada tem muitas velas, lampiões, lareira e lâmpadas; cada `PointLight` encarece todos os shaders, e mudar o número de luzes recompila shaders.
-- **Solução:** `LightPool` (`client/world/halloween.ts`) cria um número **fixo** de `PointLight` (padrão 8; `hauntedTown.ts` usa **10**) e as entrega às fontes mais próximas da câmera (reescolha a cada 0,2 s, com fade). Fontes apagadas (lâmpada atingida) ou fora do alcance + 14 m não concorrem. O comentário diz: "o número de luzes nunca muda, então shaders nunca recompilam, e o custo é o mesmo quantas velas houver".
+- **Solução:** `LightPool` (`client/world/halloween.ts`) cria um número **fixo** de `PointLight` (padrão 8; a Vila e o Cemitério usam **10**, `servicos.luzes` no JSON do mapa) e as entrega às fontes mais próximas da câmera (reescolha a cada 0,2 s, com fade). Fontes apagadas (lâmpada atingida) ou fora do alcance + 14 m não concorrem. O comentário diz: "o número de luzes nunca muda, então shaders nunca recompilam, e o custo é o mesmo quantas velas houver".
 - **Trade-off:** luzes distantes não iluminam de verdade (só o brilho emissivo); troca de luz perceptível ao andar rápido.
 - **Métrica:** não registrada.
 
@@ -98,8 +98,8 @@ Decisão: [[ADR - Pool fixo de luzes reais]].
 ## Código relacionado
 
 - `client/render/quality.ts`, `client/render/renderer.ts`
-- `client/world/mapBuilder.ts`, `client/world/dragonGarden.ts`, `client/world/gltfMap.ts`
-- `client/world/halloween.ts`, `client/world/hauntedTown.ts`, `client/world/hydrant.ts`
+- `client/world/mapBuilder.ts`, `shared/data/mapas/jardim.json`, `client/world/gltfMap.ts`, `client/world/budget.ts`
+- `client/world/halloween.ts`, `shared/data/mapas/halloween.json`, `client/world/hydrant.ts`
 - `client/character/character.ts`
 
 Ver também: [[Lighting]], [[Known Bottlenecks]].

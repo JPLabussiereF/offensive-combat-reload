@@ -1,4 +1,8 @@
-// Fresh test database and Redis db before the run (bunfig.toml preloads this once, before any test file).
+// Fresh test database and Redis db before the run (bunfig.toml preloads this once, before any test file), and
+// the uploaded map models in a temporary folder of their own (never the repository's dados/).
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import pg from 'pg';
 import { Redis } from 'ioredis';
 import { TEST_DATABASE_URL, TEST_REDIS_URL } from './env';
@@ -15,3 +19,4 @@ await c.end();
 const r = new Redis(TEST_REDIS_URL);
 await r.flushdb();
 r.disconnect();
+process.env.MAPAS_DIR = mkdtempSync(join(tmpdir(), 'oc-mapas-teste-'));

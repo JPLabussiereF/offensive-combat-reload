@@ -4,6 +4,8 @@ type: architecture
 status: documented
 area: security
 source_paths:
+  - shared/roles.ts
+  - server/glb.ts
   - server/app.ts
   - server/api.ts
   - server/http.ts
@@ -21,7 +23,7 @@ source_paths:
 tags:
   - game
   - security
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Security Overview
@@ -49,6 +51,9 @@ A segurança do Offensive Combat se apoia em quatro ideias, todas confirmadas no
 | Spam / abuso no chat | Sanitização, 4 de rajada + 1/1,5 s, silêncio por conta | [[Chat]], [[Moderation]] |
 | Trapaça de gameplay | Validação de acertos, cadência, distância, itens, respawn | [[Anti Cheat]] |
 | Conta banida continuar jogando | Banimento revoga sessões e fecha a conexão na hora via Redis | [[Moderation]] |
+| Moderador agindo sobre admin, escalada de papel | Regras puras de `shared/roles.ts`, papéis lidos do banco a cada pedido, auditoria com `actor_id`, matriz de testes | [[ADR - Papéis da equipe conferidos no servidor]] |
+| Upload de GLB malicioso | Cabeçalho glTF 2 e parse com `@gltf-transform/core`; nada fora do arquivo (sem URI externa); só extensões que o carregador aceita (sem Draco); textura até 2048 px; até 2000 nós; até 10 MB; nome pelo SHA-256; limite de envios e cota por conta; servido com `Content-Type: model/gltf-binary` e `nosniff` (`server/glb.ts`) | [[Anti Exploit]] |
+| Mapa que trava o servidor ou aponta para fora | Dados validados (`validateMapData`); modelos só do jogo (`/models/`) ou enviados (`/api/mapas/arquivos/<sha256>.glb`); montagem e orçamento numa thread com limite de tempo (`server/mapWorker.ts`) | [[APIs]] |
 | Path traversal nos estáticos | `normalize` + verificação de prefixo `dist/` | [[Validation]] |
 | Exposição de serviços internos | Só nginx publicado; jogo em rede interna; Postgres/Redis em `127.0.0.1` | [[Trust Boundaries]] |
 | Privacidade (LGPD) | Exclusão com carência de 30 dias e anonimização | [[Sensitive Data]] |
@@ -57,13 +62,14 @@ A segurança do Offensive Combat se apoia em quatro ideias, todas confirmadas no
 
 - Gameplay: posição, região do acerto e posição de explosão de granada com pavio são confiadas ([[Problem - Lacunas de validação de gameplay online]]).
 - Não foram encontrados cabeçalhos `Content-Security-Policy`, `X-Frame-Options`, `Strict-Transport-Security` ou `Referrer-Policy` no nginx nem no servidor (busca em `deploy/`, `server/`, `index.html`, `vite.config.ts`).
-- Papéis `admin`/`moderador` existem no banco, mas **nenhuma rota os usa**: a moderação é feita pelo console `tools/admin.ts`, com acesso direto ao banco e ao Redis.
+- O console `tools/admin.ts` age com acesso direto ao banco e ao Redis e grava `by = null`; pela API, a equipe é identificada.
+- A montagem de um mapa ao salvar pode levar segundos com peças caras (por exemplo esferas com muitos segmentos); a thread tem limite de 120 s e é reiniciada, mas não há fila por conta nem limite de salvamentos por hora.
 - O HTTPS depende da infraestrutura (certbot no nginx ou túnel Cloudflare); o servidor confia em `X-Forwarded-Proto` para marcar o cookie como `Secure`. Ver [[Hosting]].
 - Não há verificação de e-mail no cadastro; o e-mail só é marcado como verificado ao usar um link de redefinição.
 
 ## Testes de segurança existentes
 
-`server/tests/auth.test.ts` e `server/tests/game.test.ts` cobrem: atributos do cookie, erro igual para senha errada e e-mail inexistente, limite por IP (6ª tentativa), bloqueio após 10 falhas, logout revoga, cookie forjado recusado, origem estranha recusada, redefinição de senha de uso único que derruba sessões, ticket de uso único / expiração / origem / GET comum, sem sessão sem ticket, nome vindo da conta, conexão nova derruba a antiga, logout e banimento encerram a partida, chat sanitizado, flood de chat e silêncio em partida. Ver [[Testing Overview]].
+`server/tests/auth.test.ts`, `server/tests/game.test.ts`, `server/tests/management.test.ts` (matriz de papéis) e `server/tests/maps.test.ts` (permissões de mapas, GLB grande, quebrado, com URI externa ou extensão recusada) cobrem: atributos do cookie, erro igual para senha errada e e-mail inexistente, limite por IP (6ª tentativa), bloqueio após 10 falhas, logout revoga, cookie forjado recusado, origem estranha recusada, redefinição de senha de uso único que derruba sessões, ticket de uso único / expiração / origem / GET comum, sem sessão sem ticket, nome vindo da conta, conexão nova derruba a antiga, logout e banimento encerram a partida, chat sanitizado, flood de chat e silêncio em partida. Ver [[Testing Overview]].
 
 ## Notas desta área
 

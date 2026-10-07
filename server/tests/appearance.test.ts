@@ -5,7 +5,7 @@ import { bodyStats, DEFAULT_FACE, defaultAppearance, EYE_STYLES, FACE_SHAPES, hi
 import { CLOTH_COLORS } from '@shared/palette';
 import { computeDamage, HIT_REGIONS, LETHAL_DAMAGE, WEAPONS } from '@shared/weapons';
 import type { GameServer } from '../app';
-import { Browser, Player, sleep, startTestServer } from './helpers';
+import { Browser, enterMap, Player, sleep, startTestServer } from './helpers';
 
 describe('regras da aparência', () => {
   it('troca escolhas inválidas pelas padrão, sem aceitar nada fora do catálogo', () => {
@@ -205,14 +205,12 @@ describe('no online', () => {
     const pa = await Player.connect(game, await a.ticket());
     pa.send({ t: 'hello' });
     await pa.next('welcome');
-    pa.send({ t: 'join', session: 'principal' });
-    const ja = await pa.next('joined');
+    const ja = await enterMap(pa, 'rua');
 
     const pv = await Player.connect(game, await v.ticket());
     pv.send({ t: 'hello' });
     await pv.next('welcome');
-    pv.send({ t: 'join', session: 'principal' });
-    const jv = await pv.next('joined');
+    const jv = await enterMap(pv, 'rua');
     const vId = jv.you;
 
     // The newcomer sees everyone's look, and everyone sees the newcomer's.

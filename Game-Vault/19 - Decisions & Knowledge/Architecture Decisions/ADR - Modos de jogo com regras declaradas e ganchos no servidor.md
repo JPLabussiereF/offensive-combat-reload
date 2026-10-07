@@ -41,7 +41,7 @@ Separar **onde se joga** (online, bots, treino) de **que regra se joga** (modo),
 1. `shared/modes.ts`: `GameModeId` e `MODE_RULES` com as diferenças que o cliente também precisa saber — `weapons` (`'arsenal'` | `'mode'`), `lockedLoadout`, `grenades`, `weaponXp`, `rounds`, `bots`.
 2. `server/modes.ts`: interface `SessionMode` com ganchos — `joinLoadout`, `info` (campos extras do jogador, como `ladder`), `combatOpen`, `onJoin`, `onLeave`, `onKill` (roda antes do `kill` ser anunciado e devolve mensagens para depois), `tick`. O modo age pela `ModeHost` (`broadcast`, `setLoadout`, `info`, `giveAccountXp`, `resetForRound`). `createMode(id, host)` escolhe a implementação.
 3. A `Session` recebe o modo no construtor e aplica as regras declaradas (recusa `loadout` com `lockedLoadout`, ignora `grenade` sem granadas, XP de arma só com `weaponXp`, sem dano com `combatOpen()` falso).
-4. Sessões têm modo (`SessionInfo.mode`); o lobby mantém uma sala fixa e sempre uma com vaga **por mapa e por modo**.
+4. Sessões têm modo (`SessionInfo.mode`); o lobby mantinha uma sala fixa e sempre uma com vaga **por mapa e por modo** (substituído na PF-6 por salas sob demanda: [[ADR - Sessões sob demanda por versão do mapa]]).
 5. Offline, o `BotManager` recebe o modo (`game`) e aplica as mesmas funções puras compartilhadas.
 
 ## Como adicionar um modo (ex.: zumbi)
@@ -57,7 +57,7 @@ Separar **onde se joga** (online, bots, treino) de **que regra se joga** (modo),
 
 O terceiro modo previsto chegou ([[Zombie]]) e precisou de inimigos simulados pelo servidor e de um estado "caído". A estrutura continuou a mesma, com acréscimos:
 
-- `ModeRules` ganhou `coop` (todos contra os inimigos do modo: sem fogo amigo, sem opressão de colegas, sem mexer em abates/mortes da conta) e `maps` (os mapas em que o modo é jogado; `modeMaps(id)`). O lobby só cria salas do modo nesses mapas, e `create` num mapa fora da lista cai no primeiro deles.
+- `ModeRules` ganhou `coop` (todos contra os inimigos do modo: sem fogo amigo, sem opressão de colegas, sem mexer em abates/mortes da conta) e `maps` (os mapas em que o modo é jogado; `modeMaps(id)`; na PF-6 virou `ownMaps` com `modeAllowsMap(modo, exclusivo)`, porque os mapas passaram a ser dados). O lobby só cria salas do modo nesses mapas, e `create` num mapa fora da lista cai no primeiro deles.
 - `SessionMode` ganhou ganchos opcionais: `handle` (mensagens que a `Session` não conhece: `zhit`, `zstab`, `box`, `revive`), `blast` (o que uma granada já validada atingiu dos inimigos do modo), `onLethal` (vida a zero: `true` quando o modo assume no lugar da morte), `joinState` (campos extras do `joined`), `snapshot` (mensagem enviada logo depois de cada `snap`) e `dispose`.
 - `ModeHost` ganhou `map`, `damage` (dano dos inimigos do modo, passando pelas regras comuns e pelo `onLethal`), `kill` (uma morte decidida pelo modo, anunciada como as outras), `firedGun` e `fireRate` (as mesmas checagens de tiro da `Session`).
 - `SPlayer.downed`: caído, não morto (não leva dano, não regenera, não acerta nada); o modo decide quando acaba.

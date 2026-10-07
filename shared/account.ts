@@ -2,6 +2,7 @@
 import type { Appearance } from './appearance';
 import type { ArsenalChoice, ProgWeapon } from './progression';
 import type { Sex } from './protocol';
+import type { Papel } from './roles';
 
 export const NAME_RULE = /^[\p{L}\p{N}][\p{L}\p{N} _.-]{1,14}[\p{L}\p{N}]$/u;
 export const NAME_MIN = 3;
@@ -28,6 +29,8 @@ export interface MeResponse {
   provedores: ('senha' | 'discord')[];
   /** Set while the account waits for deletion: when it will be anonymized (ISO date). */
   exclusaoEm: string | null;
+  /** Staff roles (empty: a player). Only what to show: the server checks them again on every request. */
+  papeis: Papel[];
 }
 
 export interface WeaponProgress {
@@ -103,4 +106,55 @@ export type ApiErrorCode =
   | 'nao_encontrado'
   | 'json_invalido'
   | 'corpo_grande_demais'
+  | 'sem_permissao'
+  | 'mapa_invalido'
+  | 'orcamento_excedido'
+  | 'versao_desatualizada'
+  | 'arquivo_grande_demais'
+  | 'glb_invalido'
+  | 'mapa_oculto'
+  | 'cota_excedida'
+  /** One of the four original official maps (OFFICIAL_MAPS): never deleted (P44) nor hidden (P45). */
+  | 'mapa_protegido'
   | 'erro_interno';
+
+// --- Management (admin and moderator, PF-6) ----------------------------------------------------------------
+
+/** A sanction as the Management screen sends it: 'banimento' closes the account, 'silencio' only the chat. */
+export type TipoSancao = 'banimento' | 'silencio';
+export const TIPOS_SANCAO: readonly TipoSancao[] = ['banimento', 'silencio'];
+
+/** One row of GET /api/gestao/contas. */
+export interface ContaResumo {
+  id: string;
+  tag: string;
+  nivel: number;
+  papeis: Papel[];
+  /** Active sanctions. */
+  banida: boolean;
+  silenciada: boolean;
+  status: 'active' | 'suspended' | 'pending_deletion' | 'deleted';
+  criadaEm: string;
+}
+
+export interface SancaoInfo {
+  tipo: TipoSancao | string;
+  motivo: string;
+  inicio: string;
+  fim: string | null;
+  revogadaEm: string | null;
+  /** Tag of the staff member who gave it (null: the console or the system). */
+  por: string | null;
+}
+
+/** GET /api/gestao/contas/:id */
+export interface ContaGestao extends ContaResumo {
+  nome: string;
+  sexo: Sex;
+  aparencia: Appearance;
+  xp: number;
+  armas: Record<ProgWeapon, WeaponProgress>;
+  sancoes: SancaoInfo[];
+  /** What the one asking may do to this account (the server checks it again on every change). */
+  permissoes: { editar: boolean; punir: boolean; conceder: Papel[]; remover: Papel[] };
+}

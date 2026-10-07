@@ -12,8 +12,10 @@ import { afterEach, beforeAll, describe, expect, it } from 'bun:test';
 import { importNavMesh, init, NavMeshQuery, QueryFilter, type NavMesh } from 'recast-navigation';
 import nav from '@shared/data/navmesh/cemiterio.json';
 import { gunStats, sanitizeLoadout } from '@shared/arsenal';
-import { MAP_IDS, MAPS, PVP_MAPS } from '@shared/maps';
-import { GAME_MODE_IDS, MODE_RULES, modeMaps } from '@shared/modes';
+import { OFFICIAL_MAPS } from '@shared/maps';
+import { GAME_MODE_IDS, modeAllowsMap, MODE_RULES } from '@shared/modes';
+import type { MapData } from '@shared/mapData';
+import { officialRuntime } from '../maps';
 import type { ServerMsg, Vec3 } from '@shared/protocol';
 import { gateFlag, insideWall, WALK_FLAG } from '@shared/barricades';
 import {
@@ -144,24 +146,17 @@ function waveOf(kind: 'comum' | 'brutamontes', n: number) {
 }
 
 describe('o mapa do modo zumbi', () => {
-  it('o cemitério é só do modo zumbi, e o modo zumbi é só do cemitério', () => {
-    expect(MAPS.cemiterio.exclusivo).toBe('zumbi');
-    expect(PVP_MAPS).not.toContain('cemiterio');
-    expect([...PVP_MAPS].sort()).toEqual(MAP_IDS.filter((m) => m !== 'cemiterio').sort());
-    expect(modeMaps('zumbi')).toEqual(['cemiterio']);
+  it('o cemitério é só do modo zumbi, e o modo zumbi é só do cemitério', async () => {
+    const data: Record<string, MapData> = {};
+    for (const id of OFFICIAL_MAPS) data[id] = (await officialRuntime(id)).data;
+    expect(data.cemiterio.exclusivo).toBe('zumbi');
+    // A map made for one mode is played in that mode only; the other modes (and their bots) get every open map.
     for (const m of GAME_MODE_IDS) {
-      if (m === 'zumbi') continue;
-      // The other modes (and their bots) get every open map, never a map made for another mode.
-      expect({ m, maps: [...modeMaps(m)] }).toEqual({ m, maps: [...PVP_MAPS] });
-    }
-    // A map made for one mode is listed by that mode only.
-    for (const map of MAP_IDS) {
-      const owner = MAPS[map].exclusivo;
-      if (!owner) continue;
-      expect(GAME_MODE_IDS.filter((m) => modeMaps(m).includes(map))).toEqual([owner]);
+      const maps = OFFICIAL_MAPS.filter((id) => modeAllowsMap(m, data[id].exclusivo));
+      expect({ m, maps }).toEqual({ m, maps: m === 'zumbi' ? ['cemiterio'] : OFFICIAL_MAPS.filter((id) => id !== 'cemiterio') });
     }
     // The mode has its data on every map it's played on; the haunted town's is gone.
-    for (const map of modeMaps('zumbi')) expect(ZOMBIE.mapas[map]).toBeDefined();
+    for (const id of OFFICIAL_MAPS) expect({ id, zumbi: !!data[id].zumbi }).toEqual({ id, zumbi: id === 'cemiterio' });
     expect(Object.keys(ZOMBIE.mapas)).toEqual(['cemiterio']);
     expect(MODE_RULES.zumbi.bots).toBe(true);
   });

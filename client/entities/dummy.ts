@@ -7,7 +7,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { randomAppearance } from '@shared/appearance';
 import { HEALTH, HUMILIATION } from '@shared/constants';
 import type { HitRegion } from '@shared/weapons';
-import type { DummySpot } from '../world/blockoutMap';
+import type { DummySpot } from '../world/gameMap';
 import type { HitboxRegistry, Humiliable, Target } from '../gameplay/targets';
 import { CorpseTimer } from '../ui/corpseTimer';
 import { Avatar } from './avatar';

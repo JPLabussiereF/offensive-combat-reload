@@ -51,7 +51,7 @@ flowchart TD
 ## Passo a passo
 
 1. **Carregamento** (`Screens`, `client/ui/menu.ts`): logo, barra e dicas rotativas. O boot inicializa o Rapier, o renderizador, a qualidade gráfica (avisa se a GPU é por software) e as configurações salvas. Ver [[Loading Performance]].
-2. **Tela inicial** (`showHome`, `client/ui/home.ts`): consulta a conta (`/api/me`) e se o login por Discord está disponível (`/api/auth/provedores`). Sem conta mostra a **landing** (apresentação do jogo, mapas, modos, formulário de conta e jogo rápido contra bots); com conta, as **abas** Jogar, Arsenal, Perfil e Configurações. Ver [[Menus]]. Apaga chaves antigas do `localStorage` (`oc.name`, `oc.sex`, `oc.profile`). Sem servidor, mostra o aviso "Servidor fora do ar…" mas treino e bots continuam disponíveis.
+2. **Tela inicial** (`showHome`, `client/ui/home.ts`): consulta a conta (`/api/me`) e se o login por Discord está disponível (`/api/auth/provedores`). Sem conta mostra a **landing** (apresentação do jogo, mapas, modos, formulário de conta e jogo rápido contra bots); com conta, as **abas** Jogar, Mapas, Arsenal, Perfil e Configurações (e Gerenciamento para admin e moderador). Ver [[Menus]]. Apaga chaves antigas do `localStorage` (`oc.name`, `oc.sex`, `oc.profile`). Sem servidor, mostra o aviso "Servidor fora do ar…" mas treino e bots continuam disponíveis.
 3. **Conta (opcional para offline):**
    - *Criar conta:* e-mail, senha (com dica de regras), nome no jogo; o corpo enviado é o atual (padrão masculino). O nome vira `Nome#1234`.
    - *Entrar:* e-mail e senha; "Esqueci a senha" envia e-mail; o link volta com `#redefinir=<token>` e abre o formulário de nova senha.

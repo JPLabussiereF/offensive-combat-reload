@@ -19,7 +19,7 @@ import { applySpread, traceShot } from '../weapons/hitscan';
 import type { Effects } from '../render/effects';
 import type { Sfx } from '../audio/sfx';
 import type { Physics } from '../world/physics';
-import type { SpawnPoint } from '../world/blockoutMap';
+import type { SpawnPoint } from '../world/gameMap';
 
 const RESPAWN = 5;
 /** Spawn protection (section 6): invulnerable and ignored for 2 s, cancelled by your own first shot. */

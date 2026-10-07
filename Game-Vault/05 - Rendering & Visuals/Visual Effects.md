@@ -17,7 +17,7 @@ source_paths:
   - client/zombies/view.ts
   - client/zombies/barricades.ts
   - client/zombies/coffin.ts
-  - client/world/cemetery.ts
+  - shared/data/mapas/cemiterio.json
   - shared/data/weapons/rifle_padrao.json
   - shared/data/weapons/pistola.json
   - shared/data/weapons/smg.json
@@ -96,7 +96,7 @@ O comportamento de jogo desses objetos (o que acontece ao atirar, sincronizaçã
 - `client/main.ts` (`explosionFx`, `killFx`, `groinFx`, `humiliationFx`, `weapon.shoot`)
 - `client/world/halloween.ts`, `client/world/jardim/luzes.ts`, `client/world/decor.ts`, `client/world/oriental.ts`, `client/world/hydrant.ts`
 - `client/weapons/mines.ts`
-- `client/zombies/view.ts` (telegrafias do modo zumbi), `client/zombies/barricades.ts`, `client/zombies/coffin.ts`, `client/world/cemetery.ts`
+- `client/zombies/view.ts` (telegrafias do modo zumbi), `client/zombies/barricades.ts`, `client/zombies/coffin.ts`, `shared/data/mapas/cemiterio.json`
 
 ## Ver também
 

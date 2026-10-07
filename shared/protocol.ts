@@ -58,15 +58,22 @@ export interface NetState {
   f: number;
 }
 
+/**
+ * A session: open while someone plays in it (sessions open on demand and close when empty). It plays one saved
+ * version of its map: the client downloads that version's data (GET /api/mapas/:map/versoes/:versao).
+ */
 export interface SessionInfo {
   id: string;
   name: string;
   map: MapId;
+  /** The map's version this session plays (it keeps it to the end, even when the map is saved again). */
+  versao: number;
+  /** The map's name in that version. */
+  mapaNome: string;
   /** The game mode it plays (shared/modes.ts). */
   mode: GameModeId;
   players: number;
   max: number;
-  permanent: boolean;
 }
 
 /** Character body chosen on the home screen: masculino / feminino. */
@@ -191,7 +198,15 @@ export type ClientMsg =
   /** Identity comes from the ticket the connection was opened with; name and body come from the account. */
   | { t: 'hello' }
   | { t: 'list' }
-  /** An unknown map falls back to the default one, an unknown mode to mata-mata. */
+  /**
+   * Plays a map in a mode: joins a session of the map's current version with room, or opens one. Refused
+   * ('error') when the map isn't there (hidden, deleted) or the mode isn't played on it.
+   */
+  | { t: 'play'; map: MapId; mode: GameModeId }
+  /**
+   * Opens a new session with a name. A map that isn't there, or where the mode isn't played, falls back to the
+   * mode's first official map; an unknown mode to mata-mata.
+   */
   | { t: 'create'; name: string; map?: MapId; mode?: GameModeId }
   | { t: 'join'; session: string }
   | { t: 'leave' }
@@ -219,13 +234,13 @@ export type ClientMsg =
   | { t: 'respawn'; p: Vec3; yaw: number }
   /** An environmental gag was triggered (e.g. "hidrante:1"); relayed so everyone sees it. */
   | { t: 'prop'; id: string }
-  /** Feet on a collectible of the map (PICKUPS): the server checks it's there and close, then applies it. */
+  /** Feet on a collectible of the map (its data's objetos): the server checks it's there and close, then applies it. */
   | { t: 'pickup'; id: string }
-  /** Shot or stabbed one of the map's fish (FISH): the server checks it's alive and the shooter is near. */
+  /** Shot or stabbed one of the map's fish (objetos.peixes): the server checks it's alive and the shooter is near. */
   | { t: 'fish'; id: string }
-  /** Brought down one of the map's giant rats (RATS): the server checks it's alive and the killer is near. */
+  /** Brought down one of the map's giant rats (objetos.ratos): the server checks it's alive and the killer is near. */
   | { t: 'rat'; id: string }
-  /** Drinks the witch's potion (WITCHES): the server checks the player is near her and draws the effect. */
+  /** Drinks the witch's potion (objetos.bruxa): the server checks the player is near her and draws the effect. */
   | { t: 'potion' }
   /** A line in the session's chat (sanitized and rate-limited by the server). */
   | { t: 'chat'; text: string }
@@ -254,7 +269,8 @@ export type ServerMsg =
   | { t: 'welcome'; id: number; name: string; sessions: SessionInfo[] }
   | { t: 'sessions'; list: SessionInfo[] }
   /**
-   * `pickups`: the map's collectibles still growing back (server time when each is ready again). `fish`: the
+   * `session` says the map and its version (download its data before building it). `pickups`: the map's
+   * collectibles still growing back (server time when each is ready again). `fish`: the
    * fish that aren't a plain live koi (dead until `ready`, and/or golden once back). `rats`: the giant rats
    * still dead (back at `ready`).
    */

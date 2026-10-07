@@ -55,7 +55,7 @@ Definir a escada, como as regras ficam iguais online e offline, o que acontece c
 6. **Rodadas**: vitória → `roundEnd` → 6 s sem dano → `roundStart`: degraus, abates, mortes e pontos zerados, todos renascem já. É o primeiro modo com fim de partida ([[Problem - Partidas sem fim]]).
 7. **XP**: abates **não dão XP de arma** (as armas são da escada, não do Arsenal do jogador); a conta ganha XP normalmente e **+150** ao vencer (`xpVitoria`).
 8. **Entrada no meio**: começa no primeiro degrau.
-9. **Sessões**: cada mapa tem uma sala fixa de corrida armada (`corrida-armada-<mapa>`) e sempre uma com vaga ([[Matchmaking]]).
+9. **Sessões**: cada mapa tinha uma sala fixa de corrida armada (`corrida-armada-<mapa>`) e sempre uma com vaga; desde a PF-6 as salas abrem sob demanda ([[Matchmaking]], [[ADR - Sessões sob demanda por versão do mapa]]).
 10. **Bots**: o `BotManager` aplica a mesma escada; o bot recebe as armas do degrau (`Bot.arm`) e, com o sabre, corre para esfaquear em vez de atirar ([[ADR - Bots como jogadores completos]]).
 
 ## Motivo

@@ -15,7 +15,7 @@ tags:
   - map
   - gltf
   - tooling
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Map - Arena Teste (glTF)
@@ -27,7 +27,7 @@ updated: 2026-10-05
 | Como abrir | `http://localhost:5173/?mapa=/maps/arena_teste.glb` |
 | Construtor | `buildGltfMap` (`client/world/gltfMap.ts`) |
 | Tamanho | 36 × 36 m (x/z −18..18) |
-| Registrado em `MAPS`? | **Não** — não aparece no seletor nem tem sessão online |
+| É um mapa do servidor (`map`)? | **Não** — não aparece no seletor nem tem sessão online |
 | `killY` | −10 (do marcador `KILLVOLUME`) |
 
 ## Visão geral

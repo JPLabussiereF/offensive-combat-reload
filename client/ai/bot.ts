@@ -27,7 +27,7 @@ import type { HitboxRegistry, Target } from '../gameplay/targets';
 import type { Corpse } from '../gameplay/corpse';
 import { Weapon } from '../weapons/weapon';
 import { holdOf } from '../render/weaponModels';
-import type { SpawnPoint } from '../world/blockoutMap';
+import type { SpawnPoint } from '../world/gameMap';
 import type { NavMap } from './navmesh';
 
 const PLAYER_GROUPS = groups(GROUP.PLAYER, GROUP.WORLD | GROUP.BLOCKER);

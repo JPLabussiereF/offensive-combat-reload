@@ -18,6 +18,16 @@ RUN bun install --frozen-lockfile --production && bun pm cache rm
 COPY --from=build /app/build ./build
 COPY --from=build /app/dist ./dist
 COPY server/migrations ./server/migrations
+# The map builder thread (server/mapWorker.ts) runs from source: it builds maps with the client's own loader to
+# check their draw budget and bake a zumbi map's navmesh when one is saved. It needs those sources and the map
+# data the server seeds the official maps from (shared/data).
+COPY tsconfig.json ./
+COPY shared ./shared
+COPY client ./client
+COPY tools/headless.ts ./tools/headless.ts
+COPY server/mapWorker.ts ./server/mapWorker.ts
+# Where the uploaded models go (a volume in docker-compose.yml), writable by the server.
+RUN mkdir -p /app/dados/mapas && chown bun:bun /app/dados/mapas
 USER bun
 EXPOSE 8787
 CMD ["bun", "build/server.js"]

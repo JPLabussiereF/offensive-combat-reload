@@ -14,7 +14,7 @@ tags:
   - backend
   - partida
   - lobby
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # Match Services
@@ -31,13 +31,13 @@ updated: 2026-10-05
 
 Nada disso é persistido: reiniciar o processo encerra todas as partidas (o progresso é gravado antes, ver abaixo).
 
-## Sessões permanentes e temporárias
+## Salas sob demanda
 
-- Na partida do servidor são criadas **três sessões permanentes**, uma por mapa: `principal` (Rua dos Vizinhos — o id vem de quando só havia a rua), `jardim` e `halloween`.
+- Desde a PF-6 (fase 2) não há sala fixa: `play {map, mode}` entra numa sala da versão atual do mapa com vaga ou abre uma; `create` abre uma com nome ([[Matchmaking]]).
 - Qualquer jogador pode **criar** uma sala com nome (sanitizado, até 24 caracteres; padrão "Sala de <nome>") e mapa; mapa desconhecido cai no padrão `rua`.
-- Salas não permanentes vazias são **descartadas** na próxima atualização do lobby.
+- Toda sala vazia é **descartada** na próxima atualização do lobby.
 - Limite de **10 jogadores** por sala (`NET.maxPlayers`): "Sessão lotada.".
-- A lista do lobby é ordenada: permanentes primeiro, depois por número de jogadores. Atualizações em rajada são **agrupadas em 100 ms** antes de enviar `sessions` a quem está no lobby.
+- A lista do lobby é ordenada por número de jogadores, depois pelo nome. Atualizações em rajada são **agrupadas em 100 ms** antes de enviar `sessions` a quem está no lobby.
 
 ## Mensagens tratadas no nível do lobby
 
@@ -87,4 +87,4 @@ Detalhes do modelo de dados: [[Save System]] e [[Player Data]].
 - `server/session.ts` — classe `Session` (tick, broadcast via pub/sub, regras).
 - `server/progress.ts` — `LiveAccount`, delta e mensagens de progresso.
 - `server/accounts.ts` — `openParticipation`, `flushProgress`, `loadGameProfile`.
-- `shared/maps.ts` — `MAPS`, `DEFAULT_MAP`, `isMapId`.
+- `shared/maps.ts` — `OFFICIAL_MAPS`, `DEFAULT_MAP`, `isMapId`; `server/maps.ts` — `MapStore`, `mapRow`, `defaultMapFor`.

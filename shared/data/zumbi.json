@@ -94,27 +94,5 @@
     { "id": "rifleCompleto", "arma": "rifle", "melhorias": ["pontoVermelho", "empunhadura", "pente"], "raridade": "lendario" },
     { "id": "liquidificadorSupremo", "arma": "smg", "melhorias": ["motor", "holo", "tambor", "coronha"], "raridade": "lendario" },
     { "id": "sabre", "arma": "faca", "melhorias": ["sabre"], "raridade": "lendario" }
-  ],
-  "mapas": {
-    "cemiterio": {
-      "_doc": "O muro do cemitério (linha central) cerca 'dentro' (x0, z0, x1, z1); os zumbis surgem só no campo de covas de fora ('surgir') e entram pelas brechas ('barricadas': o eixo ao longo do qual o muro corre, o centro da brecha e a largura livre). O caixão fica sempre no mesmo lugar ('caixa': x, y, z, giro).",
-      "dentro": [-20, -18, 20, 18],
-      "surgir": [
-        [-26, 0, -24.3], [-18, 0, -24.3], [-6, 0, -24.3], [5, 0, -24.3], [18, 0, -24.3], [26, 0, -24.3],
-        [-26, 0, 24.5], [-17, 0, 25.5], [-7, 0, 23.6], [7, 0, 23.6], [17, 0, 25.5], [26, 0, 24.5],
-        [-26, 0, -12], [-26, 0, -3], [-26, 0, 11], [-26, 0, 15],
-        [26, 0, -12], [26, 0, -3], [26, 0, 11], [26, 0, 15],
-        [-27, 0, -21], [27, 0, -21], [-27, 0, 21], [27, 0, 21]
-      ],
-      "caixa": [17.6, 0, -9, 1.5708],
-      "chefe": { "coveiro": [0, 0, -24.3], "noiva": [-26, 0, -8], "prefeito": [-11, 0, 24.5] },
-      "barricadas": [
-        { "id": "portao", "eixo": "x", "centro": [0, 0, 18], "largura": 3 },
-        { "id": "oeste", "eixo": "z", "centro": [-20, 0, 5], "largura": 2.4 },
-        { "id": "leste", "eixo": "z", "centro": [20, 0, 5], "largura": 2.4 },
-        { "id": "noroeste", "eixo": "x", "centro": [-12, 0, -18], "largura": 2.4 },
-        { "id": "nordeste", "eixo": "x", "centro": [12, 0, -18], "largura": 2.4 }
-      ]
-    }
-  }
+  ]
 }

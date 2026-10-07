@@ -58,7 +58,7 @@ Dar ao modo um lugar legível (de onde vem a horda?), compacto, com espaço para
 
 ## Consequências
 
-- `shared/maps.ts` ganhou o conceito de mapa exclusivo (`exclusivo`, `PVP_MAPS`); `modeMaps` usa `PVP_MAPS` como padrão.
+- `shared/maps.ts` ganhou o conceito de mapa exclusivo (`exclusivo`, `PVP_MAPS`); `modeMaps` usa `PVP_MAPS` como padrão. Na PF-6 (fase 2) a mesma regra passou a ler o `exclusivo` dos dados de cada mapa: `modeAllowsMap(modo, exclusivo)` em `shared/modes.ts`, com `MODE_RULES.zumbi.ownMaps` no lugar de `maps: ['cemiterio']`.
 - A Vila Assombrada perdeu os dados e a navmesh do modo (`mapas.halloween`, `navmesh/halloween.json`).
 - O protocolo ganhou `barricade` (cliente), `zbar` e `zbarwork` (servidor) e `ZombieSync.bars` ([[Remote Calls]]).
 - Equilíbrio (preços, vida das tábuas, dano por tipo) só no JSON, sem teste com jogadores reais.

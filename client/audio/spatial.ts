@@ -146,6 +146,23 @@ export interface RoomVolume {
   min: Vec;
   max: Vec;
   enclosure: number;
+  /**
+   * A turned room (a piece turned by the editor, a ROOM_ box turned in its .glb): `min` and `max` are then in
+   * the room's own frame, and this takes a world point there (a 3x4 affine matrix, row by row). Absent: the
+   * box is axis-aligned in the world.
+   */
+  local?: number[];
+}
+
+/** A point in a room's own frame (its `local` matrix), or the point itself for an axis-aligned room. */
+export function roomPoint(r: RoomVolume, p: Vec): Vec {
+  const m = r.local;
+  if (!m) return p;
+  return {
+    x: m[0] * p.x + m[1] * p.y + m[2] * p.z + m[3],
+    y: m[4] * p.x + m[5] * p.y + m[6] * p.z + m[7],
+    z: m[8] * p.x + m[9] * p.y + m[10] * p.z + m[11],
+  };
 }
 
 /** The map's marked rooms: a point inside takes the most enclosed volume containing it. */
@@ -153,9 +170,10 @@ export class RoomVolumes {
   constructor(private readonly rooms: readonly RoomVolume[]) {}
 
   /** How enclosed `p` is from the marked volumes, or null outside all of them. */
-  at(p: Vec): number | null {
+  at(world: Vec): number | null {
     let best: number | null = null;
     for (const r of this.rooms) {
+      const p = roomPoint(r, world);
       if (p.x < r.min.x || p.x > r.max.x || p.y < r.min.y || p.y > r.max.y || p.z < r.min.z || p.z > r.max.z) continue;
       if (best === null || r.enclosure > best) best = r.enclosure;
     }

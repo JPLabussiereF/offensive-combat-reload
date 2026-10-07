@@ -4,7 +4,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { GROUP, groups, HEALTH, MOVE } from '@shared/constants';
 import { configureController, CONTROLLER_OFFSET, createMoveState, eyeHeight, feetY, HALF_STAND, stepMovement, type MoveBody, type MoveInput, type MoveState } from '@shared/movement';
 import type { Physics, SurfaceMaterial } from '../world/physics';
-import type { SpawnPoint } from '../world/blockoutMap';
+import type { SpawnPoint } from '../world/gameMap';
 
 const PLAYER_GROUPS = groups(GROUP.PLAYER, GROUP.WORLD | GROUP.BLOCKER);
 const GROUND_PROBE_GROUPS = groups(GROUP.BULLET, GROUP.WORLD);

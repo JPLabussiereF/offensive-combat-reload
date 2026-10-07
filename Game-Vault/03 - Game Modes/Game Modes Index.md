@@ -17,7 +17,7 @@ source_paths:
   - shared/zombies.ts
   - shared/zombieMatch.ts
   - client/zombies/client.ts
-  - client/world/cemetery.ts
+  - shared/data/mapas/cemiterio.json
 tags:
   - game
   - modes
@@ -75,7 +75,7 @@ As diferenças entre modos estão declaradas em `MODE_RULES` e, no servidor, em 
 
 ## Seleção de mapa
 
-- **Online:** o mapa é o da sessão. Cada mapa tem uma sessão permanente **por modo** jogado nele (o zumbi só no Cemitério da Capela, que nenhum outro modo usa: `MODE_RULES.zumbi.maps` e `PVP_MAPS`), e quem cria uma sessão escolhe o mapa e o modo (um mapa fora da lista do modo cai no primeiro dela).
+- **Online:** o mapa é o da sessão (uma versão salva dele). As salas abrem sob demanda por mapa e modo (`play`); o zumbi só em mapas feitos para ele, como o Cemitério da Capela, que nenhum outro modo usa (`modeAllowsMap`, `MODE_RULES.zumbi.ownMaps`), e quem cria uma sessão escolhe o mapa e o modo (um mapa onde o modo não é jogado cai no primeiro oficial do modo).
 - **Contra bots e treino:** valem o seletor **Mapa** da home (`home-map`), salvo em `localStorage` (`oc.bots`).
 - **Qualquer modo:** `?mapa=/maps/arquivo.glb` na URL carrega um mapa glTF por cima da escolha ([[Map - Arena Teste (glTF)]]).
 - Mapas: [[Map - Rua dos Vizinhos]], [[Map - Jardim do Dragão]], [[Map - Vila Assombrada]] (versus, bots e treino) e [[Map - Cemitério da Capela]] (só zumbi). Ver [[Maps Index]].

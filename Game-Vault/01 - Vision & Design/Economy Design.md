@@ -8,7 +8,7 @@ source_paths:
   - shared/data/weapons/rifle_padrao.json
   - shared/data/progression.json
   - server/migrations/001_contas.sql
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - shared/data/weapons/pistola.json
   - shared/data/weapons/smg.json
   - shared/data/zumbi.json
@@ -54,7 +54,7 @@ O esquema de dados das armas (`WeaponData` em `shared/weapons.ts`) já tem campo
 | `slotsAcessorio` | `mira`, `cano`, `pente`, `empunhadura` | nenhum |
 
 > [!info] Inferência
-> Esses campos e o comentário "section 7 of the design doc" em `shared/weapons.ts` sugerem que o documento de design previa uma moeda do jogo, uma moeda premium, desbloqueio por nível de conta e acessórios de arma. Nada disso está implementado. Em `client/world/hauntedTown.ts`, uma máquina de venda aparece como "a gag for later" (cenário, não loja).
+> Esses campos e o comentário "section 7 of the design doc" em `shared/weapons.ts` sugerem que o documento de design previa uma moeda do jogo, uma moeda premium, desbloqueio por nível de conta e acessórios de arma. Nada disso está implementado. Na Vila Assombrada (peça `maquinaRefrigerante`, `client/world/catalog/furniture.ts`), uma máquina de venda aparece como "a gag for later" (cenário, não loja).
 
 ## Se uma economia for criada
 

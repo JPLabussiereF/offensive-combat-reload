@@ -22,6 +22,16 @@ source_paths:
   - client/weapons/remoteImpact.ts
   - client/tests/oneHandGrip.test.ts
   - client/tests/viewmodelOneHand.test.ts
+  - client/tests/mapConversion.test.ts
+  - client/tests/mapData.test.ts
+  - client/tests/budget.test.ts
+  - client/tests/seeded.test.ts
+  - client/tests/mapPose.test.ts
+  - client/tests/editorHistory.test.ts
+  - client/tests/editorRecovery.test.ts
+  - client/tests/mapsScreen.test.ts
+  - tools/snapshot-mapas.ts
+  - tools/headless.ts
 tags:
   - testes
   - unitarios
@@ -118,6 +128,22 @@ O `Viewmodel` de verdade com um `document` mínimo (só o canvas do clarão do t
 ## `server/tests/progression-modes.test.ts` → [[Weapons]], [[Progression]], [[Game Modes Index]]
 
 A matriz progressão × modos (descrita em [[Integration Tests]]) também é, em parte, unitária: toda combinação de melhorias de toda arma de fogo, da faca e da granada dá atributos finitos e positivos, e todo equipamento que um modo entrega no meio da partida (degraus da escada, combinações de itens do caixão) é válido.
+
+## Mapas como dados (PF-6) → [[World Structure]], [[ADR - Mapas como dados com catálogo de peças]]
+
+Os mapas são montados **sem tela** no Bun (`tools/headless.ts`: canvas falso, `.glb` lidos de `public/` no disco, `Math.random` fixo durante a montagem; os módulos do cliente entram por caminho variável, para o typecheck do servidor não segui-los).
+
+- `client/tests/mapConversion.test.ts`: cada um dos 4 mapas oficiais, montado a partir do JSON pelo carregador, é igual ao seu golden (`shared/data/mapas/<id>.golden.json`, gravado do código original antes da conversão), com tolerância de 1e-6: colisores (forma, posição, giro, tamanho, material, oclusor, `onShot`), ids do `PropBus`, vãos, salas, spawns, bonecos, `killY`, sombra, céu, luzes, lotes e objetos da cena (hash dos triângulos, independente da ordem). E o modo editor: uma peça por grupo, os colisores repartidos entre as peças, nenhum lote fora delas.
+- `client/tests/mapData.test.ts`: `validateMapData` (os oficiais passam; mapas quebrados são recusados com o motivo: tipo desconhecido, parâmetro fora do esquema, id repetido, id do `PropBus` inválido ou repetido, limite por mapa, bruxa sem posição, coletável, rato e arquivo sem par, mapa zumbi sem dados), o esquema do catálogo, um adaptador para cada tipo, as superfícies iguais às do cliente, as peças da bruxa, do rato e do armário batendo com `objetos`, os dados de zumbi do cemitério iguais aos do modo, e o nome, o cartão e o `exclusivo` dos oficiais iguais a `OFFICIAL_INFO` (os seletores da tela inicial).
+- `client/tests/roles.test.ts`: as regras de `shared/roles.ts` (agir sobre, punir, conceder, promover, rebaixar; o último admin fica; ninguém se pune).
+- `client/tests/budget.test.ts`: contagem de chamadas e triângulos (câmera, sombra, grupos de material, instâncias) e os 4 oficiais dentro de 400 chamadas e 750 mil triângulos (o teste imprime os números).
+- `client/tests/seeded.test.ts`: `seeded()` dá os mesmos números de antes e `seeded(r.state)` continua a sequência de `r`.
+- `client/tests/mapPose.test.ts` (P32, [[ADR - Editor de mapas no jogo]]): a pose vira matriz e volta igual; `validateMapData` aceita a pose e recusa uma quebrada; peça sem pose (ou com pose nula) monta idêntica; uma parede girada em ângulo livre nos três eixos tem cada colisor no lugar da pose, os lotes levados, o vão com o centro certo e a porta continua passagem (raio pela porta não bate, a 2 m dela bate); uma sala girada acha o ponto dentro da caixa girada e não o canto da caixa alinhada em volta; `ROOM_` girado guarda o referencial (sem giro, a caixa de sempre); o biscoito de um armário girado fica onde o servidor espera; a luz de uma lanterna de papel girada sai de onde a pose a leva e o recorte de um lago girado vai com a pose (P42); no modo editor, tirar a peça leva colisores, sala e vão, e ela monta de novo igual.
+- `client/tests/editorRecovery.test.ts` (`client/editor/recovery.ts`): o rascunho guardado (registro com data e versão de origem, ou um mapa antigo sem data) e quando ele é oferecido (mais novo que a versão atual; num mapa novo, sempre), a versão sobre a qual o rascunho recuperado salva (P40); "salvar como nova versão mesmo assim" com a versão do 409 (P39); Testar abre o zumbi num mapa exclusivo e o treino nos outros (P41).
+- `client/tests/mapsScreen.test.ts` (`client/ui/mapsRules.ts`, `client/ui/managementRules.ts`): os botões de cada cartão da aba Mapas para o dono, outro jogador, admin, moderador e sem conta (oficial, comunidade, oculto); sem Excluir e Ocultar nos 4 oficiais originais (P44, P45); Contra bots e Campo de tiro só nos mapas abertos e o tipo de partida dos bots (P43); os modos de um mapa aberto e de um exclusivo do zumbi; o endereço da lista (busca por nome ou autor, ordem, página, ocultos só para a equipe); os mapas da tela inicial (oficiais do servidor, mapas das sessões, cartão pedido uma vez); o painel do Gerenciamento pelas permissões (moderador diante de jogador e de admin, a própria conta), a sanção (motivo e duração) e o progresso (só o que mudou, números válidos).
+- `client/tests/editorHistory.test.ts`: desfazer e refazer de peças adicionadas, mudadas, apagadas (várias de uma vez, no lugar certo da lista) e do resto do mapa; o que cada edição manda reconstruir; o limite do histórico; "não salvo"; as teclas (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z); o gizmo (peça livre continua com `p` e `yaw`, inclinada ganha pose e perde ao ficar em pé, peça linear ou fixa só muda a pose, a bruxa leva o seu lugar junto); cada tipo do catálogo vira uma peça nova válida; ids, ids de piada e de objetos sem repetir; rato e bruxa novos e apagados com os seus `objetos`; duplicar; marcadores (pôr, mover, girar, tirar; modelo do zumbi válido, brecha presa ao muro, canto leva as brechas); pontas e vãos de paredes e cercas.
+
+O hash da navmesh do Cemitério (`server/tests/zombies.test.ts`) é refeito a partir do JSON e continua igual.
 
 ## Typecheck
 

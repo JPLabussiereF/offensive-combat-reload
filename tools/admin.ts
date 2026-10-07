@@ -11,7 +11,7 @@
 // In Docker: docker compose exec jogo bun build/admin.js banir "Nome#1234" "motivo" 7d
 import { CONFIG } from '../server/config';
 import { createDb, migrate } from '../server/db';
-import { ban, ModerationError, mute, sanctions, setRole, unban, unmute } from '../server/moderacao';
+import { ban, ModerationError, mute, resolveTag, sanctions, setRole, unban, unmute } from '../server/moderacao';
 import { createRedis } from '../server/redis';
 
 const USAGE = `Uso:
@@ -33,37 +33,39 @@ async function main() {
   const deps = { db: createDb(CONFIG.databaseUrl), redis: createRedis(CONFIG.redisUrl) };
   try {
     await migrate(deps.db);
+    // The console names the account by its tag; the actions take its id.
+    const id = await resolveTag(deps, tag);
     switch (cmd) {
       case 'banir': {
         const [reason, duration] = rest;
         if (!reason || !duration) throw new ModerationError(USAGE);
-        const until = await ban(deps, tag, reason, duration);
+        const until = await ban(deps, id, reason, duration);
         console.log(`${tag} banido ${until ? `até ${fmt(until)}` : 'permanentemente'}. Sessões encerradas.`);
         break;
       }
       case 'desbanir':
-        console.log(`${await unban(deps, tag)} banimento(s) ativo(s) revogado(s) de ${tag}.`);
+        console.log(`${await unban(deps, id)} banimento(s) ativo(s) revogado(s) de ${tag}.`);
         break;
       case 'silenciar': {
         const [reason, duration] = rest;
         if (!reason || !duration) throw new ModerationError(USAGE);
-        const until = await mute(deps, tag, reason, duration);
+        const until = await mute(deps, id, reason, duration);
         console.log(`${tag} silenciado no chat ${until ? `até ${fmt(until)}` : 'permanentemente'}.`);
         break;
       }
       case 'dessilenciar':
-        console.log(`${await unmute(deps, tag)} silêncio(s) ativo(s) revogado(s) de ${tag}.`);
+        console.log(`${await unmute(deps, id)} silêncio(s) ativo(s) revogado(s) de ${tag}.`);
         break;
       case 'papel': {
         const [role] = rest;
         if (!role) throw new ModerationError(USAGE);
         const remove = rest.includes('--remover');
-        await setRole(deps, tag, role, remove);
+        await setRole(deps, id, role, remove);
         console.log(`${tag}: papel ${role} ${remove ? 'removido' : 'concedido'}.`);
         break;
       }
       case 'sancoes': {
-        const r = await sanctions(deps, tag);
+        const r = await sanctions(deps, id);
         console.log(`Papéis: ${r.roles.join(', ') || 'nenhum'}`);
         if (!r.sanctions.length) console.log('Nenhuma sanção.');
         for (const s of r.sanctions) console.log(`- ${s.type}: ${s.reason} | início ${fmt(s.starts_at)} | fim ${fmt(s.expires_at)}${s.revoked_at ? ` | revogada ${fmt(s.revoked_at)}` : ''}`);

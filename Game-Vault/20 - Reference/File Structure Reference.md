@@ -137,9 +137,11 @@ client/
     ├── textures.ts         Texturas procedurais pintadas
     ├── props.ts            PropBus: gags sincronizados
     ├── gltfMap.ts          Mapas/props do Blender (COL_, SPAWN_, MAT_, DUMMY_...)
-    ├── blockoutMap.ts      Mapa "Rua dos Vizinhos" + interface GameMap
-    ├── dragonGarden.ts     Mapa "Jardim do Dragão" (monta os setores de jardim/)
-    ├── hauntedTown.ts      Mapa "Vila Assombrada"
+    ├── gameMap.ts          Interface GameMap (o mapa montado) e tipos ligados
+    ├── mapLoader.ts        loadOfficialMap + buildMapFromData (mapa a partir dos dados)
+    ├── budget.ts           Custo de desenho (chamadas e triângulos) sem GPU
+    ├── catalog/            Um adaptador por tipo de peça (CATALOG) e os sistemas compartilhados
+    ├── conversao/          Construtores antigos gravados como peças (conversão PF-6, só documenta)
     ├── halloween.ts        Peças e gags da Vila (fantasma, bruxa, rato, caldeirão...)
     ├── oriental.ts         Peças orientais (telhados, pavilhões, lanternas...)
     ├── furniture.ts        Móveis e props genéricos
@@ -184,7 +186,8 @@ server/
 shared/
 ├── protocol.ts             NET, FLAG, ClientMsg/ServerMsg, CLOSE, sanitizeName/Chat
 ├── constants.ts            MOVE, HEALTH, SCORE, HUMILIATION, SIM, GROUP, CHERRY, BISCUIT, POTION, RAT, KOI
-├── maps.ts                 Ids de mapa e posições de coletáveis/bruxa/ratos/peixes
+├── maps.ts                 Ids de mapa (MapId), OFFICIAL_MAPS, DEFAULT_MAP
+├── roles.ts                Regras dos papéis da equipe (admin, moderador)
 ├── weapons.ts              Esquema e fórmulas de armas
 ├── movement.ts             Passo de movimento sobre o Rapier
 ├── progression.ts          Níveis e melhorias das armas, ArsenalChoice, PRIMARIES/SECONDARIES

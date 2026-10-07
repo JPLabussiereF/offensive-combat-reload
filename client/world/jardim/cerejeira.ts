@@ -1,4 +1,4 @@
-// The Dragon Cherry tree, in the middle of the house's courtyard (jardim/casa.ts): an old cherry in a raised
+// The Dragon Cherry tree, in the middle of the house's courtyard (conversao/jardimSetores.ts): an old cherry in a raised
 // bed of mossy earth held by a low stone curb. A gnarled trunk whose roots spread over the earth and sink
 // into it, four great limbs reaching out over the courtyard with smaller branches, crowns of blossom at their
 // ends. Red lanterns hang from the limbs and pairs of cherries from the blossom (shot or stabbed, they're
@@ -26,9 +26,10 @@ export interface CherryTree {
   fruit: HangingCherries;
 }
 
-export function dragonCherryTree(c: Ctx, x: number, z: number): CherryTree {
+/** `seed`: the tree's own randomness (the same on every client, whatever is built before it). */
+export function dragonCherryTree(c: Ctx, x: number, z: number, seed = 5150): CherryTree {
   const { b } = c;
-  const rand = seeded(5150);
+  const rand = seeded(seed);
 
   // --- The bed: stone curb, mossy earth (it collides up to where you stand), a few stones -----------
   const curb = new THREE.LatheGeometry(

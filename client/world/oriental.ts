@@ -30,15 +30,25 @@ export const ORIENTAL = {
 export type Rect = { x0: number; z0: number; x1: number; z1: number };
 export type Side = 'n' | 's' | 'e' | 'w';
 
-/** Deterministic PRNG: rocks and trees must collide the same way on every client. */
-export function seeded(seed: number) {
-  return () => {
+/** A seeded PRNG and where it stands: seeded(r.state) goes on with the very numbers r would give next. */
+export interface Seeded {
+  (): number;
+  readonly state: number;
+}
+
+/**
+ * Deterministic PRNG: rocks and trees must collide the same way on every client. Its `state` is what the map
+ * data keeps per piece (Peca.semente), so each piece draws the same numbers wherever it is built.
+ */
+export function seeded(seed: number): Seeded {
+  const next = () => {
     seed |= 0;
     seed = (seed + 0x6d2b79f5) | 0;
     let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+  return Object.defineProperty(next, 'state', { get: () => seed | 0, enumerable: true }) as Seeded;
 }
 
 const corners = (r: Rect): [number, number][] => [
@@ -1023,7 +1033,7 @@ export function dragonMaterial() {
  * sway in the breeze and swing hard when shot (synchronized online as "lanterna:N").
  */
 export class Lanterns {
-  private specs: { hook: THREE.Vector3; drop: number }[] = [];
+  private specs: { hook: THREE.Vector3; drop: number; id?: string }[] = [];
   private bodies!: THREE.InstancedMesh;
   private strings!: THREE.InstancedMesh;
   private ang = new Float32Array(0);
@@ -1037,9 +1047,9 @@ export class Lanterns {
   /** Where each lantern's body is right now (x, y, z per lantern; they swing): for their glow and light. */
   at = new Float32Array(0);
 
-  /** Hangs a lantern from `hook`, its body `drop` meters below. */
-  hang(hook: THREE.Vector3, drop = 0.85) {
-    this.specs.push({ hook: hook.clone(), drop });
+  /** Hangs a lantern from `hook`, its body `drop` meters below; `id`: its PropBus id (default "lanterna:N", N its order here). */
+  hang(hook: THREE.Vector3, drop = 0.85, id?: string) {
+    this.specs.push({ hook: hook.clone(), drop, id });
   }
 
   get count() {
@@ -1066,9 +1076,9 @@ export class Lanterns {
     this.bodies.count = this.strings.count = n;
     this.bodies.frustumCulled = this.strings.frustumCulled = false;
     scene.add(this.bodies, this.strings);
-    this.specs.forEach(({ hook, drop }, i) => {
+    this.specs.forEach(({ hook, drop, id }, i) => {
       const at = new THREE.Vector3(hook.x, hook.y - drop, hook.z);
-      const onShot = props.register(`lanterna:${i}`, () => {
+      const onShot = props.register(id ?? `lanterna:${i}`, () => {
         const a = Math.random() * Math.PI * 2;
         this.vel[i * 2] += Math.cos(a) * 2.6;
         this.vel[i * 2 + 1] += Math.sin(a) * 2.6;

@@ -5,14 +5,14 @@ status: documented
 area: rendering
 source_paths:
   - client/world/halloween.ts
-  - client/world/hauntedTown.ts
+  - shared/data/mapas/halloween.json
   - client/world/jardim/luzes.ts
 tags:
   - adr
   - rendering
   - lighting
   - performance
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # ADR - Pool fixo de luzes reais
@@ -53,7 +53,7 @@ Comentário de `LightPool`: "The number of lights never changes, so shaders neve
 ## Código afetado
 
 - `client/world/halloween.ts` (`LightSpot`, `LightPool`)
-- `client/world/hauntedTown.ts`
+- `shared/data/mapas/halloween.json` e `cemiterio.json` (`servicos.luzes`: 10); `client/world/catalog/services.ts` (o pool é criado pelas peças que dão luz)
 - `client/world/jardim/luzes.ts` (`LanternLights`)
 
 Ver [[Lighting]] e [[Performance Rendering]].
