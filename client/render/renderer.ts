@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ensureShadowMap } from './shadows';
 
 export interface RenderContext {
   renderer: THREE.WebGLRenderer;
@@ -122,6 +123,7 @@ export function createRenderContext(container: HTMLElement): RenderContext {
     render() {
       renderer.info.autoReset = false;
       renderer.info.reset();
+      ensureShadowMap(renderer, sun);
       renderer.clear();
       renderer.render(scene, camera);
       renderer.clearDepth();

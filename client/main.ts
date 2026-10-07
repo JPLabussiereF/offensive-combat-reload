@@ -139,7 +139,7 @@ async function boot() {
     handoff?.acao === 'voltar' ? editorChoice(handoff.mapa, handoff) : handoff?.acao === 'abrir' ? editorChoice(handoff.mapa) : (tested?.choice ?? (await showHome()));
   if (picked.mode === 'editor') {
     // The editor runs on its own loop: no input, player or HUD; leaving it reloads the page.
-    await runEditor({ ctx, physics, mapa: picked.mapa, rascunho: picked.rascunho });
+    await runEditor({ ctx, quality, physics, mapa: picked.mapa, rascunho: picked.rascunho });
     return;
   }
   const choice = picked;

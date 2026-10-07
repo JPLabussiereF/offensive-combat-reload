@@ -71,13 +71,13 @@ export class QualityManager {
     this.applyResolution();
   }
 
-  /** Call before rendering: schedules the shadow map refresh for this frame. */
+  /**
+   * Call before rendering (the match's loop and the map editor's): schedules the shadow map refresh for this
+   * frame. A missing map (first frame, just resized) is asked for by the render itself (ensureShadowMap).
+   */
   beforeRender() {
     this.frame++;
-    // A missing shadow map (first frame, or just resized) must be rendered now: sampling an unallocated
-    // one is a GL error.
-    const missing = this.ctx.renderer.shadowMap.enabled && !this.ctx.sun.shadow.map;
-    if (missing || this.frame % this.preset.shadowEvery === 0) this.ctx.renderer.shadowMap.needsUpdate = true;
+    if (this.frame % this.preset.shadowEvery === 0) this.ctx.renderer.shadowMap.needsUpdate = true;
   }
 
   /** Call every frame; in auto mode trades resolution (then shadows) for frame rate. */

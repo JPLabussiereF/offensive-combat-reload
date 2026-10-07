@@ -12,6 +12,7 @@ import { OFFICIAL_MAPS, isOfficialMap } from '@shared/maps';
 import { MAP_CATALOG } from '@shared/mapCatalog';
 import type { Papel } from '@shared/roles';
 import { applyAtmosphere, type RenderContext } from '../render/renderer';
+import type { QualityManager } from '../render/quality';
 import type { Physics } from '../world/physics';
 import { atmosphereOf, loadOfficialMap } from '../world/mapLoader';
 import { api, fetchMe } from '../net/api';
@@ -39,6 +40,8 @@ import type { MapaResumo, TipoMapa } from '@shared/mapData';
 
 export interface EditorOptions {
   ctx: RenderContext;
+  /** The game's graphics settings: the editor's frames refresh the sun's shadow as the match's do. */
+  quality: Pick<QualityManager, 'beforeRender'>;
   physics: Physics;
   /** The saved version to open (versao 0: the current one), or null for a new map. */
   mapa: EditorMap;
@@ -633,6 +636,8 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     last = now;
     fly.update(dt);
     view.update(dt, camera.position);
+    // The shadow map is refreshed on demand: without this it was never drawn (PF-6 Revisions 01).
+    o.quality.beforeRender();
     ctx.render();
     requestAnimationFrame(frame);
   };
