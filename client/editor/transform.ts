@@ -3,6 +3,8 @@
 // while it's only moved, turned about the vertical and scaled; any other turn, and every move of a 'linear' or
 // 'fixa' piece, goes into its pose (Peca.pose), the rigid transform the loader applies to everything it builds.
 // The witch's spot, a giant rat's and the collectible a piece holds (the server's places) follow the piece.
+// A piece in a group (Peca.pai, Revisions 01) keeps all of that in its group's frame: the handle in the world is
+// the group's frame times the piece's own (`parent` below); a group's handle is its own origin.
 import * as THREE from 'three';
 import type { MapData, Peca, Vec3 } from '@shared/mapData';
 import { MAP_CATALOG } from '@shared/mapCatalog';
@@ -25,8 +27,8 @@ export const placedByPosition = (peca: Peca) => {
   return !!(k && k.transformacao === 'livre' && k.usa?.p);
 };
 
-/** Whether the gizmo may scale it (only kinds with Peca.escala). */
-export const scalable = (peca: Peca) => !!MAP_CATALOG[peca.tipo]?.usa?.escala;
+/** Whether the gizmo may scale it (kinds with Peca.escala; a group, whose scale goes to its children). */
+export const scalable = (peca: Peca) => peca.tipo === 'grupo' || !!MAP_CATALOG[peca.tipo]?.usa?.escala;
 
 /**
  * Where the gizmo's handle sits on a piece before its pose: a 'livre' piece's own place (position, turn about
@@ -34,6 +36,8 @@ export const scalable = (peca: Peca) => !!MAP_CATALOG[peca.tipo]?.usa?.escala;
  */
 export function handleBase(peca: Peca, pivot: THREE.Vector3): THREE.Matrix4 {
   const k = MAP_CATALOG[peca.tipo];
+  // A group is held by its origin: its pose is where it is.
+  if (peca.tipo === 'grupo') return new THREE.Matrix4();
   if (placedByPosition(peca)) {
     const q = new THREE.Quaternion().setFromAxisAngle(UP, k.usa?.yaw ? (peca.yaw ?? 0) : 0);
     const s = k.usa?.escala ? (peca.escala ?? 1) : 1;
@@ -42,10 +46,16 @@ export function handleBase(peca: Peca, pivot: THREE.Vector3): THREE.Matrix4 {
   return new THREE.Matrix4().makeTranslation(pivot.x, pivot.y, pivot.z);
 }
 
-/** The handle in the world: the base carried by the piece's pose. */
-export function handleWorld(peca: Peca, base: THREE.Matrix4): THREE.Matrix4 {
+/** The handle in its group's frame (the world, outside groups): the base carried by the piece's pose. */
+export function handleLocal(peca: Peca, base: THREE.Matrix4): THREE.Matrix4 {
   const m = poseMatrix(peca.pose);
   return m ? m.clone().multiply(base) : base.clone();
+}
+
+/** The handle in the world: its groups' frame (`parent`, none outside groups) times its place in it. */
+export function handleWorld(peca: Peca, base: THREE.Matrix4, parent: THREE.Matrix4 | null = null): THREE.Matrix4 {
+  const local = handleLocal(peca, base);
+  return parent ? parent.clone().multiply(local) : local;
 }
 
 /** A matrix without its scale (rigid). */
@@ -67,9 +77,10 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
 /**
  * The piece once the gizmo put its handle at `world` (having started from `base`, the handle's place without
- * the pose): a new Peca (the old one is left alone).
+ * the pose), inside its groups' frame `parent`: a new Peca (the old one is left alone).
  */
-export function applyHandle(peca: Peca, base: THREE.Matrix4, world: THREE.Matrix4): Peca {
+export function applyHandle(peca: Peca, base: THREE.Matrix4, world: THREE.Matrix4, parent: THREE.Matrix4 | null = null): Peca {
+  if (parent) world = parent.clone().invert().multiply(world);
   const next: Peca = structuredClone(peca);
   const k = MAP_CATALOG[peca.tipo];
   const t = new THREE.Vector3();

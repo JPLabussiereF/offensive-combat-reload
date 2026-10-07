@@ -114,15 +114,15 @@ export class LinearHandles {
     scene.add(this.group);
   }
 
-  /** Shows the handles of a piece (null: none). */
-  show(peca: Peca | null) {
+  /** Shows the handles of a piece (null: none); `frame`: where it builds in the world (its groups' and its own pose), when it's in a group. */
+  show(peca: Peca | null, frame?: THREE.Matrix4 | null) {
     this.peca = peca;
     for (const o of [...this.group.children]) {
       o.removeFromParent();
       (o as THREE.Mesh).geometry.dispose();
     }
     if (!peca) return;
-    this.group.matrix.copy(poseMatrix(peca.pose) ?? new THREE.Matrix4());
+    this.group.matrix.copy(frame !== undefined ? (frame ?? new THREE.Matrix4()) : (poseMatrix(peca.pose) ?? new THREE.Matrix4()));
     this.group.updateMatrixWorld(true);
     for (const h of handlePoints(peca)) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(h.key.startsWith('vao') ? 0.16 : 0.22, 12, 8), h.key.startsWith('vao') ? MAT_HOLE : MAT);

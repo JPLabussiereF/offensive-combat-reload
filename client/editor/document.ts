@@ -23,13 +23,18 @@ export interface Patch {
 
 /** What an applied patch touched. */
 export interface Change {
-  /** Pieces to rebuild (or take away, when they're gone). */
+  /** Pieces to rebuild (or take away, when they're gone): a piece that only moved in the list isn't one. */
   ids: Set<string>;
+  /** Pieces changed places in the list (the Hierarchy's order). */
+  ordem: boolean;
   /** Spawns, objects, zumbi layout or settings changed. */
   resto: boolean;
 }
 
 export const clone = <T>(v: T): T => structuredClone(v);
+
+/** Whether two versions of a piece are the same (only its place in the list may differ). */
+export const samePiece = (a: Peca, b: Peca) => JSON.stringify(a) === JSON.stringify(b);
 
 const REST_KEYS = (d: MapData) => Object.keys(d).filter((k) => k !== 'pecas') as (keyof Rest)[];
 
@@ -53,7 +58,13 @@ export function applyPatch(data: MapData, p: Patch, dir: 'forward' | 'back'): Ch
   }
   const ins = p.pecas.filter((x) => to(x)).sort((a, b) => to(a)!.index - to(b)!.index);
   for (const x of ins) data.pecas.splice(Math.min(to(x)!.index, data.pecas.length), 0, clone(to(x)!.peca));
-  for (const x of p.pecas) ids.add(x.id);
+  let ordem = false;
+  for (const x of p.pecas) {
+    const a = from(x);
+    const b = to(x);
+    if (!(a && b && samePiece(a.peca, b.peca))) ids.add(x.id);
+    if (!a || !b || a.index !== b.index) ordem = true;
+  }
   let resto = false;
   if (p.resto) {
     const target = dir === 'forward' ? p.resto.after : p.resto.before;
@@ -62,7 +73,7 @@ export function applyPatch(data: MapData, p: Patch, dir: 'forward' | 'back'): Ch
     for (const [k, v] of Object.entries(target)) rec[k] = clone(v);
     resto = true;
   }
-  return { ids, resto };
+  return { ids, ordem, resto };
 }
 
 /** The map in the editor: its data, its history and who's told of each change. */
@@ -148,6 +159,41 @@ export class EditorDocument {
     this.commit(p);
   }
 
+  /** Several pieces replaced by new versions of them (same ids, same places), plus the rest: one edit. */
+  editPieces(next: Peca[], rest?: (r: Rest) => void) {
+    const p: Patch = { pecas: [] };
+    for (const peca of next) {
+      const i = this.indexOf(peca.id);
+      if (i >= 0) p.pecas.push({ id: peca.id, before: { index: i, peca: clone(this.data.pecas[i]) }, after: { index: i, peca: clone(peca) } });
+    }
+    if (rest) p.resto = this.restPatch(rest);
+    this.commit(p);
+  }
+
+  /**
+   * The whole list of pieces replaced by `next` (the Hierarchy's edits: pieces reordered, put in or out of
+   * groups, grouped, added or removed at once), as one edit. The patch names only what changed or had to move:
+   * the pieces that keep their order (the longest run of them) stay out of it, so a piece dragged across a big
+   * map doesn't make every other piece part of the edit.
+   */
+  setPieces(next: Peca[], rest?: (r: Rest) => void) {
+    const old = new Map(this.data.pecas.map((q, i) => [q.id, i]));
+    const kept = keptInOrder(next.map((q) => old.get(q.id) ?? -1));
+    const p: Patch = { pecas: [] };
+    const present = new Set<string>();
+    next.forEach((q, j) => {
+      present.add(q.id);
+      const i = old.get(q.id);
+      if (i === undefined) p.pecas.push({ id: q.id, before: null, after: { index: j, peca: clone(q) } });
+      else if (!kept.has(i) || !samePiece(this.data.pecas[i], q)) p.pecas.push({ id: q.id, before: { index: i, peca: clone(this.data.pecas[i]) }, after: { index: j, peca: clone(q) } });
+    });
+    this.data.pecas.forEach((q, i) => {
+      if (!present.has(q.id)) p.pecas.push({ id: q.id, before: { index: i, peca: clone(q) }, after: null });
+    });
+    if (rest) p.resto = this.restPatch(rest);
+    this.commit(p);
+  }
+
   /** Spawns, objects, the zumbi layout or the map's settings, changed by `f` on a copy. */
   editRest(f: (r: Rest) => void) {
     this.commit({ pecas: [], resto: this.restPatch(f) });
@@ -159,6 +205,32 @@ export class EditorDocument {
     f(after);
     return { before, after };
   }
+}
+
+/**
+ * The old places (`seq`, -1 for new pieces) that can stay where they are: the longest increasing run of them
+ * (patience sorting, n log n).
+ */
+export function keptInOrder(seq: number[]): Set<number> {
+  const tails: number[] = [];
+  const tailAt: number[] = [];
+  const prev = new Array<number>(seq.length).fill(-1);
+  seq.forEach((v, j) => {
+    if (v < 0) return;
+    let lo = 0;
+    let hi = tails.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (tails[mid] < v) lo = mid + 1;
+      else hi = mid;
+    }
+    tails[lo] = v;
+    tailAt[lo] = j;
+    prev[j] = lo > 0 ? tailAt[lo - 1] : -1;
+  });
+  const out = new Set<number>();
+  for (let j = tails.length ? tailAt[tails.length - 1] : -1; j >= 0; j = prev[j]) out.add(seq[j]);
+  return out;
 }
 
 // --- Ids ----------------------------------------------------------------------------------------------------
