@@ -8,7 +8,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { pickSafeSpawn } from './gameplay/spawnPicker';
 import { BISCUIT, CHERRY, GROUP, groups, HEALTH, HUMILIATION, KOI, MOVE, POTION, RAT, SCORE, type PotionKind } from '@shared/constants';
 import { MAPS, PICKUPS } from '@shared/maps';
-import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, idealTtk, LETHAL_DAMAGE, type HitRegion } from '@shared/weapons';
+import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, idealTtk, LETHAL_DAMAGE, type HitRegion, type KnifePassive } from '@shared/weapons';
 import { eyeHeight, type MoveInput } from '@shared/movement';
 import { CLOSE, FLAG, NET, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
 import { startLoop } from './core/loop';
@@ -39,7 +39,7 @@ import { LocalPlayer } from './entities/localPlayer';
 import { Avatar } from './entities/avatar';
 import { bodyStats, defaultAppearance } from '@shared/appearance';
 import { Weapon, type WeaponHooks } from './weapons/weapon';
-import { Melee, findMeleeTarget } from './weapons/melee';
+import { Melee, findMeleeTarget, meleeTargets } from './weapons/melee';
 import { GrenadeProjectiles, GrenadeThrower } from './weapons/grenades';
 import { applySpread, offsetDir, traceShot } from './weapons/hitscan';
 import { Taunt } from './gameplay/taunt';
@@ -63,7 +63,7 @@ import { MAX_MINES, Mines } from './weapons/mines';
 import { ArsenalPanel, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
 import { stickerBadge, stickerUpText, titleText } from './ui/album';
 import { GUN_IDS, isKnife, KNIVES, progOf, upgradeAt, type GunId, type KnifeId, type WeaponId } from '@shared/progression';
-import { DEFAULT_LOADOUT, grenadeStats, gunIn, knifeOf, loadoutKnife, sanitizeLoadout, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
+import { DEFAULT_LOADOUT, grenadeStats, gunIn, knifeOf, knifePassive, loadoutKnife, sanitizeLoadout, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import { MODE_RULES, type GameModeId } from '@shared/modes';
 import { FINAL_STEP, killsForStep, ladderLoadout, type LadderPos } from '@shared/gunGame';
 import { ladderTabSub, renderLadderTab, stepName } from './ui/ladder';
@@ -887,6 +887,11 @@ async function boot() {
 
   // --- Weapon progression: each kill's points level up only the weapon that made it ------------------
   let knifeForm: KnifeId = 'faca';
+  /** Our knife's passive (null where the mode hands the knife out), see knifePassive. */
+  let ownPassive: KnifePassive | null = null;
+  /** The rubber chicken's getaway: faster until then. */
+  let rushUntil = -1;
+  let rushMul = 1;
   /**
    * Puts `lo` in our hands: each slot's gun, the knife and the grenade with their upgrades (or only the
    * knife). `tell`: the choice changed here (the Arsenal, where it can change mid-match), so the server hears.
@@ -911,6 +916,8 @@ async function boot() {
     melee.setData(knife);
     viewmodel.setKnife(knife.forma);
     knifeForm = knife.forma;
+    ownPassive = knifePassive(knife.forma, gameMode);
+    player.noFallDamage = ownPassive?.id === 'boia';
     holdSlot(gunIn(lo, slot) ? slot : 'primaria', false);
     grenadeData = grenadeStats(lo.ativas.granada);
     // A mode without grenades (corrida armada): none carried, none coming back. Zumbi: they come back only
@@ -1001,9 +1008,16 @@ async function boot() {
       hitCritter(critter);
       return;
     }
+    sfx.knifeHit();
+    // The lightsaber's sweep: everyone else in reach and in front too.
+    const sweep = ownPassive?.id === 'vuuum' ? meleeTargets(physics, targets(), eye, player.yaw, melee.data.alcance, melee.data.anguloGraus).map((f) => f.target) : [];
+    for (const victim of new Set([target, ...sweep])) stabOne(victim);
+  };
+
+  /** A swing landing on `target`: a zombie, a player (online), a bot or a training dummy. */
+  const stabOne = (target: Target) => {
     tmp.set(target.position.x - eye.x, 0, target.position.z - eye.z).normalize();
     const behind = target.isBehind(eye);
-    sfx.knifeHit();
     effects.burst('star', new THREE.Vector3().copy(target.position).setY(target.position.y + 1.1), UP, 12);
     if (zombies?.isZombie(target)) {
       zombies.stab(target);
@@ -1016,7 +1030,7 @@ async function boot() {
       return;
     }
     if (target instanceof Bot && bots) {
-      const res = bots.hit(target, playerTarget, melee.data.letal ? LETHAL_DAMAGE : 55, { kind: 'knife', behind, w: 'faca' });
+      const res = bots.hit(target, playerTarget, melee.data.letal ? LETHAL_DAMAGE : 55, { kind: 'knife', behind, w: 'faca', knife: knifeForm });
       if (!res.killed && res.dealt > 0) hud.hit('hit');
       return;
     }
@@ -1028,7 +1042,28 @@ async function boot() {
     if (res.killed) {
       onKill(dummy, res, weaponLabel(knifeOf(loadout)), 'knife');
       award(t('knife'), SCORE.knife);
-      if (behind) award(t('backstab'), SCORE.backstab);
+      if (behind) award(t('backstab'), ownPassive?.id === 'tapaGelado' ? ownPassive.costas : SCORE.backstab);
+      knifeKillPassive();
+    }
+  };
+
+  /**
+   * A kill with our knife: its passive. Online the server already gave the spoon's health back (it comes with
+   * the next snapshot); the getaway and the full magazine are ours to apply. The frozen fish's bigger
+   * backstab is in the kill's points.
+   */
+  const knifeKillPassive = () => {
+    const p = ownPassive;
+    if (p?.id === 'coloDeVo') {
+      if (!net) player.health = Math.min(player.maxHealth, player.health + p.vida);
+      hud.notice(t('passiveFx_coloDeVo', { vida: p.vida }));
+    } else if (p?.id === 'fugaEscandalosa') {
+      rushUntil = simTime + p.segundos;
+      rushMul = p.velocidade;
+      hud.notice(t('passiveFx_fugaEscandalosa'));
+    } else if (p?.id === 'lanche' && !bladeOnly) {
+      weapon.fillMag();
+      hud.notice(t('passiveFx_lanche'));
     }
   };
 
@@ -1302,6 +1337,7 @@ async function boot() {
           if (killer === playerTarget) {
             hud.hit('kill');
             killFx(victim.position);
+            if (kind === 'knife') knifeKillPassive();
             for (const a of awards) hud.popup(t(AWARD_TEXT[a.label]), a.value);
             if (kind === 'groin') groinFx(victim.position.clone().setY(victim.position.y + 0.9));
           }
@@ -1374,7 +1410,7 @@ async function boot() {
       const rp = net.players.get(m.id);
       // The rubber chicken's scream, the lightsaber's vwoom and the other knives' sounds carry much farther than a knife's swish.
       const form = rp?.knife.forma ?? 'faca';
-      if (rp) sfx.at({ x: rp.position.x, y: rp.position.y + 1.3, z: rp.position.z }, form === 'faca' ? 'step' : 'normal', (s) => s.meleeSwing(form));
+      if (rp) sfx.at({ x: rp.position.x, y: rp.position.y + 1.3, z: rp.position.z }, rp.knife.passiva.id === 'discreta' ? 'step' : 'normal', (s) => s.meleeSwing(form));
     });
     // Ours too: the mode handed out other weapons (corrida armada's next step); the others draw theirs.
     conn.on('playerLoadout', (m) => (m.id === me ? takeLadderWeapons(sanitizeLoadout(m.lo)) : net.setLoadout(m.id, m.lo)));
@@ -1424,6 +1460,7 @@ async function boot() {
       if (m.attacker === me && m.victim !== me) {
         hud.hit('kill');
         killFx(new THREE.Vector3(...m.corpse.p));
+        if (m.kind === 'knife') knifeKillPassive();
         for (const a of m.awards) hud.popup(t(AWARD_TEXT[a.label]), a.value);
         if (m.kind === 'groin') groinFx(new THREE.Vector3(...m.corpse.p).setY(m.corpse.p[1] + 0.9));
       }
@@ -1867,7 +1904,7 @@ async function boot() {
         sprint: !locked && !melee.swinging && !fireIntent && input.down('sprint'),
         ads: !locked && !bladeOnly && !melee.swinging && !thrower.busy && input.down('ads'),
         yaw: player.yaw,
-        speedMul: (bladeOnly ? 1 : weapon.data.movimento) * body.speedMul * potionSpeed() * (zombies?.speedMul() ?? 1),
+        speedMul: (bladeOnly ? 1 : weapon.data.movimento) * body.speedMul * potionSpeed() * (zombies?.speedMul() ?? 1) * (simTime < rushUntil ? rushMul : 1),
         lunge,
       };
       const ev = player.fixedStep(dt, move, simTime);

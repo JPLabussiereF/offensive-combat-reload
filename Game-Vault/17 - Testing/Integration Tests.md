@@ -13,6 +13,7 @@ source_paths:
   - server/tests/zombies.test.ts
   - server/tests/modes.test.ts
   - server/tests/progression-modes.test.ts
+  - server/tests/knifePassives.test.ts
   - server/tests/zombieBarricades.test.ts
   - tools/bake-navmesh.ts
   - server/app.ts
@@ -105,6 +106,17 @@ Motor com relógio falso (`ZombieMatch` sobre a navmesh assada do cemitério), s
 
 - Uma conta com 7.000 pontos de pistola leva a garrucha com o Gatilho desligado (300/min): o servidor aceita os 8 bagos de cada tiro como acertos próprios, até `(ceil(300/60) + 2) × 8` = 56 num segundo (o limite de uma bala, 7, cortaria até um disparo), e recusa o seguinte. A parte pura do arquivo (ficha, TTK, tiro único na cabeça) está em [[Unit Tests]].
 
+### `knifePassives.test.ts` — passivas das facas no servidor
+
+Cada caso numa sala nova de mata-mata, com contas que têm os pontos de faca para escolher qualquer faca ([[ADR - Passivas das facas e Mão Leve]]):
+
+- a faca escolhida chega no equipamento;
+- **Colo de Vó:** depois de levar dois tiros, o dono da colher esfaqueia alguém e o `snap` seguinte traz a vida +50 (até o máximo);
+- **Tapa Gelado:** pelas costas com o peixe, o prêmio `backstab` vale 100; com a faca de cozinha, 50;
+- **Boia:** com o macarrão, um `selfDamage` de queda não gera `damage` (a mordida do cachorro gera); com a faca de cozinha, a queda machuca;
+- **Vuuum:** dois `stab` do mesmo golpe do sabre matam os dois; com a faca de cozinha, o segundo é recusado até passar o intervalo;
+- um golpe do sabre 300 ms depois do primeiro já é outro golpe e espera o intervalo.
+
 ### `progression-modes.test.ts` — matriz progressão × modos
 
 Sem rede nem banco: uma `Session` real (com os ganchos reais de `server/modes.ts`) sobre sockets falsos e relógio falso, tudo síncrono (~0,3 s). Para **todo modo de `GAME_MODE_IDS`** (um modo novo entra sozinho) × contas com cada arma de `PRIMARIES` (os sete rifles)/`SECONDARIES` em cada nível (com pontos para liberá-la), com as opcionais desligadas, cada uma ligada e todas ligadas (mais faca, granada, conta nova, conta no máximo e um cliente pedindo o que não tem):
@@ -125,6 +137,6 @@ Sem rede nem banco: uma `Session` real (com os ganchos reais de `server/modes.ts
 ## Código relacionado
 
 - `server/tests/helpers.ts`, `server/tests/preload.ts`, `server/tests/env.ts`
-- `server/tests/auth.test.ts`, `server/tests/game.test.ts`, `server/tests/appearance.test.ts`, `server/tests/modes.test.ts`, `server/tests/zombies.test.ts`, `server/tests/progression-modes.test.ts`, `server/tests/secondaries.test.ts`
+- `server/tests/auth.test.ts`, `server/tests/game.test.ts`, `server/tests/appearance.test.ts`, `server/tests/modes.test.ts`, `server/tests/zombies.test.ts`, `server/tests/progression-modes.test.ts`, `server/tests/secondaries.test.ts`, `server/tests/knifePassives.test.ts`
 
 Ver também: [[Testing Overview]], [[Authentication]], [[APIs]].

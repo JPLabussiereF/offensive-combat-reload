@@ -34,8 +34,9 @@
   "faca": {
     "icone": "🔪",
     "melhorias": [
-      { "nivel": 2, "xp": 600, "id": "afiador", "icone": "🪨", "efeitos": { "intervalo": 0.8 } },
-      { "nivel": 3, "xp": 2800, "id": "tenis", "icone": "👟", "efeitos": { "investida": 0.6, "impulso": 1.2 } }
+      { "nivel": 2, "xp": 600, "id": "afiador", "icone": "🪨", "efeitos": { "intervalo": 0.8, "golpe": 0.2 } },
+      { "nivel": 3, "xp": 2800, "id": "tenis", "icone": "👟", "efeitos": { "investida": 0.6, "impulso": 1.2 } },
+      { "nivel": 4, "xp": 4500, "id": "maoLeve", "icone": "🤌", "efeitos": { "duracao": 0.7 } }
     ]
   },
   "granada": {

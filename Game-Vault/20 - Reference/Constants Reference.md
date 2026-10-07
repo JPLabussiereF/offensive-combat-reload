@@ -214,7 +214,7 @@ O que não está aqui é igual à pistola (multiplicadores fora a cabeça, `disp
 
 ## Faca (`faca.json`) → [[Melee]]
 
-As seis facas antigas mudam só alcance, investida e intervalo; tabela em [[Melee#As facas]].
+As seis facas antigas mudam alcance, investida e intervalo (tabela em [[Melee#As facas]]), e cada faca tem uma passiva com os números no próprio JSON (`passiva`: colher `vida` 50; frango `velocidade` 1,15 por `segundos` 3; peixe `costas` 100), ver [[Melee#Passivas]]. Árvore da faca: afiador `intervalo` ×0,8 e `golpe` +0,2; tênis `investida` +0,6 e `impulso` ×1,2; mão leve `duracao` ×0,7. A varredura do sabre no servidor: `SWEEP_MS` = 150 ms (`server/session.ts`).
 
 | Campo | Valor |
 |---|---|

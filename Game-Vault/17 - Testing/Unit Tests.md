@@ -24,6 +24,8 @@ source_paths:
   - client/tests/arsenalTree.test.ts
   - client/tests/arsenalCanvasLayout.test.ts
   - client/tests/pauseMenu.test.ts
+  - client/tests/arsenalKnifeStats.test.ts
+  - client/ui/arsenalStats.ts
   - client/ui/pauseMenu.ts
   - client/ui/arsenalTree.ts
 tags:
@@ -57,6 +59,12 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 
 - Um caso por idioma (pt-BR e en) — e mais um por idioma para as secundárias da PF-10: o nome do plano, o começo da descrição, o item do caixão (`zitem_`) e os degraus `ladder_garrucha`/`ladder_grampeador` —: toda arma e toda melhoria de `progression.json` tem nome e descrição (`arma_*`, `armaDesc_*`, `upg_<arma>_<id>`, `upgDesc_*`), todo efeito tem o seu rótulo (`fx_*`) e toda linha da árvore do Arsenal o seu (`treeRow_*`) em `client/ui/strings.ts`.
 - **Textos do menu de pausa** (PF-11), 3 casos: em cada idioma, todo texto do menu (`pm*`, `keyGroup*`) existe e preenche os seus parâmetros (nenhum `{…}` sobrando); e nenhum ficou igual nos dois idiomas (nada sem tradução).
+
+- **Passivas das facas** (2026-10-07): em cada idioma, toda faca tem passiva com nome e descrição preenchidos (sem `{…}` sobrando) e com os números (colher 50; frango 15 e 3; peixe 100 e `SCORE.backstab`); os textos `knifePassive`, `knifePassiveWhere` e os quatro rótulos das barras existem; nenhuma passiva se repete e pt-BR e en são diferentes.
+
+## `client/tests/arsenalKnifeStats.test.ts` → [[Inventory UI]], [[Melee]]
+
+As barras da faca (`client/ui/arsenalStats.ts`, puro): quatro barras na ordem, todas entre 0,06 e 1 em toda faca com toda combinação das três melhorias; nenhuma faca com barras iguais às de outra; o sabre e o macarrão sempre com os dois maiores alcances; a faca de cozinha ouvida a 34 m e as outras a 70 m, com a discrição bem acima e sem mudar com melhoria; cada melhoria sobe a sua barra (afiador: alcance e rapidez; tênis: investida; mão leve: rapidez) e não mexe nas outras; `weaponStatBars` dá linha de pente às armas de fogo, nenhuma à faca e nada à granada; as fichas do afiador, do tênis e da mão leve.
 
 ## `client/tests/arsenalCanvasLayout.test.ts` → [[Inventory UI]]
 
@@ -120,6 +128,7 @@ Testa `shared/progression.ts` e `shared/arsenal.ts` (puros), 33 casos:
 - **Escolha do Arsenal:** quem usava o Frango ou o Sabre como forma da faca fica com essa faca se os pontos a liberam; `sanitizeChoice` limpa o que veio do cliente (rifle, secundária e faca válidos, só opcionais conhecidas, uma por grupo, só comuns conhecidas em `desligadas`) e, com os pontos, descarta o que não foi liberado; `legacyChoice` dá às contas antigas a escolha mais parecida; `resolveLoadout`; as armas de cada espaço vêm dos dados, na ordem em que liberam (`PRIMARIES` com os 7 rifles, `SECONDARIES` com as 7 secundárias e a progressão de cada uma, `KNIVES` com as 7 facas); `sanitizeLoadout` só aceita ids conhecidos.
 - **Atributos:** sem melhorias, `gunStats` é o JSON; cada melhoria muda atributos de verdade; o silenciador abafa e cobra dano e alcance; o sabre tem mais alcance e golpes mais espaçados que a faca; a granada vira mina ou Dose Dupla e ganha cinto e pólvora; cada abate de tiro vai para a arma que atirou (`weaponOfKill`).
 - **Rifles e facas antigos:** cada rifle tem a vantagem e o custo do plano em relação ao Padrão; as melhorias do rifle valem em todo rifle e não mudam a pintura; as facas trocam alcance por velocidade e todas matam com um golpe; as miras antigas são os níveis 7 a 9 do rifle, opcionais do grupo `mira`.
+- **Árvore e passivas das facas** (2026-10-07, [[ADR - Passivas das facas e Mão Leve]]): o afiador dá intervalo ×0,8 e +0,2 m de alcance em toda faca; a mão leve encurta o golpe ×0,7 sem mudar o momento do acerto, e com todas as melhorias o acerto continua dentro do golpe; cada faca tem a sua passiva, todas diferentes, com os números dos JSONs; `knifePassive` devolve a passiva no mata-mata e no campo de tiro e null na corrida armada e no zumbi; a árvore da faca é afiador (2, 600), tênis (3, 2.800) e mão leve (4, 4.500).
 - **Migração 003:** lê `server/migrations/003_melhorias.sql` e confere que todo XP de destino é um limiar que existia nos níveis **da época** da migração (fixados no teste: os níveis de hoje mudaram com a PF-8) ([[Data Migrations]]).
 
 ## `client/tests/stickerArt.test.ts` → [[Achievements]], [[Asset Pipeline]]

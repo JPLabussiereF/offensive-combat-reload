@@ -19,6 +19,7 @@ import { GROUP, groups, HEALTH, HUMILIATION, MOVE } from '@shared/constants';
 import { configureController, CONTROLLER_OFFSET, createMoveState, eyeHeight, HALF_STAND, stepMovement, type MoveBody, type MoveInput, type MoveState } from '@shared/movement';
 import type { HitRegion } from '@shared/weapons';
 import { DEFAULT_LOADOUT, gunStats, knifeOf, meleeStats, type Loadout, type MeleeStats } from '@shared/arsenal';
+import type { KnifePassive } from '@shared/weapons';
 import { KNIVES, PRIMARIES, progOf, type GunId, type KnifeId } from '@shared/progression';
 import { pickGun } from './botGuns';
 import { BotKnife } from './botKnife';
@@ -189,6 +190,9 @@ export class Bot implements Combatant {
   private swingTarget: Combatant | null = null;
   private swingT = 0;
   private knifeEye = new THREE.Vector3();
+  /** The rubber chicken's getaway: faster until then. */
+  private rushUntil = -99;
+  private rushMul = 1;
   private lastKillAt = -99;
   private tauntCorpse: Corpse | null = null;
   tauntT = 0;
@@ -283,6 +287,7 @@ export class Bot implements Combatant {
     this.tauntCorpse = null;
     this.lastAttacker = null;
     this.knifeBrain.reset();
+    this.rushUntil = -99;
     this.swingTarget = null;
     this.knifeCooldown = 0;
     this.knifeAnim = 0;
@@ -326,6 +331,15 @@ export class Bot implements Combatant {
 
   notifyKill(time: number) {
     this.lastKillAt = time;
+  }
+
+  /** A kill with its knife: the knife's passive (null where the mode handed the knife out), see knifePassive. */
+  knifeKill(p: KnifePassive | null, time: number) {
+    if (p?.id === 'coloDeVo') this.health = Math.min(this.bodyStats.maxHealth, this.health + p.vida);
+    else if (p?.id === 'fugaEscandalosa') {
+      this.rushUntil = time + p.segundos;
+      this.rushMul = p.velocidade;
+    } else if (p?.id === 'lanche') this.weapon.fillMag();
   }
 
   get dancing() {
@@ -632,7 +646,7 @@ export class Bot implements Combatant {
       sprint: sprint && this.mode !== 'taunt',
       ads,
       yaw: this.yaw,
-      speedMul: (this.bladeOnly ? 1 : this.weapon.data.movimento) * this.bodyStats.speedMul,
+      speedMul: (this.bladeOnly ? 1 : this.weapon.data.movimento) * this.bodyStats.speedMul * (t < this.rushUntil ? this.rushMul : 1),
       lunge: null,
     };
     this.jumpNext = false;

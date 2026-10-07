@@ -57,7 +57,7 @@ describe('canvas do Arsenal: layout', () => {
       { kind: 'mira', ids: ['pontoVermelho'] },
       { kind: 'resto', ids: ['gatilho', 'coldre', 'batata'] },
     ]);
-    expect(rowsOf('faca')).toEqual([{ kind: 'resto', ids: ['afiador', 'tenis'] }]);
+    expect(rowsOf('faca')).toEqual([{ kind: 'resto', ids: ['afiador', 'tenis', 'maoLeve'] }]);
     expect(rowsOf('granada')).toEqual([
       { kind: 'modo', ids: ['mina', 'dupla'] },
       { kind: 'resto', ids: ['cinto', 'polvora'] },
@@ -72,6 +72,17 @@ describe('canvas do Arsenal: layout', () => {
     expect(second[0].y).toBe(first[0].y + UH + URG);
     const frame = L.frames.find((f) => f.id === 'primaria')!;
     expect(second[0].y + UH).toBeLessThanOrEqual(frame.y + frame.h);
+    // The knife's three upgrades: one row under the kitchen knife, side by side, inside the knives' frame (which
+    // grows to hold them when they go past the last knife).
+    const knifeUps = L.upgrades.filter((u) => u.row === 'faca');
+    const knifeX = L.weapons.find((w) => w.node.arma === 'faca')!.x;
+    expect(knifeUps.map((u) => u.x)).toEqual([0, 1, 2].map((j) => knifeX + UX0 + j * (UW + UG)));
+    expect(new Set(knifeUps.map((u) => u.y)).size).toBe(1);
+    const knives = L.frames.find((f) => f.id === 'faca')!;
+    for (const u of knifeUps) expect(u.x >= knives.x && u.x + UW <= knives.x + knives.w && u.y >= knives.y && u.y + UH <= knives.y + knives.h).toBe(true);
+    // Under the last knife (the lightsaber) the chain goes past the knives: the row ends with it.
+    const saber = layoutFor(NO_XP, DEFAULT_CHOICE, { faca: 'sabre' });
+    expect(saber.branchEnd.faca).toBe(6 * (WW + WG) + UX0 + 2 * (UW + UG) + UW);
     // One trunk per row of the tree, down from the weapon shown.
     expect(L.links.filter((l) => l.kind === 'trunk').length).toBe(4);
     // Another rifle shown: the same rifle upgrades, moved under it. The row ends at the last rifle or at the end of

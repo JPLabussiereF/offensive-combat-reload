@@ -129,6 +129,30 @@ export function minPenetrationKeep(w: WeaponData): number {
   return worst ** p.maxSuperficies;
 }
 
+/**
+ * A knife's own trait, besides its numbers (each knife has one, in its JSON). It only works with the account's
+ * knife (modes whose weapons come from the Arsenal, the training range, against bots), never with a knife a mode
+ * hands out (corrida armada's ladder, zumbi's coffin): see knifePassive in shared/arsenal.ts. The kitchen knife's
+ * quiet swing is the exception: it's how the knife sounds, in every mode.
+ */
+export type KnifePassive =
+  /** The swing is heard only nearby. */
+  | { id: 'discreta' }
+  /** Each kill with it gives back `vida` health. */
+  | { id: 'coloDeVo'; vida: number }
+  /** After a kill with it, `velocidade`× speed for `segundos`. */
+  | { id: 'fugaEscandalosa'; velocidade: number; segundos: number }
+  /** Each kill with it fills the magazine of the gun in hand. */
+  | { id: 'lanche' }
+  /** A stab in the back is worth `costas` points instead of SCORE.backstab. */
+  | { id: 'tapaGelado'; costas: number }
+  /** No fall damage while it's equipped. */
+  | { id: 'boia' }
+  /** The swing hits everyone in reach and in the cone, not only one. */
+  | { id: 'vuuum' };
+
+export type KnifePassiveId = KnifePassive['id'];
+
 /** Melee weapon (section 6). In the original, a knife hit is always a one-hit kill. */
 export interface MeleeData {
   id: string;
@@ -149,6 +173,7 @@ export interface MeleeData {
   /** Minimum time between swings. */
   intervalo: number;
   velocidadeInvestida: number;
+  passiva: KnifePassive;
 }
 
 /** A grenade's blast (the JSON keeps it in `niveis`; level 1 is the base, upgrades scale it in shared/arsenal.ts). */

@@ -39,7 +39,7 @@ tags:
   - decision
   - progression
   - weapons
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # ADR - Rifles e facas antigos como armas próprias
@@ -79,7 +79,7 @@ Nas primeiras versões do jogo cada nível de arma era uma arma nomeada: seis ri
 4. **Escolha**: a `ArsenalChoice` ganha `primaria?` e `faca?` (padrão `rifle` e `faca`); o `Loadout` ganha `faca?`. O servidor limpa com o XP (`sanitizeChoice(raw, xp)`): arma trancada volta à padrão; pela API a requisição inteira é recusada (`400 nivel_bloqueado`). Quem tinha o frango ou o sabre ligado como forma fica com a faca correspondente, se os pontos de faca já a liberam (senão, a faca de cozinha).
 5. **Miras**: a árvore do rifle ganha os níveis 7 a 9, todas opcionais do grupo `mira` (holo com lupa 1,5x com 13.000 pontos, luneta 2x com 16.000, luneta 4x com 20.000), ao lado do ponto vermelho e da Luneta do Vovô 3x ([[Progression]]).
 6. **Pintura** é de cada rifle (`visual` no JSON: `padrao`, `fita`, `tia`, `natal`, `chamas`, `vovo`, `ouro`); as melhorias não a mudam mais (a luneta e o pente perderam o `visual`).
-7. **Faca**: a árvore fica com **Afiador** (nível 2, 600) e **Tênis de Molinha** (nível 3, 2.800), valendo para todas as facas. O frango e o sabre saem da árvore.
+7. **Faca**: a árvore fica com **Afiador** (nível 2, 600) e **Tênis de Molinha** (nível 3, 2.800), valendo para todas as facas. O frango e o sabre saem da árvore. *Revisto em 2026-10-07:* o afiador ganhou +0,2 m de alcance, entrou a **Mão Leve** (nível 4, 4.500) e cada faca ganhou uma passiva própria ([[ADR - Passivas das facas e Mão Leve]]).
 8. **Nada muda sozinho**: todos começam no Rifle Padrão e na faca de cozinha; liberar uma arma avisa "… liberada: equipe no Arsenal" ([[Notifications]]), mas não a equipa.
 9. **Rede**: `hit.w` aceita os novos rifles; `kill.arma` passa a ser `WeaponId` (o rifle que atirou; uma facada continua `faca`, e cada cliente põe o nome da faca de quem matou pelo `playerLoadout`); `playerLoadout`/`joined` levam `primaria` e `faca` ([[Remote Calls]]). O golpe é recusado acima do alcance da investida da faca de quem golpeia + 1,5 m de folga.
 10. **Bots** sorteiam qualquer rifle com a mesma chance que antes iam de Rifle Padrão, e uma faca qualquer (não têm conta, nada é trancado para eles) — [[Versus Bots]].

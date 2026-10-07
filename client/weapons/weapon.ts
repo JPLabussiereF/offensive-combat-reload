@@ -120,6 +120,12 @@ export class Weapon {
     this.recoilPitch = this.recoilYaw = this.bloom = 0;
   }
 
+  /** A full magazine at once, without touching the reserve (the baguette's passive). */
+  fillMag() {
+    this.mag = this.data.pente;
+    this.reloading = false;
+  }
+
   refill() {
     this.mag = this.data.pente;
     this.reserve = this.data.reserva;

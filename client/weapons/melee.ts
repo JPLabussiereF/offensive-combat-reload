@@ -65,14 +65,14 @@ export class Melee {
 }
 
 /**
- * Nearest living target within `range` (eye to body surface, horizontally), inside the view cone and with
- * a clear line of sight.
+ * Every living target within `range` (eye to body surface, horizontally), inside the view cone and with a
+ * clear line of sight, nearest first (the lightsaber's sweep hits them all).
  */
-export function findMeleeTarget(physics: Pick<Physics, 'world'>, targets: Iterable<Target>, eye: THREE.Vector3, yaw: number, range: number, angleDeg: number): { target: Target; dist: number } | null {
+export function meleeTargets(physics: Pick<Physics, 'world'>, targets: Iterable<Target>, eye: THREE.Vector3, yaw: number, range: number, angleDeg: number): { target: Target; dist: number }[] {
   const fx = -Math.sin(yaw);
   const fz = -Math.cos(yaw);
   const cosMax = Math.cos((angleDeg * Math.PI) / 180);
-  let best: { target: Target; dist: number } | null = null;
+  const found: { target: Target; dist: number }[] = [];
   for (const d of targets) {
     if (d.dead) continue;
     const p = d.position;
@@ -87,7 +87,12 @@ export function findMeleeTarget(physics: Pick<Physics, 'world'>, targets: Iterab
     const ray = new RAPIER.Ray(eye, { x: dx / len, y: dy / len, z: dz / len });
     const hit = physics.world.castRay(ray, len, true, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, LOS_GROUPS);
     if (hit && hit.timeOfImpact < len - BODY_RADIUS) continue;
-    if (!best || dist < best.dist) best = { target: d, dist };
+    found.push({ target: d, dist });
   }
-  return best;
+  return found.sort((a, b) => a.dist - b.dist);
+}
+
+/** The nearest of meleeTargets, or null. */
+export function findMeleeTarget(physics: Pick<Physics, 'world'>, targets: Iterable<Target>, eye: THREE.Vector3, yaw: number, range: number, angleDeg: number): { target: Target; dist: number } | null {
+  return meleeTargets(physics, targets, eye, yaw, range, angleDeg)[0] ?? null;
 }
