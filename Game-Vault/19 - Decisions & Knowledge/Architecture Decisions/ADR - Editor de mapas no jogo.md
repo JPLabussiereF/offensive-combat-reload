@@ -24,6 +24,13 @@ source_paths:
   - client/editor/launch.ts
   - client/editor/recovery.ts
   - client/editor/strings.ts
+  - client/editor/dock.ts
+  - client/editor/dockLayout.ts
+  - client/editor/hierarchy.ts
+  - client/editor/groups.ts
+  - client/editor/transformFields.ts
+  - client/editor/batches.ts
+  - client/editor/style.ts
   - client/ui/maps.ts
   - client/ui/home.ts
   - client/world/catalog/services.ts
@@ -36,6 +43,10 @@ source_paths:
   - client/tests/editorHistory.test.ts
   - client/tests/mapPose.test.ts
   - client/tests/editorRecovery.test.ts
+  - client/tests/editorGroups.test.ts
+  - client/tests/editorLayout.test.ts
+  - client/tests/editorBatches.test.ts
+  - client/tests/mapGroups.test.ts
 tags:
   - decision
   - adr
@@ -64,6 +75,17 @@ A PF-6 (fase 3 de 4) pede o editor de mapas dentro do jogo: câmera livre, gizmo
 - **Salvar** usa a API da fase 2 (`POST /api/mapas`, `PUT /api/mapas/:id` com `baseVersao`); `validateMapData` roda antes de enviar. `orcamento_excedido` e `mapa_invalido` são mostrados como vêm. No **409** (P39) o diálogo oferece **Salvar como nova versão mesmo assim** (envia de novo com `baseVersao` = a versão atual que o 409 trouxe; a outra fica no histórico) e **Abrir a versão atual** (apaga o rascunho e recarrega o editor nela pelo handoff `abrir`, descartando as edições). Nada é sobrescrito sem a pessoa escolher.
 - **Textos** do editor em `client/editor/strings.ts` (pt e en, a língua do jogo).
 
+## Revisions 01: estilo Unity (etapa 2 de 4)
+
+Decisões do dev (plano da PF-6, seção 4): o editor passa a seguir o editor do Unity. Esta etapa entregou a janela, a Hierarchy com grupos, o Inspector com Transform e os lotes por seleção; a câmera do Scene View, Q/W/E/R/T, Ctrl para encaixar, o botão de grade, Pivot/Center, Local/Global, seleção por caixa e copiar/colar são a etapa 3; o painel Project com miniaturas e arrastar para a cena, e o Play dentro do editor, a etapa 4. A janela está descrita em [[Map Editor UI]].
+
+- **Painéis encaixáveis livres**: toolbar em cima (Play, Pause e Stop no centro; Play chama o Testar de antes até a etapa 4), Hierarchy, Scene, Inspector e Project como abas que se arrastam para o meio de uma pilha (empilham) ou para uma borda (dividem), bordas redimensionáveis, layout no `localStorage` e "Restaurar layout padrão" (o do Unity). O modelo do layout é puro (`client/editor/dockLayout.ts`: árvore de divisões e pilhas, `dock`, `resize`, `normalize`, leitura que volta ao padrão quando o guardado não serve); o DOM em `client/editor/dock.ts`. O canvas do three.js vai para dentro do painel Scene e acompanha o tamanho dele.
+- **Grupos pai e filho**: o formato ganhou `Peca.pai` e `Peca.nome` e o tipo `grupo` (sem geometria: a pose dele é o referencial dos filhos; ver [[ADR - Mapas como dados com catálogo de peças]]). As operações da Hierarchy são puras (`client/editor/groups.ts`) e devolvem a lista nova de peças; `EditorDocument.setPieces` a transforma num patch só com as peças que mudaram ou saíram da ordem (a maior sequência que fica em ordem fica de fora), então reordenar não remonta nada e agrupar, pôr dentro e fora, mover o grupo, duplicar e apagar com os filhos são uma edição cada, desfeita de uma vez. Pôr uma peça num grupo (ou tirar) a deixa onde está no mundo, como no Unity: o lugar dela no referencial novo é calculado (`applyHandle` com o referencial do grupo). Mudar a pose de um grupo remonta os filhos.
+- **Escala de grupo**: o grupo não guarda escala (a pose é rígida: colisores, salas e vãos não aceitam escala). Escalar um grupo, ou várias peças pelo gizmo, espalha as peças a partir do ponto segurado e multiplica a `escala` das que a têm; as outras só se movem. O campo Escala do grupo volta a mostrar 1. Ver a pergunta P47 no relatório da etapa.
+- **Inspector**: nome, **Transform** (posição, rotação em graus e escala do lugar onde o gizmo segura a peça, no referencial do grupo; rótulos arrastáveis; o valor digitado é guardado enquanto der a mesma matriz) e o formulário do esquema; com seleção múltipla, os valores em comum e a edição para todas. A matemática está em `client/editor/transformFields.ts`.
+- **Seleção múltipla** (Ctrl ou Shift na cena e na Hierarchy): o gizmo fica na última escolhida e move, gira e escala todas juntas (girar e escalar em volta dela); os lugares do servidor (bruxa, rato, coletável) acompanham cada peça (`linkedRest`).
+- **P46, lotes por seleção**: o que não está selecionado é desenhado em `BatchedMesh` ([[ADR - Lotes do editor com BatchedMesh]]): no Jardim, 2.701 → 350 chamadas por quadro.
+
 ## Motivo
 
 Reaproveitar o carregador do jogo garante que o editor mostra o que o jogo monta (inclusive GLB, salas e piadas) e que a reconstrução de uma peça é a mesma montagem. A pose resolve a P32 sem reescrever os ~145 adaptadores nem os parâmetros de cada tipo, e deixa a peça sem pose idêntica (golden e navmesh). Medir no modo jogo dá o mesmo número que o servidor, que é quem decide.
@@ -73,6 +95,6 @@ Reaproveitar o carregador do jogo garante que o editor mostra o que o jogo monta
 - Uma peça com pose tem coleções próprias (uma malha a mais por coleção usada). As lanternas de papel delas (e as de toda peça no editor) entram nas luzes da noite do mapa pela pose (`Services.lanternSources`), e o recorte de um lago girado entra em `holes` como a caixa em volta dele (P42, fase 4); `LanternLights` acompanha a lista quando o editor remonta uma peça.
 - O rascunho automático escreve o mapa inteiro no IndexedDB depois de cada edição (os oficiais grandes têm ~170 KB); o navegador sem IndexedDB (janela privada bloqueada) só perde a recuperação.
 - Medir o orçamento monta o mapa inteiro de novo: nos mapas grandes (Vila Assombrada) leva algumas centenas de milissegundos na thread da página, depois de cada edição.
-- O editor desenha sem lotes entre peças: os oficiais grandes custam mais para desenhar no editor do que no jogo.
+- O editor monta sem lotes entre peças, mas desenha o que não está selecionado em lotes `BatchedMesh` (P46): o custo de desenho fica perto do do jogo; a seleção grande (centenas de peças) volta a custar uma chamada por malha enquanto está selecionada.
 
 Relacionado: [[ADR - Mapas como dados com catálogo de peças]] · [[ADR - Sessões sob demanda por versão do mapa]] · [[ADR - Papéis da equipe conferidos no servidor]] · [[World Structure]] · [[Unit Tests]]

@@ -51,4 +51,4 @@ No editor de mapas ([[ADR - Editor de mapas no jogo]]), com a aceleração de ha
 
 ## Observação
 
-O editor desenha cada peça no seu grupo (sem lotes entre peças): no Jardim, cerca de 1.400 malhas estáticas e 1.700 a 2.700 chamadas de desenho por quadro, contra 310 no jogo. Não causa o defeito (a GPU de teste segura) e é o custo de poder selecionar e reconstruir cada peça sozinha. Ver [[Performance Rendering]].
+O editor desenhava cada peça no seu grupo (sem lotes entre peças): no Jardim, cerca de 1.400 malhas estáticas e 1.700 a 2.700 chamadas de desenho por quadro, contra 310 no jogo. Não causava o defeito (a GPU de teste segura). Na etapa 2 da Revisions 01 o que não está selecionado passou a ser desenhado em lotes (P46: 2.701 → 350 chamadas no Jardim): ver [[ADR - Lotes do editor com BatchedMesh]] e [[Performance Rendering]].

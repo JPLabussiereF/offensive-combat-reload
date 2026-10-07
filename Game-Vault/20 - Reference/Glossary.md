@@ -20,11 +20,13 @@ source_paths:
   - shared/arsenal.ts
   - client/ui/arsenal.ts
   - shared/data/progression.json
+  - shared/mapData.ts
+  - client/editor/batches.ts
 tags:
   - game
   - reference
   - glossary
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Glossário
@@ -107,6 +109,9 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `critters` | Coisas pequenas que tiro e faca acertam sem colisor próprio (carpas, frutas, rato, abóboras) | [[Interactive Objects]] |
 | `gentle` | Escada com degraus extras para ficar abaixo de 45° | [[ADR - Escadas com colisão em rampa sólida]] |
 | `seeded` | Gerador aleatório com semente: a colisão sai idêntica em todos os clientes | [[ADR - Aleatoriedade com semente na construção dos mapas]] |
+| `pose` (`Peca.pose`) | Giro livre e deslocamento que o gizmo do editor dá a uma peça inteira (P32) | [[ADR - Mapas como dados com catálogo de peças]] |
+| Grupo (`tipo: 'grupo'`, `Peca.pai`) | Peça sem geometria da Hierarchy do editor; a pose dela é o referencial das peças que a nomeiam em `pai` | [[World Structure]], [[Map Editor UI]] |
+| Lote do editor (`EditorBatches`) | `BatchedMesh` em que o editor desenha as peças fora da seleção (P46) | [[ADR - Lotes do editor com BatchedMesh]] |
 
 ## Combate e dados
 

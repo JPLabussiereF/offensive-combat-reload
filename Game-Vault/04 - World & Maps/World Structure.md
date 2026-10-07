@@ -11,6 +11,7 @@ source_paths:
   - shared/mapCatalog.ts
   - shared/data/mapas/rua.json
   - client/world/mapLoader.ts
+  - client/world/pose.ts
   - client/world/gameMap.ts
   - client/world/catalog/index.ts
   - client/world/catalog/types.ts
@@ -30,7 +31,7 @@ tags:
   - world
   - maps
   - architecture
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # World Structure
@@ -98,13 +99,15 @@ Formato em `shared/mapData.ts` (`MAP_FORMAT = 1`; um mapa de formato mais novo �
 | `zumbi?` | dados do modo zumbi do mapa (muro, surgimentos, caixão, chefes, brechas); só no Cemitério ([[Zombie]]) |
 | `servicos?` | `luzes`: quantas luzes reais o pool do mapa tem |
 
-Uma **peça** (`Peca`) tem `id` único no mapa, `tipo` (um tipo do catálogo), `p`/`yaw`/`escala` quando o tipo é livre, `params`, `semente` (estado do gerador sorteado de onde a peça começa, nos tipos que sorteiam), `prop` (o id do `PropBus` da piada, explícito: online, todos disparam a mesma) `coletavel` (o coletável que ela guarda) e `pose` (o giro livre e o deslocamento que o gizmo do editor deu à peça inteira, P32: uma transformação rígida aplicada a tudo o que ela monta, inclusive colisores, salas e vãos; ver [[ADR - Mapas como dados com catálogo de peças]]).
+Uma **peça** (`Peca`) tem `id` único no mapa, `tipo` (um tipo do catálogo), `p`/`yaw`/`escala` quando o tipo é livre, `params`, `semente` (estado do gerador sorteado de onde a peça começa, nos tipos que sorteiam), `prop` (o id do `PropBus` da piada, explícito: online, todos disparam a mesma) `coletavel` (o coletável que ela guarda) `pose` (o giro livre e o deslocamento que o gizmo do editor deu à peça inteira, P32: uma transformação rígida aplicada a tudo o que ela monta, inclusive colisores, salas e vãos; ver [[ADR - Mapas como dados com catálogo de peças]]), `pai` (opcional: o grupo da Hierarchy do editor de que ela faz parte) e `nome` (opcional: o nome que o editor mostra).
 
-`validateMapData(raw)` é pura e devolve `{ ok, erros }`: confere formato, nome, cartão, ambiente, tipos e parâmetros das peças contra o catálogo, ids repetidos, ids do `PropBus` (o formato que o servidor aceita, sem repetir), limite por mapa (ex.: uma bruxa), ligações entre peças, `objetos` e `arquivos`, spawns, bonecos e, num mapa exclusivo do zumbi, os dados de zumbi (`checkZombieMap`). `MAP_BUDGET` (400 chamadas de desenho, 750 mil triângulos) é o teto de custo de desenho ([[Performance Rendering]]).
+**Grupos** (PF-6 Revisions 01): uma peça do tipo `grupo` não monta nada; a pose dela é o referencial dos filhos (as peças com `pai` igual ao `id` dela), e grupos podem ficar dentro de grupos (até 16 níveis). A peça monta nas poses dos grupos, de fora para dentro, vezes a pose dela; no modo jogo o grupo é pulado. A ordem de `pecas` continua sendo a ordem de montagem (e a ordem dos filhos na Hierarchy). Mapa sem grupos monta exatamente como antes.
+
+`validateMapData(raw)` é pura e devolve `{ ok, erros }`: confere formato, nome, cartão, ambiente, tipos e parâmetros das peças contra o catálogo, ids repetidos, ids do `PropBus` (o formato que o servidor aceita, sem repetir), limite por mapa (ex.: uma bruxa), ligações entre peças, os grupos (`pai` aponta para um `grupo` do mapa, sem ciclo, até 16 níveis), `objetos` e `arquivos`, spawns, bonecos e, num mapa exclusivo do zumbi, os dados de zumbi (`checkZombieMap`). `MAP_BUDGET` (400 chamadas de desenho, 750 mil triângulos) é o teto de custo de desenho ([[Performance Rendering]]).
 
 ### O catálogo de peças
 
-`shared/mapCatalog.ts` descreve cada tipo de peça (~145 tipos): `id`, categoria (`primitivas`, `estrutura`, `construcoes`, `natureza`, `moveis`, `veiculos`, `objetos`, `luzes`, `ambiente`, `importado`), nome em pt e en, parâmetros com tipo, faixa e padrão, a **transformação** (`livre`: `p`/`yaw`/`escala`; `linear`: corre num eixo entre duas pontas dadas nos parâmetros, como muros, cercas e escadas; `fixa`: o layout inteiro em coordenadas do mundo, como um telhado sobre um retângulo ou um muro de jardim com portões), o limite por mapa, o prefixo do `PropBus`, se usa semente e se guarda coletável. Inclui a peça `sala` (a sala do som, com `fechamento` de 0 a 1; ver [[Spatial Audio]]).
+`shared/mapCatalog.ts` descreve cada tipo de peça (~145 tipos): `id`, categoria (`primitivas`, `estrutura`, `construcoes`, `natureza`, `moveis`, `veiculos`, `objetos`, `luzes`, `ambiente`, `importado` e `organizacao`, a do `grupo`, que a paleta não lista), nome em pt e en, parâmetros com tipo, faixa e padrão, a **transformação** (`livre`: `p`/`yaw`/`escala`; `linear`: corre num eixo entre duas pontas dadas nos parâmetros, como muros, cercas e escadas; `fixa`: o layout inteiro em coordenadas do mundo, como um telhado sobre um retângulo ou um muro de jardim com portões), o limite por mapa, o prefixo do `PropBus`, se usa semente e se guarda coletável. Inclui a peça `sala` (a sala do som, com `fechamento` de 0 a 1; ver [[Spatial Audio]]).
 
 No cliente, `client/world/catalog/` tem **um adaptador por tipo** (`CATALOG` em `index.ts`; um teste confere que casam um a um com o esquema), agrupados por arquivo: `primitives` (caixas, cilindros, paredes com vãos, escadas, telhados, salas, formas e brilhos), `street` (casa da Rua, árvores, postes, placas), `garden` (muros do Jardim e as peças orientais), `gardenPieces` (as peças próprias dos setores do Jardim: cerejeira, fonte do dragão, mercado, sinos, tambores), `haunted` (casas, barracas, retratos, árvores secas, lápides, cercas), `cemetery` (muro e pilares), `furniture`, `vehicles`, `objects` (piadas, bruxa, rato, carpas, cachorro, luzes, morcegos, névoa), `glb` (modelo do Blender) e `services`. Cada adaptador recebe `(ctx, peca)` e chama os construtores de sempre (`MapBuilder`, `furniture.ts`, `vehicles.ts`, `halloween.ts`, `oriental.ts`, `jardim/kit.ts` e as peças dos setores do jardim).
 
@@ -115,7 +118,7 @@ No cliente, `client/world/catalog/` tem **um adaptador por tipo** (`CATALOG` em 
 - `loadOfficialMap(id)` carrega o JSON oficial, que vai no pacote do cliente (import dinâmico por mapa): treino e bots continuam funcionando sem servidor.
 - `buildMapFromData(data, { physics, scene, renderer, sfx, modo })` monta as peças em ordem (cada uma com o gerador na sua `semente`), fecha os sistemas compartilhados, desenha o céu (atmosfera e cúpula: nuvens na Rua, lua sobre a cúpula estrelada na Vila e no Cemitério, a noite oriental com lanternas no Jardim) e liga os sons ambientes do `ambiente.sons`.
 - **Modo `jogo`**: o que se joga. A geometria estática é fundida **entre peças** em lotes por material e célula (`MapBuilder`).
-- **Modo `editor`**: cada peça no seu próprio grupo da cena (sem lotes entre peças), com a lista de colisores dela (`BuiltMap.pieces`), para o editor de mapas selecionar e reconstruir uma peça sozinha (`MapBuild.remove` e `piece`; ver [[ADR - Editor de mapas no jogo]]).
+- **Modo `editor`**: cada peça no seu próprio grupo da cena (sem lotes entre peças), com a lista de colisores dela (`BuiltMap.pieces`), para o editor de mapas selecionar e reconstruir uma peça sozinha (`MapBuild.remove` e `piece`; ver [[ADR - Editor de mapas no jogo]]). O editor junta depois, só para desenhar, o que não está selecionado em lotes `BatchedMesh` (P46, [[ADR - Lotes do editor com BatchedMesh]]).
 
 ## Camadas de um mapa
 

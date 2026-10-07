@@ -15,11 +15,12 @@ source_paths:
   - client/ui/strings.ts
   - client/ui/padNav.ts
   - client/core/device.ts
+  - client/editor/editor.ts
 tags:
   - game
   - ui
   - ux
-updated: 2026-10-05
+updated: 2026-10-07
 ---
 
 # UI Overview
@@ -47,6 +48,7 @@ Visual: estilo "sticker" (painéis com contorno grosso e sombra dura deslocada),
 | `#touch-edit-bar`, `#rotate` | `Screens` | [[Touch Controls]] |
 | Sprite 3D sobre corpos | `CorpseTimer` | [[HUD]], [[Humiliation]] |
 | Painel F6 (criado em código) | `TuningPanel` (`client/ui/tuning.ts`) | ferramenta de dev, ver [[Input & Controls]] |
+| `#editor` (criado em código, no lugar da partida) | `runEditor` (`client/editor/editor.ts`): toolbar, painéis encaixáveis (Hierarquia, Cena, Inspetor, Projeto) e barra de status, CSS próprio (`client/editor/style.ts`) e textos próprios (`client/editor/strings.ts`) | [[Map Editor UI]] |
 
 ## Fluxo geral de telas
 
@@ -78,7 +80,7 @@ flowchart LR
 
 ## Notas desta área
 
-[[HUD]] · [[Menus]] · [[Matchmaking UI]] · [[Inventory UI]] · [[Scoreboard]] · [[Notifications]] · [[Input & Controls]] · [[Chat]] · [[Settings]] · [[Touch Controls]]
+[[HUD]] · [[Menus]] · [[Map Editor UI]] · [[Matchmaking UI]] · [[Inventory UI]] · [[Scoreboard]] · [[Notifications]] · [[Input & Controls]] · [[Chat]] · [[Settings]] · [[Touch Controls]]
 
 Fluxos: [[Flow - First Access]] · [[Flow - Join Online Match]] · [[Flow - Death and Respawn]]
 

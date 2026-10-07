@@ -17,6 +17,9 @@ source_paths:
   - client/character/character.ts
   - client/world/halloween.ts
   - client/world/budget.ts
+  - client/editor/batches.ts
+  - client/editor/view.ts
+  - client/tests/editorBatches.test.ts
   - shared/mapData.ts
   - shared/data/mapas/jardim.json
   - shared/data/mapas/halloween.json
@@ -136,8 +139,17 @@ Ver [[ADR - Qualidade automática com resolução dinâmica]].
 
 `shadowMap.autoUpdate = false`; o mapa de sombras é redesenhado conforme `shadowEvery` (laço da partida e do editor de mapas), e todo quadro pede o mapa se ele ainda não existe (`ensureShadowMap`). Ver [[Lighting]] e [[Problem - Editor sem mapa de sombra com aceleração de hardware]].
 
-> [!info] Custo do editor de mapas
-> No modo editor cada peça fica no seu grupo, sem lotes entre peças: medido numa RTX 4070, o Jardim do Dragão tem ~1.400 malhas estáticas e 1.700 a 2.700 chamadas de desenho por quadro (contra 310 no jogo), ~1.750 geometrias e 61 texturas na GPU, sem perda de contexto. É o preço de selecionar e reconstruir cada peça sozinha; o orçamento continua medido no modo jogo.
+### 8b. Lotes do editor de mapas (P46, PF-6 Revisions 01)
+
+| | |
+| --- | --- |
+| **Problema** | No modo editor cada peça fica no seu grupo (para ser selecionada e reconstruída sozinha), sem lotes entre peças. |
+| **Sintoma** | Jardim do Dragão no editor: ~1.400 malhas estáticas e **1.700 a 2.700 chamadas de desenho por quadro** (contra 310 no jogo); GPU fraca fica lenta. |
+| **Causa** | Os lotes por material e célula do `MapBuilder` e as coleções instanciadas fecham por peça no modo editor; cada peça desenha as suas malhas à parte. |
+| **Solução** | `EditorBatches` (`client/editor/batches.ts`): as malhas das peças **fora da seleção** são copiadas para `THREE.BatchedMesh`, uma por material equivalente (mesmos ajustes, cores por valor, texturas por identidade: cada lanterna de papel cria o seu material) e formato de vértice, com recorte objeto a objeto (`perObjectFrustumCulled`) e `WEBGL_multi_draw` (uma chamada por lote). As malhas próprias vão para a camada 31, que nenhuma câmera nem a sombra desenham, e continuam na cena (o raio da seleção liga todas as camadas). A peça selecionada (e o que está dentro de um grupo selecionado) volta a desenhar as próprias malhas e esconde as cópias. As cópias seguem matriz, visibilidade, instâncias e vértices da malha a cada quadro; um material que muda depois de entrar no lote (piscar, apagar) tira as malhas dele do lote para sempre. Ficam fora: linhas, pontos, sprites, malhas com vários materiais, `ShaderMaterial`, malhas com `onBeforeCompile`/`onBeforeRender`, esqueletos, morph e espelhadas. Ver [[ADR - Lotes do editor com BatchedMesh]]. |
+| **Métrica** | Chrome com GPU (RTX 4070, ANGLE D3D11), Jardim com o mapa inteiro na tela, `renderer.info.render.calls`: **2.701 antes, 350 depois** sem seleção; 377 com uma peça selecionada; 536 com 40; 1.049 com 300. Sem recorte (`drawCount`, teste): jogo 233, editor sem lotes 1.682, editor com lotes 142 (43 lotes com 1.601 malhas). |
+| **Trade-off** | A geometria das peças em lote fica em dobro na memória (a cópia no lote e a da peça, que a GPU só recebe se a peça for desenhada à parte). `update()` custa ~1 ms por quadro no Jardim (comparar as matrizes); selecionar ~3 ms, 300 peças ~10 ms. Uma edição põe as malhas novas no lote sem refazê-lo (enquanto houver espaço; senão o lote é refeito com folga de 25%). Sem `WEBGL_multi_draw` o three.js desenha cada pedaço do lote numa chamada (o ganho cai). |
+| **Como medir** | `client/tests/editorBatches.test.ts` (chamadas sem recorte, jogo × editor) e, no navegador, `window.__ocEditor.renderer.info.render.calls` (só em desenvolvimento). |
 
 ### 9. Custo de carregamento das texturas
 

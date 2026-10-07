@@ -26,13 +26,15 @@ source_paths:
   - client/tests/mapConversion.test.ts
   - client/tests/mapData.test.ts
   - client/tests/budget.test.ts
+  - client/tests/mapGroups.test.ts
+  - server/tests/maps.test.ts
 tags:
   - decision
   - adr
   - architecture
   - maps
   - editor
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # ADR - Mapas como dados com catálogo de peças
@@ -67,6 +69,8 @@ Como descrever um mapa em dados sem perder nada dos mapas atuais (colisão, piad
 - **P31: setores do Jardim em peças individuais.** Na primeira conversão cada setor do [[Map - Jardim do Dragão]] (casa, anel, bonsai, lago, lanternas, guerreiros, bambu, santuário) virou uma peça só (o plano listava "setores do jardim" entre os adaptadores). O dev decidiu que eles devem ser convertidos chamada por chamada, como a Vila Assombrada, para o Jardim oficial ser editável no mesmo nível dos outros mapas. **Feito na fase 1:** `client/world/conversao/jardimSetores.ts` grava cada chamada dos antigos `buildCasa`, `buildRing`, `buildBonsai`, `buildLago`, `buildLanternas`, `buildGuerreiros`, `buildBambu` e `buildSantuario`; o catálogo ganhou as peças próprias dos setores (`client/world/catalog/gardenPieces.ts`: cerejeira do dragão com a cereja, fonte do dragão, sinos bianzhong, barracas do mercado, sinos, tambores, túmulos, estela, panda, portais, folhas de porta) e um `colisor` invisível; o `jardim.json` passou de 28 para 741 peças, igual ao golden, com o mesmo orçamento (310 chamadas, 704.428 triângulos). O tipo `setor` saiu do catálogo.
 - **P32: o gizmo move e gira todas as peças, com giro livre** (qualquer ângulo), inclusive as de transformação `linear` e `fixa`. **Feito na fase 3** com uma **pose** por peça (`Peca.pose { p, r }`, opcional): a peça é montada no referencial dos seus parâmetros e a pose, uma transformação rígida, leva tudo o que ela faz (`client/world/pose.ts`): a geometria entra nos lotes já transformada (`MapBuilder.pose`), os colisores são movidos depois de criados (qualquer caminho, inclusive os que não passam pelo `MapBuilder`), a **sala** guarda a caixa no seu referencial com a matriz mundo→sala (`RoomVolume.local`, testada por `RoomVolumes.at`), o **vão** guarda a matriz da parede (`WallOpening.pose`), e os objetos, luzes, partículas, sons, piadas, coletáveis, poção, cachorro e acertos de tiro e faca atravessam o referencial em `client/world/catalog/posed.ts`. Caixas `ROOM_` giradas num `.glb` usam o mesmo referencial (`MapBuilder.orientedRoom`). Peça sem pose monta como antes (golden e navmesh iguais); peça `livre` só ganha pose quando inclinada. Ver [[ADR - Editor de mapas no jogo]].
 
+- **Revisions 01: grupos pai e filho (Hierarchy do editor).** O formato ganhou dois campos opcionais na peça: **`pai`** (o `id` de uma peça do tipo **`grupo`**) e **`nome`** (o nome que o editor mostra). O grupo é um tipo do catálogo (categoria `organizacao`, sem parâmetros, adaptador vazio) que **não monta nada**: a sua pose é o referencial dos filhos. A peça monta em `worldPoseMatrix` = poses dos grupos, de fora para dentro, × a pose dela (`client/world/pose.ts`); o carregador passa essa matriz pelo mesmo caminho da P32, então colisores, lotes, salas, vãos e objetos vão juntos, e o construtor do servidor (o mesmo carregador, sem tela) monta igual. No jogo o grupo é pulado. `validateMapData` confere `pai` (grupo existente, não a própria peça, sem ciclo, até `MAX_GROUP_DEPTH` = 16 níveis) e `nome` (1 a 60 caracteres). **Opções:** um tipo de peça sem geometria (escolhida: a ordem da lista continua sendo a da montagem, um patch de peça cobre criar, desfazer e reordenar, e o servidor não precisou mudar) ou uma lista `grupos` à parte (exigiria guardar a ordem entre grupos e peças e outro tipo de patch). Mapa sem grupos monta igual (golden, hash da navmesh e `client/tests/mapGroups.test.ts`). O grupo não guarda escala: escalar um grupo no editor espalha os filhos e aumenta os que têm `escala` (ver [[ADR - Editor de mapas no jogo]]).
+
 ## Motivo
 
 Reaproveita todo o código de construção que já existe (os construtores viram adaptadores), mantém o jogo idêntico (golden), e dá ao editor a unidade de que ele precisa: uma peça que se seleciona, se edita por um formulário gerado pelo esquema e se reconstrói sozinha.
@@ -83,9 +87,9 @@ Reaproveita todo o código de construção que já existe (os construtores viram
 
 ## Código afetado
 
-- `shared/mapData.ts`, `shared/mapCatalog.ts`, `shared/zombies.ts` (`checkZombieMap`), `shared/data/mapas/*.json`.
-- `client/world/mapLoader.ts`, `client/world/catalog/*`, `client/world/gameMap.ts`, `client/world/budget.ts`, `client/world/oriental.ts` (`seeded().state`), `client/main.ts`.
+- `shared/mapData.ts` (`Peca.pai`, `Peca.nome`, `MAX_GROUP_DEPTH`), `shared/mapCatalog.ts` (tipo `grupo`), `shared/zombies.ts` (`checkZombieMap`), `shared/data/mapas/*.json`.
+- `client/world/mapLoader.ts` (pose composta com os grupos), `client/world/pose.ts` (`groupMatrix`, `worldPoseMatrix`), `client/world/catalog/*`, `client/world/gameMap.ts`, `client/world/budget.ts`, `client/world/oriental.ts` (`seeded().state`), `client/main.ts`.
 - `client/world/conversao/*`, `tools/snapshot-mapas.ts`, `tools/converter-mapas.ts`, `tools/headless.ts`, `tools/bake-navmesh.ts`.
-- Testes: `client/tests/mapConversion.test.ts`, `mapData.test.ts`, `budget.test.ts`, `seeded.test.ts` ([[Unit Tests]]).
+- Testes: `client/tests/mapConversion.test.ts`, `mapData.test.ts`, `budget.test.ts`, `seeded.test.ts`, `mapGroups.test.ts` e `server/tests/maps.test.ts` (grupos aceitos e montados pelo servidor) ([[Unit Tests]]).
 
 Relacionado: [[World Structure]] · [[Maps Index]] · [[Asset Pipeline]] · [[Performance Rendering]] · [[ADR - Aleatoriedade com semente na construção dos mapas]] · [[ADR - Lotes estáticos por material e célula]]
