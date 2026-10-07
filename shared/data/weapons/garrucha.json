@@ -9,10 +9,10 @@
     "pontos": 7000
   },
   "dano": {
-    "max": 13,
+    "max": 20,
     "min": 4,
-    "distMax": 3,
-    "distMin": 12
+    "distMax": 5,
+    "distMin": 15
   },
   "multiplicadores": {
     "cabeca": 1.5,

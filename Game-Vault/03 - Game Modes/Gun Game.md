@@ -21,6 +21,9 @@ source_paths:
   - client/ui/scoreboard.ts
   - client/render/viewmodel.ts
   - client/character/animator.ts
+  - client/ui/strings.ts
+  - server/tests/modes.test.ts
+  - client/tests/offlineModes.test.ts
 tags:
   - game
   - modes
@@ -31,7 +34,7 @@ updated: 2026-10-07
 
 # Gun Game
 
-**Corrida armada** (`'corrida-armada'` em [[Shared Systems|shared/modes.ts]]): todos sobem a **mesma escada de armas**. Cada degrau é uma arma com atributos fixos; quem faz **3 abates com a arma do degrau** sobe um degrau, quem **morre por facada perde um abate** (e, sem abates no degrau, volta uma arma), e o **abate com o Sabre de Luz**, no último degrau, vence a rodada. Existe online (servidor com autoridade) e contra bots (o `BotManager` aplica as mesmas regras).
+**Corrida armada** (`'corrida-armada'` em [[Shared Systems|shared/modes.ts]]): todos sobem a **mesma escada de armas**. Cada degrau é uma arma com atributos fixos; quem faz **3 abates com a arma do degrau ou com a faca** sobe um degrau, quem **morre por facada perde um abate** (e, sem abates no degrau, volta uma arma), e o **abate com o Sabre de Luz**, no último degrau, vence a rodada. Existe online (servidor com autoridade) e contra bots (o `BotManager` aplica as mesmas regras).
 
 > As regras globais (vida, dano, opressão, coletáveis, respawn) são as de [[Game Rules]], [[Combat]] e [[Respawn]]. Esta nota só registra o que difere. Decisão: [[ADR - Corrida armada]].
 
@@ -75,8 +78,10 @@ Nenhum: todos contra todos.
 
 ### Subir, descer, vencer (`shared/gunGame.ts`, funções puras)
 
-- `afterKill(pos, kind, arma)`: o abate só conta se foi **com a arma do degrau** (`gun`/`head`/`groin` com a mesma `GunId`; no último degrau, `knife`). Ao completar 3, o jogador sobe com 0 abates e recebe a arma nova **na hora**, com pente cheio.
-- Facada (faca comum) em outros degraus **não conta** para quem esfaqueou.
+- `afterKill(pos, kind, arma)` / `killCounts`: o abate conta se foi **com a arma do degrau** (`gun`/`head`/`groin` com a mesma `GunId`) ou **com a faca** (`knife`, em qualquer degrau). Ao completar 3, o jogador sobe com 0 abates e recebe a arma nova **na hora**, com pente cheio.
+- **Facada conta como um abate** (desde 2026-10-07): o golpe rápido com a faca de cozinha num degrau de arma de fogo vale **um** abate do degrau, igual a um abate com a arma da vez (pode completar o degrau e subir). A vítima continua perdendo um abate pela facada: as duas regras valem juntas. Até 2026-10-06 a facada não contava para quem esfaqueava.
+- A facada no penúltimo degrau (o último de arma de fogo) que completa os 3 abates **leva ao sabre**, não vence direto: só o abate no último degrau (que é sempre uma facada, com o sabre) vence.
+- Granada, mina, queda, cachorro etc. nunca contam (no modo nem há granadas).
 - `afterDeath(pos, kind)`: morrer por **facada** (`kind: 'knife'`, faca ou sabre) tira **um abate** (sem abates no degrau, volta à arma anterior com um abate a menos que o necessário; no começo da escada, nada). Ex.: degrau 3 com 2 abates → degrau 3 com 1; degrau 3 com 0 → degrau 2 com 2 de 3; do sabre → última arma com 2 de 3. Até 2026-10-06 a facada descia o degrau inteiro e zerava os abates. Quedas, cachorro, a própria granada e tiros não fazem descer.
 - Quem entra no meio da rodada começa no primeiro degrau.
 
@@ -94,7 +99,7 @@ No último degrau o loadout é `{ soFaca: true, faca: 'sabre' }` (a faca Sabre d
 ```mermaid
 stateDiagram-v2
     [*] --> Rodada: entrar (degrau 1)
-    Rodada --> Rodada: 3 abates com a arma do degrau → sobe
+    Rodada --> Rodada: 3 abates com a arma do degrau ou a faca → sobe
     Rodada --> Rodada: morte por facada → perde um abate
     Rodada --> Intervalo: abate com o sabre (roundEnd)
     Intervalo --> Rodada: GUN_GAME.restartSeconds (6 s) → roundStart
@@ -135,17 +140,17 @@ Nenhum limite de rodada. Só o intervalo de 6 s entre rodadas.
 
 ## Código relacionado
 
-- `shared/gunGame.ts`: escada, `ladderLoadout`, `killCounts`, `afterKill`, `afterDeath`, `ladderProblems` (checado nos testes)
+- `shared/gunGame.ts`: escada, `ladderLoadout`, `killCounts` (arma do degrau ou facada), `afterKill`, `afterDeath`, `ladderProblems` (checado nos testes)
 - `shared/data/corrida_armada.json`: degraus e números do modo
 - `server/modes.ts`: `GunGameMode` (degrau por jogador, armas, rodada, XP de vitória)
 - `server/session.ts`: ganchos do modo, `setLoadout` (manda `playerLoadout` a todos), `resetForRound`, tiros em voo da arma anterior aceitos por 1 s
 - `client/ai/bots.ts` (`climb`, `newRound`) e `client/ai/bot.ts` (`arm`, bot só com lâmina corre para esfaquear)
 - `client/main.ts`: `takeLadderWeapons`, `watchLadder`, `endRound`, `startRound`, modo lâmina (`bladeOnly`)
-- Testes: `server/tests/modes.test.ts`
+- Testes: `server/tests/modes.test.ts` (regras puras e online, incluindo subir um degrau só com facadas) e `client/tests/offlineModes.test.ts` (os bots usam as mesmas regras)
 
 ## UI relacionada
 
 - [[HUD]]: faixa "ARMA N/7 · nome · ●●○" sob o placar (rosa no sabre), banners "Próxima arma!", "Esfaqueado! Perdeu um abate (n/3)", "Esfaqueado! Voltou para…", cartão do vencedor.
-- [[Menus]]: na pausa, a aba **Escada** no lugar do Arsenal: todos os degraus numa linha (o do jogador em amarelo, com "Você · N/3"), os cartões Agora e Próxima (no último degrau, "Abate final"), as três regras com os números de `GUN_GAME`, quem está **na frente** (a ordem do placar; a linha some enquanto o primeiro está empatado com o segundo no mesmo degrau e com os mesmos abates) e, entre rodadas, o vencedor com a contagem. A saída online é "Sair da corrida" e avisa que o degrau se perde.
+- [[Menus]]: na pausa, a aba **Escada** no lugar do Arsenal: todos os degraus numa linha (o do jogador em amarelo, com "Você · N/3"), os cartões Agora e Próxima (no último degrau, "Abate final"), as três regras com os números de `GUN_GAME` ("3 abates com a arma da vez ou com a faca sobem um degrau."), quem está **na frente** (a ordem do placar; a linha some enquanto o primeiro está empatado com o segundo no mesmo degrau e com os mesmos abates) e, entre rodadas, o vencedor com a contagem. A saída online é "Sair da corrida" e avisa que o degrau se perde.
 - [[Scoreboard]]: coluna Arma e ordem pela escada.
 - [[Matchmaking UI]]: "Tipo de partida" e etiqueta do modo na lista de sessões.

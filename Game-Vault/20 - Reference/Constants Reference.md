@@ -200,7 +200,7 @@ O que não está aqui é igual à pistola (multiplicadores fora a cabeça, `disp
 | progressão (`progOf`) | pistola | pistola | submetralhadora | pistola | pistola |
 | `modo` | `rajada` (`rajada`: 3 tiros, pausa 0,2 s) | `semi` | `auto` | `semi` (`bagos` 8, `cone` 4,5°) | `semi` |
 | `cadencia` | 1.100 rpm (na rajada) | 150 rpm | 1.200 rpm | 300 rpm | 170 rpm |
-| `dano` max/min, distMax/distMin | 24 / 15, 10 / 28 m | 50 / 32, 10 / 30 m | 17 / 9, 5 / 16 m | 13 / 4 por bago, 3 / 12 m | 60 / 40, 15 / 40 m |
+| `dano` max/min, distMax/distMin | 24 / 15, 10 / 28 m | 50 / 32, 10 / 30 m | 17 / 9, 5 / 16 m | 20 / 4 por bago, 5 / 15 m (até 2026-10-07: 13 / 4, 3 / 12 m) | 60 / 40, 15 / 40 m |
 | cabeça | 2,5 | 2,0 | 1,8 | 1,5 | 2,0 |
 | `pente` / `reserva` | 18 / 72 | 6 / 36 | 20 / 80 | 2 / 16 | 7 / 28 |
 | `recarga` tática/vazia | 1,5 / 1,8 s | 2,4 / 2,4 s | 1,6 / 1,9 s | 2,2 / 2,2 s | 2,0 / 2,5 s |

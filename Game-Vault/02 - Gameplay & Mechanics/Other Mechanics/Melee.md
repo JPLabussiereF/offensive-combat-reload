@@ -28,7 +28,7 @@ tags:
   - gameplay
   - melee
   - knife
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Melee
@@ -109,7 +109,7 @@ Entrada: F, posição do olho, yaw, alvos. Saída: `MoveInput.lunge` para o [[Mo
 - Investida não acontece se o alvo já está perto (≤ 60% do alcance) e encerra o slide.
 - Servidor: aceita `stab` se ambos vivos, intervalo ≥ 75% do `intervalo` e distância horizontal ≤ `alcanceInvestida` + 1,5 m, com os valores da **faca do jogador** com as melhorias dele (`loadoutKnife`). Ex.: com o Tênis, a baguete alcança 3,8 + 1,5 m e o macarrão 3,3 + 1,5 m. **O `behind` é confiado ao cliente.**
 - Modo PCD sem a mão direita: a faca vai para a mão esquerda (visual, README).
-- Na corrida armada, **morrer por facada** (faca ou sabre) tira um abate do degrau (sem abates nele, volta à arma anterior); a facada com a faca de cozinha não conta para quem esfaqueia (todo degrau de arma de fogo leva a faca de cozinha, qualquer que seja a do Arsenal). Ver [[Gun Game]].
+- Na corrida armada, **morrer por facada** (faca ou sabre) tira um abate do degrau (sem abates nele, volta à arma anterior); a facada com a faca de cozinha **conta como um abate** para quem esfaqueia, igual a um abate com a arma do degrau (desde 2026-10-07; todo degrau de arma de fogo leva a faca de cozinha, qualquer que seja a do Arsenal). Ver [[Gun Game]].
 - Se `letal` for `false`, o código usa 55 de dano fixo (hoje nunca acontece).
 
 ## Código relacionado
