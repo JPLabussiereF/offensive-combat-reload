@@ -18,7 +18,7 @@ tags:
   - game
   - gameplay
   - combat
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Combat
@@ -30,13 +30,13 @@ Visão geral do combate. Fórmulas ficam em [[Damage System]]; detalhes de cada 
 
 ## Objetivo
 
-Combate rápido de arena "todos contra todos": armas de fogo hitscan com TTK curto (rifle na primária, pistola ou submetralhadora na secundária), faca que mata com um golpe, granada de impacto, mortes instantâneas especiais ("No pássaro!", faca) e a [[Humiliation]] sobre o corpo como recompensa arriscada.
+Combate rápido de arena "todos contra todos": armas de fogo hitscan com TTK curto (rifle na primária, uma das sete secundárias — pistola, grampeador em rajada, submetralhadora, revólver, furadeira, garrucha de bagos ou pistolão), faca que mata com um golpe, granada de impacto, mortes instantâneas especiais ("No pássaro!", faca) e a [[Humiliation]] sobre o corpo como recompensa arriscada.
 
 ## Estrutura
 
 ```text
 Combat
-├── Hit Detection   → hitscan (raio Rapier) + hitboxes por osso  → [[Damage System]]
+├── Hit Detection   → hitscan (raio Rapier; um por bago na garrucha) + hitboxes por osso → [[Damage System]]
 ├── Weapons         → rifle + secundária / faca / granada        → [[Weapons]], [[Melee]], [[Grenades]], [[Land Mines]]
 ├── Damage          → queda por distância, regiões, penetração   → [[Damage System]]
 ├── Reload / Recoil / Spread                                     → [[Weapons]]

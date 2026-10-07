@@ -13,7 +13,7 @@ tags:
   - game
   - index
   - architecture
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Mapa dos sistemas
@@ -25,7 +25,7 @@ Lista cada sistema do jogo, o que ele faz e onde está documentado (comportament
 | Sistema | O que faz | Comportamento | Implementação / apresentação / rede |
 |---|---|---|---|
 | Movimento | Andar, correr, agachar, deslizar, pular, dano de queda | [[Movement]] | [[Shared Systems]] · [[Animation]] · [[Replication]] |
-| Armas | Rifle (primária) e pistola ou submetralhadora (secundária), hitscan com dispersão, recuo, mira e penetração; melhorias por nível ([[Progression]]) | [[Weapons]] · [[Combat]] | [[Weapon Models]] · [[Remote Calls]] |
+| Armas | Rifle (primária) e uma das sete secundárias (pistola, grampeador, submetralhadora, revólver, furadeira, garrucha ou pistolão), hitscan com dispersão, recuo, mira e penetração; melhorias por nível ([[Progression]]) | [[Weapons]] · [[Combat]] | [[Weapon Models]] · [[Remote Calls]] |
 | Dano e vida | Fórmula de dano, regiões, regeneração, morte | [[Damage System]] · [[Health System]] | [[Validation]] · [[Client Server Model]] |
 | Faca | Golpe fatal com investida e bônus pelas costas | [[Melee]] | [[Validation]] |
 | Granadas e minas | Granada de impacto, mina (nível 2), Dose Dupla (nível 3) | [[Grenades]] · [[Land Mines]] | [[Particles]] · [[Anti Exploit]] |

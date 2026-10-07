@@ -3,8 +3,10 @@
 // stats. Common upgrades are on as soon as they unlock; optional ones trade something for something else
 // (a silencer: quieter, weaker) and start off. The player turns any unlocked upgrade on or off in the Arsenal.
 // Progression lives in five places (rifle, pistol, SMG, knife, grenade); the old rifles of the first versions
-// use the rifle's points, levels and upgrades, and every knife uses the knife's. A weapon may be locked until
-// its progression has enough points (`libera` in its JSON: the old rifles and knives, the SMG after the pistol).
+// use the rifle's points, levels and upgrades, every knife uses the knife's, the stapler, the revolver, the
+// garrucha and the hand cannon the pistol's, and the drill the SMG's. A weapon may be locked until a
+// progression has enough points (`libera` in its JSON: the old rifles and knives, and every secondary after the
+// pistol, all with the pistol's points).
 // This module owns the levels, the upgrade trees, the weapon locks and the player's choice (ArsenalChoice);
 // shared/arsenal.ts turns them into the stats the game (client and server) actually uses.
 import data from './data/progression.json';
@@ -13,8 +15,11 @@ import type { KillKind } from './protocol';
 
 /** Guns with a progression of their own (points, levels, upgrades). */
 export type ProgGun = 'rifle' | 'pistola' | 'smg';
-/** Every firearm: the rifles of the primary slot (the old ones use the rifle's progression) and the secondaries. */
-export type GunId = ProgGun | 'rifleFita' | 'rifleTia' | 'rifleNatal' | 'rifleChama' | 'rifleVovo' | 'rifleOuro';
+/**
+ * Every firearm: the rifles of the primary slot (the old ones use the rifle's progression) and the secondaries
+ * (the newer ones use the pistol's, the drill the SMG's).
+ */
+export type GunId = ProgGun | 'rifleFita' | 'rifleTia' | 'rifleNatal' | 'rifleChama' | 'rifleVovo' | 'rifleOuro' | 'grampeador' | 'revolver' | 'furadeira' | 'garrucha' | 'pistolao';
 /** Every knife (all of them use the knife's progression). */
 export type KnifeId = 'faca' | 'colher' | 'frango' | 'baguete' | 'peixe' | 'macarrao' | 'sabre';
 /** Where points, levels and upgrades are kept. */
@@ -22,7 +27,7 @@ export type ProgWeapon = ProgGun | 'faca' | 'granada';
 /** Anything with a place in the Arsenal. */
 export type WeaponId = GunId | KnifeId | 'granada';
 /** In the order each slot unlocks them. */
-export const GUN_IDS: GunId[] = ['rifle', 'rifleFita', 'rifleTia', 'rifleNatal', 'rifleChama', 'rifleVovo', 'rifleOuro', 'pistola', 'smg'];
+export const GUN_IDS: GunId[] = ['rifle', 'rifleFita', 'rifleTia', 'rifleNatal', 'rifleChama', 'rifleVovo', 'rifleOuro', 'pistola', 'grampeador', 'smg', 'revolver', 'furadeira', 'garrucha', 'pistolao'];
 export const KNIVES: KnifeId[] = ['faca', 'colher', 'frango', 'baguete', 'peixe', 'macarrao', 'sabre'];
 export const PROG_WEAPONS: ProgWeapon[] = ['rifle', 'pistola', 'smg', 'faca', 'granada'];
 export const isGun = (w: unknown): w is GunId => GUN_IDS.includes(w as GunId);
@@ -38,8 +43,13 @@ export const GUN_DATA_ID: Record<GunId, string> = {
   rifleOuro: 'rifle_ouro',
   pistola: 'pistola',
   smg: 'smg',
+  grampeador: 'grampeador',
+  revolver: 'revolver',
+  furadeira: 'furadeira',
+  garrucha: 'garrucha',
+  pistolao: 'pistolao',
 };
-/** The progression each gun uses: the old rifles share the rifle's. */
+/** The progression each gun uses: the old rifles share the rifle's, the newer secondaries the pistol's (the drill the SMG's). */
 const GUN_PROG: Record<GunId, ProgGun> = {
   rifle: 'rifle',
   rifleFita: 'rifle',
@@ -50,6 +60,11 @@ const GUN_PROG: Record<GunId, ProgGun> = {
   rifleOuro: 'rifle',
   pistola: 'pistola',
   smg: 'smg',
+  grampeador: 'pistola',
+  revolver: 'pistola',
+  furadeira: 'smg',
+  garrucha: 'pistola',
+  pistolao: 'pistola',
 };
 /** Where a weapon's points, level and upgrades are kept. */
 export function progOf(w: GunId): ProgGun;

@@ -26,7 +26,7 @@ tags:
   - modes
   - online
   - bots
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Gun Game
@@ -61,14 +61,17 @@ Nenhum: todos contra todos.
 | 2 | `smgTurbo` — Liquidificador Turbo | Submetralhadora | motor, holográfica, coronha | 3 |
 | 3 | `rifleLuneta` — Rifle com Luneta | Rifle Padrão | empunhadura, luneta | 3 |
 | 4 | `rifleSilenciado` — Rifle Silenciado | Rifle Padrão | silenciador (mira de ferro) | 3 |
-| 5 | `pistolaRapida` — Pistola Ligeira | Pistola | gatilho, ponto vermelho, coldre | 3 |
-| 6 | `pistolaBatata` — Pistola da Batata | Pistola | silenciador de batata | 3 |
-| 7 | `sabre` — Sabre de Luz | Faca (`"faca": "sabre"`) | — | **1 abate vence** |
+| 5 | `garrucha` — Garrucha do Cangaceiro | Garrucha (8 bagos, 2 tiros) | — | 3 |
+| 6 | `grampeador` — Grampeador do RH | Grampeador (rajada de 3) | — | 3 |
+| 7 | `pistolaRapida` — Pistola Ligeira | Pistola | gatilho, ponto vermelho, coldre | 3 |
+| 8 | `pistolaBatata` — Pistola da Batata | Pistola | silenciador de batata | 3 |
+| 9 | `sabre` — Sabre de Luz | Faca (`"faca": "sabre"`) | — | **1 abate vence** |
 
 - Os atributos vêm de `gunStats(arma, melhorias)` / `meleeStats('sabre', [])` com **as melhorias do degrau**, nunca as liberadas pelo jogador: todo mundo tem a mesma arma no mesmo degrau ([[Weapons]]).
-- A escada usa só o Rifle Padrão (os rifles e as facas antigos do Arsenal não entram na corrida — [[ADR - Rifles e facas antigos como armas próprias]]). Como as melhorias não mudam mais a pintura, o Rifle Completo (com o pente) e o Rifle com Luneta têm a pintura do Rifle Padrão.
+- A escada usa só o Rifle Padrão (os rifles e as facas antigos do Arsenal não entram na corrida — [[ADR - Rifles e facas antigos como armas próprias]]). Das secundárias da PF-10, só a **garrucha** e o **grampeador** entram, sem melhorias, entre o rifle silenciado e a pistola ligeira ([[ADR - Secundárias novas no Arsenal]]). Como as melhorias não mudam mais a pintura, o Rifle Completo (com o pente) e o Rifle com Luneta têm a pintura do Rifle Padrão.
 - Cada degrau dá **só aquela arma** (sem secundária) e a **faca de cozinha** para o golpe rápido (`F`/`V`), qualquer que seja a faca do Arsenal (`ladderLoadout` devolve `faca: 'faca'`). Não há granadas (`MODE_RULES['corrida-armada'].grenades = false`): o servidor ignora `grenade` e o cliente zera a carga.
-- O total é 6 × 3 + 1 = **19 abates** para vencer. A ordem vai das armas mais fáceis (automáticas com mira) às mais difíceis (pistola com silenciador, sabre).
+- O total é 8 × 3 + 1 = **25 abates** para vencer (19 antes da PF-10). A ordem vai das armas mais fáceis (automáticas com mira) às mais difíceis (pistola com silenciador, sabre).
+- Na pausa, cada degrau mostra o **ícone da arma** como o Arsenal o mostra (`weaponIcon`: 🌵 garrucha, 📎 grampeador), ou o da luneta/silenciador quando o degrau tem um; os degraus antigos ficaram com os mesmos ícones.
 
 ### Subir, descer, vencer (`shared/gunGame.ts`, funções puras)
 
@@ -143,6 +146,6 @@ Nenhum limite de rodada. Só o intervalo de 6 s entre rodadas.
 ## UI relacionada
 
 - [[HUD]]: faixa "ARMA N/7 · nome · ●●○" sob o placar (rosa no sabre), banners "Próxima arma!", "Esfaqueado! Perdeu um abate (n/3)", "Esfaqueado! Voltou para…", cartão do vencedor.
-- [[Menus]]: na pausa, a escada inteira (degrau atual em amarelo) no lugar do Arsenal.
+- [[Menus]]: na pausa, a aba **Escada** no lugar do Arsenal: todos os degraus numa linha (o do jogador em amarelo, com "Você · N/3"), os cartões Agora e Próxima (no último degrau, "Abate final"), as três regras com os números de `GUN_GAME`, quem está **na frente** (a ordem do placar; a linha some enquanto o primeiro está empatado com o segundo no mesmo degrau e com os mesmos abates) e, entre rodadas, o vencedor com a contagem. A saída online é "Sair da corrida" e avisa que o degrau se perde.
 - [[Scoreboard]]: coluna Arma e ordem pela escada.
 - [[Matchmaking UI]]: "Tipo de partida" e etiqueta do modo na lista de sessões.

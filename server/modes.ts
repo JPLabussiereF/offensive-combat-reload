@@ -39,7 +39,7 @@ export interface ModeHost {
   kill(p: SPlayer, kind: KillKind): void;
   /** The gun a hit says it came from, if the player could have fired it (see Session.firedGun). */
   firedGun(p: SPlayer, w: unknown, now: number): GunStats | null;
-  /** The shared fire-rate check (counts every hit the player lands); records the hit when it passes. */
+  /** The shared fire-rate check (counts every hit the player lands, each pellet of a scattergun too); records the hit when it passes. */
   fireRate(p: SPlayer, gun: GunStats, now: number): boolean;
 }
 

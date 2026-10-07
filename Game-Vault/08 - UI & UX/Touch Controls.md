@@ -18,7 +18,7 @@ tags:
   - ui
   - mobile
   - touch
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Touch Controls
@@ -55,8 +55,8 @@ Curva de resposta: arrastos lentos a 75% (mira fina), rápidos até 170% (virar)
 
 ## Personalização
 
-- **Configurações** ([[Settings]]): sensibilidade do toque, tamanho dos botões (70–140%), opacidade (20–100%, padrão 55%), mira segurar/alternar, tela cheia ao jogar.
-- **Editor de layout** ("Ajustar botões" no menu de pausa): o menu some, o HUD e os botões aparecem sobre o jogo pausado e podem ser **arrastados**; barra com "Posições padrão" e "Pronto". As posições são salvas como fração da tela (`touchLayout`) em `localStorage`.
+- **Configurações** ([[Settings]]), subaba **Toque** (só no celular): sensibilidade do toque, tamanho dos botões (70–140%), opacidade (20–100%, padrão 55%), segurar para mirar, tela cheia ao jogar, "Ajustar botões", o botão "Tela cheia", o aviso do iPhone e a ajuda dos controles de toque. A assistência de mira fica na subaba Mira (aparece no toque).
+- **Editor de layout** ("Ajustar botões" na subaba Toque do menu de pausa): o menu some, o HUD e os botões aparecem sobre o jogo pausado e podem ser **arrastados**; barra com "Posições padrão" e "Pronto". As posições são salvas como fração da tela (`touchLayout`) em `localStorage`. "Pronto" volta ao menu de pausa onde o jogador estava (Configurações → Toque).
 
 ## Integração com o celular
 
@@ -71,6 +71,6 @@ Curva de resposta: arrastos lentos a 75% (mira fina), rápidos até 170% (virar)
 
 - `client/ui/touch.ts` — `TouchControls`, `BUTTONS`, `ICONS`, `layout`, `setEditing`, `setChat`, `setStatus`, `resetLayout`, `clearToggle`.
 - `client/main.ts` — criação (`IS_MOBILE`), `onPause`, `onChat`, `setStatus` por quadro, editor de layout.
-- `client/ui/menu.ts` — `onEditLayout`, ajustes de toque, aviso do iOS.
+- `client/ui/menu.ts` — `onEditLayout`, subaba Toque, aviso do iOS; o menu de pausa no celular (trilho na largura toda, abas por cima com Voltar; ver [[Menus]]).
 - `client/core/device.ts` — detecção, tela cheia, `isPortrait`.
 - `client/styles.css` — seção "Phones and tablets" e "Touch controls".

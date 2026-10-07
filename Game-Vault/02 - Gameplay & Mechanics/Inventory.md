@@ -15,7 +15,7 @@ tags:
   - gameplay
   - inventory
   - stub
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Inventory
@@ -30,7 +30,7 @@ Todo jogador tem, sempre e ao mesmo tempo:
 | Slot (conceitual) | Arma | Uso | Reposição |
 |---|---|---|---|
 | Primária | Um dos sete rifles (escolhido no Arsenal; Rifle Padrão por padrão) | mouse; tecla 1 | pente próprio; volta cheio ao renascer |
-| Secundária | Pistola ou Submetralhadora (escolhida no Arsenal; pistola por padrão) | mouse; tecla 2 | pente próprio; volta cheio ao renascer |
+| Secundária | Uma das sete secundárias: Pistola do Porteiro, Grampeador do RH, Submetralhadora Liquidificador, Revólver do Delegado da Quadrilha, Furadeira do Vizinho de Domingo, Garrucha do Cangaceiro ou Pistolão do Marombeiro (escolhida no Arsenal; pistola por padrão; ver [[Weapons#Secundárias]]) | mouse; tecla 2 | pente próprio; volta cheio ao renascer |
 | Corpo a corpo | Uma das sete facas (escolhida no Arsenal; faca de cozinha por padrão) | F | ilimitada (intervalo de 0,6 s na faca de cozinha sem melhorias) |
 | Arremesso | Granada / Mina / Dose Dupla (conforme a melhoria opcional ligada) | G | 2 cargas (3 com o Cinto); +1 a cada 10 s; cheia ao renascer |
 

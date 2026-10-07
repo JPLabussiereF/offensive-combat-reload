@@ -5,6 +5,7 @@ status: documented
 area: ai
 source_paths:
   - client/ai/bot.ts
+  - client/ai/botGuns.ts
   - client/ai/bots.ts
   - client/gameplay/spawnPicker.ts
   - shared/weapons.ts
@@ -15,7 +16,7 @@ tags:
   - bots
   - decisions
   - difficulty
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # AI Decisions
@@ -84,7 +85,7 @@ Ver o diagrama em [[States]]. Regras:
 
 ## Gatilho
 
-Só atira em `engage`, com alvo visível, depois do tempo de reação e fora da animação da faca. Atira quando o erro de mira está dentro de um cone de `2,5° + 0,6 / max(3, dist)` rad; segura por uma rajada (×1,8 se o alvo está a menos de 10 m) e pausa. Recarrega com pente vazio, ou fora de combate com menos de 40% do pente da arma. Com uma arma semiautomática (a pistola), o gatilho é solto a cada tick para cada aperto valer um tiro. O disparo passa pelo mesmo `Weapon` do jogador (cadência, dispersão, recuo da arma sorteada para a vida, `gunStats` sem melhorias) e é resolvido pelo `BotManager.fire` com `traceShot` (inclui penetração), `computeDamage` e prêmios iguais aos do servidor (abate, cabeça, virilha, longa distância).
+Só atira em `engage`, com alvo visível, depois do tempo de reação e fora da animação da faca. Atira quando o erro de mira está dentro de um cone de `2,5° + 0,6 / max(3, dist)` rad; segura por uma rajada (×1,8 se o alvo está a menos de 10 m) e pausa. Recarrega com pente vazio, ou fora de combate com menos de 40% do pente da arma. Com uma arma que não é automática (semi: pistola, revólver, garrucha, pistolão; rajada: grampeador), o gatilho é solto a cada outro tick para cada aperto valer um tiro (ou uma rajada de 3, que termina sozinha e respeita a pausa de 0,2 s). A garrucha resolve um raio por bago (`BotManager.fire` recebe os bagos sorteados pelo `Weapon`). O disparo passa pelo mesmo `Weapon` do jogador (cadência, dispersão, recuo da arma sorteada para a vida, `gunStats` sem melhorias) e é resolvido pelo `BotManager.fire` com `traceShot` (inclui penetração), `computeDamage` e prêmios iguais aos do servidor (abate, cabeça, virilha, longa distância).
 
 ## Spawn
 

@@ -45,7 +45,7 @@ tags:
   - online
   - coop
   - zombies
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Zombie
@@ -183,16 +183,18 @@ Um caixão velho com um "?" brilhando e um **feixe de luz** que se vê de longe,
 
 - `E` perto dele (2,2 m): paga **$950** e gira (3,5 s, as armas passam piscando). Para numa arma, que fica flutuando, na cor da raridade, por **8 s** só para quem pagou: `E` de novo pega. Não pegou, perdeu (é assim que se recusa uma arma).
 - O sorteio é **no servidor** online (`rollBox` e `rollFlaw`, `Math.random` do servidor): a raridade pelo peso, uma arma dela e, por cima, **se vem danificada**. **Nunca sai a arma que você já tem intacta naquele lugar** (uma cópia danificada pode sair de novo).
-- A arma nova vai para o **lugar dela** (rifle → primária; pistola/submetralhadora → secundária; sabre → faca; `itemSlot` usa `PRIMARIES`) e a que estava lá **é jogada fora**.
+- A arma nova vai para o **lugar dela** (rifle → primária; qualquer secundária → secundária; sabre → faca; `itemSlot` usa `PRIMARIES`) e a que estava lá **é jogada fora**.
 - **A raridade multiplica o dano contra zumbis** (não muda o comportamento da arma).
 
 | Raridade | Chance | Dano × | Vem danificada | Armas (arma + melhorias fixas) |
 |---|---|---|---|---|
 | Inicial | — | 1,0 | nunca | Rifle Padrão (só no começo) |
-| Comum | 50% | 1,4 | 25% | Rifle com Ponto Vermelho; Rifle Silencioso (ponto vermelho + silenciador); Pistola do Porteiro; Pistola da Batata; Liquidificador |
-| Rara | 32% | 1,9 | 18% | Rifle Firme (ponto vermelho + empunhadura); Rifle do Vovô (empunhadura + luneta); Pistola Ligeira (gatilho + ponto vermelho + coldre); Liquidificador com Motor (motor + holográfica) |
-| Épica | 14% | 2,6 | 12% | Rifle Remendado (empunhadura + pente); Liquidificador Turbo (motor + holo + coronha); Liquidificador Pipoqueiro (motor + holo + tambor) |
+| Comum | 50% | 1,4 | 25% | Rifle com Ponto Vermelho; Rifle Silencioso (ponto vermelho + silenciador); Pistola do Porteiro; Pistola da Batata; Liquidificador; **Grampeador do RH**; **Revólver do Delegado da Quadrilha** |
+| Rara | 32% | 1,9 | 18% | Rifle Firme (ponto vermelho + empunhadura); Rifle do Vovô (empunhadura + luneta); Pistola Ligeira (gatilho + ponto vermelho + coldre); Liquidificador com Motor (motor + holográfica); **Furadeira do Vizinho de Domingo**; **Garrucha do Cangaceiro** |
+| Épica | 14% | 2,6 | 12% | Rifle Remendado (empunhadura + pente); Liquidificador Turbo (motor + holo + coronha); Liquidificador Pipoqueiro (motor + holo + tambor); **Pistolão do Marombeiro** |
 | Lendária | 4% | 3,5 | **6%** | Rifle Completo (ponto vermelho + empunhadura + pente); Liquidificador Supremo (as 4); **Sabre de Luz Paraguaio** (o item `{ "arma": "faca", "faca": "sabre" }`: a faca vira o sabre, 420 por golpe) |
+
+As cinco secundárias da PF-10 entram no caixão **sem melhorias**, com o nome da própria arma ([[ADR - Secundárias novas no Arsenal]]). Uma garrucha danificada com menos munição fica com 1 cartucho no pente (`zombieGunData` nunca deixa menos de 1).
 
 > [!warning] Nomes dos itens × armas do Arsenal (PF-8)
 > Os itens do caixão continuam sendo o **Rifle Padrão** com melhorias fixas, mesmo os que levam o nome de um rifle antigo ("Rifle do Vovô", "Rifle Remendado"). Desde que as melhorias deixaram de mudar a pintura ([[ADR - Rifles e facas antigos como armas próprias]]), esses itens aparecem com a pintura do Rifle Padrão, e o "Rifle do Vovô" do caixão não é o `rifleVovo` do Arsenal. Pôr os rifles antigos no caixão ficou fora do escopo da PF-8.
@@ -298,7 +300,7 @@ Tudo em `shared/data/zumbi.json` (lido por `shared/zombies.ts` como o objeto `ZO
 - [[HUD]]: "ONDA 3/12 · 14 zumbis" (ou a contagem, ou o intervalo) sob o placar, barra do chefe, dinheiro sobre a vida, "+$100 Tiro na cabeça" nos pop-ups, nomes das armas na cor da raridade com a etiqueta "Danificada", **setas das brechas** em volta da mira, faixas de onda, de chefe e de arma danificada, "PULE A ONDA!", tela de caído, prompts do caixão, das barricadas ("Segure para erguer a barricada: Brecha Oeste ($300)", "Segure para pregar tábuas (2/5)", "Passagem ocupada") e de reanimar, cartão de resumo.
 - [[Scoreboard]]: colunas do modo.
 - [[Matchmaking UI]]: "Zumbi" no tipo de partida (online e contra bots: "ENCARAR A HORDA SOZINHO"), só o Cemitério da Capela nos mapas; o cemitério não aparece nos outros modos nem no campo de tiro.
-- [[Menus]]: a página do Caixão Misterioso na pausa.
+- [[Menus]]: a aba **Caixão** na pausa ("Você carrega" ao lado das "Chances · $950" por raridade); online o aviso diz "a horda não espera" e a saída avisa que o dinheiro da partida não é guardado (com equipe, "Sua equipe continua sem você"; sozinho online, a partida recomeça para o próximo que entrar; no solo, ela acaba). A linha do trilho diz "Onda X/12 · …" e, antes da primeira onda, o mesmo título da contagem do HUD ("A HORDA VEM AÍ · …").
 
 ## Limites e próximos passos
 

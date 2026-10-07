@@ -22,12 +22,12 @@ function layoutFor(xp: WeaponXp, raw: unknown = DEFAULT_CHOICE, shown: Partial<R
 }
 
 describe('canvas do Arsenal: layout', () => {
-  it('quatro quadros, um embaixo do outro, com 7, 2, 7 e 1 armas lado a lado', () => {
+  it('quatro quadros, um embaixo do outro, com 7, 7, 7 e 1 armas lado a lado', () => {
     const L = layoutFor(NO_XP);
     expect(L.frames.map((f) => f.id)).toEqual(['primaria', 'secundaria', 'faca', 'granada']);
     for (let i = 1; i < L.frames.length; i++) expect(L.frames[i].y).toBe(L.frames[i - 1].y + L.frames[i - 1].h + 56);
     const count = (row: RowId) => L.weapons.filter((w) => w.row === row).length;
-    expect([count('primaria'), count('secundaria'), count('faca'), count('granada')]).toEqual([7, 2, 7, 1]);
+    expect([count('primaria'), count('secundaria'), count('faca'), count('granada')]).toEqual([7, 7, 7, 1]);
     // Side by side, with the design's gap; every weapon inside its frame.
     const rifles = L.weapons.filter((w) => w.row === 'primaria');
     expect(rifles.map((w) => w.x)).toEqual([0, 1, 2, 3, 4, 5, 6].map((i) => i * (WW + WG)));

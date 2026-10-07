@@ -4,6 +4,8 @@
 import type { PlayerInfo } from '@shared/protocol';
 import { FINAL_STEP, killsForStep } from '@shared/gunGame';
 import { stickerBadge, titleText } from './album';
+// The order lives with the pause menu's rules (pure), which names the corrida armada's leader with it.
+import { standingsOrder } from './pauseMenu';
 import { t } from './strings';
 
 export type ScoreboardKind = 'plain' | 'ladder' | 'zombie';
@@ -45,8 +47,7 @@ export class Scoreboard {
 
   update(players: Iterable<PlayerInfo>, me: number, sessionName: string) {
     const ladder = this.kind === 'ladder';
-    const step = (p: PlayerInfo) => (p.ladder ? p.ladder.step * 100 + p.ladder.kills : 0);
-    const rows = [...players].sort((a, b) => (ladder ? step(b) - step(a) : 0) || b.score - a.score || b.kills - a.kills || a.deaths - b.deaths);
+    const rows = standingsOrder(players, ladder);
     const key = sessionName + JSON.stringify(rows);
     if (key === this.key) return;
     this.key = key;
