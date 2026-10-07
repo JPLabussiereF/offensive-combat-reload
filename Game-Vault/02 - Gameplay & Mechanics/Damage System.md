@@ -55,7 +55,7 @@ Transformar um acerto (bala, faca, explosão, queda, mapa) em perda de vida de f
 
 ## Arma de fogo: fórmula
 
-A mesma fórmula vale para o rifle e todas as secundárias. Na **garrucha** (`bagos: 8`), a fórmula vale **por bago**: cada bago é um raio próprio, com a sua distância, região e `keep`, e cada um que acerta é um acerto (e um dano) separado; `dano` no JSON é o de um bago (13 → 4). Ver [[Weapons#Secundárias]]. Os números saem de `gunStats(arma, melhorias)` (`shared/arsenal.ts`): o JSON da arma com as melhorias ativas aplicadas (o silenciador, por exemplo, multiplica o dano por 0,9). Valores de cada arma em [[Weapons]]; os exemplos abaixo são do rifle sem melhorias.
+A mesma fórmula vale para o rifle e todas as secundárias. Na **garrucha** (`bagos: 8`), a fórmula vale **por bago**: cada bago é um raio próprio, com a sua distância, região e `keep`, e cada um que acerta é um acerto (e um dano) separado; `dano` no JSON é o de um bago (20 → 4, queda entre 5 e 15 m). Ver [[Weapons#Secundárias]]. Os números saem de `gunStats(arma, melhorias)` (`shared/arsenal.ts`): o JSON da arma com as melhorias ativas aplicadas (o silenciador, por exemplo, multiplica o dano por 0,9). Valores de cada arma em [[Weapons]]; os exemplos abaixo são do rifle sem melhorias.
 
 ```
 dano = max(1, round( danoPorDistância(dist) × multiplicador[região] × keep ))

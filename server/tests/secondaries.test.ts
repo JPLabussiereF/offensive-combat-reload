@@ -51,7 +51,7 @@ describe('ficha das secundárias novas', () => {
     expect(w('revolver')).toMatchObject({ dispersao: { parado: 0.5, porTiro: 0.9 }, recuo: { vertical: 2.6 }, ads: { tempo: 0.18 } });
     expect(w('furadeira')).toMatchObject({ icone: '🔩', modo: 'auto', cadencia: 1200, dano: { max: 17, min: 9, distMax: 5, distMin: 16 }, pente: 20, reserva: 80, recarga: { tatica: 1.6, vazia: 1.9 }, movimento: 1.08, troca: 0.25, alcanceMaximo: 120 });
     expect(w('furadeira')).toMatchObject({ dispersao: { parado: 1.3, mirando: 0.4, porTiro: 0.35 }, recuo: { vertical: 0.45, horizontal: [-0.9, 0.9] }, ads: { tempo: 0.12, zoom: 0.95 } });
-    expect(w('garrucha')).toMatchObject({ icone: '🌵', modo: 'semi', cadencia: 300, bagos: 8, cone: 4.5, dano: { max: 13, min: 4, distMax: 3, distMin: 12 }, pente: 2, reserva: 16, recarga: { tatica: 2.2, vazia: 2.2 }, alcanceMaximo: 40, coiceVisual: 2 });
+    expect(w('garrucha')).toMatchObject({ icone: '🌵', modo: 'semi', cadencia: 300, bagos: 8, cone: 4.5, dano: { max: 20, min: 4, distMax: 5, distMin: 15 }, pente: 2, reserva: 16, recarga: { tatica: 2.2, vazia: 2.2 }, alcanceMaximo: 40, coiceVisual: 2 });
     expect(w('garrucha').penetracao).toBeUndefined();
     expect(w('pistolao')).toMatchObject({ icone: '💪', modo: 'semi', cadencia: 170, dano: { max: 60, min: 40, distMax: 15, distMin: 40 }, pente: 7, reserva: 28, recarga: { tatica: 2.0, vazia: 2.5 }, movimento: 1.0, troca: 0.5, coiceVisual: 2.5 });
     expect(w('pistolao')).toMatchObject({ dispersao: { parado: 1.0, andando: 2.0, porTiro: 1.2 }, recuo: { vertical: 4.0 }, ads: { tempo: 0.2 } });
@@ -96,9 +96,12 @@ describe('regra de equilíbrio (P10)', () => {
   });
 
   it('cada uma ganha no seu nicho, de perto', () => {
-    // The drill shreds point-blank, the garrucha settles it in one shot under 3 m, the hand cannon in two up to 25 m.
+    // The drill shreds point-blank, the garrucha settles it in one shot up to 5 m (its full damage, 8 pellets in the
+    // chest), the hand cannon in two up to 25 m.
     expect(bestTtk('furadeira', 5)).toBeLessThan(ttk(gunStats('rifle'), 5));
-    expect(computeDamage(gunStats('garrucha'), 3, 'peito') * 8).toBeGreaterThanOrEqual(100);
+    expect(computeDamage(gunStats('garrucha'), 5, 'peito') * 8).toBeGreaterThanOrEqual(100);
+    // Past the falloff (15 m) a pellet is back to 4: from there on it never kills faster than the rifle.
+    expect(computeDamage(gunStats('garrucha'), 15, 'peito')).toBe(4);
     expect(computeDamage(gunStats('pistolao'), 25, 'peito') * 2).toBeGreaterThanOrEqual(100);
   });
 

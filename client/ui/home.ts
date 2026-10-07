@@ -208,11 +208,16 @@ export function showHome(): Promise<HomeChoice> {
   let sex: Sex = 'm';
   const guestName = FUNNY_NAMES[(Math.random() * FUNNY_NAMES.length) | 0];
   let tab: Tab = 'play';
+  /**
+   * The header's tabs only: the panes hold tab bars of their own (the borrowed settings' sub-tabs, the
+   * customizer's), and a click on one of those must not be taken for a home tab (it hid every pane).
+   */
+  const homeTabs = () => home.querySelectorAll<HTMLElement>('.home-tabs [role="tab"]');
 
   const showTab = (next: Tab) => {
     tab = next;
     for (const id of ['play', 'arsenal', 'album', 'profile', 'settings', 'auth'] as const) $(`tab-${id}`).classList.toggle('hidden', id !== next);
-    for (const b of home.querySelectorAll<HTMLElement>('[role="tab"]')) b.setAttribute('aria-selected', String(b.dataset.tab === next));
+    for (const b of homeTabs()) b.setAttribute('aria-selected', String(b.dataset.tab === next));
     // The Arsenal takes the screen's height (the canvas pans and zooms instead of the page scrolling).
     $('home-in').classList.toggle('arsenal-open', next === 'arsenal');
     if (next === 'arsenal') canvas?.shown();
@@ -329,7 +334,7 @@ export function showHome(): Promise<HomeChoice> {
     });
   };
 
-  for (const b of home.querySelectorAll<HTMLElement>('[role="tab"]')) b.onclick = () => showTab(b.dataset.tab as Tab);
+  for (const b of homeTabs()) b.onclick = () => showTab(b.dataset.tab as Tab);
   $('acct-chip').onclick = () => showTab('profile');
   $('char-customize').onclick = () => {
     if (!profile) return;

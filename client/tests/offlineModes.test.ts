@@ -281,6 +281,8 @@ describe('contra bots: as armas dos bots e da escada', () => {
         expect(knife.forma).toBe('faca');
         // A kill with the step's gun (what the bot or the player holds) counts on the ladder.
         expect(killCounts(i, 'gun', lo.primaria)).toBe(true);
+        // And so does a stab with the quick-melee knife (the bots manager runs the same rules).
+        expect(killCounts(i, 'knife', 'faca')).toBe(true);
       }
     });
   });

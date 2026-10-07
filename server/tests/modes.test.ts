@@ -1,12 +1,12 @@
 // Game modes on the real server: mata-mata keeps the loadout chosen before the match (the Arsenal is changed
 // in the lobby, level-ups wait for the next session), and corrida armada's ladder (three kills with the step's
-// weapon move you up, a stab moves you down, a lightsaber kill wins the round and a new one starts). With the
+// weapon or the knife move you up, a stab takes a kill away, a lightsaber kill wins the round and a new one starts). With the
 // weapon progression around them: a veteran's unlocked upgrades are what the server validates in mata-mata
 // (damage, fire rate, the mine, the secondary's points), a client can't claim what it hasn't unlocked, and the
 // ladder ignores the account entirely (its own stats, no weapon points).
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { FLAG, type PlayerInfo, type ServerMsg, type Vec3 } from '@shared/protocol';
-import { DEFAULT_LOADOUT, gunStats, resolveLoadout } from '@shared/arsenal';
+import { DEFAULT_LOADOUT, gunStats, meleeStats, resolveLoadout } from '@shared/arsenal';
 import { afterDeath, afterKill, FINAL_STEP, GUN_GAME, LADDER, ladderLoadout, ladderProblems, killsForStep, stepWeapon } from '@shared/gunGame';
 import { GAME_MODE_IDS, MODE_RULES } from '@shared/modes';
 import { isGun, MAX_LEVELS, progOf, PROG_WEAPONS, START_LEVELS, xpForLevel, type GunId, type KnifeId, type ProgWeapon } from '@shared/progression';
@@ -94,7 +94,7 @@ describe('escada da corrida armada (regras puras)', () => {
     let pos = { step: 0, kills: 0 };
     const gun = stepWeapon(0);
     expect(afterKill(pos, 'gun', 'pistola').event).toBeNull();
-    expect(afterKill(pos, 'knife', 'faca').event).toBeNull();
+    expect(afterKill(pos, 'grenade', 'granada').event).toBeNull();
     for (let i = 1; i < GUN_GAME.killsPerStep; i++) {
       const r = afterKill(pos, 'head', gun);
       expect(r.event).toBe('kill');
@@ -102,6 +102,22 @@ describe('escada da corrida armada (regras puras)', () => {
     }
     const up = afterKill(pos, 'groin', gun);
     expect(up).toEqual({ pos: { step: 1, kills: 0 }, event: 'advanced' });
+  });
+
+  it('o abate com a faca conta como um abate da arma da vez em todo degrau, e só um', () => {
+    for (let i = 0; i < FINAL_STEP; i++) {
+      expect(afterKill({ step: i, kills: 0 }, 'knife', 'faca')).toEqual({ pos: { step: i, kills: 1 }, event: 'kill' });
+      // The last kill of a step with the knife moves up, like one with the gun.
+      expect(afterKill({ step: i, kills: killsForStep(i) - 1 }, 'knife', 'faca')).toEqual({ pos: { step: i + 1, kills: 0 }, event: 'advanced' });
+    }
+    // Mixed: gun, knife, gun.
+    const gun = stepWeapon(2);
+    let pos = { step: 2, kills: 0 };
+    pos = afterKill(pos, 'head', gun).pos;
+    pos = afterKill(pos, 'knife', 'faca').pos;
+    expect(afterKill(pos, 'gun', gun)).toEqual({ pos: { step: 3, kills: 0 }, event: 'advanced' });
+    // A knife kill on the last gun step reaches the lightsaber; it doesn't skip it and win.
+    expect(afterKill({ step: FINAL_STEP - 1, kills: killsForStep(FINAL_STEP - 1) - 1 }, 'knife', 'faca')).toEqual({ pos: { step: FINAL_STEP, kills: 0 }, event: 'advanced' });
   });
 
   it('a facada tira um abate; sem abates no degrau, volta uma arma com um a menos; no começo não há o que perder', () => {
@@ -236,14 +252,14 @@ describe('corrida armada (online)', () => {
     expect((await knifer.p.next('playerLoadout', (m) => m.id === a.id)).lo).toEqual(ladderLoadout(1));
 
     // A stab with no kills on the step: one kill lost, so back to the first gun one kill short of climbing again;
-    // the knife kill doesn't count for the one who stabbed.
+    // and the knife kill counts for the one who stabbed, like a kill with the step's gun.
     const back = a.p.next('playerLoadout', (m) => m.id === a.id);
     const kill = a.p.next('kill', (m) => m.victim === a.id);
     knifer.p.send({ t: 'stab', target: a.id, behind: false });
     const k = await kill;
     expect(k.kind).toBe('knife');
     expect(ladderOf(k.players, a.id)).toEqual({ step: 0, kills: killsForStep(0) - 1 });
-    expect(ladderOf(k.players, knifer.id)).toEqual({ step: 0, kills: 0 });
+    expect(ladderOf(k.players, knifer.id)).toEqual({ step: 0, kills: 1 });
     expect((await back).lo).toEqual(ladderLoadout(0));
 
     // No weapon points in this mode (the account still gets its XP).
@@ -251,6 +267,32 @@ describe('corrida armada (online)', () => {
     expect(prog && prog.t === 'progresso' && prog.armas[progOf(gun0)].xp).toBe(0);
     expect(prog && prog.t === 'progresso' && prog.conta.xp).toBeGreaterThan(0);
     for (const x of [a, knifer, ...vs]) x.p.close();
+  });
+
+  it('três abates com a faca sobem um degrau, com a arma nova na hora', async () => {
+    const a = await enter(await signedIn('Cozinheira'), { mode: 'corrida-armada', map: 'jardim' });
+    const vs: In[] = [];
+    for (const n of ['Cebola', 'Tomate', 'Alho']) vs.push(await enter(await signedIn(n), a.joined.session.id));
+    await spawn(a, [0, 0, 0]);
+    // All within the plain knife's reach.
+    for (const [i, v] of vs.entries()) await spawn(v, [i - 1, 0, 1.5], a);
+    at(a, [0, 0, 0]);
+    await sleep(50);
+    const gap = meleeStats('faca').intervalo * 1000 + 50;
+    const stab = async (v: In) => {
+      const kill = a.p.next('kill', (m) => m.victim === v.id);
+      a.p.send({ t: 'stab', target: v.id, behind: false });
+      const k = await kill;
+      expect(k.kind).toBe('knife');
+      await sleep(gap);
+      return ladderOf(k.players, a.id);
+    };
+    expect(await stab(vs[0])).toEqual({ step: 0, kills: 1 });
+    expect(await stab(vs[1])).toEqual({ step: 0, kills: 2 });
+    const next = a.p.next('playerLoadout', (m) => m.id === a.id);
+    expect(await stab(vs[2])).toEqual({ step: 1, kills: 0 });
+    expect((await next).lo).toEqual(ladderLoadout(1));
+    for (const x of [a, ...vs]) x.p.close();
   });
 
   it('o abate com o sabre no último degrau vence a rodada, e uma nova começa do primeiro degrau', async () => {

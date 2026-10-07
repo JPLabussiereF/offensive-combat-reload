@@ -1,8 +1,8 @@
 // Corrida armada (gun game): the weapon ladder and its rules, as pure functions the server (online) and the
 // bots manager (offline) both run. Every player climbs the same ladder (data/corrida_armada.json) with fixed
 // stats per step, never their own upgrades, so it's fair:
-// - GUN_GAME.killsPerStep kills with the step's weapon move a player up one step;
-// - dying to a stab (knife or lightsaber) moves them down one step, with the kills of the step lost;
+// - GUN_GAME.killsPerStep kills with the step's weapon, or with the quick-melee knife, move a player up one step;
+// - dying to a stab (knife or lightsaber) takes one kill away (with none on the step, back one weapon);
 // - the last step is the lightsaber (the 'sabre' knife), always in hand (Loadout.soFaca): GUN_GAME.finalKills
 //   kill(s) with it win the round, and everyone starts over from the first step.
 import data from './data/corrida_armada.json';
@@ -62,10 +62,14 @@ export function ladderLoadout(step: number): Loadout {
   return { primaria: s.arma, secundaria: null, faca: 'faca', ativas };
 }
 
-/** Whether a kill counts toward the killer's step: made with the step's weapon (the lightsaber: a stab). */
+/**
+ * Whether a kill counts toward the killer's step: a stab always does (the quick-melee knife on a gun step, the
+ * lightsaber on the last one), a shot only with the step's gun. Grenades, mines, falls etc. never do.
+ */
 export function killCounts(step: number, kind: KillKind, weapon: WeaponId | null | undefined): boolean {
+  if (kind === 'knife') return true;
   const s = LADDER[Math.min(Math.max(0, step), FINAL_STEP)];
-  if (s.arma === 'faca') return kind === 'knife';
+  if (s.arma === 'faca') return false;
   return (kind === 'gun' || kind === 'head' || kind === 'groin') && weapon === s.arma;
 }
 

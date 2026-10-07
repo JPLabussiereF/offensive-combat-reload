@@ -6,6 +6,7 @@ area: decisions
 source_paths:
   - client/ai/bot.ts
   - client/ai/bots.ts
+  - client/ai/botKnife.ts
   - client/ai/navmesh.ts
   - README.md
 tags:
@@ -13,7 +14,7 @@ tags:
   - adr
   - ai
   - bots
-updated: 2026-10-05
+updated: 2026-10-07
 ---
 
 # ADR - Bots como jogadores completos
@@ -44,6 +45,7 @@ Justiça e coerência (README: "cada bot é um jogador completo: usa o mesmo mov
 - Positivas: comportamento crível; qualquer mudança em movimento/arma vale também para os bots; mapas glTF ganham bots sem trabalho extra.
 - Negativas: cada bot custa um corpo Rapier + controlador + rig de hitboxes + raios de visão (custo de CPU proporcional ao número de bots, até 9); a geração da navmesh soma ao carregamento; regras de abate duplicadas com o servidor.
 - Bots ainda não usam granadas, minas, coletáveis nem poções; não existem online. Ver [[Problem - Bots só existem offline]].
+- Exceção deliberada (2026-10-07): a facada do bot segue as regras do golpe do jogador, mas o bot só golpeia **uma vez por aproximação** a cada alvo, uma limitação que o jogador não tem. Ver [[ADR - Facada dos bots com uma chance por aproximação]].
 
 ## Código afetado
 

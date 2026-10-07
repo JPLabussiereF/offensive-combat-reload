@@ -16,6 +16,7 @@ import { Corpse, groundBelow } from '../gameplay/corpse';
 import { pickSafeSpawn } from '../gameplay/spawnPicker';
 import type { HitboxRegistry } from '../gameplay/targets';
 import { applySpread, offsetDir, traceShot } from '../weapons/hitscan';
+import { findMeleeTarget } from '../weapons/melee';
 import type { Pellet } from '../weapons/weapon';
 import type { Effects } from '../render/effects';
 import type { Sfx } from '../audio/sfx';
@@ -335,11 +336,14 @@ export class BotManager {
     }
   }
 
+  /**
+   * A bot's swing at its impact moment, with the player's rule for a swing without a lunge: it lands if the
+   * target is still within reach + 0.4 m, inside the knife's cone and in sight; otherwise only the swing is heard.
+   */
   private stab(bot: Bot, target: Combatant) {
-    const d = Math.hypot(target.position.x - bot.position.x, target.position.z - bot.position.z);
-    if (d > bot.knife.alcance + 0.4) return;
     const eye = bot.eye(new THREE.Vector3());
     this.o.sfx.at(eye, 'normal', (s) => s.meleeSwing(bot.knife.forma));
+    if (target.dead || !findMeleeTarget(this.o.physics, [target], eye, bot.yaw, bot.knife.alcance + 0.4, bot.knife.anguloGraus)) return;
     this.o.sfx.at(eye, 'normal', (s) => s.knifeHit());
     this.o.effects.burst('star', target.position.clone().setY(target.position.y + 1.1), UP, 10);
     this.hit(target, bot, LETHAL_DAMAGE, { kind: 'knife', behind: target.isBehind(eye), w: 'faca' });
