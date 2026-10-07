@@ -553,6 +553,8 @@ const ptBR = {
   zSolo: 'ENCARAR A HORDA SOZINHO',
   zMapOnly: 'Só no Cemitério da Capela',
   buffChilled: 'Arrepiado',
+  buffBleeding: 'Sangrando',
+  zThorns: 'Espinhos! Quem sobe na grade ou na sebe sangra.',
   // Mata-mata: the loadout is locked once the match starts.
   upgradeNextMatch: 'Vale a partir da próxima partida',
   upgradeTurnOnNext: 'Ligue no Arsenal antes da próxima partida',
@@ -1361,6 +1363,8 @@ const en: Record<keyof typeof ptBR, string> = {
   zSolo: 'FACE THE HORDE ALONE',
   zMapOnly: 'Chapel Cemetery only',
   buffChilled: 'Chilled',
+  buffBleeding: 'Bleeding',
+  zThorns: 'Thorns! Climbing the bars or the hedge makes you bleed.',
   upgradeNextMatch: 'Takes effect from your next match',
   upgradeTurnOnNext: 'Turn it on in the Arsenal before your next match',
   ladderTitle: 'Gun game ladder',
@@ -1655,6 +1659,7 @@ export const DEATH_MESSAGES = {
     explosion: ['Você cozinhou demais. A granada, e você.', 'Dica: a granada vai na direção do inimigo.'],
     dog: ['A Amora não gostou da visita.', 'Mordido pela Amora. Fofa, mas brava.', 'Quintal errado. Au.'],
     zombie: ['Virou almoço de zumbi.', 'O vizinho mordeu. E não era carinho.', 'Ninguém veio te reanimar. Que vizinhança.'],
+    thorns: ['A grade tinha espinhos. Estava escrito em lugar nenhum.', 'Pular o muro: 0. Espinhos: 1.', 'Sangrou até o fim. A sebe agradece.'],
   },
   en: {
     fall: ['You beat gravity. Just kidding, it beat you.', 'Next time, try landing on your feet.', 'The sidewalk says hi.'],
@@ -1662,6 +1667,7 @@ export const DEATH_MESSAGES = {
     explosion: ['You overcooked it. The grenade, and yourself.', 'Tip: the grenade goes toward the enemy.'],
     dog: ['Amora did not like your visit.', 'Bitten by Amora. Fluffy, but grumpy.', 'Wrong yard. Woof.'],
     zombie: ['You became zombie lunch.', 'The neighbor bit you. Not a love bite.', 'Nobody came to revive you. What a neighborhood.'],
+    thorns: ['The fence had thorns. It said so nowhere.', 'Climbing the wall: 0. Thorns: 1.', 'Bled out. The hedge thanks you.'],
   },
 };
 

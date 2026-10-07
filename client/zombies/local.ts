@@ -16,8 +16,8 @@ import type { ZombieLink } from './link';
 export interface LocalZombieOptions {
   me: number;
   name: string;
-  /** A zombie hurt us. */
-  hurt(amount: number, from: Vec3): void;
+  /** A zombie (or the thorns) hurt us. */
+  hurt(amount: number, from: Vec3, kind?: 'thorns'): void;
   /** Other weapons in our hands (the coffin's, the starting ones). */
   setLoadout(lo: Loadout): void;
   /** A new run starts: back at a spawn point. */
@@ -41,7 +41,7 @@ export class LocalZombies implements ZombieLink {
         now: () => this.time,
         rng: Math.random,
         emit: (m) => this.dispatch(m),
-        hurt: (_id, amount, from) => o.hurt(amount, from),
+        hurt: (_id, amount, from, kind) => o.hurt(amount, from, kind),
         giveXp: () => {},
         setLoadout: (_id, lo) => {
           o.setLoadout(lo);

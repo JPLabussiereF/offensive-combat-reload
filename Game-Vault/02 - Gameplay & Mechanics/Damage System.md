@@ -50,6 +50,7 @@ Transformar um acerto (bala, faca, explosão, queda, mapa) em perda de vida de f
 | `fall` | queda > 6 m | `round((h − 6) × 15 + 10)` |
 | `void` | cair abaixo do `killY` do mapa | 9999 |
 | `dog` | mordida da Amora ([[Map - Rua dos Vizinhos]]) | 9999 |
+| `thorns` | espinhos da grade e da sebe do [[Map - Cemitério da Capela]] (modo [[Zombie]]): o golpe e o sangramento | `espinhos.dano` (10) e `espinhos.sangraDano` (2 por segundo) |
 
 `LETHAL_DAMAGE = 9999`.
 

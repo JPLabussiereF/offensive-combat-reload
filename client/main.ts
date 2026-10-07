@@ -82,7 +82,7 @@ const UP = new THREE.Vector3(0, 1, 0);
 const WORLD_ONLY = groups(GROUP.BULLET, GROUP.WORLD);
 
 const vec3 = (v: THREE.Vector3): Vec3 => [+v.x.toFixed(3), +v.y.toFixed(3), +v.z.toFixed(3)];
-const KIND_ICON: Record<KillKind, FeedIcon> = { gun: null, head: 'head', groin: 'bird', knife: 'knife', grenade: 'grenade', fall: null, void: null, explosion: 'grenade', dog: 'dog', zombie: 'zombie' };
+const KIND_ICON: Record<KillKind, FeedIcon> = { gun: null, head: 'head', groin: 'bird', knife: 'knife', grenade: 'grenade', fall: null, void: null, explosion: 'grenade', dog: 'dog', zombie: 'zombie', thorns: null };
 /** Dose Dupla: seconds between the two grenades of one throw. */
 const DOUBLE_THROW_GAP = 0.3;
 /** How each timed potion shows on the buff panel (the debuffs in colder colors). */
@@ -334,8 +334,8 @@ async function boot() {
       localZombies = new LocalZombies(nav.navMesh, zmap, {
         me,
         name: choice.name,
-        hurt: (amount) => {
-          const dealt = player.damage(amount, simTime, 'zombie');
+        hurt: (amount, _from, kind) => {
+          const dealt = player.damage(amount, simTime, kind ?? 'zombie');
           if (dealt > 0) {
             hud.damageFlash(dealt);
             sfx.hurt();
@@ -600,6 +600,9 @@ async function boot() {
     // The bride's scream: slower for a few seconds.
     const chill = zombies?.slowLeft() ?? 0;
     if (chill > 0) list.push({ id: 'chill', icon: '😱', label: t('buffChilled'), color: '#b06bff', left: chill, total: ZOMBIE.chefes.noiva.grito?.duracao ?? 3 });
+    // The thorns on the wall's bars and the hedge: losing health every second for a while.
+    const bleed = zombies?.bleedLeft() ?? 0;
+    if (bleed > 0) list.push({ id: 'bleed', icon: '🩸', label: t('buffBleeding'), color: '#e0453a', left: bleed, total: ZOMBIE.espinhos.sangraSegundos });
     if (duckAmmo) list.push({ id: 'duck', icon: '🦆', label: t('buffDuck'), color: '#ffe066' });
     return list;
   };
@@ -1477,7 +1480,7 @@ async function boot() {
         hud.setDeathShowcase(stickerBadge(killerInfo?.fig), titleText(killerInfo?.tit));
         const msg = killer
           ? t('killedByWith', { name: killer, weapon: weaponName })
-          : pick(DEATH_MESSAGES[getLang()][m.kind === 'void' ? 'void' : m.kind === 'fall' ? 'fall' : m.kind === 'dog' ? 'dog' : m.kind === 'zombie' ? 'zombie' : 'explosion']);
+          : pick(DEATH_MESSAGES[getLang()][m.kind === 'void' ? 'void' : m.kind === 'fall' ? 'fall' : m.kind === 'dog' ? 'dog' : m.kind === 'zombie' ? 'zombie' : m.kind === 'thorns' ? 'thorns' : 'explosion']);
         hud.showDeath(msg);
       }
     });

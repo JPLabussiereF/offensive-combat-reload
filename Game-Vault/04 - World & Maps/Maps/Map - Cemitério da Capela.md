@@ -56,7 +56,7 @@ O mapa **exclusivo do [[Zombie|modo zumbi]]**: um cemitério murado e compacto e
                x = −32   x = −20                x = +20   x = +32
 ```
 
-- **Muro** (linha central x = ±20, z = ±18; 0,5 m de espessura): **base de pedra de 0,6 m** (para tiros baixos e granadas) com **grades de ferro até 2,4 m** por cima (colisor de bloqueio: para jogadores e granadas, **não para balas**). Pilares a cada ~5 m e nos cantos. Ninguém pula; a horda só entra pelas brechas.
+- **Muro** (linha central x = ±20, z = ±18; 0,5 m de espessura): **base de pedra de 0,6 m** (para tiros baixos e granadas) com **grades de ferro até 2,4 m** por cima (colisor de bloqueio: para jogadores e granadas, **não para balas**). Pilares a cada ~5 m e nos cantos. Ninguém pula; a horda só entra pelas brechas. A beirada da base (17 cm de cada lado das grades) deixava subir: as grades têm **espinhos** nos dois trilhos, e quem sobe sangra (ver "Zonas especiais").
 - **As cinco brechas** (`mapas.cemiterio.barricadas`, na ordem que a rede e a navmesh usam):
 
 | # | id | Nome no jogo | Muro | Centro | Largura livre |
@@ -117,6 +117,7 @@ Os do [[Zombie|modo zumbi]]: sobreviver às ondas. Pontos de interesse: o caixã
 
 - **Faixas das brechas** (dentro da espessura do muro): na navmesh, cada uma é um polígono à parte com a sua flag ([[ADR - Barricadas como polígonos próprios na navmesh]]); uma barricada fechada tira esse polígono do mapa dos zumbis.
 - **Raio de trabalho** de uma brecha: 2,4 m do centro, dos dois lados (`barricadas.alcance`).
+- **Espinhos** (`thornsAt` em `shared/barricades.ts`, números em `espinhos`): a grade do muro (fora das brechas) e a **sebe** (`mapas.cemiterio.sebe`). Conta quem está com os pés a 0,3 m do chão ou mais e a até 0,5 m da linha do muro ou 0,8 m da linha da sebe: em pé no chão, o corpo do jogador (raio 0,35 m) nunca chega tão perto, então só quem sobe leva. Os espinhos desenhados (pontas claras nos trilhos e na face da sebe) são só visuais, sem colisão; a navmesh não muda. Regra em [[Zombie]].
 
 ## Objetos interativos
 

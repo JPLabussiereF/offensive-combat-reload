@@ -219,9 +219,9 @@ class ZombieMode implements SessionMode {
       now: () => host.now(),
       rng: Math.random,
       emit: (m) => host.broadcast(m),
-      hurt: (id, amount, from) => {
+      hurt: (id, amount, from, kind) => {
         const p = this.player(id);
-        if (p) host.damage(p, amount, 'zombie', from);
+        if (p) host.damage(p, amount, kind ?? 'zombie', from);
       },
       giveXp: (id, xp) => {
         const p = this.player(id);

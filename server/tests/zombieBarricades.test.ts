@@ -15,7 +15,7 @@ import { gunStats, sanitizeLoadout } from '@shared/arsenal';
 import { MAP_IDS, MAPS, PVP_MAPS } from '@shared/maps';
 import { GAME_MODE_IDS, MODE_RULES, modeMaps } from '@shared/modes';
 import type { ServerMsg, Vec3 } from '@shared/protocol';
-import { gateFlag, insideWall, WALK_FLAG } from '@shared/barricades';
+import { gateFlag, insideWall, thornsAt, WALK_FLAG } from '@shared/barricades';
 import {
   BOX_ITEMS,
   flawChance,
@@ -79,8 +79,8 @@ interface Fake {
   of<T extends ServerMsg['t']>(t: T): Extract<ServerMsg, { t: T }>[];
 }
 
-/** A match with players at `spots` who take no damage, tracking where zombies come into the yard. */
-function fake(spots: Vec3[], seed = 3): Fake {
+/** A match with players at `spots` who take no damage (`hurt` only watches), tracking where zombies come into the yard. */
+function fake(spots: Vec3[], seed = 3, hurt: ZombieHost['hurt'] = () => {}): Fake {
   const f = { t: 0, events: [] as ServerMsg[], times: [] as number[], feet: new Map<number, Vec3>(), crossings: [] } as unknown as Fake;
   const host: ZombieHost = {
     now: () => f.t,
@@ -89,7 +89,7 @@ function fake(spots: Vec3[], seed = 3): Fake {
       f.events.push(m);
       f.times.push(f.t);
     },
-    hurt: () => {},
+    hurt,
     giveXp: () => {},
     setLoadout: () => {},
     bleedOut: () => {},
@@ -464,5 +464,63 @@ describe('armas danificadas do caixão', () => {
       else f.step(0.2);
     }
     expect(f.match.itemsOf(1).danificadas).toBeUndefined();
+  });
+});
+
+describe('espinhos na grade do muro e na sebe', () => {
+  it('só conta quem subiu: a beirada e as barras do muro (fora das brechas) e a sebe', () => {
+    const m = MAP();
+    // On the ground the capsule (radius 0.35) never gets this close to the lines.
+    expect(thornsAt(m, [5, 0, 18.6])).toBeNull();
+    expect(thornsAt(m, [5, 0.6, 18.3])).toBe('muro');
+    expect(thornsAt(m, [-20.3, 1.4, -6])).toBe('muro');
+    // The gate's gap is open: standing there (on a barricade's step) isn't the wall.
+    expect(thornsAt(m, [0, 0.6, 18])).toBeNull();
+    expect(thornsAt(m, [0, 2.6, 30])).toBe('sebe');
+    expect(thornsAt(m, [32.2, 1.2, 4])).toBe('sebe');
+    // Up on a grave in the field, far from both: not thorns.
+    expect(thornsAt(m, [0, 1.1, 24])).toBeNull();
+  });
+
+  it('sobe na beirada: leva o dano de espinho a cada segundo lá e sangra por 10 s, 2 por segundo', () => {
+    const hits: [id: number, amount: number, kind?: string][] = [];
+    const f = fake([[0, 0, 0]], 3, (id, amount, _from, kind) => hits.push([id, amount, kind]));
+    const t = ZOMBIE.espinhos;
+    f.feet.set(1, [5, 0.6, 18.3]);
+    f.step(2.5);
+    // 0 s, 1 s, 2 s on the ledge: three thorn hits, the bleeding already ticking.
+    expect(hits.filter(([, a]) => a === t.dano)).toHaveLength(3);
+    expect(f.of('zbleed').at(-1)).toMatchObject({ id: 1 });
+    f.feet.set(1, [5, 0, 15]);
+    hits.length = 0;
+    f.step(t.sangraSegundos + 1);
+    // Back on the ground: only the bleeding, until 10 s after the last thorn hit.
+    expect(hits.every(([id, a, k]) => id === 1 && a === t.sangraDano && k === 'thorns')).toBe(true);
+    const ticks = hits.length;
+    expect(ticks).toBeGreaterThanOrEqual(t.sangraSegundos - 3);
+    expect(ticks).toBeLessThanOrEqual(t.sangraSegundos);
+    hits.length = 0;
+    f.step(3);
+    expect(hits).toHaveLength(0);
+  });
+
+  it('encostar de novo renova o sangramento, sem somar', () => {
+    const hits: number[] = [];
+    const f = fake([[0, 0, 0]], 3, (_id, amount) => hits.push(amount));
+    const t = ZOMBIE.espinhos;
+    const ledge: Vec3 = [5, 0.6, 18.3];
+    f.feet.set(1, ledge);
+    f.step(0.1);
+    f.feet.set(1, [5, 0, 15]);
+    f.step(5);
+    f.feet.set(1, ledge);
+    f.step(0.1);
+    f.feet.set(1, [5, 0, 15]);
+    hits.length = 0;
+    f.step(t.sangraSegundos + 2);
+    // One bleed a second (not two) for the renewed 10 s, then nothing.
+    expect(hits.every((a) => a === t.sangraDano)).toBe(true);
+    expect(hits.length).toBeGreaterThanOrEqual(t.sangraSegundos - 1);
+    expect(hits.length).toBeLessThanOrEqual(t.sangraSegundos);
   });
 });

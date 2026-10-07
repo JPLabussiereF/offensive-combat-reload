@@ -12,6 +12,7 @@
 //   hedge and dead woods around it all.
 // The night is lit by the moon, the gap lanterns, four lamp posts along the Alameda and the chapel's candles.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ZOMBIE } from '@shared/zombies';
 import type { Vec3 } from '@shared/protocol';
 import type { Physics } from './physics';
@@ -36,14 +37,42 @@ const MOON: [number, number, number] = [38, 62, -30];
 /** The map's half size (ground), and the hedge around the grave field. */
 const HX = 34;
 const HZ = 32;
-const EDGE_X = 32;
-const EDGE_Z = 30;
+const [, , EDGE_X, EDGE_Z] = ZOMBIE.mapas.cemiterio!.sebe!;
 /** The wall: a low stone base up to BASE_H (stops bullets; low enough to see the field beyond it), iron bars up to TOP; T thick. */
 const BASE_H = 0.6;
 const TOP = 2.4;
 const T = 0.5;
 const WALL_TINT = 0x6f6a62;
 const PILLAR_TINT = 0x5e5a54;
+
+/**
+ * Thorns along a line (the wall's rails, the hedge's face): pale spikes leaning out along `out` (and against it
+ * too when `both`), merged into one mesh. They hurt whoever climbs there (ZOMBIE.espinhos, thornsAt in
+ * shared/barricades.ts); here they only show it. Their own random: the map's decides where the graves stand
+ * (colliders and the navmesh), so it mustn't move.
+ */
+function thorns(b: MapBuilder, rand: () => number, from: THREE.Vector3, to: THREE.Vector3, out: THREE.Vector3, step: number, both: boolean) {
+  const spike = new THREE.ConeGeometry(0.022, 0.13, 4, 1, true).translate(0, 0.065, 0);
+  const up = new THREE.Vector3(0, 1, 0);
+  const q = new THREE.Quaternion();
+  const d = new THREE.Vector3();
+  const along = to.clone().sub(from);
+  const n = Math.max(1, Math.round(along.length() / step));
+  const geos: THREE.BufferGeometry[] = [];
+  for (let i = 0; i <= n; i++) {
+    const p = from.clone().addScaledVector(along, i / n);
+    for (const side of both ? [1, -1] : [1]) {
+      d.copy(out).multiplyScalar(side).add(new THREE.Vector3((rand() - 0.5) * 0.9, (rand() - 0.3) * 0.8, (rand() - 0.5) * 0.9)).normalize();
+      q.setFromUnitVectors(up, d);
+      geos.push(spike.clone().applyQuaternion(q).translate(p.x + (rand() - 0.5) * step * 0.5, p.y + (rand() - 0.5) * 0.08, p.z + (rand() - 0.5) * step * 0.5));
+    }
+  }
+  const merged = mergeGeometries(geos, false)!;
+  b.addGeometry(merged, surfaceMaterial('pintura'), 0xd9ccb0, false);
+  merged.dispose();
+  for (const g of geos) g.dispose();
+  spike.dispose();
+}
 
 /** [from, to] pieces of [a, b] left after cutting the `gaps` out. */
 function solid(a: number, b: number, gaps: [number, number][]): [number, number][] {
@@ -89,6 +118,7 @@ export async function buildCemeteryMap(physics: Physics, scene: THREE.Scene, sfx
 
   // --- The wall, its pillars and the gaps ---------------------------------------------------------------------
   const metal = surfaceMaterial('metal');
+  const thornRand = seeded(4421);
   /** A stretch of wall: stone base (stops bullets), iron bars above it (bullets fly between them, nobody climbs). */
   const fence = (axis: 'x' | 'z', fixed: number, s0: number, s1: number) => {
     const len = s1 - s0;
@@ -112,6 +142,9 @@ export async function buildCemeteryMap(physics: Physics, scene: THREE.Scene, sfx
     }
     bar.dispose();
     tip.dispose();
+    // Thorns on both rails, both faces: the ledge and the bars look as bad to climb as they are.
+    const across = axis === 'x' ? V(0, 0, 1) : V(1, 0, 0);
+    for (const [y, step] of [[TOP - 0.3, 0.28], [BASE_H + 0.18, 0.35]] as const) thorns(b, thornRand, V(...at(s0 + 0.05, y)), V(...at(s1 - 0.05, y)), across, step, true);
     const half = axis === 'x' ? V(len / 2, (TOP - BASE_H) / 2, 0.08) : V(0.08, (TOP - BASE_H) / 2, len / 2);
     blocker(b, V(...at(mid, (BASE_H + TOP) / 2)), half);
     // Pillars every few metres along it.
@@ -281,6 +314,15 @@ export async function buildCemeteryMap(physics: Physics, scene: THREE.Scene, sfx
   hedge(b, 'x', EDGE_Z, -EDGE_X - 0.55, EDGE_X + 0.55);
   hedge(b, 'z', -EDGE_X, -EDGE_Z, EDGE_Z);
   hedge(b, 'z', EDGE_X, -EDGE_Z, EDGE_Z);
+  // Thorns on the hedge's face toward the field and along its top (climbing it makes you bleed too).
+  for (const sz of [-1, 1]) {
+    for (const y of [1.6, 2.3]) thorns(b, thornRand, V(-EDGE_X, y, sz * (EDGE_Z - 0.56)), V(EDGE_X, y, sz * (EDGE_Z - 0.56)), V(0, 0, -sz), 0.7, false);
+    thorns(b, thornRand, V(-EDGE_X, 2.62, sz * EDGE_Z), V(EDGE_X, 2.62, sz * EDGE_Z), V(0, 1, 0), 0.7, false);
+  }
+  for (const sx of [-1, 1]) {
+    for (const y of [1.6, 2.3]) thorns(b, thornRand, V(sx * (EDGE_X - 0.56), y, -EDGE_Z), V(sx * (EDGE_X - 0.56), y, EDGE_Z), V(-sx, 0, 0), 0.7, false);
+    thorns(b, thornRand, V(sx * EDGE_X, 2.62, -EDGE_Z), V(sx * EDGE_X, 2.62, EDGE_Z), V(0, 1, 0), 0.7, false);
+  }
   for (let i = 0; i < 40; i++) {
     const a = (i / 40) * Math.PI * 2 + rand() * 0.1;
     const r = 1.12 + rand() * 0.15;
