@@ -4,6 +4,7 @@ type: decision
 status: documented
 area: architecture
 source_paths:
+  - client/render/shadows.ts
   - client/editor/editor.ts
   - client/editor/document.ts
   - client/editor/history.ts
@@ -41,7 +42,7 @@ tags:
   - architecture
   - maps
   - editor
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # ADR - Editor de mapas no jogo
@@ -52,7 +53,7 @@ A PF-6 (fase 3 de 4) pede o editor de mapas dentro do jogo: câmera livre, gizmo
 
 ## Decisão
 
-- **Fora da partida.** `boot()` (`client/main.ts`) recebe `{ mode: 'editor', mapa: { id, versao } | null }` no `HomeChoice`, chama `runEditor` e retorna: sem `Input`, `LocalPlayer` nem HUD. O editor tem o seu loop e sai por `location.reload()`. Entra pela aba **Mapas** da tela inicial (fase 4): **Editar** (a versão atual) e **+ Novo mapa** resolvem `showHome` com esse `HomeChoice`. A entrada provisória `?editor` da fase 3 saiu; `window.__ocEditor` continua, só em desenvolvimento.
+- **Fora da partida.** `boot()` (`client/main.ts`) recebe `{ mode: 'editor', mapa: { id, versao } | null }` no `HomeChoice`, chama `runEditor` e retorna: sem `Input`, `LocalPlayer` nem HUD. O editor tem o seu loop e sai por `location.reload()`; o loop chama `QualityManager.beforeRender()` como o da partida (o mapa de sombra é sob demanda; sem isso, com aceleração de hardware, nada iluminado aparecia: [[Problem - Editor sem mapa de sombra com aceleração de hardware]]). Entra pela aba **Mapas** da tela inicial (fase 4): **Editar** (a versão atual) e **+ Novo mapa** resolvem `showHome` com esse `HomeChoice`. A entrada provisória `?editor` da fase 3 saiu; `window.__ocEditor` continua, só em desenvolvimento.
 - **O carregador do jogo no modo editor** ([[ADR - Mapas como dados com catálogo de peças]]): cada peça no seu grupo; `MapBuild.remove(id)` tira o grupo, os colisores, as atualizações por quadro, as luzes, as salas e os vãos da peça, e `piece()` a monta de novo. Cada edição reconstrói **só as peças que tocou**.
 - **Edições como patches.** `client/editor/document.ts` guarda o `MapData` e muda só por patches (peças antes e depois, com o lugar na lista; o resto do mapa antes e depois). Desfazer aplica o patch ao contrário (`client/editor/history.ts`, até 200 edições; Ctrl+Z, Ctrl+Y e Ctrl+Shift+Z). O documento é puro (testado sem tela).
 - **Pose (P32).** O gizmo segura a peça num ponto (o lugar de uma peça `livre`, o meio do que as outras montam). Uma peça `livre` movida e girada em torno do eixo vertical continua só com `p`, `yaw` e `escala`; qualquer outro giro, e todo movimento de peça `linear` ou `fixa`, vira a **pose** da peça (`Peca.pose`, transformação rígida aplicada a tudo o que ela monta: ver o ADR dos mapas). Mover a bruxa, um rato ou uma peça com coletável leva junto o lugar dele em `objetos` (o servidor confere por lá).

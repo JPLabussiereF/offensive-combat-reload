@@ -4,6 +4,7 @@ type: system
 status: documented
 area: rendering
 source_paths:
+  - client/render/shadows.ts
   - client/render/quality.ts
   - client/render/renderer.ts
   - client/world/mapBuilder.ts
@@ -28,7 +29,7 @@ tags:
   - rendering
   - performance
   - gpu
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Performance Rendering
@@ -133,7 +134,10 @@ Ver [[ADR - Qualidade automática com resolução dinâmica]].
 
 ### 8. Sombras sob demanda
 
-`shadowMap.autoUpdate = false`; o mapa de sombras é redesenhado conforme `shadowEvery`. Ver [[Lighting]].
+`shadowMap.autoUpdate = false`; o mapa de sombras é redesenhado conforme `shadowEvery` (laço da partida e do editor de mapas), e todo quadro pede o mapa se ele ainda não existe (`ensureShadowMap`). Ver [[Lighting]] e [[Problem - Editor sem mapa de sombra com aceleração de hardware]].
+
+> [!info] Custo do editor de mapas
+> No modo editor cada peça fica no seu grupo, sem lotes entre peças: medido numa RTX 4070, o Jardim do Dragão tem ~1.400 malhas estáticas e 1.700 a 2.700 chamadas de desenho por quadro (contra 310 no jogo), ~1.750 geometrias e 61 texturas na GPU, sem perda de contexto. É o preço de selecionar e reconstruir cada peça sozinha; o orçamento continua medido no modo jogo.
 
 ### 9. Custo de carregamento das texturas
 

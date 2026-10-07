@@ -4,6 +4,7 @@ type: system
 status: documented
 area: performance
 source_paths:
+  - client/render/shadows.ts
   - client/render/quality.ts
   - client/render/renderer.ts
   - client/world/mapBuilder.ts
@@ -17,7 +18,7 @@ tags:
   - performance
   - gpu
   - rendering
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # GPU
@@ -73,7 +74,7 @@ Decisão: [[ADR - Qualidade automática com resolução dinâmica]].
 ## 5. Sombra re-renderizada a cada N frames
 
 - **Problema:** re-renderizar o mapa de sombra todo frame dobra o custo de geometria.
-- **Solução:** `shadowMap.autoUpdate = false`; `beforeRender()` marca `needsUpdate` a cada `shadowEvery` frames (o mapa é estático; só personagens se movem). Se o mapa de sombra não existir (primeiro frame, redimensionamento), renderiza já, para evitar erro de GL.
+- **Solução:** `shadowMap.autoUpdate = false`; `beforeRender()` marca `needsUpdate` a cada `shadowEvery` frames (o mapa é estático; só personagens se movem). Se o mapa de sombra não existir (primeiro frame, redimensionamento, um laço que não agenda), `RenderContext.render` o pede já (`ensureShadowMap`, `client/render/shadows.ts`), para evitar erro de GL: sem ele, na GPU, todo material iluminado deixava de ser desenhado ([[Problem - Editor sem mapa de sombra com aceleração de hardware]]).
 - **Trade-off:** sombras de personagens podem "atrasar" 1–3 frames em `baixa`/`media`/celular.
 
 ## 6. Pool fixo de luzes reais (`LightPool`)

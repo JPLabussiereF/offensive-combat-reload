@@ -4,6 +4,7 @@ type: system
 status: documented
 area: rendering
 source_paths:
+  - client/render/shadows.ts
   - client/render/renderer.ts
   - client/render/quality.ts
   - client/render/materials.ts
@@ -19,7 +20,7 @@ tags:
   - game
   - rendering
   - threejs
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Rendering Overview
@@ -85,7 +86,7 @@ Cada mapa pode devolver um `atmosphere` (`GameMap.atmosphere`), aplicado por `ap
 
 ## Nível 3: implementação
 
-- `client/render/renderer.ts`: `RenderContext` (renderer, `scene`, `camera`, `vmScene`, `vmCamera`, `sun`, `hemi`, `vmHemi`, `vmSun`, `render()`), `applyAtmosphere()`, `patchBackFaceShadows()` (ver [[Shaders]]).
+- `client/render/renderer.ts`: `RenderContext` (renderer, `scene`, `camera`, `vmScene`, `vmCamera`, `sun`, `hemi`, `vmHemi`, `vmSun`, `render()`: pede o mapa de sombra que ainda não existe antes de desenhar, `ensureShadowMap` em `client/render/shadows.ts`), `applyAtmosphere()`, `patchBackFaceShadows()` (ver [[Shaders]]).
 - `client/render/quality.ts`: presets e resolução dinâmica ([[Performance Rendering]]).
 - `client/render/materials.ts`: rampa toon, cache de materiais toon, `mergeColoredParts`, `PALETTE`.
 - `client/render/effects.ts`: decals, partículas, traçantes, explosões, luz do disparo ([[Decals]], [[Particles]], [[Visual Effects]]).

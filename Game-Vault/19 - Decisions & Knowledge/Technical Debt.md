@@ -29,7 +29,7 @@ tags:
   - game
   - decisions
   - technical-debt
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # Dívida técnica
@@ -80,6 +80,7 @@ Lista consolidada da dívida técnica encontrada ao documentar o código (2026-1
 - ~~Comentários dizem que a granada nível 1 online "não é letal"~~ — resolvido: `ONLINE_GRENADE_LEVEL` e os comentários foram removidos; a explosão vem de `grenadeStats` ([[Problem - Comentários dizem que a granada nível 1 não é letal]]).
 - `taunt.ts` diz "G near a fresh corpse", mas a tecla é E. `localPlayer.ts` diz que corpos mais pesados têm mais vida. O comentário de `lanternas.ts` cita escopetas, que não existem. O comentário do placar diz "Tab, online", mas ele também aparece contra bots.
 - `docs/PERSONAGENS.md` diz 336 itens, e o código tem 306. A contagem de superfícies varia entre 12, 13 e 19 nos documentos, e o código tem 20. O README fala de 3 estilos de olho e 3 cabelos (o código tem 6 e 30).
+- ~~O editor de mapas não agendava o mapa de sombra do sol~~ — resolvido na PF-6 Revisions 01 ([[Problem - Editor sem mapa de sombra com aceleração de hardware]]).
 - `docs/MAPAS.md` promete uma checagem automática de vãos que não existe ([[Problem - Teste de estrutura de vãos ausente]]).
 
 ## Interface e produto
