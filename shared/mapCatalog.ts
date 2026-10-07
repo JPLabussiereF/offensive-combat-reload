@@ -8,6 +8,11 @@
 // - 'fixa': its params hold its whole layout in world coordinates (roofs over a rectangle, a garden sector).
 //
 // Coordinates are meters, angles radians, colors 0xRRGGBB numbers (or CSS strings where a canvas paints them).
+//
+// The defaults (`padrao`) are what a new piece made in the editor's Project starts with (P53, PF-6 Revisions 01:
+// the catalog's defaults, no longer the first example of the kind in the official maps); they're picked so a new
+// piece of every kind builds something sensible about a few meters wide at the origin. The maps carry every param
+// they use, so the defaults never change a saved map (nor the official maps and their goldens).
 
 /** Library surfaces (client/world/surfaces.ts SURFACES). */
 export const SUPERFICIES = [
@@ -30,10 +35,10 @@ export type Param =
   | { tipo: 'superficie'; padrao?: Superficie; opcional?: boolean }
   | { tipo: 'opcao'; opcoes: readonly (string | number)[]; padrao?: string | number; opcional?: boolean }
   | { tipo: 'vec2' | 'vec3' | 'vec4'; min?: number; max?: number; padrao?: number[]; opcional?: boolean }
-  | { tipo: 'lista'; item: Param; max?: number; opcional?: boolean }
+  | { tipo: 'lista'; item: Param; max?: number; padrao?: unknown[]; opcional?: boolean }
   | { tipo: 'objeto'; campos: Record<string, Param>; opcional?: boolean }
   /** Free-form JSON (a whole layout, such as a pavilion's stories): checked by the adapter. */
-  | { tipo: 'json'; opcional?: boolean };
+  | { tipo: 'json'; padrao?: unknown; opcional?: boolean };
 
 export type Transformacao = 'livre' | 'linear' | 'fixa';
 
@@ -71,9 +76,9 @@ const opt = (opcoes: readonly (string | number)[], padrao?: string | number): Pa
 const v2 = (padrao?: number[]): Param => ({ tipo: 'vec2', padrao, min: -1000, max: 1000 });
 const v3 = (padrao?: number[]): Param => ({ tipo: 'vec3', padrao, min: -1000, max: 1000 });
 const v4 = (padrao?: number[]): Param => ({ tipo: 'vec4', padrao, min: -1000, max: 1000 });
-const list = (item: Param, max = 500): Param => ({ tipo: 'lista', item, max });
+const list = (item: Param, max = 500, padrao?: unknown[]): Param => ({ tipo: 'lista', item, max, padrao });
 const obj = (campos: Record<string, Param>): Param => ({ tipo: 'objeto', campos });
-const json = (): Param => ({ tipo: 'json' });
+const json = (padrao?: unknown): Param => ({ tipo: 'json', padrao });
 /** Optional: absent means the adapter's default. */
 const o = (p: Param): Param => ({ ...p, opcional: true });
 
@@ -139,7 +144,7 @@ const DEFS: Record<string, Def> = {
     ...fixa,
     params: { externo: rect, topo: rect, beiral: num(), cume: num(), curva: o(pos(0.6)), cor: o(cor()), corBaixo: o(cor()), colide: o(bool(true)), cumeeiras: o(bool(false)), espessura: o(pos(0.18)), lanternas: o(pos()) },
   },
-  pavilhao: { categoria: 'construcoes', nome: { pt: 'Pavilhão', en: 'Pavilion' }, ...fixa, params: { spec: json(), lanternas: o(pos()) } },
+  pavilhao: { categoria: 'construcoes', nome: { pt: 'Pavilhão', en: 'Pavilion' }, ...fixa, params: { spec: json({ cx: 0, cz: 0, plinth: { h: 0.4, margin: 0.5, steps: ['s'] }, stories: [{ hw: 2.6, hd: 2.6, h: 3.2, style: 'papel', doors: { s: [0] } }], roof: { overhang: 1.2, rise: 2.2, curl: 0.8 } }), lanternas: o(pos()) } },
   muroCemiterio: { categoria: 'estrutura', nome: { pt: 'Muro do cemitério', en: 'Cemetery wall' }, ...linear, params: { eixo, fixo: num(), de: num(), ate: num() } },
   pilarCemiterio: { categoria: 'estrutura', nome: { pt: 'Pilar de pedra', en: 'Stone pillar' }, ...livre(false), params: { largura: pos(0.5), altura: pos(2.6) } },
   muroJardim: {
@@ -164,15 +169,15 @@ const DEFS: Record<string, Def> = {
     nome: { pt: 'Casa assombrada', en: 'Haunted house' },
     ...fixa,
     params: {
-      x0: num(),
-      z0: num(),
-      x1: num(),
-      z1: num(),
+      x0: num(-4),
+      z0: num(-3),
+      x1: num(4),
+      z1: num(3),
       andares: o(opt([1, 2], 1)),
       pe: o(pos(3.2)),
-      parede: surf('reboco'),
-      cor: cor(),
-      telhado: cor(),
+      parede: surf('madeira'),
+      cor: cor(0x4a3a2e),
+      telhado: cor(0x2e3a2a),
       cumeeira: o(eixo),
       subida: o(pos(2.2)),
       portas: o(obj({ n: o(list(num(), 6)), s: o(list(num(), 6)), e: o(list(num(), 6)), w: o(list(num(), 6)) })),
@@ -180,7 +185,7 @@ const DEFS: Record<string, Def> = {
       janelas: o(obj({ n: o(list(num(), 6)), s: o(list(num(), 6)), e: o(list(num(), 6)), w: o(list(num(), 6)) })),
       superiores: o(obj({ n: o(list(num(), 6)), s: o(list(num(), 6)), e: o(list(num(), 6)), w: o(list(num(), 6)) })),
       tabuas: o(bool(false)),
-      moldura: cor(),
+      moldura: cor(0x2a1a12),
       lampada: o(bool(true)),
     },
   },
@@ -238,11 +243,11 @@ const DEFS: Record<string, Def> = {
 
   // --- Vehicles -----------------------------------------------------------------------------------------
   carro: { categoria: 'veiculos', nome: { pt: 'Carro', en: 'Car' }, ...livre(), params: { cor: cor(0xd8342a) } },
-  carroBuzina: { categoria: 'veiculos', nome: { pt: 'Carro que buzina', en: 'Honking car' }, ...livre(), params: { cor: cor(), vizinho: v3(), fala: text(40, 'CHEGA.') }, prop: 'buzina', limite: 1 },
-  van: { categoria: 'veiculos', nome: { pt: 'Van de mudança', en: 'Moving van' }, ...livre(false), params: { cor: cor(0xf2f2f2), faixa: cor() } },
-  caminhaoSorvete: { categoria: 'veiculos', nome: { pt: 'Caminhão de sorvete', en: 'Ice cream truck' }, ...fixa, params: { cor: cor(), detalhe: cor() }, prop: 'caminhao', limite: 1 },
-  carrinhosBateBate: { categoria: 'veiculos', nome: { pt: 'Carrinhos de bate-bate', en: 'Bumper cars' }, ...fixa, params: { carros: list(obj({ p: v2(), cor: cor(), detalhe: cor(), yaw: num(0) }), 20) } },
-  trailerCirco: { categoria: 'veiculos', nome: { pt: 'Trailer de circo', en: 'Circus trailer' }, ...livre(), params: { cor: cor(), faixa: cor(), texto: text(30) } },
+  carroBuzina: { categoria: 'veiculos', nome: { pt: 'Carro que buzina', en: 'Honking car' }, ...livre(), params: { cor: cor(0x4a5a6a), vizinho: v3(), fala: text(40, 'CHEGA.') }, prop: 'buzina', limite: 1 },
+  van: { categoria: 'veiculos', nome: { pt: 'Van de mudança', en: 'Moving van' }, ...livre(false), params: { cor: cor(0xf2f2f2), faixa: cor(0xff7a1a) } },
+  caminhaoSorvete: { categoria: 'veiculos', nome: { pt: 'Caminhão de sorvete', en: 'Ice cream truck' }, ...fixa, params: { cor: cor(0xffd1e8), detalhe: cor(0xff4f9a) }, prop: 'caminhao', limite: 1 },
+  carrinhosBateBate: { categoria: 'veiculos', nome: { pt: 'Carrinhos de bate-bate', en: 'Bumper cars' }, ...fixa, params: { carros: list(obj({ p: v2(), cor: cor(), detalhe: cor(), yaw: num(0) }), 20, [{ p: [-1.6, 0], cor: 0xd8342a, detalhe: 0xf2e9d8, yaw: 0.4 }, { p: [1.6, 0.6], cor: 0x2a7ad8, detalhe: 0xf2c030, yaw: -0.6 }]) } },
+  trailerCirco: { categoria: 'veiculos', nome: { pt: 'Trailer de circo', en: 'Circus trailer' }, ...livre(), params: { cor: cor(0x5a2a6a), faixa: cor(0xf07a1a), texto: text(30, 'CIRCO') } },
 
   // --- Gags and game objects ----------------------------------------------------------------------------
   hidrante: { categoria: 'objetos', nome: { pt: 'Hidrante', en: 'Hydrant' }, ...livre(false), params: {}, prop: 'hidrante' },
@@ -257,11 +262,11 @@ const DEFS: Record<string, Def> = {
   espantalho: { categoria: 'objetos', nome: { pt: 'Espantalho', en: 'Scarecrow' }, ...livre(), params: {}, prop: 'espantalho' },
   caldeirao: { categoria: 'objetos', nome: { pt: 'Caldeirão', en: 'Cauldron' }, ...livre(false), params: { area: rect }, prop: 'caldeirao', limite: 1 },
   bruxa: { categoria: 'objetos', nome: { pt: 'Bruxa', en: 'Witch' }, ...livre(), params: {}, prop: 'bruxa', limite: 1 },
-  alvos: { categoria: 'objetos', nome: { pt: 'Tiro ao alvo', en: 'Shooting gallery' }, ...fixa, params: { alvos: list(v3(), 20), lampadas: o(list(v3(), 60)), festa: v3() }, prop: 'alvo', limite: 1 },
+  alvos: { categoria: 'objetos', nome: { pt: 'Tiro ao alvo', en: 'Shooting gallery' }, ...fixa, params: { alvos: list(v3(), 20, [[-1.5, 1.2, 0], [0, 1.8, 0], [1.5, 1.2, 0]]), lampadas: o(list(v3(), 60)), festa: v3() }, prop: 'alvo', limite: 1 },
   rodaGigante: { categoria: 'objetos', nome: { pt: 'Roda-gigante', en: 'Ferris wheel' }, ...livre(false), params: { raio: pos(7) } },
   fogueira: { categoria: 'objetos', nome: { pt: 'Fogueira', en: 'Bonfire' }, ...livre(false), params: {} },
   relogio: { categoria: 'objetos', nome: { pt: 'Relógio de pêndulo', en: 'Grandfather clock' }, ...livre(), params: { som: v3() }, prop: 'relogio', limite: 1 },
-  cogumelosBrilho: { categoria: 'objetos', nome: { pt: 'Cogumelos que acendem', en: 'Glowing mushrooms' }, ...fixa, params: { pontos: list(v3(), 10) }, prop: 'cogumelo', limite: 1 },
+  cogumelosBrilho: { categoria: 'objetos', nome: { pt: 'Cogumelos que acendem', en: 'Glowing mushrooms' }, ...fixa, params: { pontos: list(v3(), 10, [[-1, 0, 0], [0.2, 0, 0.8], [1, 0, -0.5]]) }, prop: 'cogumelo', limite: 1 },
   armarioBiscoito: { categoria: 'objetos', nome: { pt: 'Armário dos biscoitos', en: 'Biscuit cabinet' }, ...livre(), params: { som: v3() }, prop: 'armario', coletavel: true, limite: 1 },
   ratoGigante: { categoria: 'objetos', nome: { pt: 'Rato gigante', en: 'Giant rat' }, ...livre(), params: { id: text(16, 'rato') } },
   peixes: { categoria: 'objetos', nome: { pt: 'Carpas', en: 'Koi' }, ...fixa, params: {}, semente: true, limite: 1 },
@@ -281,7 +286,7 @@ const DEFS: Record<string, Def> = {
   cerejeiraDragao: { categoria: 'natureza', nome: { pt: 'Cerejeira do Dragão', en: 'Dragon Cherry' }, ...livre(false), params: {}, semente: true, coletavel: true, limite: 1, prop: 'fruta' },
   estanteJardim: { categoria: 'moveis', nome: { pt: 'Estante laqueada', en: 'Lacquered bookshelf' }, ...livre(false), params: { ao: opt(['x', 'z']), comprimento: pos(2.6) }, semente: true },
   quadro: { categoria: 'objetos', nome: { pt: 'Pintura em rolo', en: 'Painted scroll' }, ...livre(), params: { estilo: opt(['paisagem', 'ancestral'], 'paisagem'), largura: pos(1.4), altura: pos(1.9), indice: o(int(0, 0, 2)) } },
-  dragaoDecorativo: { categoria: 'objetos', nome: { pt: 'Dragão decorativo', en: 'Decorative dragon' }, ...livre(false), params: { caminho: list(v3(), 40), raio: pos(0.16), cores: opt(['dourado', 'carmesim', 'jade'], 'dourado'), espelho: o(bool(false)), sombra: o(bool(false)) } },
+  dragaoDecorativo: { categoria: 'objetos', nome: { pt: 'Dragão decorativo', en: 'Decorative dragon' }, ...livre(false), params: { caminho: list(v3(), 40, [[-1.6, 0.2, 0], [-0.8, 0.55, 0.15], [0, 0.3, -0.1], [0.8, 0.75, 0], [1.6, 0.45, 0.1]]), raio: pos(0.16), cores: opt(['dourado', 'carmesim', 'jade'], 'dourado'), espelho: o(bool(false)), sombra: o(bool(false)) } },
   pedestalBonsai: { categoria: 'natureza', nome: { pt: 'Bonsai no pedestal', en: 'Bonsai on a pedestal' }, ...livre(false), params: {}, semente: true },
   bonsaiDragao: { categoria: 'natureza', nome: { pt: 'Bonsai do Dragão', en: 'Dragon Bonsai' }, ...livre(false), params: {}, semente: true },
   postoLanterna: { categoria: 'luzes', nome: { pt: 'Poste com lanterna', en: 'Lantern post' }, ...livre(false), params: { braco: v2([1, 0]) } },
@@ -305,14 +310,14 @@ const DEFS: Record<string, Def> = {
   lampiao: { categoria: 'luzes', nome: { pt: 'Lampião de pedra', en: 'Stone lamp' }, ...livre(false), params: {} },
   lirios: { categoria: 'natureza', nome: { pt: 'Lírios aquáticos', en: 'Water lilies' }, ...fixa, params: { area: rect, n: int(10, 1, 60), y: o(num(-0.235)) }, semente: true },
   juncos: { categoria: 'natureza', nome: { pt: 'Juncos', en: 'Reeds' }, ...livre(false), params: { n: int(10, 1, 60), espalhamento: pos(1) }, semente: true },
-  caminhoPedras: { categoria: 'natureza', nome: { pt: 'Caminho de pedras', en: 'Stepping stones' }, ...fixa, params: { pontos: list(v2(), 40), espacamento: o(pos(0.95)), y: o(num(0.025)) }, semente: true },
-  varalLanternas: { categoria: 'luzes', nome: { pt: 'Varal de lanternas', en: 'String of lanterns' }, ...linear, params: { de: v3(), ate: v3(), n: int(3, 1, 30) }, prop: 'lanterna' },
+  caminhoPedras: { categoria: 'natureza', nome: { pt: 'Caminho de pedras', en: 'Stepping stones' }, ...fixa, params: { pontos: list(v2(), 40, [[-2.5, 0], [-0.5, 0.8], [1.5, 0], [3, 0.6]]), espacamento: o(pos(0.95)), y: o(num(0.025)) }, semente: true },
+  varalLanternas: { categoria: 'luzes', nome: { pt: 'Varal de lanternas', en: 'String of lanterns' }, ...linear, params: { de: v3([-2, 2.6, 0]), ate: v3([2, 2.6, 0]), n: int(3, 1, 30) }, prop: 'lanterna' },
   portalJardim: { categoria: 'estrutura', nome: { pt: 'Portal laqueado', en: 'Lacquered gateway' }, ...linear, params: { eixo, fixo: num(), portao: obj({ at: num(), kind: o(opt(['portal', 'lua', 'porta'])), w: o(pos()), h: o(pos()), name: o(text(12)), tint: o(cor()), leaves: o(bool()), roof: o(bool()) }), largura: pos(2.4), altura: pos(3), alturaMuro: pos(4), espessura: pos(0.3) } },
   folhasPorta: { categoria: 'estrutura', nome: { pt: 'Folhas de porta abertas', en: 'Open door leaves' }, ...linear, params: { eixo, fixo: num(), centro: num(), largura: pos(2.4), altura: pos(3), espessura: pos(0.3), lado: o(opt([1, -1], 1)) } },
 
   // --- Ambience -----------------------------------------------------------------------------------------
-  morcegos: { categoria: 'ambiente', nome: { pt: 'Morcegos', en: 'Bats' }, ...fixa, params: { bandos: list(obj({ centro: v3(), raio: pos(5), n: int(5, 1, 30) }), 10) }, semente: true },
-  nevoa: { categoria: 'ambiente', nome: { pt: 'Névoa rasteira', en: 'Ground mist' }, ...fixa, params: { manchas: list(v3(), 40) }, semente: true },
+  morcegos: { categoria: 'ambiente', nome: { pt: 'Morcegos', en: 'Bats' }, ...fixa, params: { bandos: list(obj({ centro: v3(), raio: pos(5), n: int(5, 1, 30) }), 10, [{ centro: [0, 6, 0], raio: 4, n: 5 }]) }, semente: true },
+  nevoa: { categoria: 'ambiente', nome: { pt: 'Névoa rasteira', en: 'Ground mist' }, ...fixa, params: { manchas: list(v3(), 40, [[0, 0, 4], [3, 2, 3]]) }, semente: true },
   lapide: { categoria: 'natureza', nome: { pt: 'Lápide', en: 'Tombstone' }, ...livre(), params: { tipo: opt(['arco', 'cruz', 'laje', 'obelisco'], 'arco'), cor: o(cor()), epitafio: o(list(text(30), 6)) }, semente: true },
 
   // --- Imported ------------------------------------------------------------------------------------------

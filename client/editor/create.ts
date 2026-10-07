@@ -1,7 +1,7 @@
-// New pieces from the Project panel: a kind's params copied from its first piece in the official maps (every kind
-// they use has a sensible example there), or the catalog's defaults for the few they don't; its own id, seed
-// and gag id; and the server's places it needs (a giant rat's, the witch's). A 'livre' piece stands where it was
-// dropped; any other is placed there by its pose (the editor measures where its example built first).
+// New pieces from the Project panel: the catalog's defaults (P53, PF-6 Revisions 01: shared/mapCatalog.ts `padrao`;
+// before, the first piece of the kind in the official maps was copied); its own id, seed and gag id; and the
+// server's places it needs (a giant rat's, the witch's). A 'livre' piece stands where it was dropped; any other is
+// placed there by its pose (the editor measures where it builds first). A duplicate copies its original instead.
 import type { MapData, Peca, Vec3 } from '@shared/mapData';
 import { MAP_CATALOG, type Param } from '@shared/mapCatalog';
 import { clone, newObjectId, newPieceId, newPropId, type Rest } from './document';
@@ -32,11 +32,11 @@ export function defaultValue(p: Param, name = ''): unknown {
     case 'vec4':
       return p.padrao ? [...p.padrao] : new Array(p.tipo === 'vec2' ? 2 : p.tipo === 'vec3' ? 3 : 4).fill(0);
     case 'lista':
-      return [];
+      return p.padrao ? clone(p.padrao) : [];
     case 'objeto':
       return defaultParams(p.campos);
     case 'json':
-      return {};
+      return p.padrao !== undefined ? clone(p.padrao) : {};
   }
 }
 
@@ -44,13 +44,6 @@ export function defaultValue(p: Param, name = ''): unknown {
 export function defaultParams(campos: Record<string, Param>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, p] of Object.entries(campos)) if (!p.opcional) out[k] = defaultValue(p, k);
-  return out;
-}
-
-/** The first piece of each kind in these maps: the examples new pieces copy. */
-export function templatesFrom(maps: MapData[]): Map<string, Peca> {
-  const out = new Map<string, Peca>();
-  for (const m of maps) for (const p of m.pecas) if (!out.has(p.tipo)) out.set(p.tipo, p);
   return out;
 }
 
@@ -63,7 +56,8 @@ export interface NewPiece {
 }
 
 /**
- * A new piece of `tipo` dropped at `at` (in its group's frame) (null: the map has as many as the kind allows).
+ * A new piece of `tipo` dropped at `at` (in its group's frame) (null: the map has as many as the kind allows), with
+ * the catalog's defaults, or `template`'s params, giro, scale and seed (a duplicate's original).
  * `world`: the same point in the world, where the server's places go (a giant rat's, the witch's).
  */
 export function newPiece(data: MapData, tipo: string, at: Vec3, template?: Peca, rand = Math.random, world: Vec3 = at): NewPiece | null {

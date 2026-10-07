@@ -9,14 +9,10 @@ import { MAP_CATALOG } from '@shared/mapCatalog';
 import { applyPatch, clone, EditorDocument, newObjectId, newPieceId, newPropId } from '../editor/document';
 import { History, historyKey } from '../editor/history';
 import { applyHandle, handleBase, handleDelta, handleWorld, hasLinked, moveLinked } from '../editor/transform';
-import { defaultParams, duplicatePiece, newPiece, removalRest, templatesFrom } from '../editor/create';
+import { defaultParams, duplicatePiece, newPiece, removalRest } from '../editor/create';
 import { addMarker, markerKeys, markerPlace, removeMarker, setMarkerPlace, zombieTemplate } from '../editor/markers';
 import { addOpening, handlePoints, moveHandle } from '../editor/linearHandles';
 import { checkZombieMap } from '@shared/zombies';
-import rua from '@shared/data/mapas/rua.json';
-import halloween from '@shared/data/mapas/halloween.json';
-import jardim from '@shared/data/mapas/jardim.json';
-import cemiterio from '@shared/data/mapas/cemiterio.json';
 
 function map(): MapData {
   return {
@@ -215,13 +211,11 @@ describe('editor: o gizmo nas peças', () => {
 });
 
 describe('editor: peças novas, duplicadas e apagadas', () => {
-  const templates = templatesFrom([rua, jardim, halloween, cemiterio] as unknown as MapData[]);
-
-  it('cada tipo do catálogo vira uma peça nova válida (exemplo dos oficiais ou padrões do esquema)', () => {
+  it('cada tipo do catálogo vira uma peça nova válida com os padrões do catálogo (P53)', () => {
     for (const tipo of Object.keys(MAP_CATALOG)) {
       if (tipo === 'glb' || tipo === 'peixes') continue;
       const d = map();
-      const made = newPiece(d, tipo, [1, 0, 1], templates.get(tipo), () => 0.5);
+      const made = newPiece(d, tipo, [1, 0, 1], undefined, () => 0.5);
       expect(made).not.toBeNull();
       d.pecas.push(made!.peca);
       if (made!.rest) made!.rest(d as never);

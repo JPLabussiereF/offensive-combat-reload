@@ -1,11 +1,11 @@
 // The Project panel's thumbnails (PF-6 Revisions 01, etapa 4): for each asset, the picture kept in the browser
 // when its signature is today's (client/editor/thumbCache.ts), or drawn (client/editor/thumbRenderer.ts) on the
 // line of client/editor/thumbQueue.ts, a picture at a time in the page's spare moments, the folder on screen
-// first, then every other kind in the background. A kind is drawn as a new piece of it comes: its example from the
-// official maps (or the catalog's defaults), its seed fixed. The panel asks (`want`) and hears when one is ready.
+// first, then every other kind in the background. A kind is drawn as a new piece of it comes: the catalog's
+// defaults (P53), its seed fixed. The panel asks (`want`) and hears when one is ready.
 import * as THREE from 'three';
 import { MAP_CATALOG } from '@shared/mapCatalog';
-import { MAP_FORMAT, type MapData, type Peca } from '@shared/mapData';
+import { MAP_FORMAT, type MapData } from '@shared/mapData';
 import { newPiece } from './create';
 import { ThumbCache, gameVersion, memoryThumbStore, thumbKey, thumbSignature, type ThumbAsset, type ThumbRecord, type ThumbStore } from './thumbCache';
 import { ThumbQueue, type Schedule } from './thumbQueue';
@@ -54,14 +54,13 @@ export class Thumbs {
 
   constructor(
     renderer: THREE.WebGLRenderer,
-    private readonly templates: Promise<Map<string, Peca> | null>,
     /** The map's GLB files (an imported model's picture builds from its file). */
     private readonly files: () => MapData['arquivos'],
   ) {
     this.shots = new ThumbRenderer(renderer);
     this.queue = new ThumbQueue((k) => this.draw(k), idle);
     this.queue.onDone = (k, ok) => {
-      if (!ok) console.warn(`[editor] miniatura de ${k} não foi desenhada`);
+      if (!ok) console.warn(`[editor] miniatura de ${k} nÃ£o foi desenhada`);
       this.onReady(k);
     };
   }
@@ -117,8 +116,7 @@ export class Thumbs {
 
   /** The new piece a kind's picture shows (its seed fixed, so the picture doesn't change from one visit to the next). */
   private async sample(tipo: string) {
-    const tpl = (await this.templates)?.get(tipo);
-    return newPiece(EMPTY, tipo, [0, 0, 0], tpl, () => 0);
+    return newPiece(EMPTY, tipo, [0, 0, 0], undefined, () => 0);
   }
 
   private async signature(a: ThumbAsset): Promise<string> {

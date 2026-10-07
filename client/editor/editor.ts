@@ -17,7 +17,7 @@
 // the page.
 import * as THREE from 'three';
 import { MAP_FORMAT, type MapData, type Peca, type Vec3 } from '@shared/mapData';
-import { OFFICIAL_MAPS, isOfficialMap } from '@shared/maps';
+import { isOfficialMap } from '@shared/maps';
 import { MAP_CATALOG } from '@shared/mapCatalog';
 import type { Papel } from '@shared/roles';
 import { applyAtmosphere, type RenderContext } from '../render/renderer';
@@ -55,7 +55,7 @@ import { launchGame, type GameFrame } from './playHost';
 import { gamepad } from '../core/gamepad';
 import { BudgetBar } from './budgetBar';
 import { applyHandle, handleBase, handleDelta, handleLocal, handleWorld, hasLinked, moveLinked, scalable } from './transform';
-import { removalRest, templatesFrom } from './create';
+import { removalRest } from './create';
 import { fileEntry, pickGlb, uploadGlb } from './glbImport';
 import { showSaveDialog, type MapTarget } from './save';
 import { draftKey, handOff, type EditorMap } from './launch';
@@ -766,8 +766,6 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   };
 
   // --- Adding, duplicating, grouping and deleting ------------------------------------------------------------
-  let templates: Map<string, Peca> | null = null;
-  const templatesReady = Promise.all(OFFICIAL_MAPS.map((id) => loadOfficialMap(id))).then((maps) => (templates = templatesFrom(maps)));
 
   /** Where new things land: what's under the middle of the 3D view (the point ahead when it's hidden), on the grid. */
   const centerSpot = (): DropSpot => {
@@ -783,8 +781,8 @@ export async function runEditor(o: EditorOptions): Promise<void> {
    */
   const placePiece = async (tipo: string, spot: DropSpot, params?: Record<string, unknown>, extra?: (r: Rest) => void) => {
     if (!editable()) return;
-    await templatesReady;
-    const made = await dropPiece(doc.data, tipo, spot, { template: tipo === 'glb' ? undefined : templates?.get(tipo), params, probe: (p) => view.probe(p) });
+    // P53: the catalog's defaults (the same the thumbnails show).
+    const made = await dropPiece(doc.data, tipo, spot, { params, probe: (p) => view.probe(p) });
     if (!made) return status(et('limitReached', { nome: MAP_CATALOG[tipo]?.nome.pt ?? tipo }), true);
     if (!editable()) return;
     if (spot.pai) hierarchy.expand(spot.pai);
@@ -827,7 +825,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   };
 
   // --- The Project panel: thumbnails, dragged onto the Scene or the Hierarchy (etapa 4) ------------------------
-  const thumbs = new Thumbs(ctx.renderer, templatesReady.catch(() => null), () => doc.data.arquivos);
+  const thumbs = new Thumbs(ctx.renderer, () => doc.data.arquivos);
   /** The Project item being dragged (a drag's own data can't be read before the drop). */
   let dragItem: ProjectItem | null = null;
   // The ghost while a thumbnail is dragged over the Scene: the box of what it builds, where it would land.
