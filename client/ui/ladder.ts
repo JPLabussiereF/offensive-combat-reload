@@ -2,8 +2,8 @@
 // the pause menu in place of the Arsenal (the mode hands out the weapons), with the player's step lit.
 import { FINAL_STEP, killsForStep, LADDER, type LadderPos } from '@shared/gunGame';
 import { gunStats } from '@shared/arsenal';
-import { isGun, progOf, PROGRESSION, upgradeOf } from '@shared/progression';
-import { MELEE } from '@shared/weapons';
+import { isGun, progOf, upgradeOf } from '@shared/progression';
+import { weaponIcon } from './arsenal';
 import { t, type StringKey } from './strings';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -11,13 +11,13 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 /** A step's name ("Rifle com Luneta", "Sabre de Luz"). */
 export const stepName = (step: number) => t(`ladder_${LADDER[Math.min(Math.max(0, step), FINAL_STEP)].id}` as StringKey);
 
-/** The step's icon: the knife's (the lightsaber), a scope's or a silencer's, or the gun's own. */
+/** The step's icon: the knife's (the lightsaber), a scope's or a silencer's, or the gun's own (as the Arsenal shows it). */
 function stepIcon(step: number): string {
   const s = LADDER[step];
-  if (s.arma === 'faca') return MELEE[s.faca ?? 'faca']?.icone ?? PROGRESSION.faca.icone;
+  if (s.arma === 'faca') return weaponIcon(s.faca ?? 'faca');
   const prog = progOf(s.arma);
   const form = s.melhorias.map((id) => upgradeOf(prog, id)).find((u) => u?.efeitos.mira?.startsWith('luneta') || u?.efeitos.silenciador);
-  return form?.icone ?? PROGRESSION[prog].icone;
+  return form?.icone ?? weaponIcon(s.arma);
 }
 
 /** Fills `el` with the ladder, `pos` marking where the player is (null: not known yet). */
