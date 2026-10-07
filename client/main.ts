@@ -2194,7 +2194,8 @@ async function boot() {
       fpPos.copy(deathCamPos);
       fpQuat.setFromRotationMatrix(lookM);
     } else {
-      if (player.dead) {
+      // Waiting to join a zumbi wave isn't a death: the view stays put at the spawn spot, no fall and no tilt.
+      if (player.dead && !zombies?.waitingToJoin) {
         // Offline death cam: drop to the floor under the death spot (also when killed mid-air) and tilt.
         if (deathFloorAt !== player.deathAt) {
           deathFloorAt = player.deathAt;
