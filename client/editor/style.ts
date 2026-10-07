@@ -95,11 +95,40 @@ const CSS = `
 #editor .ed-trow input[type=number] { width: 64px; }
 #editor .ed-mixed > span:first-child::after { content: ' ≠'; color: #ffcf6a; }
 
-/* Project (the palette) */
+/* Project (Unity's asset browser: folders, thumbnails) */
 #editor .ed-search { width: 100%; box-sizing: border-box; margin-bottom: 6px; }
-#editor .ed-cat { display: block; width: 100%; text-align: left; margin-top: 6px; font-weight: 700; background: transparent; border: none; padding: 3px 2px; color: #9fc4ff; }
-#editor .ed-entry { display: block; width: 100%; text-align: left; margin: 1px 0; padding: 3px 8px; background: transparent; border-color: transparent; }
-#editor .ed-entry:hover:not(:disabled) { background: #2a3342; }
+#editor .ed-proj { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+#editor .ed-proj-bar { flex: 0 0 auto; display: flex; gap: 8px; align-items: center; padding: 4px 6px; border-bottom: 1px solid #1a1f27; }
+#editor .ed-proj-bar .ed-search { margin: 0; flex: 0 1 260px; width: auto; min-width: 80px; }
+#editor .ed-proj-progress { flex: 1; opacity: 0.6; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#editor .ed-proj-size { width: 110px; flex: 0 0 auto; }
+#editor .ed-proj-main { flex: 1; display: flex; min-height: 0; }
+#editor .ed-proj-tree { flex: 0 0 170px; overflow: auto; border-right: 1px solid #1a1f27; padding: 4px; display: flex; flex-direction: column; gap: 1px; }
+#editor button.ed-folder { display: flex; gap: 5px; text-align: left; background: transparent; border-color: transparent; white-space: nowrap; }
+#editor button.ed-folder.ed-folder-on { background: #2c5aa8; }
+#editor .ed-folder-n { margin-left: auto; opacity: 0.5; font-size: 11px; }
+#editor .ed-proj-grid { flex: 1; overflow: auto; padding: 6px; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--tile) + 10px), 1fr)); gap: 4px; align-content: start; }
+#editor .ed-tile { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px; border-radius: 6px; border: 1px solid transparent; cursor: grab; outline: none; min-width: 0; }
+#editor button.ed-tile { background: transparent; border-color: transparent; cursor: pointer; }
+#editor .ed-tile:hover { background: #2c3544; }
+#editor .ed-tile.ed-tile-on, #editor .ed-tile:focus-visible { background: #2c5aa8; border-color: #4d8bf0; }
+#editor .ed-tile.ed-tile-off { opacity: 0.4; cursor: not-allowed; }
+#editor .ed-thumb { width: var(--tile); height: var(--tile); display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 38%, #3b475b, #20262f 72%); border-radius: 5px; overflow: hidden; pointer-events: none; }
+#editor .ed-thumb img { width: 100%; height: 100%; object-fit: contain; }
+#editor .ed-thumb-glyph { font-size: calc(var(--tile) * 0.42); line-height: 1; }
+#editor .ed-thumb-wait { width: 28%; height: 28%; border-radius: 50%; border: 3px solid #4d8bf0; border-top-color: transparent; animation: ed-spin 0.9s linear infinite; opacity: 0.7; }
+@keyframes ed-spin { to { transform: rotate(360deg); } }
+#editor .ed-tile-name { font-size: 11px; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#editor .ed-proj-empty { opacity: 0.6; padding: 8px; grid-column: 1 / -1; }
+
+/* Game (Play inside the editor): the game's page is laid over this panel */
+#editor .ed-game { display: flex; align-items: center; justify-content: center; text-align: center; background: #0d1117; color: #9aa6b8; padding: 20px; }
+#editor .ed-gameframe { position: absolute; border: 0; z-index: 10; background: #000; }
+#editor .ed-dock.ed-docking ~ .ed-gameframe { pointer-events: none; }
+/* Playing and paused: the toolbar tinted, as Unity's play mode */
+#editor.ed-playing .ed-toolbar { background: #2b3d63; }
+#editor.ed-paused .ed-toolbar { background: #4d4326; }
+#editor fieldset.ed-insp-wrap { border: 0; margin: 0; padding: 0; min-width: 0; }
 
 /* Forms */
 #editor input, #editor select, #editor textarea { font: inherit; color: #eef2f6; background: #0f141c; border: 1px solid #3c4759; border-radius: 4px; padding: 2px 5px; user-select: text; }

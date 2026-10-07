@@ -82,8 +82,19 @@ export class Sfx {
   private selfEnc = 0;
   private placeEnc: number | null = null;
 
+  /** For good: closes the audio context (the map editor's Play ends its game this way); nothing plays after it. */
+  dispose() {
+    this.closed = true;
+    const ctx = this.ctx;
+    this.ctx = null;
+    void ctx?.close().catch(() => {});
+  }
+
+  private closed = false;
+
   /** Browsers only allow audio after a user gesture: call from the first click. */
   unlock() {
+    if (this.closed) return;
     if (!this.ctx) {
       const ctx = new AudioContext();
       this.ctx = ctx;

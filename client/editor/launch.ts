@@ -1,26 +1,24 @@
-// How the page gets into the editor and out to a test of the map without losing it. The way in is the home's
-// Mapas tab (Editar, Novo mapa: client/ui/maps.ts resolves the home with the editor's HomeChoice). Every way
-// out is a page reload (the game builds one map per page); what has to cross it goes in sessionStorage (where
-// to go next) and IndexedDB (the draft: client/net/maps.ts):
-// - "Testar": the draft is kept, the page reloads into a test of it (the training range, or the zumbi match
-//   alone against the horde on a zumbi-only map: P41);
-// - leaving the test: the page reloads into the editor again, on the same draft;
-// - "Abrir a versão atual" after a 409 (P39): the page reloads into the editor on the map's current version.
-import type { MapData, TipoMapa } from '@shared/mapData';
+// How the page gets into the editor. The way in is the home's Mapas tab (Editar, Novo mapa: client/ui/maps.ts
+// resolves the home with the editor's HomeChoice). Playing the map no longer leaves the page (Play inside the
+// editor, Revisions 01 etapa 4: client/editor/playHost.ts); the only reload left inside the editor is "Abrir a
+// versão atual" after a 409 (P39), which crosses it in sessionStorage ("oc.editor") and opens the editor again on
+// the map's current version. Handoffs written by the old "Testar" (a page open before the update) are still read:
+// both "testar" and "voltar" open the editor on the draft they name (the draft is in IndexedDB, client/net/maps.ts).
+import type { TipoMapa } from '@shared/mapData';
 import { DEFAULT_MAP } from '@shared/maps';
 import type { HomeChoice } from '../ui/home';
-import { fetchMe, fetchProfile } from '../net/api';
-import { loadDraft } from '../net/maps';
-import { testGame } from './recovery';
 
 const KEY = 'oc.editor';
 
 /** The map the editor has open on the server (null: a new one). */
 export type EditorMap = { id: string; versao: number } | null;
 
-/** What crosses the reload: go test the draft, come back to it in the editor, or open the map's current version. */
+/**
+ * What crosses the reload: open the map's current version ("abrir"); "testar" and "voltar" came from the old
+ * Testar (open the editor on their draft).
+ */
 export interface Handoff {
-  acao: 'testar' | 'voltar' | 'abrir';
+  acao: 'abrir' | 'testar' | 'voltar';
   mapa: EditorMap;
   tipo: TipoMapa;
   /** The draft's key in IndexedDB. */
@@ -55,17 +53,7 @@ export function editorChoice(mapa: EditorMap, rascunho?: Handoff): HomeChoice {
   return { mode: 'editor', mapa, ...(rascunho ? { rascunho: { chave: rascunho.chave, tipo: rascunho.tipo } } : {}), name: '', sex: 'm', account: null, map: mapa?.id ?? DEFAULT_MAP };
 }
 
-/**
- * The test of the draft (the player's name and look from their account, if signed in): the zumbi match alone
- * against the horde on a zumbi-only map, the training range on any other (P41).
- */
-export async function testChoice(h: Handoff): Promise<{ choice: HomeChoice; data: MapData } | null> {
-  const draft = await loadDraft(h.chave);
-  if (!draft) return null;
-  const data = draft.dados;
-  const { me } = await fetchMe();
-  const account = me ? await fetchProfile().catch(() => null) : null;
-  const base = { name: me?.tag ?? 'Recruta', sex: account?.sexo ?? me?.sexo ?? 'm', account, map: h.mapa?.id ?? DEFAULT_MAP };
-  const choice: HomeChoice = testGame(data) === 'zumbi' ? { ...base, mode: 'bots', game: 'zumbi', count: 0, skill: 'normal' } : { ...base, mode: 'offline', variant: 'range' };
-  return { choice, data };
+/** The HomeChoice a handoff opens: the editor on the current version ("abrir"), or on an old test's draft. */
+export function handoffChoice(h: Handoff): HomeChoice {
+  return h.acao === 'abrir' ? editorChoice(h.mapa) : editorChoice(h.mapa, h);
 }

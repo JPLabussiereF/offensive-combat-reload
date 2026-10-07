@@ -8,10 +8,11 @@ import { activate, defaultLayout, deserialize, dock, findStack, isLayout, normal
 import { applyEdit, common, dragStep, fieldsOf, matrixOf, toDeg, toRad, type Fields } from '../editor/transformFields';
 
 describe('painéis encaixáveis', () => {
-  it('o padrão é o do Unity: Hierarchy à esquerda, Scene no centro, Inspector à direita, Project embaixo', () => {
+  it('o padrão é o do Unity: Hierarchy à esquerda, Scene no centro (com a aba Jogo atrás), Inspector à direita, Project embaixo', () => {
     const d = defaultLayout();
     expect(isLayout(d)).toBe(true);
-    expect(panelsOf(d)).toEqual(['hierarchy', 'scene', 'project', 'inspector']);
+    expect(panelsOf(d)).toEqual(['hierarchy', 'scene', 'game', 'project', 'inspector']);
+    expect(findStack(d, 'game')).toEqual({ t: 'tabs', tabs: ['scene', 'game'], active: 0 });
     // The Inspector takes the right side, full height; the Project the bottom under the Hierarchy and the Scene.
     expect(d).toMatchObject({ t: 'split', dir: 'row', kids: [{ t: 'split', dir: 'col', kids: [{ t: 'split', dir: 'row' }, { t: 'tabs', tabs: ['project'] }] }, { t: 'tabs', tabs: ['inspector'] }] });
   });
@@ -53,15 +54,33 @@ describe('painéis encaixáveis', () => {
     // A split in a split of the same way merges: the Project leaving the bottom makes one row of Hierarchy, Scene
     // and Inspector, and docked to the right of the Inspector it's the fourth of that row.
     const right = dock(defaultLayout(), 'project', 'inspector', 'right');
-    expect(panelsOf(right)).toEqual(['hierarchy', 'scene', 'inspector', 'project']);
+    expect(panelsOf(right)).toEqual(['hierarchy', 'scene', 'game', 'inspector', 'project']);
     expect(right.t === 'split' && right.dir === 'row' && right.kids.length).toBe(4);
     expect(isLayout(right)).toBe(true);
     // Its own stack, alone in it: nothing changes.
-    expect(dock(defaultLayout(), 'scene', 'scene', 'left')).toEqual(defaultLayout());
+    expect(dock(defaultLayout(), 'hierarchy', 'hierarchy', 'left')).toEqual(defaultLayout());
     // Beside its own stack, when the stack has others: it leaves them and docks beside them.
     const two = dock(stacked, 'inspector', 'inspector', 'right');
     expect(findStack(two, 'hierarchy')!.tabs).toEqual(['hierarchy']);
     expect(findStack(two, 'inspector')!.tabs).toEqual(['inspector']);
+  });
+
+  it('um layout guardado antes da aba Jogo ganha a aba atrás da Cena, sem mudar a aba mostrada', () => {
+    const old: DockNode = {
+      t: 'split',
+      dir: 'row',
+      sizes: [0.3, 0.7],
+      kids: [
+        { t: 'tabs', tabs: ['hierarchy', 'inspector'], active: 1 },
+        { t: 'tabs', tabs: ['project', 'scene'], active: 1 },
+      ],
+    };
+    const read = deserialize(JSON.stringify(old));
+    expect(isLayout(read)).toBe(true);
+    expect(findStack(read, 'game')).toEqual({ t: 'tabs', tabs: ['project', 'scene', 'game'], active: 1 });
+    expect(findStack(read, 'hierarchy')).toEqual({ t: 'tabs', tabs: ['hierarchy', 'inspector'], active: 1 });
+    // The Game tab twice, or a layout without the Scene to put it by: the default.
+    expect(deserialize(JSON.stringify({ t: 'split', dir: 'row', sizes: [0.5, 0.5], kids: [{ t: 'tabs', tabs: ['hierarchy', 'scene', 'game'], active: 0 }, { t: 'tabs', tabs: ['inspector', 'project', 'game'], active: 0 }] }))).toEqual(defaultLayout());
   });
 
   it('arrastar a borda troca espaço entre vizinhos (cada um fica com um mínimo); a aba clicada vem para a frente', () => {

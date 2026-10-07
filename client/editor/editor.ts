@@ -1,15 +1,18 @@
 // The map editor inside the game (PF-6): opened instead of a match (boot() in client/main.ts calls runEditor and
 // returns: no input, player or HUD). It loads a saved version of a map (or starts a new one), builds it with the
 // game's own loader in its editor mode, and runs its own loop: the Scene view's camera, picking with a click or a
-// box, the gizmo (move, turn, scale; Ctrl or the grid button snaps), undo and redo, the palette, the
+// box, the gizmo (move, turn, scale; Ctrl or the grid button snaps), undo and redo, the Project panel, the
 // properties panel, the markers, the ends and holes of walls, GLB models from the computer, the live budget
-// bar, testing the map (the training range, or the zumbi match on a zumbi-only map) and saving it.
+// bar, playing the map (the training range, or the zumbi match on a zumbi-only map) and saving it.
 // Revisions 01 lays it out as Unity's editor: a toolbar with Play in the middle, dockable panels (Hierarchy
-// with groups, the Scene, the Inspector with its Transform, the Project) and a status bar; the pieces not
+// with groups, the Scene, the Game, the Inspector with its Transform, the Project) and a status bar; the pieces not
 // selected are drawn from batches (P46). Its etapa 3 brings Unity's Scene view: the camera (fly, orbit, pan,
 // dolly, frame, the orientation gizmo, perspective or orthographic), the Q W E R T tools (the Rect tool: client/
 // editor/rectTool.ts), Ctrl to snap and the grid button, Pivot/Center and Local/Global (client/editor/tools.ts),
-// box selection, copy and paste (client/editor/clipboard.ts) and Unity's keys (client/editor/shortcuts.ts). Every edit
+// box selection, copy and paste (client/editor/clipboard.ts) and Unity's keys (client/editor/shortcuts.ts). Its etapa 4,
+// the Project panel's thumbnails (client/editor/project.ts, thumbs.ts) dragged onto the Scene or the Hierarchy, and
+// Play inside the editor (client/editor/playMode.ts, playHost.ts): ▶ plays the map being edited in the Game tab,
+// ❚❚ freezes it, ■ ends it and gives the editor back as it was; the editor is read-only meanwhile. Every edit
 // keeps a draft in IndexedDB (P40), offered back when the map opens again; saving forgets it. Leaving reloads
 // the page.
 import * as THREE from 'three';
@@ -23,7 +26,7 @@ import type { Physics } from '../world/physics';
 import { atmosphereOf, loadOfficialMap } from '../world/mapLoader';
 import { api, fetchMe } from '../net/api';
 import { deleteDraft, fetchMapVersion, loadDraft, saveDraft } from '../net/maps';
-import { EditorDocument, clone, newPieceId, type Rest } from './document';
+import { EditorDocument, clone, type Rest } from './document';
 import { groupMatrix, worldPoseMatrix } from '../world/pose';
 import { duplicateTree, linkedRest, makeGroup, moveInto, moveTree, removalOf, scaleTree, subtree, topLevel } from './groups';
 import { Hierarchy } from './hierarchy';
@@ -37,16 +40,21 @@ import { Gizmo, type GizmoTarget } from './gizmo';
 import { gizmoFrame, gizmoSpace, MOVE_RANGE, parseStep, PREFS_KEY, readPrefs, snapSteps, snapTo, TURN_RANGE, writePrefs, type Tool, type ToolPrefs } from './tools';
 import { shortcutOf, type EditorAction } from './shortcuts';
 import { piecesInRect } from './boxSelect';
+import { cloneState, type CameraState } from './cameraMath';
 import { clipAnchor, copyPieces, pastePieces, type Clip } from './clipboard';
 import { applyStretch, dropAxis, stretchable, stretchBox, type RectFrame } from './rectTool';
 import { RectOverlay } from './rectOverlay';
 import { Markers, addMarker, markerPlace, markerTurns, removeMarker, setMarkerPlace, type MarkerKind } from './markers';
 import { LinearHandles, hasHandles, moveHandle } from './linearHandles';
 import { Inspector, type TransformBinding } from './inspector';
-import { Palette } from './palette';
+import { ProjectPanel, itemKey, type ProjectItem } from './project';
+import { Thumbs } from './thumbs';
+import { ASSET_MIME, dropPiece, ghostBox, hierarchySpot, sceneSpot, type DropSpot } from './dropPiece';
+import { PlaySession, buttonsOf, cameraOn, editable as editableIn, pickingOn, shortcutAllowed, type PlayState } from './playMode';
+import { launchGame, type GameFrame } from './playHost';
 import { BudgetBar } from './budgetBar';
 import { applyHandle, handleBase, handleDelta, handleLocal, handleWorld, hasLinked, moveLinked, scalable } from './transform';
-import { newPiece, removalRest, templatesFrom } from './create';
+import { removalRest, templatesFrom } from './create';
 import { fileEntry, pickGlb, uploadGlb } from './glbImport';
 import { showSaveDialog, type MapTarget } from './save';
 import { draftKey, handOff, type EditorMap } from './launch';
@@ -62,7 +70,7 @@ export interface EditorOptions {
   physics: Physics;
   /** The saved version to open (versao 0: the current one), or null for a new map. */
   mapa: EditorMap;
-  /** A draft to open instead (coming back from testing it). */
+  /** A draft to open instead (a handoff of the old Testar, written before Play ran inside the editor). */
   rascunho?: { chave: string; tipo: TipoMapa };
 }
 
@@ -218,7 +226,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   button('play').textContent = '▶';
   button('pause').textContent = '❚❚';
   button('stop').textContent = '■';
-  // Pause and Stop wait for Play inside the editor; Play opens the test as Testar did.
+  // Pause and Stop wait for Play (Play inside the editor, etapa 4).
   button('pause').disabled = button('stop').disabled = true;
   $('.ed-hint').textContent = et('hint');
   const loading = $<HTMLElement>('.ed-loading');
@@ -234,9 +242,13 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   const sceneEl = panel('ed-scene');
   const inspEl = panel('ed-inspector');
   const projEl = panel('ed-project');
+  // The Game tab: the game's page is laid over it while the map is played (client/editor/playHost.ts).
+  const gameEl = panel('ed-game');
+  gameEl.textContent = et('gameIdle');
   const dock = new DockView($('.ed-dock'), {
     hierarchy: { title: et('panelHierarchy'), el: hierEl },
     scene: { title: et('panelScene'), el: sceneEl },
+    game: { title: et('panelGame'), el: gameEl },
     inspector: { title: et('panelInspector'), el: inspEl },
     project: { title: et('panelProject'), el: projEl },
   });
@@ -271,6 +283,9 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     if (statusTimer) clearTimeout(statusTimer);
     statusTimer = setTimeout(() => (el.textContent = ''), 6000);
   };
+  /** Play inside the editor (etapa 4): editing, or the map played (read-only) or paused (read-only). */
+  let play: PlayState = 'editando';
+  const editable = () => editableIn(play);
 
   // --- The map --------------------------------------------------------------------------------------------
   let opened: Awaited<ReturnType<typeof openMap>>;
@@ -447,7 +462,11 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   const selectedPieces = (): Peca[] => selection.pieceIds.map(find).filter((p): p is Peca => !!p);
   const pivotOf = (p: Peca) => view.pivot(p);
 
-  const inspector = new Inspector(inspEl, {
+  // Read-only while the map is played: everything in it sits in a fieldset that's disabled then.
+  const inspWrap = document.createElement('fieldset');
+  inspWrap.className = 'ed-insp-wrap';
+  inspEl.append(inspWrap);
+  const inspector = new Inspector(inspWrap, {
     editPiece: (next, rest) => commitPiece(next, rest),
     editPieces: (next) => doc.setPieces(doc.data.pecas.map((p) => next.find((n) => n.id === p.id) ?? p), linkedRestFor(next)),
     editRest: (f) => doc.editRest(f),
@@ -555,7 +574,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   };
 
   /** The gizmo on a target, unless the hand tool is on (Unity hides the handles then). */
-  const showGizmo = (t: GizmoTarget) => gizmo.attach(tool === 'hand' ? null : t);
+  const showGizmo = (t: GizmoTarget) => gizmo.attach(tool === 'hand' || !editable() ? null : t);
   const attach = () => {
     const s = selection.current;
     const pieces = selectedPieces();
@@ -585,14 +604,15 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     const peca = find(s.id);
     if (!peca) return selection.set(null);
     const parent = groupMatrix(peca, find);
-    handles.show(pieces.length === 1 && hasHandles(peca) ? peca : null, worldPoseMatrix(peca, find));
+    // The handles (ends and holes of walls) are for editing: hidden while the map is played.
+    handles.show(pieces.length === 1 && hasHandles(peca) && editable() ? peca : null, worldPoseMatrix(peca, find));
     if (s.kind === 'ponta') {
       const h = handles.world(s.key);
       if (!h) return selection.set({ kind: 'peca', id: s.id });
       showGizmo({ world: h.world, rotate: false, scale: false, axis: h.axis ?? undefined });
     } else {
       base = handleBase(peca, pivotOf(peca));
-      if (tool === 'rect') {
+      if (tool === 'rect' && editable()) {
         // The Rect tool instead of the gizmo.
         gizmo.attach(null);
         rectBase = rectFrameOf(pieces.length ? pieces : [peca]);
@@ -688,7 +708,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
 
   // --- Edits reach the scene ---------------------------------------------------------------------------------
   let ambiente = JSON.stringify(doc.data.ambiente);
-  let palette: Palette;
+  let project: ProjectPanel;
   let hierarchy: Hierarchy;
   view.onRebuilt = () => {
     selection.refresh();
@@ -723,7 +743,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     } else if (c.ids.size) void view.rebuild(subtree(doc.data, c.ids)); // A group's children move with it.
     if (c.resto) markers.draw(doc.data);
     if (!c.ids.size) attach();
-    palette.render();
+    project.render();
     button('undo').disabled = !doc.history.canUndo;
     button('redo').disabled = !doc.history.canRedo;
   });
@@ -748,64 +768,121 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   let templates: Map<string, Peca> | null = null;
   const templatesReady = Promise.all(OFFICIAL_MAPS.map((id) => loadOfficialMap(id))).then((maps) => (templates = templatesFrom(maps)));
 
-  /** Where new things land: what's under the middle of the 3D view, on the grid. */
-  const dropPoint = (): Vec3 => {
+  /** Where new things land: what's under the middle of the 3D view (the point ahead when it's hidden), on the grid. */
+  const centerSpot = (): DropSpot => {
     const r = canvas.getBoundingClientRect();
-    const p = selection.dropPoint(r.left + r.width / 2, r.top + r.height / 2, view.root);
-    return [r4(snapTo(p.x, prefs.move)), r4(p.y), r4(snapTo(p.z, prefs.move))];
+    const p = r.width && r.height ? selection.dropPoint(r.left + r.width / 2, r.top + r.height / 2, view.root) : cam.pivot;
+    return sceneSpot(p, prefs.move);
   };
+  const dropPoint = (): Vec3 => centerSpot().at;
 
-  const addPiece = async (tipo: string) => {
+  /**
+   * A new piece of `tipo` where `spot` says (in its group, at the end of its children): one edit with the server's
+   * places it brings (and `extra`: an imported model's file), then selected.
+   */
+  const placePiece = async (tipo: string, spot: DropSpot, params?: Record<string, unknown>, extra?: (r: Rest) => void) => {
+    if (!editable()) return;
     await templatesReady;
-    const at = dropPoint();
-    const made = newPiece(doc.data, tipo, at, templates?.get(tipo));
+    const made = await dropPiece(doc.data, tipo, spot, { template: tipo === 'glb' ? undefined : templates?.get(tipo), params, probe: (p) => view.probe(p) });
     if (!made) return status(et('limitReached', { nome: MAP_CATALOG[tipo]?.nome.pt ?? tipo }), true);
-    if (made.byPose) {
-      // Its example builds where it was in its map: find where, and pose it so its middle stands on the drop point.
-      const box = await view.probe(made.peca);
-      if (box) {
-        const c = box.getCenter(new THREE.Vector3());
-        made.peca.pose = { p: [r4(at[0] - c.x), r4(at[1] - box.min.y), r4(at[2] - c.z)], r: [0, 0, 0] };
-      }
-    }
-    doc.addPieces([made.peca], made.rest);
+    if (!editable()) return;
+    if (spot.pai) hierarchy.expand(spot.pai);
+    const rest = made.rest;
+    doc.setPieces(made.pecas, rest && extra ? (r) => (rest(r), extra(r)) : (rest ?? extra));
     await view.idle();
-    selection.set({ kind: 'peca', id: made.peca.id });
+    selection.set({ kind: 'peca', id: made.id });
   };
 
-  const addMarkerAt = (kind: MarkerKind) => {
+  /** A marker at a point of the world (markers aren't pieces: no group). */
+  const addMarkerAt = (kind: MarkerKind, at: Vec3 = dropPoint()) => {
+    if (!editable()) return;
     let key = null as string | null;
-    const at = dropPoint();
     doc.editRest((r) => (key = addMarker(r, kind, at)));
     if (key) selection.set({ kind: 'marcador', key });
   };
 
+  const addPiece = (tipo: string) => placePiece(tipo, centerSpot());
+
   const importGlb = async (picked?: File) => {
+    if (!editable()) return;
     const file = picked ?? (await pickGlb());
     if (!file) return;
     status(et('glbUploading', { nome: file.name }));
     try {
       const up = await uploadGlb(file);
       const { id, isNew } = fileEntry(doc.data, file.name, up);
-      const peca: Peca = { id: newPieceId(doc.data, 'glb'), tipo: 'glb', p: dropPoint(), params: { arquivo: id } };
-      doc.addPieces([peca], isNew ? (r) => r.arquivos.push({ id, url: up.url, sha256: up.sha256, bytes: up.bytes }) : undefined);
+      await placePiece('glb', centerSpot(), { arquivo: id }, isNew ? (r) => r.arquivos.push({ id, url: up.url, sha256: up.sha256, bytes: up.bytes }) : undefined);
       status(et('glbDone', { nome: file.name }));
-      await view.idle();
-      selection.set({ kind: 'peca', id: peca.id });
     } catch (err) {
       status(String((err as Error)?.message ?? err), true);
     }
   };
 
-  const glbPiece = async (file: string) => {
-    const peca: Peca = { id: newPieceId(doc.data, 'glb'), tipo: 'glb', p: dropPoint(), params: { arquivo: file } };
-    doc.addPieces([peca]);
-    await view.idle();
-    selection.set({ kind: 'peca', id: peca.id });
+  /** A Project item made at a spot (dropped on the Scene or the Hierarchy, or double-clicked). */
+  const makeItem = (item: ProjectItem, spot: DropSpot) => {
+    if (item.kind === 'marcador') return addMarkerAt(item.marker, spot.world);
+    if (item.kind === 'glb') return void placePiece('glb', spot, { arquivo: item.file });
+    void placePiece(item.tipo, spot);
   };
 
-  // The Project panel: the palette as a list until its thumbnails come.
-  palette = new Palette(projEl, { piece: (t) => void addPiece(t), marker: addMarkerAt, importGlb: () => void importGlb(), glbPiece: (f) => void glbPiece(f) }, () => doc.data);
+  // --- The Project panel: thumbnails, dragged onto the Scene or the Hierarchy (etapa 4) ------------------------
+  const thumbs = new Thumbs(ctx.renderer, templatesReady.catch(() => null), () => doc.data.arquivos);
+  /** The Project item being dragged (a drag's own data can't be read before the drop). */
+  let dragItem: ProjectItem | null = null;
+  // The ghost while a thumbnail is dragged over the Scene: the box of what it builds, where it would land.
+  const ghostLines = new THREE.Box3Helper(new THREE.Box3(), new THREE.Color(0x7fe0ff));
+  (ghostLines.material as THREE.LineBasicMaterial).depthTest = false;
+  ghostLines.renderOrder = 30;
+  const ghostFill = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0x7fe0ff, transparent: true, opacity: 0.16, depthWrite: false }));
+  ghostLines.visible = ghostFill.visible = false;
+  ctx.scene.add(ghostLines, ghostFill);
+  const showGhost = (b: THREE.Box3 | null) => {
+    ghostLines.visible = ghostFill.visible = !!b;
+    if (!b) return;
+    ghostLines.box.copy(b);
+    b.getCenter(ghostFill.position);
+    const size = b.getSize(new THREE.Vector3());
+    ghostFill.scale.set(Math.max(size.x, 0.02), Math.max(size.y, 0.02), Math.max(size.z, 0.02));
+  };
+  const carriesAsset = (e: DragEvent) => !!dragItem && !!e.dataTransfer && [...e.dataTransfer.types].includes(ASSET_MIME);
+  /** Where a thumbnail over the Scene would land (the SVG of the Rect tool is over the canvas: the Scene panel hears it). */
+  const sceneDrop = (e: DragEvent) => sceneSpot(selection.dropPoint(e.clientX, e.clientY, view.root), prefs.move);
+  sceneEl.addEventListener('dragover', (e) => {
+    if (!carriesAsset(e) || !editable()) return;
+    e.preventDefault();
+    e.dataTransfer!.dropEffect = 'copy';
+    const spot = sceneDrop(e);
+    const at = { x: spot.at[0], y: spot.at[1], z: spot.at[2] };
+    showGhost(ghostBox(at, dragItem!.kind === 'marcador' ? [-0.3, 0, -0.3, 0.3, 1.6, 0.3] : thumbs.box(itemKey(dragItem!))));
+  });
+  sceneEl.addEventListener('dragleave', (e) => {
+    if (!sceneEl.contains(e.relatedTarget as Node | null)) showGhost(null);
+  });
+  sceneEl.addEventListener('drop', (e) => {
+    if (!carriesAsset(e)) return;
+    e.preventDefault();
+    showGhost(null);
+    const item = dragItem!;
+    dragItem = null;
+    if (editable()) makeItem(item, sceneDrop(e));
+  });
+
+  project = new ProjectPanel(
+    projEl,
+    {
+      add: (item) => makeItem(item, centerSpot()),
+      importGlb: () => void importGlb(),
+      dragStart: (item) => (dragItem = item),
+      dragEnd: () => {
+        dragItem = null;
+        showGhost(null);
+      },
+    },
+    () => doc.data,
+    thumbs,
+  );
+  // The cache forgets the kinds the catalog no longer has.
+  void thumbs.prune(new Set(Object.keys(MAP_CATALOG).map((t) => `peca:${t}`)));
 
   const selectPieces = (ids: string[], active: string | null = ids[ids.length - 1] ?? null) =>
     selection.setMany(
@@ -815,6 +892,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
 
   /** A new group: empty at the middle of the view, or around the selection (at its middle). */
   const group = async (around: boolean) => {
+    if (!editable()) return;
     const ids = around ? selection.pieceIds : [];
     let at = dropPoint();
     if (ids.length) {
@@ -851,6 +929,13 @@ export async function runEditor(o: EditorOptions): Promise<void> {
       },
       newGroup: () => void group(false),
       groupSelection: () => void group(true),
+      // A Project thumbnail dropped on a row: in that row's group, at its origin (below the rows: the top).
+      dropAsset: (row) => {
+        const item = dragItem;
+        dragItem = null;
+        showGhost(null);
+        if (item && editable()) makeItem(item, hierarchySpot(doc.data, row));
+      },
     },
     () => doc.data,
   );
@@ -858,7 +943,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
 
   const duplicate = async () => {
     const ids = selection.pieceIds;
-    if (!ids.length) return;
+    if (!ids.length || !editable()) return;
     const made = duplicateTree(doc.data, ids);
     if (made.skipped.length) {
       const p = find(made.skipped[0]);
@@ -872,7 +957,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
 
   const remove = () => {
     const s = selection.current;
-    if (!s) return;
+    if (!s || !editable()) return;
     if (s.kind === 'marcador') {
       const probe = clone(doc.data);
       if (!removeMarker(probe, s.key)) return;
@@ -905,6 +990,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   };
   /** Ctrl+V: where the mouse points in the Scene view, or (the mouse elsewhere) in the same place with an offset. */
   const paste = async () => {
+    if (!editable()) return;
     if (!clip) return status(et('pasteEmpty'));
     const anchor = clipAnchor(clip);
     const d = new THREE.Vector3(1, 0, 1);
@@ -925,18 +1011,79 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     selectPieces(made.copies);
   };
 
-  // --- Test and save ------------------------------------------------------------------------------------------
-  const test = async () => {
-    if (budget.state.kind === 'invalido') return status(et('testInvalid'), true);
-    status(et('testing'));
-    const chave = keyNow();
-    if (draftTimer) clearTimeout(draftTimer);
-    if (!(await saveDraft(chave, doc.data, target.versao))) return status(et('errOther', { e: 'IndexedDB' }), true);
-    handOff({ acao: 'testar', mapa: target.id ? { id: target.id, versao: target.versao ?? 0 } : null, tipo: target.tipo, chave });
-    location.reload();
+  // --- Play inside the editor (etapa 4) and save ---------------------------------------------------------------
+  /** The game in the Game tab while the map is played (client/editor/playHost.ts). */
+  let game: GameFrame | null = null;
+  /** What ▶ keeps and ■ gives back: the selection and the camera (the history and the map can't change meanwhile). */
+  type Snap = { items: Selected[]; cam: CameraState; ortho: boolean };
+  const session = new PlaySession<Snap>(
+    {
+      take: () => ({ items: selection.items.map((s) => ({ ...s })), cam: cloneState(cam.state), ortho: cam.orthographic }),
+      restore: (s) => {
+        cam.restore(s.cam, s.ortho);
+        selection.setMany(s.items, s.items[s.items.length - 1] ?? null);
+      },
+    },
+    (signal) => {
+      gameEl.textContent = et('gameLoading');
+      dock.show('game');
+      return launchGame({
+        host: root,
+        panel: gameEl,
+        data: doc.data,
+        mapa: target.id,
+        signal,
+        // The game's own Exit, from inside its page: stopped once its click is over.
+        onExit: () => setTimeout(() => session.ended(), 0),
+      }).then((g) => (game = g));
+    },
+  );
+  session.onError = (err) => {
+    const m = String((err as Error)?.message ?? err);
+    if (m !== 'abort') status(et('playFailed', { e: m }), true);
   };
+  /** The buttons that change the map (off while it's played). */
+  const EDITING = ['undo', 'redo', 'hand', 'translate', 'rotate', 'scale', 'rect', 'pivotMode', 'spaceMode', 'grid', 'gridMenu', 'duplicate', 'remove', 'save'];
+  /** The editor as the play state wants it: read-only (the camera too while it plays), the toolbar tinted. */
+  const setPlay = (s: PlayState) => {
+    play = s;
+    const edit = editableIn(s);
+    doc.locked = !edit;
+    cam.enabled = cameraOn(s);
+    selection.enabled = pickingOn(s);
+    if (!edit) {
+      selection.cancelBox();
+      rect.cancel();
+      gridMenu.hidden = true;
+    }
+    hierarchy.setReadOnly(!edit);
+    project.setReadOnly(!edit);
+    inspWrap.disabled = !edit;
+    root.classList.toggle('ed-playing', s === 'jogando');
+    root.classList.toggle('ed-paused', s === 'pausado');
+    const b = buttonsOf(s);
+    for (const k of ['play', 'pause', 'stop'] as const) {
+      button(k).disabled = !b[k].enabled;
+      button(k).classList.toggle('ed-on', b[k].on);
+    }
+    for (const k of EDITING) button(k).disabled = !edit;
+    button('focus').disabled = !cameraOn(s);
+    // The thumbnails wait while the game plays (it has the GPU).
+    thumbs.hold(s === 'jogando');
+    if (edit) {
+      game = null;
+      gameEl.textContent = et('gameIdle');
+      button('undo').disabled = !doc.history.canUndo;
+      button('redo').disabled = !doc.history.canRedo;
+      button('save').disabled = !budget.fits;
+      dock.show('scene');
+    } else status(et(s === 'jogando' ? 'playing' : 'paused'));
+    attach();
+  };
+  session.onState = (s) => setPlay(s);
 
   const save = async () => {
+    if (!editable()) return;
     if (!budget.fits) return;
     const saved = await showSaveDialog({
       host: root,
@@ -971,7 +1118,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     status(et('saved', { v: saved.versao }));
   };
 
-  budget.onChange = () => (button('save').disabled = !budget.fits);
+  budget.onChange = () => (button('save').disabled = !budget.fits || !editable());
   button('save').disabled = true;
 
   /** Leaving on purpose (the Exit button asked already). */
@@ -1049,10 +1196,19 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     focus,
     duplicate: () => void duplicate(),
     remove,
-    // Until Play runs inside the editor, it's the test of the map (Testar).
-    play: () => void test(),
-    pause: () => {},
-    stop: () => {},
+    // ▶ ❚❚ ■ as Unity's (the session is client/editor/playMode.ts); a map that can't be built isn't played.
+    play: () => {
+      if (play === 'editando' && budget.state.kind === 'invalido') return status(et('testInvalid'), true);
+      // Going on from the pause: the game in front again (it takes the mouse back).
+      if (play === 'pausado') dock.show('game');
+      void session.press('play');
+    },
+    pause: () => {
+      // Going on (❚❚ again) brings the Game tab back to the front, as ▶ does.
+      if (play === 'pausado') dock.show('game');
+      void session.press('pause');
+    },
+    stop: () => void session.press('stop'),
     layout: () => (layoutMenu.hidden = !layoutMenu.hidden),
     layoutReset: () => {
       layoutMenu.hidden = true;
@@ -1061,6 +1217,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     save: () => void save(),
     exit: () => {
       if ((doc.dirty || restored) && !confirm(et('exitConfirm'))) return;
+      void session.press('stop');
       leaving = true;
       // Leaving on purpose throws the unsaved edits away (the question said so): the draft goes with them.
       void forgetDraft(keyNow()).finally(() => location.reload());
@@ -1102,14 +1259,15 @@ export async function runEditor(o: EditorOptions): Promise<void> {
       return;
     }
     const a = shortcutOf(e, { typing: typing(), flying: cam.flying });
-    if (!a) return;
+    // While the map is played, no shortcut; paused, only the ones that look (F, Esc, Ctrl+C, Ctrl+A).
+    if (!a || !shortcutAllowed(play, a)) return;
     e.preventDefault();
     if (gizmo.dragging || rect.dragging || selection.boxing) return;
     keyActions[a]();
   });
-  // Closing the tab with unsaved edits asks first (leaving by the Exit button already asked; testing keeps the draft).
+  // Closing the tab with unsaved edits asks first (leaving by the Exit button, or to the current version, asked already).
   window.addEventListener('beforeunload', (e) => {
-    if (doc.dirty && !leaving && !sessionStorage.getItem('oc.editor')) e.preventDefault();
+    if (doc.dirty && !leaving) e.preventDefault();
   });
 
   title();
@@ -1122,6 +1280,13 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     Object.assign(window, {
       __ocEditor: {
         THREE, doc, selection, gizmo, markers, handles, budget, target, actions, keyActions, addPiece, addMarkerAt, importGlb, dock, hierarchy, inspector, renderer: ctx.renderer, cam, rect, setTool, copy, paste,
+        project, thumbs, session, makeItem, placePiece, sceneSpot, hierarchySpot,
+        get game() {
+          return game;
+        },
+        get play() {
+          return play;
+        },
         get prefs() {
           return prefs;
         },
@@ -1143,9 +1308,12 @@ export async function runEditor(o: EditorOptions): Promise<void> {
 
   // --- The loop -----------------------------------------------------------------------------------------------
   let last = performance.now();
+  let frameNo = 0;
   const frame = (now: number) => {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
+    // The game's page follows the Game panel wherever it's docked.
+    game?.place();
     fit();
     cam.update(dt);
     view.update(dt, camera.position);
@@ -1154,9 +1322,13 @@ export async function runEditor(o: EditorOptions): Promise<void> {
       rect.update();
     }
     viewGizmo.update(cam.state.yaw, cam.state.pitch, cam.orthographic);
-    // The shadow map is refreshed on demand: without this it was never drawn (PF-6 Revisions 01).
-    o.quality.beforeRender();
-    ctx.render(cam.active);
+    // Drawn while the Scene shows (another tab over it: nothing to draw); while the map is played, a frame in four
+    // (the game has the GPU).
+    if (sceneEl.clientWidth > 0 && sceneEl.clientHeight > 0 && (play !== 'jogando' || frameNo++ % 4 === 0)) {
+      // The shadow map is refreshed on demand: without this it was never drawn (PF-6 Revisions 01).
+      o.quality.beforeRender();
+      ctx.render(cam.active);
+    }
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

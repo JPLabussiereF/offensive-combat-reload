@@ -58,7 +58,8 @@ import { Hud, type Buff, type FeedIcon } from './ui/hud';
 import { Screens } from './ui/menu';
 import { closeReason, gameModeName, showHome, type HomeChoice } from './ui/home';
 import { runEditor } from './editor/editor';
-import { editorChoice, handOff, takeHandoff, testChoice } from './editor/launch';
+import { handoffChoice, takeHandoff } from './editor/launch';
+import { editorPlay } from './editor/playEmbed';
 import { Progress } from './gameplay/progress';
 import { MAX_MINES, Mines } from './weapons/mines';
 import { Arsenal, upgradeName, weaponLabel, weaponName } from './ui/arsenal';
@@ -130,21 +131,21 @@ async function boot() {
 
   // --- Home: the account, then an online session, bots or offline training -------------------------
   screens.hideLoading();
+  // The map editor's Play (Revisions 01 etapa 4): this page is the game in the editor's Game tab, playing the map
+  // being edited (client/editor/playEmbed.ts): no home, and its Exit goes back to editing.
+  const embed = editorGame;
   // The map editor comes in through the home's choice (the Mapas tab's Editar and Novo mapa) or, between
-  // reloads, its handoff (client/editor/launch.ts): coming back from testing a map, going to test one (the
-  // training range, or the zumbi match on a zumbi-only map), or opening a map's current version again.
-  const handoff = takeHandoff();
-  const tested = handoff?.acao === 'testar' ? await testChoice(handoff) : null;
-  const picked: HomeChoice =
-    handoff?.acao === 'voltar' ? editorChoice(handoff.mapa, handoff) : handoff?.acao === 'abrir' ? editorChoice(handoff.mapa) : (tested?.choice ?? (await showHome()));
+  // reloads, its handoff (client/editor/launch.ts: opening a map's current version again after a 409).
+  const handoff = embed ? null : takeHandoff();
+  const picked: HomeChoice = embed ? await embed.choice() : handoff ? handoffChoice(handoff) : await showHome();
   if (picked.mode === 'editor') {
     // The editor runs on its own loop: no input, player or HUD; leaving it reloads the page.
     await runEditor({ ctx, quality, physics, mapa: picked.mapa, rascunho: picked.rascunho });
     return;
   }
   const choice = picked;
-  /** Testing a map from the editor: its draft is the map, and leaving goes back to the editor. */
-  const testing = tested ? handoff : null;
+  /** The editor's map played in its Game tab: the document being edited (not saved). */
+  const tested = embed ? { data: embed.data } : null;
   const online = choice.mode === 'online' ? choice : null;
   const conn = online?.conn ?? null;
   const me = online?.joined.you ?? 0;
@@ -168,7 +169,7 @@ async function boot() {
         : choice.versao
           ? await fetchMapVersion(choice.map, choice.versao)
           : await loadOfficialMap(choice.map);
-  // An offline match counts as a play of the map (the server counts the online ones itself); a test from the editor doesn't.
+  // An offline match counts as a play of the map (the server counts the online ones itself); a Play in the editor doesn't.
   if (!online && !mapUrl && !tested) api('POST', `/api/mapas/${encodeURIComponent(choice.map)}/jogadas`).catch(() => {});
   const buildMap = mapData ? buildMapFromData(mapData, { physics, scene: ctx.scene, renderer: ctx.renderer, sfx, modo: 'jogo' }) : buildGltfMap(mapUrl!, new MapBuilder(physics, ctx.scene), ctx.renderer);
   const [map] = await Promise.all([buildMap, textures]);
@@ -1586,8 +1587,8 @@ async function boot() {
     // The mouse first: the fullscreen request uses up the click, the pointer lock doesn't.
     void input.lock();
     // Phones: fullscreen and landscape (needs this tap). Computer: fullscreen keeps Esc for the game, so it
-    // opens and closes the menu exactly and the mouse aims again at once.
-    if (settings.fullscreen && (IS_MOBILE || CAN_KEEP_ESCAPE) && !isFullscreen()) void enterFullscreen();
+    // opens and closes the menu exactly and the mouse aims again at once. Never inside the editor's Game tab.
+    if (!embed && settings.fullscreen && (IS_MOBILE || CAN_KEEP_ESCAPE) && !isFullscreen()) void enterFullscreen();
   });
   // Entering fullscreen may cost the pointer lock (browser-made, so it can be retaken without a click).
   document.addEventListener('fullscreenchange', () => {
@@ -1610,10 +1611,10 @@ async function boot() {
       () => touch.resetLayout(),
     );
   }
-  screens.onExit(t('exitToHome'), () => {
+  screens.onExit(t(embed ? 'backToEditor' : 'exitToHome'), () => {
     conn?.close();
-    // Leaving a test goes back to the editor, on the same draft.
-    if (testing) handOff({ ...testing, acao: 'voltar' });
+    // In the editor's Game tab: back to editing (the editor stops the game, as ■).
+    if (embed) return embed.exit();
     location.reload();
   });
   // Desktop: clicking the game takes the mouse back (on phones the menu's button resumes).
@@ -1638,7 +1639,8 @@ async function boot() {
       pausedAt = null;
       screens.hideMenu();
       hud.show(true);
-    } else {
+    } else if (!embed?.frozen) {
+      // Frozen by the editor's ❚❚: its veil says so, the pause menu waits for ▶.
       pausedAt = performance.now();
       screens.showMenu('pause');
     }
@@ -2312,11 +2314,62 @@ async function boot() {
   screens.showMenu('start');
   // Every handler exists now: messages that arrived while the map was being built go through.
   conn?.release();
-  startLoop(step, render);
+  if (!embed) {
+    startLoop(step, render);
+    return;
+  }
+  // The editor's Game tab: frozen by its ❚❚ (nothing simulated or drawn; the time frozen doesn't pile up), and ■
+  // lets go of the mouse, the sounds and the renderer's context before the editor removes this page.
+  let gone = false;
+  startLoop(
+    (dt) => {
+      if (!embed.frozen && !gone) step(dt);
+    },
+    (alpha, frameDt) => {
+      if (!embed.frozen && !gone) render(alpha, frameDt);
+    },
+  );
+  embed.ready({
+    pause() {
+      if (embed.frozen || gone) return;
+      embed.frozen = true;
+      embed.veil(true);
+      screens.hideMenu();
+      input.unlock();
+    },
+    resume() {
+      if (!embed.frozen || gone) return;
+      embed.frozen = false;
+      embed.veil(false);
+      window.focus();
+      sfx.unlock();
+      // The click on ▶ reaches this page: the mouse comes back at once where the browser allows, else the pause
+      // menu asks for a click.
+      void input.lock().then((got) => {
+        if (got || input.locked || gone) return;
+        pausedAt = performance.now();
+        screens.showMenu('pause');
+      });
+    },
+    dispose() {
+      if (gone) return;
+      gone = true;
+      embed.frozen = true;
+      input.unlock();
+      if (document.pointerLockElement) document.exitPointerLock();
+      sfx.dispose();
+      ctx.renderer.dispose();
+      ctx.renderer.forceContextLoss();
+    },
+    memory: () => ({ geometries: ctx.renderer.info.memory.geometries, textures: ctx.renderer.info.memory.textures }),
+  });
 }
 
+/** The map editor's game (its Game tab), if this page is one: it's told when the game can't start. */
+const editorGame = editorPlay();
 boot().catch((err) => {
   console.error(err);
+  editorGame?.failed(err);
   const tip = document.getElementById('loading-tip');
   if (tip) tip.textContent = `Erro ao iniciar: ${err instanceof Error ? err.message : String(err)}`;
 });

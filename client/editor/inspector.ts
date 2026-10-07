@@ -50,7 +50,8 @@ function transformComponent(t: TransformBinding, posed: boolean, clearPose: () =
       };
       // Dragging the axis letter changes the value (Shift: faster), as Unity's labels do.
       lab.onpointerdown = (e) => {
-        if (e.button !== 0 || !enabled) return;
+        // Disabled, or read-only while the map is played (the Inspector sits in a disabled fieldset then).
+        if (e.button !== 0 || !enabled || input.matches(':disabled')) return;
         e.preventDefault();
         lab.setPointerCapture(e.pointerId);
         const x0 = e.clientX;

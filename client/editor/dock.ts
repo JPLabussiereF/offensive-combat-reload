@@ -2,7 +2,8 @@
 // as nested flex boxes with a border to drag between neighbors, and stacks of tabs. A tab dragged (past a few
 // pixels) shows where it would land on the stack under the pointer (its middle: into the stack; an edge: beside
 // it) and lands there when let go; Esc gives up. Every change is kept in localStorage; "Restaurar layout padrão"
-// goes back to Unity's.
+// goes back to Unity's. While a tab or a border is dragged, the host says so (`ed-docking`): the game's page laid
+// over the Game tab (etapa 4) lets the pointer through then.
 import { activate, deserialize, defaultLayout, dock, LAYOUT_KEY, nodeAt, resize, serialize, zoneAt, type DockNode, type PanelId, type Zone } from './dockLayout';
 
 export interface DockPanel {
@@ -88,6 +89,7 @@ export class DockView {
       if (e.button !== 0) return;
       e.preventDefault();
       bar.setPointerCapture(e.pointerId);
+      this.host.classList.add('ed-docking');
       const rect = box.getBoundingClientRect();
       const room = dir === 'row' ? rect.width : rect.height;
       let last = dir === 'row' ? e.clientX : e.clientY;
@@ -101,6 +103,7 @@ export class DockView {
         this.onLayout();
       };
       const up = () => {
+        this.host.classList.remove('ed-docking');
         bar.removeEventListener('pointermove', move);
         bar.removeEventListener('pointerup', up);
         bar.removeEventListener('pointercancel', up);
@@ -150,6 +153,7 @@ export class DockView {
         if (!dragging && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return;
         dragging = true;
         tab.classList.add('ed-tab-drag');
+        this.host.classList.add('ed-docking');
         target = this.hover(ev.clientX, ev.clientY);
       };
       const end = (ok: boolean) => {
@@ -158,6 +162,7 @@ export class DockView {
         tab.removeEventListener('pointercancel', cancel);
         window.removeEventListener('keydown', esc, true);
         tab.classList.remove('ed-tab-drag');
+        this.host.classList.remove('ed-docking');
         this.drop.hidden = true;
         if (!dragging) return this.show(id);
         if (ok && target) this.set(dock(this.layout, id, target.panel, target.zone));

@@ -3,12 +3,16 @@
 // run from the last one clicked), in step with the 3D view's selection; the arrow opens and closes a group; a
 // double click frames the piece in the Scene view (etapa 3, as Unity's); F2 renames; rows dragged onto a group go into it, onto the top or bottom edge of a row go
 // before or after it (in its group), onto the empty space below go out of every group. The search shows the
-// matching pieces as a flat list. "+" makes an empty group, or a group around the selection (Ctrl+G).
+// matching pieces as a flat list. "+" makes an empty group, or a group around the selection (Ctrl+G). A thumbnail
+// dragged from the Project (etapa 4) onto a row makes the piece in that row's group (a group's row: in it), at the
+// group's origin; below the rows, at the top. While the map is played (Play) it's read-only: rows are picked,
+// nothing is moved, renamed, grouped or dropped.
 import type { MapData, Peca } from '@shared/mapData';
 import { MAP_CATALOG } from '@shared/mapCatalog';
 import { markerKeys } from './markers';
 import { ancestorsOf, finder, isGroup, parentOf, type Slot } from './groups';
 import { et, nameOf } from './strings';
+import { ASSET_MIME } from './dropPiece';
 
 export interface HierarchyActions {
   /** Pieces picked in the tree: the whole selection now (Ctrl and Shift already applied), `active` the one clicked. */
@@ -22,7 +26,12 @@ export interface HierarchyActions {
   move(ids: string[], pai: string | null, slot: Slot): void;
   newGroup(): void;
   groupSelection(): void;
+  /** A Project thumbnail dropped on a row (null: below the rows, the top). */
+  dropAsset(row: string | null): void;
 }
+
+/** Whether a drag carries a Project thumbnail. */
+const carriesAsset = (e: DragEvent) => !!e.dataTransfer && [...e.dataTransfer.types].includes(ASSET_MIME);
 
 /** Lowercase without accents, for the search. */
 const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -43,6 +52,8 @@ export class Hierarchy {
   private shown: string[] = [];
   private dragging: string[] = [];
   private markersOpen = false;
+  private readOnly = false;
+  private addButton: HTMLButtonElement;
 
   constructor(
     el: HTMLElement,
@@ -53,6 +64,7 @@ export class Hierarchy {
     const bar = document.createElement('div');
     bar.className = 'ed-hier-bar';
     const add = document.createElement('button');
+    this.addButton = add;
     add.type = 'button';
     add.textContent = '+';
     add.title = et('hierCreate');
@@ -89,24 +101,38 @@ export class Hierarchy {
     this.list = document.createElement('div');
     this.list.className = 'ed-hier-list';
     this.list.tabIndex = 0;
-    // Dropped on the empty space below the rows: out of every group, at the end.
+    // Dropped on the empty space below the rows: out of every group, at the end (a thumbnail: at the top).
     this.list.addEventListener('dragover', (e) => {
-      if (!this.dragging.length || e.target !== this.list) return;
+      if (e.target !== this.list || this.readOnly) return;
+      if (!this.dragging.length && !carriesAsset(e)) return;
       e.preventDefault();
+      if (!this.dragging.length && e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
     });
     this.list.addEventListener('drop', (e) => {
-      if (!this.dragging.length || e.target !== this.list) return;
-      e.preventDefault();
-      act.move(this.dragging, null, {});
-      this.dragging = [];
+      if (e.target !== this.list || this.readOnly) return;
+      if (this.dragging.length) {
+        e.preventDefault();
+        act.move(this.dragging, null, {});
+        this.dragging = [];
+      } else if (carriesAsset(e)) {
+        e.preventDefault();
+        act.dropAsset(null);
+      }
     });
     this.list.addEventListener('keydown', (e) => {
-      if (e.key === 'F2' && this.selected.size) {
+      if (e.key === 'F2' && this.selected.size && !this.readOnly) {
         e.preventDefault();
         this.rename([...this.selected].pop()!);
       }
     });
     el.append(bar, this.list);
+  }
+
+  /** While the map is played: rows are picked and framed, nothing else. */
+  setReadOnly(on: boolean) {
+    this.readOnly = on;
+    this.addButton.disabled = on;
+    this.render();
   }
 
   /** The tree drawn again (the map changed). */
@@ -166,7 +192,7 @@ export class Hierarchy {
     const r = document.createElement('div');
     r.className = `ed-hrow${this.selected.has(p.id) ? ' ed-hsel' : ''}${isGroup(p) ? ' ed-hgroup' : ''}`;
     r.dataset.id = p.id;
-    r.draggable = true;
+    r.draggable = !this.readOnly;
     r.style.paddingLeft = `${4 + depth * 14}px`;
     const arrow = document.createElement('span');
     arrow.className = 'ed-harrow';
@@ -195,6 +221,7 @@ export class Hierarchy {
       this.act.focus(p.id);
     };
     r.ondragstart = (e) => {
+      if (this.readOnly) return e.preventDefault();
       this.dragging = this.selected.has(p.id) ? [...this.selected] : [p.id];
       e.dataTransfer?.setData('text/plain', p.id);
       if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
@@ -204,14 +231,32 @@ export class Hierarchy {
       this.clearMarks();
     };
     r.ondragover = (e) => {
-      if (!this.dragging.length) return;
+      if (this.readOnly) return;
+      if (!this.dragging.length) {
+        // A Project thumbnail: into this row's group (the row's own, if it's a group).
+        if (!carriesAsset(e)) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+        this.clearMarks();
+        r.classList.add('ed-hdrop-into');
+        return;
+      }
       e.preventDefault();
       this.clearMarks();
       r.classList.add(`ed-hdrop-${this.where(r, e, p)}`);
     };
     r.ondragleave = () => r.classList.remove('ed-hdrop-before', 'ed-hdrop-after', 'ed-hdrop-into');
     r.ondrop = (e) => {
-      if (!this.dragging.length) return;
+      if (this.readOnly) return;
+      if (!this.dragging.length) {
+        if (!carriesAsset(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.clearMarks();
+        if (isGroup(p)) this.open.add(p.id);
+        this.act.dropAsset(p.id);
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       const where = this.where(r, e, p);
@@ -297,6 +342,7 @@ export class Hierarchy {
 
   /** Renames a piece in its row: Enter keeps, Esc gives up, empty goes back to its id. */
   rename(id: string) {
+    if (this.readOnly) return;
     const r = this.list.querySelector(`[data-id="${CSS.escape(id)}"]`) as HTMLElement | null;
     const p = this.data().pecas.find((x) => x.id === id);
     if (!r || !p) return;

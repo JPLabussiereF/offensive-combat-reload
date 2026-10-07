@@ -10,7 +10,7 @@ import type { Rest } from './document';
 
 type Data = Pick<MapData, 'spawns' | 'bonecos' | 'objetos' | 'zumbi'>;
 
-/** What the palette adds. */
+/** What the Project panel adds. */
 export type MarkerKind = 'spawnA' | 'spawnB' | 'spawnFfa' | 'boneco' | 'cereja' | 'biscoito' | 'rato' | 'peixe' | 'surgir' | 'barricada';
 
 export interface Place {

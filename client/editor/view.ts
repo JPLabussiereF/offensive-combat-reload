@@ -206,7 +206,7 @@ export class MapView {
     }
   }
 
-  /** The kinds a piece of this map is (for the palette's limits). */
+  /** The kinds a piece of this map is (for the Project panel's limits). */
   kinds(data: MapData = this.doc.data) {
     const out = new Map<string, number>();
     for (const p of data.pecas) if (MAP_CATALOG[p.tipo]) out.set(p.tipo, (out.get(p.tipo) ?? 0) + 1);

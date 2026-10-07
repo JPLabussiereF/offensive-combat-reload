@@ -2,9 +2,13 @@
 // side or one over the other, each child with its share of the room) whose leaves are stacks of tabs, as in
 // Unity. A tab dragged onto a stack goes into it (center) or beside it (left, right, top, bottom); a stack left
 // empty goes away and a split left with one child gives its place to it. The layout is kept in the browser as
-// JSON; anything that doesn't read back as a layout with every panel exactly once falls back to the default.
-export type PanelId = 'hierarchy' | 'scene' | 'inspector' | 'project';
-export const PANELS: readonly PanelId[] = ['hierarchy', 'scene', 'inspector', 'project'];
+// JSON; anything that doesn't read back as a layout with every panel exactly once falls back to the default. The
+// Game tab (etapa 4: Play inside the editor) came after the first layouts were kept: one kept without it gets it
+// beside the Scene, as Unity's.
+export type PanelId = 'hierarchy' | 'scene' | 'game' | 'inspector' | 'project';
+export const PANELS: readonly PanelId[] = ['hierarchy', 'scene', 'game', 'inspector', 'project'];
+/** The panels of the layouts kept before the Game tab. */
+const BEFORE_GAME: readonly PanelId[] = ['hierarchy', 'scene', 'inspector', 'project'];
 
 export type DockNode = { t: 'split'; dir: 'row' | 'col'; sizes: number[]; kids: DockNode[] } | { t: 'tabs'; tabs: PanelId[]; active: number };
 
@@ -13,7 +17,10 @@ export type Zone = 'left' | 'right' | 'top' | 'bottom' | 'center';
 /** What the layout is kept under in localStorage. */
 export const LAYOUT_KEY = 'oc.editor.layout.v1';
 
-/** Unity's default: Hierarchy on the left, the Scene in the middle, the Inspector on the right, the Project below. */
+/**
+ * Unity's default: Hierarchy on the left, the Scene in the middle (the Game as a tab behind it), the Inspector on
+ * the right, the Project below.
+ */
 export function defaultLayout(): DockNode {
   return {
     t: 'split',
@@ -25,7 +32,7 @@ export function defaultLayout(): DockNode {
         dir: 'col',
         sizes: [0.72, 0.28],
         kids: [
-          { t: 'split', dir: 'row', sizes: [0.24, 0.76], kids: [tabs('hierarchy'), tabs('scene')] },
+          { t: 'split', dir: 'row', sizes: [0.24, 0.76], kids: [tabs('hierarchy'), tabs('scene', 'game')] },
           tabs('project'),
         ],
       },
@@ -41,12 +48,12 @@ export function panelsOf(n: DockNode): PanelId[] {
   return n.t === 'tabs' ? [...n.tabs] : n.kids.flatMap(panelsOf);
 }
 
-/** Whether `raw` is a layout (the right shape, every panel exactly once, sizes that add up). */
-export function isLayout(raw: unknown): raw is DockNode {
+/** Whether `raw` is a layout (the right shape, every one of `panels` exactly once, sizes that add up). */
+export function isLayout(raw: unknown, panels: readonly PanelId[] = PANELS): raw is DockNode {
   const ok = (n: unknown): boolean => {
     if (!n || typeof n !== 'object') return false;
     const o = n as Record<string, unknown>;
-    if (o.t === 'tabs') return Array.isArray(o.tabs) && o.tabs.length > 0 && o.tabs.every((t) => PANELS.includes(t as PanelId)) && Number.isInteger(o.active) && (o.active as number) >= 0 && (o.active as number) < o.tabs.length;
+    if (o.t === 'tabs') return Array.isArray(o.tabs) && o.tabs.length > 0 && o.tabs.every((t) => panels.includes(t as PanelId)) && Number.isInteger(o.active) && (o.active as number) >= 0 && (o.active as number) < o.tabs.length;
     if (o.t !== 'split' || (o.dir !== 'row' && o.dir !== 'col') || !Array.isArray(o.kids) || !Array.isArray(o.sizes)) return false;
     if (o.kids.length < 2 || o.sizes.length !== o.kids.length) return false;
     if (!o.sizes.every((s) => typeof s === 'number' && Number.isFinite(s) && s > 0)) return false;
@@ -54,7 +61,13 @@ export function isLayout(raw: unknown): raw is DockNode {
   };
   if (!ok(raw)) return false;
   const ids = panelsOf(raw as DockNode);
-  return ids.length === PANELS.length && PANELS.every((p) => ids.includes(p));
+  return ids.length === panels.length && panels.every((p) => ids.includes(p));
+}
+
+/** A layout kept before the Game tab, with it added behind the Scene (the tab shown stays the same). */
+function withGame(n: DockNode): DockNode {
+  if (n.t === 'tabs') return n.tabs.includes('scene') ? { t: 'tabs', tabs: [...n.tabs, 'game'], active: n.active } : n;
+  return { ...n, kids: n.kids.map(withGame) };
 }
 
 /** The layout as kept. */
@@ -65,7 +78,8 @@ export function deserialize(text: string | null | undefined): DockNode {
   if (!text) return defaultLayout();
   try {
     const raw = JSON.parse(text);
-    return isLayout(raw) ? normalize(raw) : defaultLayout();
+    if (isLayout(raw)) return normalize(raw);
+    return isLayout(raw, BEFORE_GAME) ? normalize(withGame(raw)) : defaultLayout();
   } catch {
     return defaultLayout();
   }

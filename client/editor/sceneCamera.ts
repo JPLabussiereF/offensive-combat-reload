@@ -6,6 +6,7 @@
 // - the wheel: dollies toward what's under the cursor;
 // - F, a double click in the Hierarchy and the orientation gizmo move it smoothly (frame, axis views);
 // - perspective or orthographic (the orientation gizmo's middle).
+// While the map is played inside the editor (etapa 4) it's off (`enabled`): no key, button or wheel moves it.
 // The numbers are client/editor/cameraMath.ts; this is the mouse and the keys.
 import * as THREE from 'three';
 import { blend, cloneState, dolly, fly, frame, look, lookAt, orbit, orthoHalfHeight, pan, pivotOf, unitsPerPixel, axisView, type CameraState, type ViewAxis } from './cameraMath';
@@ -32,6 +33,7 @@ export class SceneCamera {
   private speed = BASE_SPEED;
   private tween: { from: CameraState; to: CameraState; t: number } | null = null;
   private off: (() => void)[] = [];
+  private on = true;
   /** The orbit's center: the selection's middle (null: the pivot ahead). */
   orbitCenter: () => THREE.Vector3 | null = () => null;
   /** The hand tool (Q) is on: the left button pans. */
@@ -50,6 +52,7 @@ export class SceneCamera {
       this.off.push(() => t.removeEventListener(type, f, opts));
     };
     on(window, 'keydown', (e: KeyboardEvent) => {
+      if (!this.on) return;
       if (e.key === 'Alt') e.preventDefault(); // Alt alone would take the keyboard to the browser's menu.
       if (typing() || e.ctrlKey || e.metaKey) return;
       this.keys.add(e.code);
@@ -69,6 +72,7 @@ export class SceneCamera {
       if (e.button === 1) e.preventDefault();
     });
     on(canvas, 'pointerdown', (e: PointerEvent) => {
+      if (!this.on) return;
       if (e.button === 2) {
         this.tween = null;
         this.looking = true;
@@ -113,6 +117,7 @@ export class SceneCamera {
       'wheel',
       (e: WheelEvent) => {
         e.preventDefault();
+        if (!this.on) return;
         if (this.looking) {
           this.speed = THREE.MathUtils.clamp(this.speed * (e.deltaY > 0 ? 0.85 : 1.18), 1, 200);
           return;
@@ -131,6 +136,29 @@ export class SceneCamera {
     if (!this.looking) return;
     this.looking = false;
     if (document.pointerLockElement === this.canvas) document.exitPointerLock();
+  }
+
+  /** Whether it listens to the mouse and the keys (off while the map is played). */
+  get enabled() {
+    return this.on;
+  }
+
+  set enabled(v: boolean) {
+    if (v === this.on) return;
+    this.on = v;
+    if (v) return;
+    this.keys.clear();
+    this.stopLooking();
+    this.dragging = null;
+    this.tween = null;
+  }
+
+  /** Back to a view kept before (Stop puts the editor back where it was): at once, in its projection. */
+  restore(state: CameraState, orthographic: boolean) {
+    this.tween = null;
+    this.state = cloneState(state);
+    if (orthographic !== this.orthographic) this.toggleProjection();
+    else this.apply();
   }
 
   /** The right button is held (WASD and Q/E are the camera's). */

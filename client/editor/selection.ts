@@ -41,6 +41,8 @@ export class Selection {
   private down: { x: number; y: number; hot: boolean; add: boolean; boxing: boolean } | null = null;
   private band: HTMLDivElement;
   private off: (() => void)[] = [];
+  /** Clicks and boxes on the view pick things (off while the map is played; code still selects). */
+  enabled = true;
   /** The selection changed (by a click or by code). */
   onChange: (s: Selected | null) => void = () => {};
   /** The pieces whose drawing touches a box on the view (ids). */
@@ -67,7 +69,7 @@ export class Selection {
     this.band.hidden = true;
     canvas.parentElement?.append(this.band);
     const onDown = (e: PointerEvent) => {
-      if (e.button !== 0 || this.ignore(e)) return;
+      if (e.button !== 0 || !this.enabled || this.ignore(e)) return;
       this.down = { x: e.clientX, y: e.clientY, hot: this.gizmoHot(), add: e.ctrlKey || e.metaKey || e.shiftKey, boxing: false };
     };
     const onMove = (e: PointerEvent) => {
@@ -140,6 +142,7 @@ export class Selection {
 
   /** A click at a point of the page: picks what's there (`add`: Ctrl or Shift held). */
   clickAt(x: number, y: number, add: boolean) {
+    if (!this.enabled) return;
     const s = this.pick(x, y);
     if (add && s?.kind === 'peca') this.toggle(s);
     else if (!add || s) this.set(s);
