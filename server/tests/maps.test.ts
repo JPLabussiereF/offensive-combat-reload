@@ -68,6 +68,7 @@ describe('mapas da comunidade', () => {
     const seen = (await author.req('GET', `/api/mapas/${id}`)).body as MapaResumo;
     expect(seen).toMatchObject({ id, tipo: 'comunidade', nome: 'Praça do Teste', autor: (await author.req('GET', '/api/perfil')).body.tag, versao: 1, exclusivo: null, jogadas: 0 });
     expect(seen.pode).toEqual({ editar: true, apagar: true, ocultar: false, duplicar: true });
+    expect(seen.meu).toBe(true);
 
     const v2 = { ...tinyMap('Praça do Teste'), pecas: [...tinyMap().pecas.slice(0, 1), { id: 'carro', tipo: 'carro', p: [8, 0, -3] as [number, number, number], params: { cor: 0x2255aa } }] };
     expect((await author.req('PUT', `/api/mapas/${id}`, { dados: v2, baseVersao: 1 })).body).toMatchObject({ id, versao: 2 });
@@ -96,6 +97,7 @@ describe('mapas da comunidade', () => {
     expect((await other.req('POST', `/api/mapas/${id}/restaurar`, { versao: 1 })).status).toBe(403);
     expect((await other.req('POST', `/api/mapas/${id}/ocultar`)).status).toBe(403);
     expect((await other.req('GET', `/api/mapas/${id}`)).body.pode).toEqual({ editar: false, apagar: false, ocultar: false, duplicar: true });
+    expect((await other.req('GET', `/api/mapas/${id}`)).body.meu).toBe(false);
 
     const copy = await other.req('POST', `/api/mapas/${id}/duplicar`);
     expect(copy.status).toBe(201);

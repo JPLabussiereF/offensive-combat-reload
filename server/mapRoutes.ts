@@ -92,6 +92,7 @@ function summary(r: SummaryRow, me: Conta | null): MapaResumo {
     atualizadoEm: r.updated_at.toISOString(),
     oculto: r.hidden_at ? { em: r.hidden_at.toISOString(), motivo: r.hidden_reason } : null,
     pode: { editar: canEdit(r, me), apagar: canEdit(r, me), ocultar: !!me && isEquipe(me), duplicar: !!me && canSee(r, me) },
+    meu: isAuthor(r, me),
   };
 }
 

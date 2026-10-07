@@ -340,6 +340,8 @@ export interface MapaResumo {
   oculto: { em: string; motivo: string | null } | null;
   /** What the one asking may do with it (signed out: nothing). */
   pode: { editar: boolean; apagar: boolean; ocultar: boolean; duplicar: boolean };
+  /** Whether the one asking made it (the Mapas screen: the author edits and deletes their own map). */
+  meu: boolean;
 }
 
 /** One saved version (GET /api/mapas/:id/versoes). */
