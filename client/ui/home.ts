@@ -28,6 +28,11 @@ export type HomeChoice = { name: string; sex: Sex; account: ProfileResponse | nu
   | { mode: 'offline'; variant: 'range' }
   | { mode: 'bots'; count: number; skill: BotSkillName; game: GameModeId }
   | { mode: 'online'; conn: Connection; joined: Extract<ServerMsg, { t: 'joined' }> }
+  /**
+   * The map editor (client/editor): a saved version of a map, or a new map (null). `rascunho`: a draft kept in
+   * IndexedDB to open instead (coming back from testing it).
+   */
+  | { mode: 'editor'; mapa: { id: string; versao: number } | null; rascunho?: { chave: string; tipo: 'oficial' | 'comunidade' } }
 );
 
 type PlayMode = 'online' | 'bots' | 'treino';

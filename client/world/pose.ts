@@ -5,9 +5,13 @@
 // posed.ts). A piece without a pose builds exactly as it always did.
 import * as THREE from 'three';
 import type { Pose, Vec3 } from '@shared/mapData';
-import type { Physics } from './physics';
-import type { RoomVolume } from '../audio/spatial';
-import type { WallOpening } from './mapBuilder';
+import type RAPIER from '@dimforge/rapier3d-compat';
+
+// Only the parts used here (this module stays free of the DOM: the server's typecheck reaches it through the
+// editor's tests).
+type Physics = { world: RAPIER.World };
+type RoomVolume = { local?: number[] };
+type WallOpening = { axis: 'x' | 'z'; fixed: number; s0: number; s1: number; y0: number; y1: number; pose?: number[] };
 
 /** The pose's matrix, or null when there's none (or it moves nothing). */
 export function poseMatrix(pose: Pose | undefined): THREE.Matrix4 | null {

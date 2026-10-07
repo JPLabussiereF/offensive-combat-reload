@@ -111,7 +111,6 @@ export function startBuild(data: MapData, o: LoadOptions): MapBuild {
   const out: MapOutputs = { dog: null, pickups: [], potion: null, rats: [], fish: null, fruit: [], stabbable: [], rewards: null };
   const host: ServiceHost = { scene, b, props, sfx, out, lightCount: data.servicos?.luzes ?? 10, animate };
   const s = new Services(host);
-  const files = new Map(data.arquivos.map((f) => [f.id, f.url]));
   const ctx: BuildCtx = {
     modo,
     b,
@@ -129,7 +128,8 @@ export function startBuild(data: MapData, o: LoadOptions): MapBuild {
     rewards: () => (out.rewards ??= { ratDown: null, aimBonus: null }),
     local: (v) => v,
     loadGltf: (file): Promise<GLTF> => {
-      const url = files.get(file);
+      // Read when asked: the editor adds files to the map it is building.
+      const url = data.arquivos.find((f) => f.id === file)?.url;
       if (!url) return Promise.reject(new Error(`arquivo "${file}" não está em arquivos`));
       return gltfLoader(renderer).loadAsync(url);
     },
