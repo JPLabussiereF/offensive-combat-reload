@@ -11,7 +11,7 @@ import type { PotionKind } from '@shared/constants';
 import { WORLD_GROUPS, type Physics } from './physics';
 import { MapBuilder, stairRun, type Opening, type WallOpening } from './mapBuilder';
 import { addGltfToMap, gltfLoader } from './gltfMap';
-import { Hydrant, WaterDrops, type HydrantSfx } from './hydrant';
+import { Hydrant, WaterDrops, hydrantBody, type HydrantSfx } from './hydrant';
 import { PropBus } from './props';
 import { skySpot } from '../audio/spatial';
 import { surfaceMaterial } from './surfaces';
@@ -228,20 +228,11 @@ export async function buildBlockoutMap(physics: Physics, scene: THREE.Scene, ren
   // Fire hydrants on the sidewalks: shoot one and it gushes; stand on it and you fly.
   const drops = new WaterDrops(scene);
   const hydrants: Hydrant[] = [];
-  const red = 0xe23b3b;
   [[-12, -8], [12, 8], [28, -8]].forEach(([x, z], hi) => {
     const base = 0.15;
     const hydrant = new Hydrant(scene, new THREE.Vector3(x, base + 0.85, z), drops, sfx);
     hydrants.push(hydrant);
-    const onShot = props.register(`hidrante:${hi}`, () => hydrant.burst());
-    b.cylinder(x, base, z, 0.2, 0.06, 'metal', { tint: 0xb02a2a, collide: false }); // flange
-    b.cylinder(x, base, z, 0.16, 0.66, 'metal', { tint: red, onShot });
-    b.addGeometry(new THREE.SphereGeometry(0.16, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(x, base + 0.66, z), surfaceMaterial('metal'), red);
-    b.cylinder(x, base + 0.78, z, 0.05, 0.08, 'metal', { tint: 0xd8dde3, collide: false }); // cap nut
-    for (const side of [-1, 1]) {
-      const nozzle = new THREE.CylinderGeometry(0.06, 0.06, 0.14, 8).rotateZ(Math.PI / 2).translate(x + side * 0.2, base + 0.45, z);
-      b.addGeometry(nozzle, surfaceMaterial('metal'), 0xd8dde3);
-    }
+    hydrantBody(b, x, base, z, props.register(`hidrante:${hi}`, () => hydrant.burst()));
   });
   animated.push((dt, f) => {
     for (const h of hydrants) h.update(dt, f.feet, f.launch);
@@ -495,9 +486,9 @@ export async function buildBlockoutMap(physics: Physics, scene: THREE.Scene, ren
  * 12 x 9 m two-story house centered at (cx, cz), front facing the street (+Z), with a gable roof.
  * Openings may stack (the front door sits under an upstairs window); the wall builder keeps every hole
  * clear. Ground-floor windows are tall enough to crouch-jump through (section 10: "casas atravessáveis
- * por janelas").
+ * por janelas"). Exported for the sticker studio (client/dev/studio/rua.ts draws the same house).
  */
-function buildHouse(b: MapBuilder, cx: number, cz: number, wallTint: number, roofTint: number) {
+export function buildHouse(b: MapBuilder, cx: number, cz: number, wallTint: number, roofTint: number) {
   const hw = 6;
   const hd = 4.5;
   const t = 0.3;

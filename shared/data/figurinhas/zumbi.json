@@ -1,0 +1,15 @@
+{
+  "_doc": "Gerado por tools/bake-figurinhas.ts (bun run figurinhas); não edite. Por figurinha deste domínio: v e vm, o hash dos bytes de public/figurinhas/<id>.png (400 x 300) e <id>-mini.png (128 x 128), que vão na URL (?v=); px e pxm, o hash dos pixels (o bake só regrava a imagem quando eles mudam); kb, os tamanhos em KB (card, mini).",
+  "anjo-da-guarda": {"v":"b10ff2b6","vm":"0e1d36ab","px":"f1e2d90fff6af061","pxm":"4c98655b27507c0f","kb":[54.7,14.1]},
+  "apostador": {"v":"54b37c56","vm":"7fd1e2b2","px":"b80050a71c34891d","pxm":"f94da86d67c46ec1","kb":[38.1,8.7]},
+  "ate-onde-der": {"v":"a8d2b567","vm":"df3dcb38","px":"4a04a648ffabde50","pxm":"74d0271a694316b0","kb":[86.7,16.4]},
+  "beijando-o-chao": {"v":"4f8ed1a8","vm":"b8c8dc12","px":"1cd90dcd774af5ee","pxm":"c819a3c2bbd4c8a1","kb":[52.3,13.7]},
+  "caca-chefes": {"v":"de19887f","vm":"0a97a4bb","px":"1251a7840ee274db","pxm":"ec238eb9da089512","kb":[54.8,19]},
+  "churrasco-coletivo": {"v":"7e176539","vm":"8865e8f1","px":"8f3b5536e984616a","pxm":"8626bc4fbd603301","kb":[60,12.5]},
+  "divorcio": {"v":"bccde819","vm":"929a1ef0","px":"63a97ff752bf97eb","pxm":"359ca03d0b41b27a","kb":[59.1,11.3]},
+  "faxina": {"v":"98b94a71","vm":"36f210ba","px":"3fb3772668331acb","pxm":"1392bc9151963cf0","kb":[69.6,9.3]},
+  "marceneiro": {"v":"c03ea37a","vm":"7c48cd65","px":"8806bb75531d9a5f","pxm":"e77db7699e7f15cd","kb":[32.8,7.1]},
+  "sobrevivente": {"v":"48e7775a","vm":"d4140aa1","px":"17061e1740c996ff","pxm":"f348d942b8f37512","kb":[50.4,11.1]},
+  "vitoria-do-alem": {"v":"e00f97bb","vm":"32919b1a","px":"2c4cb9287856adde","pxm":"74020182528dcaac","kb":[45.6,9.2]},
+  "voto-nulo": {"v":"458a9eb0","vm":"6128ff3d","px":"8a447746f11c23b4","pxm":"510827e07438f9fe","kb":[34.4,13.3]}
+}

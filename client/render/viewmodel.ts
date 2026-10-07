@@ -547,7 +547,8 @@ function bakeStaticParts(group: THREE.Group, keep: THREE.Object3D[]) {
   if (merged) group.add(new THREE.Mesh(merged, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() })));
 }
 
-function flashTexture(): THREE.CanvasTexture {
+/** The muzzle flash's star (also the sticker studio's, client/dev/studio). */
+export function flashTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
   const g = c.getContext('2d')!;

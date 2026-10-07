@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Estúdio de figurinhas</title>
+    <!-- No favicon request (a 404 would be a console error, and the bake fails on those). -->
+    <link rel="icon" href="data:," />
+    <!-- The game's fonts (index.html): canvas text is painted once, so the studio waits for them (core/fonts.ts). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap" rel="stylesheet" />
+    <!-- The album's real styles: the review shows the cards and badges exactly as the game does. -->
+    <link rel="stylesheet" href="/client/styles.css" />
+    <style>
+      /* The game locks the page to the viewport; the studio scrolls. */
+      html,
+      body {
+        height: auto;
+        min-height: 100%;
+        overflow: auto;
+        background: var(--paper);
+        user-select: text;
+      }
+      body {
+        padding: 12px 20px 40px;
+      }
+      .est-status {
+        position: fixed;
+        right: 12px;
+        bottom: 8px;
+        margin: 0;
+        padding: 4px 10px;
+        border: 2px solid var(--ink);
+        border-radius: 8px;
+        background: #fff;
+        font: 800 12px var(--body);
+        z-index: 10;
+      }
+      .est-topo h1 {
+        margin: 0 0 4px;
+        font: 400 28px var(--display);
+      }
+      .est-topo nav {
+        display: flex;
+        gap: 14px;
+        font-weight: 800;
+      }
+      .est-topo a {
+        color: var(--ink);
+      }
+      .est-notas,
+      .est-avisos {
+        margin: 6px 0;
+        padding-left: 18px;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .est-avisos {
+        color: #b3261e;
+      }
+      .est-fig {
+        margin: 18px 0;
+        padding: 10px 14px 14px;
+        border: 3px solid var(--ink);
+        border-radius: 12px;
+        background: #f3ede2;
+      }
+      .est-fig > header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 10px;
+        margin-bottom: 8px;
+      }
+      .est-fig > header b {
+        font: 400 20px var(--display);
+      }
+      .est-fig > header span {
+        font-size: 12px;
+        font-weight: 800;
+        opacity: 0.75;
+      }
+      .est-vazio {
+        margin: 4px 0;
+        font-weight: 800;
+        opacity: 0.6;
+      }
+      /* The album panel's width on desktop: six columns of about 135 px, as players see the cards. */
+      .est-cards {
+        width: 870px;
+      }
+      .est-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        text-align: center;
+      }
+      .est-cell > small {
+        font-size: 11px;
+        font-weight: 800;
+        opacity: 0.7;
+      }
+      .est-off .fig {
+        opacity: 0.35;
+      }
+      .est-minis {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 26px;
+        margin-top: 12px;
+      }
+      .est-mini-set {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 10px;
+        border: 2px solid var(--ink);
+        border-radius: 10px;
+        background: var(--paper);
+      }
+      .est-mini-set > div {
+        margin: 0;
+      }
+      .est-mini-set #death-showcase {
+        margin: 0;
+      }
+      .est-mini-set small {
+        font-size: 11px;
+        font-weight: 800;
+        opacity: 0.7;
+      }
+      /* Like the scoreboard (#scoreboard): white type on the dark glass over the game. */
+      .est-placar {
+        border-collapse: collapse;
+        border-radius: 10px;
+        background: rgba(14, 16, 24, 0.82);
+        color: #fff;
+        font-weight: 800;
+        font-size: 15px;
+      }
+      .est-placar td {
+        padding: 5px 10px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .est-png {
+        display: flex;
+        align-items: flex-end;
+        gap: 14px;
+        margin-top: 12px;
+      }
+      .est-png img {
+        background: var(--c);
+        border: 2px solid var(--ink);
+        border-radius: 6px;
+      }
+      .est-png small {
+        font-size: 11px;
+        font-weight: 800;
+        opacity: 0.7;
+      }
+      /* ?grade=1: the 6% margin (the whole die-cut, border included, stays inside it), and the corner the ×N
+         repeats tag covers on counters. */
+      .est-margem,
+      .est-canto {
+        position: absolute;
+        z-index: 3;
+        pointer-events: none;
+      }
+      .est-margem {
+        inset: 6%;
+        outline: 1px dashed rgba(27, 21, 48, 0.8);
+      }
+      .est-canto {
+        top: 0;
+        right: 0;
+        width: 20%;
+        height: 20%;
+        background: repeating-linear-gradient(45deg, rgba(255, 74, 61, 0.55) 0 3px, transparent 3px 6px);
+      }
+      .est-folha-minis {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, 76px);
+        gap: 8px;
+        padding: 10px;
+        border-radius: 10px;
+        background: rgba(14, 16, 24, 0.82);
+        color: #fff;
+      }
+      .est-tudo {
+        grid-column: 1 / -1;
+      }
+      .est-folha-mini {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        font-size: 9px;
+        font-weight: 800;
+        word-break: break-all;
+        text-align: center;
+      }
+      .est-folha-mini .fig-mini {
+        margin: 0;
+      }
+      .est-folha-cartas {
+        grid-template-columns: repeat(auto-fill, 135px);
+      }
+      main h2 {
+        margin: 18px 0 8px;
+        font: 400 22px var(--display);
+      }
+      main h2 small {
+        font: 800 13px var(--body);
+        opacity: 0.7;
+      }
+      .est-falha {
+        white-space: pre-wrap;
+        font: 800 14px var(--body);
+        color: #b3261e;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Through import() rather than <script src>: when the studio's modules don't load (a syntax error or a
+         missing export in a file someone is halfway through editing), the page still finishes and says why
+         (window.__carga), and the bake opens it again a few seconds later (tools/bake-figurinhas.ts). -->
+    <!-- The path sits in a variable so that the game's dev server (bun run dev), whose dependency scan crawls
+         every HTML file, never follows it into the studio: a half-edited domain file must not fail that scan. -->
+    <script type="module">
+      const entry = '/client/dev/stickerStudio.ts';
+      import(/* @vite-ignore */ entry).catch((err) => {
+        const msg = `o estúdio não carregou: ${err instanceof Error ? err.message : String(err)}`;
+        window.__erros = [...(window.__erros ?? []), msg];
+        window.__carga = [...(window.__carga ?? []), msg];
+        window.__done = true;
+        const p = document.createElement('p');
+        p.className = 'est-falha';
+        p.textContent = msg;
+        document.body.append(p);
+      });
+    </script>
+  </body>
+</html>

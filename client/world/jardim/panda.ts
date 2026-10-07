@@ -16,8 +16,8 @@ const LEAF = 0x5b9a35;
 /** Ellipsoid part: center, radii, color, optional tilt. */
 const blob = (pos: [number, number, number], r: [number, number, number], color: number, rot?: [number, number, number]): ColoredPart => ({ geo: new THREE.SphereGeometry(1, 14, 10), color, pos, scale: r, rot });
 
-/** A panda sitting at (x, z) facing `yaw` (0 = +Z). */
-export function panda(c: Ctx, x: number, z: number, yaw: number) {
+/** A panda sitting at (x, z) facing `yaw` (0 = +Z); `bamboo: false` leaves its paws empty (the sticker studio). */
+export function panda(c: Ctx, x: number, z: number, yaw: number, { bamboo = true }: { bamboo?: boolean } = {}) {
   const mat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGradient() });
   const build = (parts: ColoredPart[]) => {
     const geo = mergeColoredParts(parts);
@@ -90,15 +90,19 @@ export function panda(c: Ctx, x: number, z: number, yaw: number) {
         blob([s * 0.24, -0.06, 0.18], [0.13, 0.13, 0.27], BLACK, [0.5, s * 0.45, 0]),
         blob([s * 0.07, -0.05, 0.4], [0.1, 0.09, 0.09], BLACK),
       ]),
-      stalk(bottom, top, 0.035),
-      ...[0.15, 0.42, 0.7].map((t): ColoredPart => {
-        const p = along(t);
-        return { geo: new THREE.CylinderGeometry(0.042, 0.042, 0.025, 7), color: NODE, pos: [p.x, p.y, p.z], rot: [-0.18, 0, 0] };
-      }),
-      ...[0.4, 2.2, 4.1].map((a, k): ColoredPart => {
-        const p = along(1).add(new THREE.Vector3(Math.cos(a) * 0.08, -0.04 - k * 0.04, Math.sin(a) * 0.08));
-        return { geo: new THREE.SphereGeometry(1, 6, 4), color: LEAF, pos: [p.x, p.y, p.z], scale: [0.03, 0.012, 0.13], rot: [0.5, a, 0.3] };
-      }),
+      ...(bamboo
+        ? [
+            stalk(bottom, top, 0.035),
+            ...[0.15, 0.42, 0.7].map((t): ColoredPart => {
+              const p = along(t);
+              return { geo: new THREE.CylinderGeometry(0.042, 0.042, 0.025, 7), color: NODE, pos: [p.x, p.y, p.z], rot: [-0.18, 0, 0] };
+            }),
+            ...[0.4, 2.2, 4.1].map((a, k): ColoredPart => {
+              const p = along(1).add(new THREE.Vector3(Math.cos(a) * 0.08, -0.04 - k * 0.04, Math.sin(a) * 0.08));
+              return { geo: new THREE.SphereGeometry(1, 6, 4), color: LEAF, pos: [p.x, p.y, p.z], scale: [0.03, 0.012, 0.13], rot: [0.5, a, 0.3] };
+            }),
+          ]
+        : []),
     ]),
   );
   root.add(arms);

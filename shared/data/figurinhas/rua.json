@@ -1,0 +1,13 @@
+{
+  "_doc": "Gerado por tools/bake-figurinhas.ts (bun run figurinhas); não edite. Por figurinha deste domínio: v e vm, o hash dos bytes de public/figurinhas/<id>.png (400 x 300) e <id>-mini.png (128 x 128), que vão na URL (?v=); px e pxm, o hash dos pixels (o bake só regrava a imagem quando eles mudam); kb, os tamanhos em KB (card, mini).",
+  "amora-mandou-lembrancas": {"v":"2cd6750d","vm":"e7405bca","px":"7d41c579320dc4a5","pxm":"d76c57e89f2bbb92","kb":[81.9,11.9]},
+  "chega": {"v":"2bd7e45f","vm":"32605ed1","px":"a5453a8d1901a346","pxm":"36677300bed69117","kb":[80,11.3]},
+  "empurraozinho": {"v":"76b4fc23","vm":"a64f4602","px":"5c3d09519744f862","pxm":"c18a1ed2abd42a52","kb":[47.8,12.6]},
+  "endereco-fixo": {"v":"5c13e0e1","vm":"30f2e106","px":"61b217c0da65b781","pxm":"6f33be0e8c386a1f","kb":[126,18.9]},
+  "estraga-sequencia": {"v":"0bf2b216","vm":"7bd828ec","px":"e9617848275ef655","pxm":"5b7be2c5fdfa9a6b","kb":[28.5,13.7]},
+  "fora-do-mapa": {"v":"c0603965","vm":"56d902bc","px":"35cc4c527760af6b","pxm":"2b51b43aca73cbba","kb":[45,11.5]},
+  "gravidade": {"v":"f955d6d9","vm":"2cb371cf","px":"b2a75c8fe81cd8ad","pxm":"2f105e0dfa92853c","kb":[60.8,15.4]},
+  "morador-assiduo": {"v":"15b4bc4e","vm":"a894ef72","px":"acd9c16a9f602c44","pxm":"dcb386a859539918","kb":[62.6,11.6]},
+  "sorveteiro-fantasma": {"v":"ecea10cd","vm":"e4560bbc","px":"91d6a7edb6b5eaf9","pxm":"b479d2fc055c6167","kb":[54.6,9.9]},
+  "vizinho-perigoso": {"v":"2a381e1c","vm":"faa1f590","px":"ca736e7c5c613726","pxm":"49b3313d0637153b","kb":[70.4,12.4]}
+}

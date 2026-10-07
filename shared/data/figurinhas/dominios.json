@@ -1,0 +1,9 @@
+{
+  "_doc": "Qual domínio do estúdio de figurinhas (client/dev/studio/<domínio>.ts) desenha cada figurinha: o estúdio recusa um id de outro domínio, o bake só grava cada id no manifesto do seu domínio (shared/data/figurinhas/<domínio>.json) e o teste confere os dois.",
+  "personagens": ["chutando-cachorro-morto", "combo", "davi-contra-golias", "embalado", "na-testa", "no-passaro", "no-ultimo-segundo", "oportunista", "opressor", "oprimido", "troco"],
+  "armas": ["corredor", "esfaqueador", "estraga-prazer", "facada", "kamikaze", "lancador", "oficina-do-seu-ze", "pelas-costas", "strike", "tiro-no-pe", "vinganca", "volta-olimpica"],
+  "rua": ["amora-mandou-lembrancas", "chega", "empurraozinho", "endereco-fixo", "estraga-sequencia", "fora-do-mapa", "gravidade", "morador-assiduo", "sorveteiro-fantasma", "vizinho-perigoso"],
+  "jardim": ["abraco-de-urso", "banda-marcial", "cereja-do-bolo", "maestro", "pe-de-valsa", "peixe-de-ouro", "pescador", "proibido-acordar"],
+  "vila": ["bate-ponto", "com-um-pe-na-cova", "eu-ja-ouvi", "humanidade-restaurada", "mosca-no-alvo", "mudou-pro-mausoleu", "patinhos-em-fila", "provador-da-bruxa", "rip-lag", "saco-de-pancada", "saude-hic", "scooby-dooby-doo"],
+  "zumbi": ["anjo-da-guarda", "apostador", "ate-onde-der", "beijando-o-chao", "caca-chefes", "churrasco-coletivo", "divorcio", "faxina", "marceneiro", "sobrevivente", "vitoria-do-alem", "voto-nulo"]
+}

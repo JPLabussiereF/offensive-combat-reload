@@ -14,6 +14,9 @@ source_paths:
   - client/dev/audit.ts
   - tools/gerar-props-exemplo.mjs
   - tools/lab-personagens.html
+  - tools/bake-figurinhas.ts
+  - client/dev/studio/core/render.ts
+  - client/dev/studio/core/dieCut.ts
   - public/models/casinha_cachorro.glb
   - public/maps/arena_teste.glb
   - public/textures/manifest.json
@@ -127,6 +130,15 @@ Referência completa: `docs/PERSONAGENS.md`. O registro (`client/character/regis
 ## 4. Armas
 
 Só em código (`client/render/weaponModels.ts`), sem caminho de GLB próprio. O registro de personagem tem os itens `rifle` e `rifle_costas` com socket e grip, mas o modelo visível vem de `heldWeapons.ts`. Ver [[Weapon Models]].
+
+## 5. Arte das figurinhas (pré-gerada)
+
+As 65 figurinhas do [[Achievements|álbum]] são PNGs gerados a partir das cenas do estúdio (`client/dev/studio/`), não desenhados à mão:
+
+- **Render:** um `WebGLRenderer` só, fundo transparente, sem tone mapping, com a luz do editor de personagem (`setupScene` de `customize.ts`) acompanhando cada câmera. Sem céu nem chão: só uma "ilha" pequena do piso do mapa quando a cena pede.
+- **Recorte:** a partir do alfa da imagem (800 × 600 ou 256 × 256), fecha as frestas entre a figura e os efeitos (estrelas, confete, balões) e preenche os buracos internos, e desenha um contorno escuro `#1b1530` e uma borda creme `#fff8ec`. Depois reduz pela metade (400 × 300 e 128 × 128).
+- **Mesmos pixels sempre:** SwiftShader (o bake recusa outra placa), `Math.random` com semente por figurinha, passo fixo nas animações e uma página nova por figurinha. Um bake sem mudança de código não regrava nada.
+- **Peso:** de 30 a 126 KB por carta (média de ~55 KB) e de 7 a 19 KB por mini, 4,4 MB as 65 (limites de 150 e 30 KB por arquivo, conferidos no teste).
 
 ## Ferramentas de conferência
 

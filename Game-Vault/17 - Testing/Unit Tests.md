@@ -16,6 +16,7 @@ source_paths:
   - shared/arsenal.ts
   - server/migrations/003_melhorias.sql
   - client/tests/offlineModes.test.ts
+  - client/tests/stickerArt.test.ts
   - client/gameplay/progress.ts
   - client/zombies/local.ts
   - client/zombies/link.ts
@@ -120,6 +121,14 @@ Testa `shared/progression.ts` e `shared/arsenal.ts` (puros), 33 casos:
 - **Atributos:** sem melhorias, `gunStats` é o JSON; cada melhoria muda atributos de verdade; o silenciador abafa e cobra dano e alcance; o sabre tem mais alcance e golpes mais espaçados que a faca; a granada vira mina ou Dose Dupla e ganha cinto e pólvora; cada abate de tiro vai para a arma que atirou (`weaponOfKill`).
 - **Rifles e facas antigos:** cada rifle tem a vantagem e o custo do plano em relação ao Padrão; as melhorias do rifle valem em todo rifle e não mudam a pintura; as facas trocam alcance por velocidade e todas matam com um golpe; as miras antigas são os níveis 7 a 9 do rifle, opcionais do grupo `mira`.
 - **Migração 003:** lê `server/migrations/003_melhorias.sql` e confere que todo XP de destino é um limiar que existia nos níveis **da época** da migração (fixados no teste: os níveis de hoje mudaram com a PF-8) ([[Data Migrations]]).
+
+## `client/tests/stickerArt.test.ts` → [[Achievements]], [[Asset Pipeline]]
+
+- **Manifestos** (`shared/data/figurinhas/*.json`): leem, chaves em ordem com a linha `_doc`, cada id existe no álbum e está só no manifesto do seu domínio.
+- **PNGs:** cada um existe, tem a assinatura PNG e o tamanho certo no cabeçalho (400 × 300 e 128 × 128), o hash dos bytes bate com o manifesto (`?v=`), fica abaixo de 150 KB (carta) e 30 KB (mini), e não sobra PNG sem dono.
+- **No álbum:** secreta não colada nunca manda a URL da arte; uma página só usa arte quando todas as figurinhas dela têm; o selo usa a mini.
+- **Estúdio:** o recorte (fechamento, buracos, peças) e o elenco (vizinhos simples, o sexo de cada visual, cabelo e barba no `dress`).
+- Roda sem banco: `bun --config=<bunfig sem preload> test client/tests/stickerArt.test.ts`.
 
 ## `client/tests/offlineModes.test.ts` → [[Training]], [[Versus Bots]], [[Zombie]]
 
