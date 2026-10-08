@@ -851,3 +851,72 @@ describe('começo com a Pistola do Porteiro', () => {
     expect(weaponMul(moved, 'rifle')).toBe(rarityMul('comum'));
   });
 });
+
+describe('recusar (X) e doar (Z) a arma do caixão', () => {
+  /** Two players by the coffin, the first with an intact weapon on offer. */
+  function offered() {
+    Object.assign(ZOMBIE, { inicioSegundos: 1000 });
+    Object.assign(ZOMBIE.caixa, { custo: 100, girarSegundos: 0.2, ofertaSegundos: 5 });
+    const d = ZOMBIE.caixa.danificada;
+    for (const r of Object.keys(d.chance) as (keyof typeof d.chance)[]) d.chance[r] = 0;
+    const [x, y, z] = MAP().caixa;
+    const f = fake([[x - 1, y + 0.1, z], [x + 1, y + 0.1, z]]);
+    f.step(0.2);
+    f.match.useBox(1);
+    f.step(0.25);
+    const offer = f.of('zbox').at(-1)!;
+    expect(offer).toMatchObject({ state: 'offer', by: 1, flaw: null });
+    return { f, offer, it: itemOf(offer.item)! };
+  }
+
+  it('X recusa: a arma some e o caixão fecha, livre para girar de novo; só quem tirou pode recusar', () => {
+    const { f } = offered();
+    const n = f.of('zbox').length;
+    f.match.refuseBox(2);
+    f.match.donateBox(2);
+    expect(f.of('zbox')).toHaveLength(n);
+    f.match.refuseBox(1);
+    expect(f.of('zbox').at(-1)).toEqual({ t: 'zbox', state: 'idle', by: null, item: null, flaw: null, until: 0 });
+    expect(f.match.itemsOf(1)).toEqual(startItems());
+    f.match.useBox(2);
+    expect(f.of('zbox').at(-1)).toMatchObject({ state: 'rolling', by: 2 });
+  });
+
+  it('Z doa: a arma fica no caixão para qualquer outro pegar com E, não para quem doou', () => {
+    const { f, offer, it } = offered();
+    f.match.donateBox(1);
+    const open = f.of('zbox').at(-1)!;
+    expect(open).toMatchObject({ state: 'offer', by: 1, item: offer.item, flaw: null, open: true, until: f.t + ZOMBIE.caixa.doacaoSegundos * 1000 });
+    expect(f.match.sync().box).toMatchObject({ state: 'offer', by: 1, item: offer.item, open: true });
+    // The donor can't take it back, turn it down or donate it again.
+    const n = f.of('zbox').length;
+    f.match.useBox(1);
+    f.match.refuseBox(1);
+    f.match.donateBox(1);
+    expect(f.of('zbox')).toHaveLength(n);
+    expect(f.match.itemsOf(1)).toEqual(startItems());
+    // Anyone else takes it, as if it were their own roll (nothing paid).
+    const money = f.match.info(2)!.money;
+    f.match.useBox(2);
+    expect(f.match.itemsOf(2)).toEqual(withItem(startItems(), it, null));
+    expect(f.match.info(2)!.money).toBe(money);
+    expect(f.match.sync().box).toEqual({ state: 'idle', by: null, item: null, flaw: null, until: 0 });
+  });
+
+  it('a doação some se ninguém pegar a tempo, e fica lá mesmo se quem doou sair', () => {
+    const { f } = offered();
+    f.match.donateBox(1);
+    f.match.leave(1);
+    f.step(ZOMBIE.caixa.doacaoSegundos - 0.5);
+    expect(f.match.sync().box).toMatchObject({ state: 'offer', open: true });
+    f.step(1);
+    expect(f.match.sync().box).toEqual({ state: 'idle', by: null, item: null, flaw: null, until: 0 });
+    // Our own roll (not donated) still goes with us when we leave.
+    f.match.useBox(2);
+    f.step(0.25);
+    expect(f.match.sync().box).toMatchObject({ state: 'offer', by: 2 });
+    f.match.leave(2);
+    expect(f.of('zbox').at(-1)).toMatchObject({ state: 'idle' });
+  });
+});
+

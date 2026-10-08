@@ -8,7 +8,7 @@ export type Action =
   | 'forward' | 'back' | 'left' | 'right'
   | 'jump' | 'crouch' | 'sprint' | 'reload'
   | 'fire' | 'ads' | 'melee' | 'grenade' | 'weapon1' | 'weapon2' | 'swapWeapon'
-  | 'taunt' | 'scoreboard' | 'chat' | 'debug' | 'hitboxes' | 'tuning';
+  | 'taunt' | 'donate' | 'refuse' | 'scoreboard' | 'chat' | 'debug' | 'hitboxes' | 'tuning';
 
 /** Dev keys that stay where they are: not in the controls table, and no other action may take them. */
 export type FixedAction = 'debug' | 'hitboxes' | 'tuning';
@@ -26,7 +26,7 @@ export const REBINDABLE: RebindableAction[] = [
   'jump', 'crouch', 'sprint',
   'fire', 'ads', 'reload', 'melee', 'grenade',
   'weapon1', 'weapon2', 'swapWeapon',
-  'taunt', 'scoreboard', 'chat',
+  'taunt', 'donate', 'refuse', 'scoreboard', 'chat',
 ];
 
 // Crouch is on C, not Ctrl: Ctrl+W closes the browser tab and cannot be intercepted outside fullscreen keyboard lock.
@@ -48,6 +48,9 @@ export const DEFAULT_KEYBINDS: Keybinds = {
   weapon2: ['Digit2', null],
   swapWeapon: ['WheelDown', 'WheelUp'],
   taunt: ['KeyE', null],
+  // Zumbi: the weapon the coffin offers us, left there for the others or turned down.
+  donate: ['KeyZ', null],
+  refuse: ['KeyX', null],
   scoreboard: ['Tab', null],
   chat: ['Enter', 'KeyT'],
 };
@@ -69,7 +72,7 @@ export function forbiddenReason(code: string): ForbiddenReason | null {
  * Actions done with one press, the only ones the mouse wheel can trigger: a wheel step is a press that is never
  * held (sprinting or aiming for a frame does nothing), and the chat opens on a key event, not on Input's table.
  */
-export const WHEEL_ACTIONS: ReadonlySet<RebindableAction> = new Set<RebindableAction>(['jump', 'fire', 'reload', 'melee', 'grenade', 'weapon1', 'weapon2', 'swapWeapon', 'taunt']);
+export const WHEEL_ACTIONS: ReadonlySet<RebindableAction> = new Set<RebindableAction>(['jump', 'fire', 'reload', 'melee', 'grenade', 'weapon1', 'weapon2', 'swapWeapon', 'taunt', 'donate', 'refuse']);
 
 const isWheel = (code: string) => code === 'WheelUp' || code === 'WheelDown';
 

@@ -607,6 +607,33 @@ describe('modo zumbi no servidor', () => {
     await sleep(100);
   }, 30_000);
 
+  it('no servidor, Z deixa a arma do caixão para o outro pegar; X recusa', async () => {
+    quick();
+    Object.assign(ZOMBIE, { inicioSegundos: 1000 });
+    Object.assign(ZOMBIE.tipos.comum, { dano: 0 });
+    Object.assign(ZOMBIE.caixa, { custo: 100, girarSegundos: 0.2 });
+    const a = await enter('Generoso', CEMETERY);
+    const b = await enter('Sortudo', CEMETERY);
+    const [x, y, z] = ZOMBIE.mapas.cemiterio!.caixa;
+    await stand(a, [x - 1, y + 0.1, z]);
+    await stand(b, [x + 1, y + 0.1, z]);
+    await sleep(100);
+    a.p.send({ t: 'box' });
+    const offer = await b.p.next('zbox', (m) => m.state === 'offer');
+    a.p.send({ t: 'boxDonate' });
+    expect(await b.p.next('zbox', (m) => m.state === 'offer' && !!m.open)).toMatchObject({ by: a.id, item: offer.item, flaw: offer.flaw });
+    b.p.send({ t: 'box' });
+    const lo = await b.p.next('playerLoadout', (m) => m.id === b.id);
+    expect(lo.lo).toEqual(zombieLoadout(withItem(startItems(), itemOf(offer.item)!, offer.flaw)));
+    // X: the next roll turned down, the coffin closes.
+    a.p.send({ t: 'box' });
+    await a.p.next('zbox', (m) => m.state === 'offer' && m.by === a.id && !m.open);
+    a.p.send({ t: 'boxRefuse' });
+    expect(await a.p.next('zbox', (m) => m.state === 'idle')).toMatchObject({ by: null, item: null });
+    a.p.close();
+    b.p.close();
+    await sleep(100);
+  }, 30_000);
 
   it('os zumbis do servidor machucam quem está de pé', async () => {
     quick();

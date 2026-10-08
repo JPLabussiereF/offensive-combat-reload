@@ -108,6 +108,12 @@ export class LocalZombies implements ZombieLink {
       case 'box':
         m.useBox(me);
         return;
+      case 'boxDonate':
+        m.donateBox(me);
+        return;
+      case 'boxRefuse':
+        m.refuseBox(me);
+        return;
       case 'totem':
         m.useTotem(me);
         return;

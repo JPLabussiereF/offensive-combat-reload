@@ -224,6 +224,7 @@ export class Coffin {
       case 'offer': {
         const it = itemOf(info.item);
         this.show(it ?? null, !!info.flaw);
+        if (info.open) break;
         if (it && info.flaw) this.sfx.at(at, 'normal', (s) => s.coffinBroken());
         else if (it) this.sfx.at(at, 'normal', (s) => s.coffinReveal(it.raridade === 'lendario' ? 2 : it.raridade === 'epico' ? 1 : 0));
         break;

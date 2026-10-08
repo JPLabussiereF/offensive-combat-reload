@@ -182,7 +182,12 @@ As cinco brechas do muro (Portão Principal ao sul, Brechas Oeste, Leste, Noroes
 
 Um caixão velho com um "?" brilhando e um **feixe de luz** que se vê de longe, **sempre no mesmo lugar**: o pátio nordeste, encostado no muro leste (17,6; −9), entre dois candelabros.
 
-- `E` perto dele (2,2 m): paga **$950** e gira (3,5 s, as armas passam piscando). Para numa arma, que fica flutuando, na cor da raridade, por **8 s** só para quem pagou: `E` de novo pega. Não pegou, perdeu (é assim que se recusa uma arma).
+- `E` perto dele (2,2 m): paga **$950** e gira (3,5 s, as armas passam piscando). Para numa arma, que fica flutuando, na cor da raridade, por **8 s** só para quem pagou, que decide (PF-25):
+  - **`E` pega** a arma;
+  - **`X` recusa**: a arma some e o caixão fecha na hora, livre para girar de novo (`refuseBox`);
+  - **`Z` doa**: a arma **fica no caixão** (a mesma, com o mesmo defeito, se tiver) por **15 s** (`caixa.doacaoSegundos`) para **qualquer outro jogador** pegar com `E`, de graça. Ninguém recebe a arma na mão: quem quiser vai até o caixão. Quem doou não pode pegar de volta, nem recusar depois; se ninguém pegar, ela some. Se quem doou sair da partida, a arma doada continua lá (a oferta própria sai junto com quem saiu) (`donateBox`);
+  - não fez nada em 8 s: a arma some, como antes.
+- O prompt da própria oferta mostra as teclas: "Pegar Rifle Firme (Rara) · [Z] doar · [X] recusar" (as teclas são remapeáveis em [[Input & Controls]]). O `Z` só aparece com mais alguém na partida (no solo não há para quem doar). Os outros veem no feed "Fulano doou Rifle Firme (Rara) no caixão: quem quiser, pegue!" e, perto do caixão, "Pegar Rifle Firme (Rara) · doada por Fulano", com a barra dos 15 s. Doar não repete o som de revelação. Com controle ou no celular as teclas `Z`/`X` não existem: só pegar (`E`) ou esperar.
 - O sorteio é **no servidor** online (`rollBox` e `rollFlaw`, `Math.random` do servidor): a raridade pelo peso, uma arma dela e, por cima, **se vem danificada**. **Nunca sai a arma que você já tem intacta naquele lugar** (uma cópia danificada pode sair de novo).
 - A arma nova vai para o **lugar dela** (rifle → primária; qualquer secundária → secundária; sabre → faca; `itemSlot` usa `PRIMARIES`) e a que estava lá **é jogada fora**.
 - **A pistola inicial** fica na mão da primária: quando sai um rifle, ele vai para a primária e a pistola passa para a secundária (se estiver vazia), em vez de ser jogada fora; quando sai outra pistola do mesmo tipo (a Pistola do Porteiro comum), ela toma o lugar da inicial; outra arma de mão (grampeador, garrucha...) fica na secundária, ao lado dela (`withItem`). O dano de cada uma é o da raridade dela, esteja na primária ou na secundária (`itemOfGun` procura a arma nos dois lugares).
@@ -211,7 +216,7 @@ As cinco secundárias da PF-10 entram no caixão **sem melhorias**, com o nome d
 
 - O Sabre não tem munição: quando vem danificado, é sempre menos dano.
 - A penalidade de dano entra no multiplicador que o servidor usa para validar cada acerto (`weaponMul`); a de munição, no cliente (`zombieGunData`, a partir de `Loadout.danificadas`, que o servidor manda junto com o equipamento).
-- **Sem conserto**: para se livrar dela, girar de novo (a oferta seguinte que cair no mesmo lugar a substitui, e o defeito vai embora com ela).
+- **Sem conserto**: para se livrar dela, girar de novo (a oferta seguinte que cair no mesmo lugar a substitui, e o defeito vai embora com ela). Uma oferta danificada pode ser recusada (`X`) ou doada (`Z`) antes de pegar; a doada vai com o defeito.
 - Como aparece: a arma flutua torta, piscando, com brilho avermelhado e a placa "DANIFICADA" com uma rachadura; acorde azedo; faixa "Saiu DANIFICADA: menos munição" para quem pagou; o prompt diz o defeito antes de pegar; no HUD o nome da arma ganha a etiqueta com o ícone de rachadura; na pausa, a arma carregada mostra o defeito com os números e cada raridade, a chance de vir danificada.
 - Não existe mais o **pato de borracha** nem o caixão que voa para outro lugar (substituídos por este azar).
 

@@ -77,12 +77,13 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 
 ## `client/tests/keybinds.test.ts` → [[Input & Controls]]
 
-28 casos em grupos:
+29 casos em grupos:
 
 - **Atribuir teclas:** tecla livre vai ao espaço escolhido sem alterar o original; tecla usada sai da outra ação e informa o espaço que ficou vazio; aceita botões laterais do mouse; recusa `Ctrl` e as teclas fixas, dizendo o motivo.
 - **Roda do mouse:** vale em ações de um toque; recusada em ações de segurar e no chat; descartada ao carregar se salva numa ação de segurar; tem nome nos dois idiomas.
 - **Esvaziar um espaço (×)** e **teclas proibidas** (`Ctrl` dos dois lados, `F3`, `F4`, `F6`).
 - **Carregar o salvo:** sem nada volta o padrão (cópia); ação nova recebe o padrão; respeita espaço vazio de propósito; descarta lixo; tecla duplicada fica só na primeira.
+- **Teclas do caixão no modo zumbi:** `Z` doa e `X` recusa por padrão, e um save antigo (sem essas ações) as ganha.
 - **Tabela do Input** e **nome das teclas** (QWERTY, AZERTY via mapa do navegador, fallback do Firefox, código desconhecido).
 
 ## `client/tests/arsenalText.test.ts` → [[Inventory UI]]

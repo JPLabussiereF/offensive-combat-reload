@@ -156,7 +156,7 @@ export function moreUpgradesText(prog: ProgWeapon, xp: number): string | null {
 export const KEY_GROUPS: readonly [StringKey, readonly RebindableAction[]][] = [
   ['keyGroupMove', ['forward', 'back', 'left', 'right', 'jump', 'crouch', 'sprint']],
   ['keyGroupCombat', ['fire', 'ads', 'reload', 'melee', 'grenade', 'weapon1', 'weapon2', 'swapWeapon']],
-  ['keyGroupOther', ['taunt', 'scoreboard', 'chat']],
+  ['keyGroupOther', ['taunt', 'donate', 'refuse', 'scoreboard', 'chat']],
 ];
 
 /** The rail's map line on a ?mapa=/maps/arquivo.glb preview: the file's name. */
