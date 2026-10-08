@@ -4,6 +4,8 @@ type: infrastructure
 status: documented
 area: infrastructure
 source_paths:
+  - Dockerfile
+  - server/deploy.ts
   - .github/workflows/ci.yml
   - package.json
   - bunfig.toml
@@ -12,7 +14,7 @@ tags:
   - infra
   - ci
   - github-actions
-updated: 2026-10-05
+updated: 2026-10-08
 ---
 
 # CI CD
@@ -51,6 +53,10 @@ O que existe no lugar: deploy **manual**, rodando no host
 - na VPS sem Docker: `git pull`/cópia, `bun install --frozen-lockfile && bun run build` e `systemctl restart offensive-combat` (inferido do arquivo de serviço; o comando de reinício não está escrito em `docs/DEPLOY.md`).
 
 Ver [[Hosting]] e [[Updates]].
+
+### Deploy remoto (pedido pela API)
+
+Desde 2026-10-08 o servidor aceita **pedidos** de deploy em `POST /api/deploy` (chave `X-Deploy-Key`, ver [[APIs]]): CI ou um operador pede `atualizar`/`voltar` em `prd` (só versão final) ou `hml` (só `.rc.`). O servidor só enfileira no Redis; quem executa (backup, build com `--build-arg APP_VERSION=<tag>`, troca das imagens e conferência por `GET /api/saude`) é um programa de bandeja no Windows, fora deste repositório. Sem `DEPLOY_KEY_HASH` o recurso fica desligado (404). Nenhum workflow deste repositório chama a rota ainda.
 
 ## Proteção da branch
 

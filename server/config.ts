@@ -36,4 +36,9 @@ export const CONFIG = {
     appPassword: process.env.SMTP_SENHA_APP ?? '',
     from: process.env.SMTP_REMETENTE ?? process.env.SMTP_USUARIO ?? '',
   },
+  /**
+   * SHA-256 (lowercase hex) of the remote deploy key (server/deploy.ts); the key itself never reaches the server.
+   * Empty (the default, and in development): the /api/deploy routes answer 404.
+   */
+  deployKeyHash: process.env.DEPLOY_KEY_HASH ?? '',
 };

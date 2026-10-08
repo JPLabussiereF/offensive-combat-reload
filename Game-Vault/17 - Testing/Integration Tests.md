@@ -4,6 +4,7 @@ type: system
 status: documented
 area: testing
 source_paths:
+  - server/tests/deploy.test.ts
   - server/tests/sessions.test.ts
   - server/tests/management.test.ts
   - server/tests/maps.test.ts
@@ -25,7 +26,7 @@ source_paths:
 tags:
   - testes
   - integracao
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Integration Tests
@@ -170,6 +171,10 @@ Sem rede nem banco: uma `Session` real (com os ganchos reais de `server/modes.ts
 - Perfil começa com aparência padrão, salva e devolve validada; trocar o sexo mantém cabelo e roupas.
 - Online: todos veem a aparência de quem entra; o corpo mantém a aparência; o biotipo "gordo" tem a mesma vida.
 
+### `deploy.test.ts` — deploy remoto e saúde
+
+Chamadas como as de CI (sem `Origin`, sem cookie, IP próprio): desligado (sem hash) → 404 nas três rotas; sem chave, chave errada ou o próprio hash como chave → 401 e falhas contadas; 10 falhas → 429 mesmo com a chave certa (janela ≤ 15 min), outro IP segue; prd com `.rc.` e hml com versão final → 422; tags fora do formato (e não-string) → 422; ambiente/ação desconhecidos → 422; fila com 20 → 429 sem criar pedido; `POST` → 202 com as chaves do contrato na ordem, TTL de 30 dias e `RPUSH` no fim da fila, inclusive com `Origin` de outro site; `GET /:id` reflete o `SET ... KEEPTTL` do programa; id inválido → 404; `GET` sem e com `deploy:estado`; as outras rotas que mudam estado seguem exigindo `Origin`; `GET /api/saude` sem auth e `no-store`. O teste muda `CONFIG.deployKeyHash` e o restaura no fim; apaga só `deploy:*` no db 1.
+
 ## Execução
 
 `bun test` (local, com `docker compose up -d banco redis`) ou CI ([[CI CD]]). O preload apaga e recria o banco de teste a cada execução, então os testes não dependem de estado anterior.
@@ -177,6 +182,6 @@ Sem rede nem banco: uma `Session` real (com os ganchos reais de `server/modes.ts
 ## Código relacionado
 
 - `server/tests/helpers.ts`, `server/tests/preload.ts`, `server/tests/env.ts`
-- `server/tests/auth.test.ts`, `server/tests/game.test.ts`, `server/tests/appearance.test.ts`, `server/tests/modes.test.ts`, `server/tests/zombies.test.ts`, `server/tests/progression-modes.test.ts`, `server/tests/secondaries.test.ts`, `server/tests/knifePassives.test.ts`, `server/tests/zombieBarricades.test.ts`, `server/tests/maps.test.ts`, `server/tests/management.test.ts`, `server/tests/sessions.test.ts`
+- `server/tests/auth.test.ts`, `server/tests/game.test.ts`, `server/tests/appearance.test.ts`, `server/tests/modes.test.ts`, `server/tests/zombies.test.ts`, `server/tests/progression-modes.test.ts`, `server/tests/secondaries.test.ts`, `server/tests/knifePassives.test.ts`, `server/tests/zombieBarricades.test.ts`, `server/tests/maps.test.ts`, `server/tests/management.test.ts`, `server/tests/sessions.test.ts`, `server/tests/deploy.test.ts`
 
 Ver também: [[Testing Overview]], [[Authentication]], [[APIs]].

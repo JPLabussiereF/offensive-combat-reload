@@ -4,6 +4,7 @@ type: reference
 status: documented
 area: configuration
 source_paths:
+  - server/deploy.ts
   - server/config.ts
   - server/index.ts
   - server/email.ts
@@ -24,7 +25,7 @@ tags:
   - referencia
   - configuracao
   - env
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Configuration Reference
@@ -49,6 +50,8 @@ Todas as variáveis de ambiente encontradas no projeto. **Nenhum valor de segred
 | `SMTP_REMETENTE` | Endereço "From" | `SMTP_USUARIO` | não | `server/email.ts` |
 | `ADMIN_BOOTSTRAP_EMAIL` | E-mail do admin inicial, criado ao subir enquanto nenhuma conta é admin | `admin@cadu.com` | não | `server/config.ts` → `server/bootstrapAdmin.ts` |
 | `ADMIN_BOOTSTRAP_PASSWORD` | Senha do admin inicial (só ao criar a conta) | `admin` (só desenvolvimento: trocar antes de expor) | **sim** | `server/config.ts` → `server/bootstrapAdmin.ts` |
+| `DEPLOY_KEY_HASH` | SHA-256 (hex minúsculo) da chave do deploy remoto (`ocdeploy_<64 hex>`, gerada pelo programa de deploy); a chave em si nunca chega ao servidor | vazio (rotas `/api/deploy` respondem 404) | não é a chave, mas não vai para log | `server/config.ts` → `server/deploy.ts` |
+| `APP_VERSION` | Tag da versão que a imagem roda, devolvida por `GET /api/saude`. No `Dockerfile`, `ARG APP_VERSION=dev` vira `ENV` no estágio `server`; no estágio `build`, quando passada (e diferente de `dev`), é o id de build do cliente (`buildId()` em `vite.config.ts`) | `dev` | não | `server/api.ts`, `Dockerfile`, `vite.config.ts` |
 
 No compose, o serviço `jogo` recebe `DATABASE_URL` e `REDIS_URL` montados internamente (`banco:5432`, `redis:6379`) e repassa as demais do `.env` com default vazio (as do admin inicial com os mesmos padrões do código).
 
