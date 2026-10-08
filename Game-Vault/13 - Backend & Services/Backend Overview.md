@@ -81,7 +81,7 @@ flowchart LR
 ## Ciclo de vida (nível 3)
 
 1. `startServer()` cria o pool Postgres, duas conexões Redis, roda as **migrations** (`migrate`, ver [[Data Migrations]]) e agenda os **jobs** (desligáveis com `jobs: false`, usado nos testes).
-2. Semeia a versão 1 dos mapas oficiais que o banco ainda não tem (`seedOfficialMaps`, `server/maps.ts`). Não cria sala nenhuma: elas abrem sob demanda.
+2. Semeia a versão 1 dos mapas oficiais que o banco ainda não tem e publica uma versão nova (atual) de cada oficial cujo JSON mudou desde a última versão tirada do repositório (`seedOfficialMaps`, `server/maps.ts`; [[ADR - Mapas oficiais do repositório publicados na subida]]). Não cria sala nenhuma: elas abrem sob demanda.
 3. Assina `oc:revogacao` e `oc:silencio` no Redis.
 4. Sobe o `Bun.serve`. Cada requisição registra o IP do par (`setPeer`) para `clientIp()`.
 5. No `close()` (SIGTERM ou fim dos testes): para o timer de gravação e os jobs, grava o progresso de quem está jogando, fecha sockets com código `1001`, descarta sessões, para o servidor e fecha Redis e Postgres.

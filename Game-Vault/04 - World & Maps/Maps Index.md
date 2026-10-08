@@ -101,6 +101,8 @@ Confirmado em código e em `docs/MAPAS.md`:
 1. Escrever o mapa como dados em `shared/data/mapas/<id>.json` (formato `MapData`, peças do catálogo `shared/mapCatalog.ts`; ver [[World Structure]]), com coletáveis, bruxa, ratos e peixes em `objetos`. `validateMapData` tem de passar e o custo de desenho tem de caber em 400 chamadas e 750 mil triângulos (`client/tests/mapData.test.ts` e `budget.test.ts` conferem os oficiais).
 2. O id em `OFFICIAL_MAPS` (`shared/maps.ts`), o arquivo em `OFFICIAL` e o nome e o cartão em `OFFICIAL_INFO` (`client/world/mapLoader.ts`), e as linhas da tela inicial (clima, tamanho, piada) em `OFFICIAL_BLURB` (`client/ui/home.ts`).
 3. O servidor cria a versão 1 sozinho na próxima subida (`seedOfficialMaps`).
+
+**Mudar um mapa oficial que já existe:** basta mudar o `shared/data/mapas/<id>.json`. Na próxima subida do servidor, o arquivo diferente da última versão vinda do repositório vira uma versão nova e atual (as partidas em andamento terminam na anterior; uma edição da equipe pelo editor fica no histórico). Ver [[ADR - Mapas oficiais do repositório publicados na subida]].
 4. Mapa do modo zumbi: os dados de zumbi no campo `zumbi` e `exclusivo: 'zumbi'`; `bun run navmesh` grava a malha em `shared/data/navmesh/<id>.json`, que a semeadura guarda com a versão 1.
 
 ## Relações com outras áreas
