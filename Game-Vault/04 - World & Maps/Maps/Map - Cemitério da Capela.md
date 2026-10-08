@@ -157,7 +157,7 @@ Os do [[Zombie|modo zumbi]]: sobreviver às ondas. Pontos de interesse: o caixã
 ## Problemas conhecidos
 
 - O caixão e as tábuas têm colisão para os jogadores, mas não estão na navmesh: um zumbi pode encostar no caixão; nas brechas, as tábuas são regra do motor (o filtro), não geometria.
-- Um zumbi encostado no muro alcança um jogador colado nas grades do outro lado (alcance do arranhão 1,3 m sem checar linha de visão): "braço pela grade". Intencional, não testado com jogadores.
+- **Revisto na PF-16:** antes, um zumbi encostado no muro alcançava um jogador colado nas grades do outro lado ("braço pela grade", aceito como intencional sem teste com jogadores). A pedido do dono do projeto, nenhum golpe atravessa mais o muro, só uma brecha aberta ([[Zombie]]); o braço ainda passa pelas barras no desenho.
 - O topo do telhado da capela não foi pensado para jogo (alcançável só por depuração).
 
 ## Código relacionado
