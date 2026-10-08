@@ -11,6 +11,8 @@
 //   pull tabs, elastic gores and toe caps painted on the upper's faces.
 // The foot under a closed shoe is hidden (registry `hides`), so a thick sole or a heel may overlap it; open
 // shoes (sandals, flats, clogs) keep the foot and only hug it. Barefoot is an empty piece.
+// Far LODs (LOD_STATIONS, LOD_PROFILE): 5 stations at 1 and 4 at 2, a 4-point section (uppers that hug a foot that
+// shows keep one level more), collars with fewer sides and no lining at 2, no sole bottom nor studs at 2.
 import * as THREE from 'three';
 import type { Sex } from '@shared/protocol';
 import type { PieceGeometry } from '.';
@@ -63,6 +65,28 @@ function stations(vals: readonly number[]): (u: number) => number {
     let i = 0;
     while (U[i + 1] < u) i++;
     return lerp(vals[i], vals[i + 1], (u - U[i]) / (U[i + 1] - U[i]));
+  };
+}
+
+/**
+ * Far LODs: the stations kept (indices into U). 1: the heel's rounding, the middle, the ball and the toe tip; 2: the
+ * heel, the middle, the ball and the toe tip (a shoe is a few pixels long there).
+ */
+const LOD_STATIONS: readonly (readonly number[])[] = [[0, 1, 2, 3, 4, 5, 6], [0, 1, 2, 4, 6], [0, 2, 4, 6]];
+/** Far LODs: the points of PROFILE kept (the sloped shoulders' corners go: the section is a trapezoid). */
+const LOD_PROFILE: readonly (readonly number[])[] = [[0, 1, 2, 3, 4, 5], [0, 2, 3, 5], [0, 2, 3, 5]];
+
+/** Piecewise linear values at some of the stations (indices into U). */
+function stationsAt(ids: readonly number[], vals: readonly number[]): (u: number) => number {
+  if (ids.length === U.length) return stations(vals);
+  return (u) => {
+    if (u <= 0) return vals[0];
+    if (u >= 1) return vals[vals.length - 1];
+    let i = 0;
+    while (U[ids[i + 1]] < u) i++;
+    const a = ids[i];
+    const b = ids[i + 1];
+    return lerp(vals[a], vals[b], (u - U[a]) / (U[b] - U[a]));
   };
 }
 
@@ -119,6 +143,11 @@ interface LastOptions {
   spring?: number;
   /** Clearance of the upper over the foot. */
   d?: number;
+  /**
+   * The upper hugs a foot that shows (flats, clogs): it keeps one more level of stations at the far LODs (fewer
+   * would let the toes through its sides).
+   */
+  hug?: boolean;
 }
 
 /**
@@ -138,6 +167,11 @@ class Foot {
   readonly zT: number;
   readonly d: number;
   readonly spring: number;
+  /** Stations built at this level of detail (indices into U, and their u). */
+  readonly ui: readonly number[];
+  readonly us: readonly number[];
+  /** Points of PROFILE built at this level of detail. */
+  readonly pi: readonly number[];
   private hwT: (u: number) => number;
   /** Top of the last sole built (the upper sits on it). */
   soleTop: (u: number) => number = () => 0.02;
@@ -170,7 +204,11 @@ class Foot {
       hw[6] = o.tip;
       hw[5] = Math.min(hw[5], 0.55 + o.tip);
     }
-    this.hwT = stations(hw);
+    const lod = Math.max(0, b.lod - (o.hug ? 1 : 0));
+    this.ui = LOD_STATIONS[Math.min(lod, 2)];
+    this.us = this.ui.map((i) => U[i]);
+    this.pi = LOD_PROFILE[Math.min(lod, 2)];
+    this.hwT = stationsAt(this.ui, hw);
     this.d = o.d ?? 0.012;
     this.spring = o.spring ?? 0.01;
   }
@@ -242,20 +280,21 @@ class Foot {
     const welt = o.welt ?? 0.005;
     const paintOf = typeof paint === 'function' ? paint : () => paint;
     const yOf = (L: Level, u: number) => (typeof L.y === 'number' ? L.y : L.y(u)) + (L.y === 0 ? 0 : this.lift(u));
+    const us = this.us;
     const rings = levels.map((L) =>
-      U.map((u) => {
+      us.map((u) => {
         const y = yOf(L, u) + (L.y === 0 ? this.lift(u) * 0.8 : 0);
         const hw = this.hw(u, welt + (L.out ?? 0));
         const z = this.z(u) + (u === 0 ? 0.006 : u === 1 ? -0.004 : 0);
         return [this.v(V(this.cx(u) - hw, y, z)), this.v(V(this.cx(u) + hw, y, z))];
       }),
     );
-    const n = U.length;
+    const n = us.length;
     for (let l = 0; l < levels.length - 1; l++) {
       const lo = rings[l];
       const hi = rings[l + 1];
       for (let i = 0; i < n - 1; i++) {
-        const um = (U[i] + U[i + 1]) / 2;
+        const um = (us[i] + us[i + 1]) / 2;
         for (const k of [0, 1]) {
           const ids = [lo[i][k], lo[i + 1][k], hi[i + 1][k], hi[i][k]];
           const c = this.centroid(ids);
@@ -268,7 +307,8 @@ class Foot {
     const bot = rings[0];
     const top = rings[levels.length - 1];
     for (let i = 0; i < n - 1; i++) {
-      this.face([bot[i][0], bot[i + 1][0], bot[i + 1][1], bot[i][1]], V(0, -1, 0), o.bottom ?? paintOf(0, 0.5));
+      // The farthest LOD: no bottom (only seen from below, a pixel at that distance).
+      if (this.b.lod < 2) this.face([bot[i][0], bot[i + 1][0], bot[i + 1][1], bot[i][1]], V(0, -1, 0), o.bottom ?? paintOf(0, 0.5));
       this.face([top[i][0], top[i + 1][0], top[i + 1][1], top[i][1]], V(0, 1, 0), o.top ?? darker(paintOf(levels.length - 2, 0.5), 1));
     }
     const last = levels[levels.length - 1];
@@ -309,7 +349,7 @@ class Foot {
    */
   upper(o: { top: readonly number[]; extra?: number; paint: (u: number, k: number) => Paint; heel?: Paint; toe?: Paint; from?: number; bed?: (u: number) => number }) {
     const bed = o.bed ?? ((u: number) => this.soleTop(u) - 0.003);
-    const topT = stations(o.top);
+    const topT = stationsAt(this.ui, o.top);
     const top = (u: number) => Math.max(topT(u) + this.lift(u), bed(u) + 0.022);
     const extra = o.extra ?? 0;
     this.bed = bed;
@@ -317,28 +357,37 @@ class Foot {
     this.extra = extra;
     const i0 = o.from ?? 0;
     const center = (u: number) => V(this.cx(u), bed(u) + 0.3 * (top(u) - bed(u)), this.z(u));
+    const us = this.us.filter((u) => u >= U[i0] - 1e-9);
+    const prof = this.pi.map((i) => PROFILE[i]);
+    const faces = prof.length - 1;
+    // Paints by the full section's face index (far LODs: the trapezoid's sides take the low sides' paint).
+    const kOf = (j: number) => {
+      const a = this.pi[j];
+      const b = this.pi[j + 1];
+      if (b - a === 1) return a;
+      return a === 0 ? 0 : b - 1;
+    };
     const rings: number[][] = [];
-    for (let i = i0; i < U.length; i++) {
-      const u = U[i];
-      rings.push(PROFILE.map(([fx, fy]) => this.v(V(this.cx(u) + fx * this.hw(u, extra), bed(u) + fy * (top(u) - bed(u)), this.z(u)), fy === 0 ? 0.12 : 0)));
+    for (const u of us) {
+      rings.push(prof.map(([fx, fy]) => this.v(V(this.cx(u) + fx * this.hw(u, extra), bed(u) + fy * (top(u) - bed(u)), this.z(u)), fy === 0 ? 0.12 : 0)));
     }
     for (let r = 0; r < rings.length - 1; r++) {
-      const um = (U[i0 + r] + U[i0 + r + 1]) / 2;
-      for (let k = 0; k < PROFILE.length - 1; k++) {
+      const um = (us[r] + us[r + 1]) / 2;
+      for (let k = 0; k < faces; k++) {
         const ids = [rings[r][k], rings[r + 1][k], rings[r + 1][k + 1], rings[r][k + 1]];
-        this.face(ids, this.centroid(ids).sub(center(um)), o.paint(um, k));
+        this.face(ids, this.centroid(ids).sub(center(um)), o.paint(um, kOf(k)));
       }
     }
     const end = (ring: number[], u: number, dz: number, paint: (k: number) => Paint) => {
       const h = top(u) - bed(u);
       const pole = this.v(V(this.cx(u), bed(u) + 0.42 * h, this.z(u) + dz));
       const c = center(u).add(V(0, 0, -dz));
-      for (let k = 0; k < PROFILE.length - 1; k++) {
+      for (let k = 0; k < faces; k++) {
         const ids = [pole, ring[k], ring[k + 1]];
-        this.face(ids, this.centroid(ids).sub(c), paint(k));
+        this.face(ids, this.centroid(ids).sub(c), paint(kOf(k)));
       }
       // Under the point, down to the sole.
-      this.face([pole, ring[PROFILE.length - 1], ring[0]], V(0, -0.2, dz), paint(2));
+      this.face([pole, ring[faces], ring[0]], V(0, -0.2, dz), paint(2));
     };
     if (i0 === 0) end(rings[0], 0, 0.01, (k) => o.heel ?? o.paint(0, k));
     else {
@@ -346,17 +395,19 @@ class Foot {
       const u = U[i0];
       const c = center(u);
       const inner = rings[0].map((id) => this.v(this.b.position(id).sub(c).multiplyScalar(0.8).add(c).add(V(0, 0, 0.004))));
-      for (let k = 0; k < PROFILE.length - 1; k++) this.face([rings[0][k], rings[0][k + 1], inner[k + 1], inner[k]], V(0, 0.3, 1), P2);
+      for (let k = 0; k < faces; k++) this.face([rings[0][k], rings[0][k + 1], inner[k + 1], inner[k]], V(0, 0.3, 1), P2);
     }
     end(rings[rings.length - 1], 1, -0.012, (k) => o.toe ?? o.paint(1, k));
   }
 
   /** Point on the last upper at station `u`, `c` 0..1 along its section (0.4–0.6 the instep), raised. */
   at(u: number, c: number, raise = 0.003) {
-    const seg = Math.min(PROFILE.length - 2, Math.floor(c * (PROFILE.length - 1)));
-    const k = c * (PROFILE.length - 1) - seg;
-    const [fx0, fy0] = PROFILE[seg];
-    const [fx1, fy1] = PROFILE[seg + 1];
+    // On the section built at this level of detail.
+    const faces = this.pi.length - 1;
+    const seg = Math.min(faces - 1, Math.floor(c * faces));
+    const k = c * faces - seg;
+    const [fx0, fy0] = PROFILE[this.pi[seg]];
+    const [fx1, fy1] = PROFILE[this.pi[seg + 1]];
     const bed = this.bed(u);
     const h = this.top(u) - bed;
     const hw = this.hw(u, this.extra);
@@ -371,9 +422,9 @@ class Foot {
    */
   strip(u0: number, u1: number, c0: number, c1: number, paint: Paint, o: { raise?: number; edge?: number } = {}) {
     const raise = o.raise ?? 0.003;
-    const n = PROFILE.length - 1;
+    const n = this.pi.length - 1;
     const cs = [c0, ...Array.from({ length: n - 1 }, (_, i) => (i + 1) / n).filter((c) => c > c0 + 1e-4 && c < c1 - 1e-4), c1];
-    const us = [u0, ...U.filter((u) => u > u0 + 1e-4 && u < u1 - 1e-4), u1];
+    const us = [u0, ...this.us.filter((u) => u > u0 + 1e-4 && u < u1 - 1e-4), u1];
     const grid = us.map((u) => cs.map((c) => this.v(this.at(u, c, raise))));
     const normal = (u: number, c: number) => this.at(u, c, 0.01).sub(this.at(u, c, 0));
     for (let i = 0; i < us.length - 1; i++) {
@@ -402,10 +453,12 @@ class Foot {
   /**
    * A padded ring around the shin (collars, cuffs, ankle straps): from `y0` up to `y1(a)` (a = π/2 at the
    * front), `out` over the shin, with a lining band on top going in to the skin; `bottom` closes it below
-   * (straps that float over the skin).
+   * (straps that float over the skin). Far LODs: ¾ of the sides (½ at 2), never under 5 (fewer would let the
+   * ankle through); at 2 only its wall.
    */
   ring(o: { y0: number; y1: (a: number) => number; out: number; paint: Paint; lining?: Paint; segs?: number; zc?: number; bottom?: boolean; wall?: Paint }) {
-    const segs = o.segs ?? 7;
+    const lod = this.b.lod;
+    const segs = lod >= 1 ? Math.max(5, Math.round((o.segs ?? 7) * (lod === 1 ? 0.75 : 0.5))) : (o.segs ?? 7);
     const zc = o.zc ?? 0.004;
     const pt = (a: number, y: number, extra: number) => {
       const r = this.shinR(y);
@@ -430,6 +483,7 @@ class Foot {
       const c = this.centroid(wall);
       const radial = c.clone().sub(mid.clone().setY(c.y));
       this.face(wall, radial, o.wall ?? o.paint);
+      if (lod >= 2) continue;
       this.face([ot[i], ot[j], it[j], it[i]], radial.clone().normalize().add(V(0, 1.5, 0)), o.lining ?? o.paint);
       if (o.bottom) this.face([ob[i], ob[j], ib[j], ib[i]], radial.clone().normalize().add(V(0, -1.5, 0)), darker(o.paint, 1));
     }
@@ -535,8 +589,9 @@ class Foot {
     this.box(lo.clone().add(hi).multiplyScalar(0.5), V(thick, dir.length(), width), paint, new THREE.Euler().setFromQuaternion(q));
   }
 
-  /** A stud under the sole (cleats): a 4-sided frustum from the ground up into the sole. */
+  /** A stud under the sole (cleats): a 4-sided frustum from the ground up into the sole (none at the farthest LOD). */
   stud(u: number, across: number, h: number, r: number, paint: Paint) {
+    if (this.b.lod >= 2) return;
     const c = V(this.cx(u) + across * this.hw(u), 0, this.z(u));
     const corners = [
       [-1, -1],
@@ -951,7 +1006,7 @@ const SHOES: Record<string, ShoeDef> = {
   },
   // Flats: a thin shell around the toes and the sides of the foot (the instep shows), a bow on the toe.
   sapatilha: {
-    last: { d: 0.005, spring: 0.004, tip: 0.5 },
+    last: { d: 0.005, spring: 0.004, tip: 0.5, hug: true },
     make: (f) => {
       f.sole(cup(0.01, 0.008), RUBBER, { top: PRIMARY });
       f.upper({ top: [0.042, 0.044, 0.046, 0.062, 0.056, 0.044, 0.03], paint: () => PRIMARY });
@@ -1060,7 +1115,7 @@ const SHOES: Record<string, ShoeDef> = {
   },
   // Clog: thick wooden sole (secondary) on rubber, a closed leather front, open back, rivets.
   tamanco: {
-    last: { spring: 0.012, width: 1.04, d: 0.008 },
+    last: { spring: 0.012, width: 1.04, d: 0.008, hug: true },
     make: (f) => {
       f.sole([{ y: 0, out: -0.002 }, { y: 0.006 }, { y: (u) => lerp(0.03, 0.022, u), out: 0.002 }], (l) => (l === 0 ? RUBBER : SECONDARY), { top: darker(SECONDARY, 1) });
       f.upper({ from: 2, top: [0.1, 0.1, 0.1, 0.098, 0.08, 0.064, 0.048], paint: (u, k) => (k === 2 && u > 0.6 ? P1 : PRIMARY) });

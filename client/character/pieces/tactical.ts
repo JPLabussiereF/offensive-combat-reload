@@ -16,7 +16,7 @@ import * as THREE from 'three';
 import type { Sex } from '@shared/protocol';
 import type { Generator, PieceGeometry } from '.';
 import { BodyParts, headShape, headShell, sideName, type Side } from '../body';
-import { segment, type FacetBuilder, type Weights } from '../builder';
+import { lodThin, segment, type FacetBuilder, type Weights } from '../builder';
 import { darker, DETAIL, fixed, PRIMARY, SECONDARY, type Paint } from '../palette';
 import type { RegionName } from '../rig';
 import { start } from './common';
@@ -189,12 +189,16 @@ interface SheetOptions {
   shade?: (u: number, v: number) => number;
 }
 
-/** A sheet with thickness: the outer face as a grid, an edge band all around (the inside only on request). */
+/**
+ * A sheet with thickness: the outer face as a grid, an edge band all around (the inside only on request). Far LODs:
+ * every other inner row and column; at 2 no edge band (the thickness is under a pixel there).
+ */
 function sheet(b: FacetBuilder, map: Mapper, o: SheetOptions) {
   const region = o.region ?? 'none';
   const paintOf = typeof o.paint === 'function' ? o.paint : () => o.paint as Paint;
   const edge = o.edge ?? darker(paintOf(0.5, 0.5), 1);
-  const { us, vs } = o;
+  const us = lodThin(o.us, b.lod);
+  const vs = lodThin(o.vs, b.lod);
   const nU = us.length - 1;
   const nV = vs.length - 1;
   const grid = vs.map((v) => us.map((u) => vert(b, map(u, v, 1))));
@@ -214,6 +218,7 @@ function sheet(b: FacetBuilder, map: Mapper, o: SheetOptions) {
       }
     }
   }
+  if (b.lod >= 2) return;
   // Edge bands: the sheet's thickness all around, facing away from the sheet.
   const band = (name: 'u0' | 'u1' | 'v0' | 'v1', pts: [number, number][], ids: number[], cell: (k: number) => [number, number]) => {
     const inner = pts.map(([u, v]) => vert(b, map(u, v, 0)));
@@ -232,11 +237,20 @@ function sheet(b: FacetBuilder, map: Mapper, o: SheetOptions) {
   band('u1', vs.map((v) => [us[nU], v]), grid.map((r) => r[nU]), (k) => [mid(us, nU - 1), mid(vs, k)]);
 }
 
-/** A strap along a path of spots: a 4-sided section `width` wide and `thick` thick, standing out of the path. */
-function band(b: FacetBuilder, path: readonly Spot[], width: number, thick: number, paint: Paint, o: { region?: RegionName; closed?: boolean; inner?: boolean; edge?: Paint } = {}) {
+/**
+ * A strap along a path of spots: a 4-sided section `width` wide and `thick` thick, standing out of the path. Far
+ * LODs: an open strap keeps every other point (the ends kept), a closed one ¾ of them (½ at 2), never under 6; at 2
+ * only its outer face (the sides are under a pixel there).
+ */
+function band(b: FacetBuilder, path0: readonly Spot[], width: number, thick: number, paint: Paint, o: { region?: RegionName; closed?: boolean; inner?: boolean; edge?: Paint } = {}) {
   const region = o.region ?? 'none';
-  const n = path.length;
   const closed = !!o.closed;
+  let path = path0;
+  if (b.lod >= 1 && closed) {
+    const m = Math.max(6, Math.round(path0.length * (b.lod === 1 ? 0.75 : 0.5)));
+    if (m < path0.length) path = Array.from({ length: m }, (_, i) => path0[Math.round((i * path0.length) / m) % path0.length]);
+  } else path = lodThin(path0, b.lod);
+  const n = path.length;
   const edge = o.edge ?? darker(paint, 1);
   const rings = path.map((s, i) => {
     const prev = path[closed ? (i - 1 + n) % n : Math.max(0, i - 1)].p;
@@ -254,15 +268,17 @@ function band(b: FacetBuilder, path: readonly Spot[], width: number, thick: numb
     const r1 = rings[(k + 1) % n];
     const c = r0.c.clone().add(r1.c).multiplyScalar(0.5);
     for (let side = 0; side < 4; side++) {
-      // The inside (toward the body) only on open straps: they leave the body over the shoulders.
-      if (side === 0 && !(o.inner ?? !closed)) continue;
+      // The inside (toward the body) only on open straps: they leave the body over the shoulders (not at the far
+      // LODs: a dark line under the strap there).
+      if (side === 0 && (b.lod >= 1 || !(o.inner ?? !closed))) continue;
+      if (b.lod >= 2 && side !== 2) continue;
       const i1 = (side + 1) % 4;
       const ids = [r0.ids[side], r0.ids[i1], r1.ids[i1], r1.ids[side]];
       const out = ids.reduce((acc, id) => acc.add(b.position(id)), new V()).multiplyScalar(0.25).sub(c);
       face(b, ids, out, side === 2 ? paint : side === 0 ? darker(paint, 2) : edge, region);
     }
   }
-  if (!closed && n > 1) {
+  if (!closed && n > 1 && b.lod < 2) {
     face(b, rings[0].ids, rings[0].c.clone().sub(rings[1].c), edge, region);
     face(b, rings[n - 1].ids, rings[n - 1].c.clone().sub(rings[n - 2].c), edge, region);
   }
@@ -573,11 +589,16 @@ function text(c: Ctx, str: string, cy: number, h: number, back: boolean, d: numb
   });
 }
 
-/** A magazine pouch on a spot: the pouch and its flap (or open, with the magazine's top showing). */
+/**
+ * A magazine pouch on a spot: the pouch and its flap (or open, with the magazine's top showing). The farthest LOD
+ * keeps only the pouch (the flap is a band of a slightly darker color there).
+ */
 function magPouch(c: Ctx, s: Spot, w: number, h: number, depth: number, paint: Paint, flap: Paint | null) {
   boxOn(c.b, s, new V(w, h, depth), paint);
-  if (flap !== null) boxOn(c.b, s, new V(w + 0.006, 0.028, depth + 0.006), flap, { dy: h / 2 - 0.012 });
-  else boxOn(c.b, s, new V(w * 0.62, 0.035, depth * 0.55), fixed('gunmetal'), { dy: h / 2 + 0.01, lift: depth * 0.2 });
+  c.b.detail(() => {
+    if (flap !== null) boxOn(c.b, s, new V(w + 0.006, 0.028, depth + 0.006), flap, { dy: h / 2 - 0.012 });
+    else boxOn(c.b, s, new V(w * 0.62, 0.035, depth * 0.55), fixed('gunmetal'), { dy: h / 2 + 0.01, lift: depth * 0.2 });
+  }, 1);
 }
 
 /** The two shoulder straps of a vest. */

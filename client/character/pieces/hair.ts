@@ -414,12 +414,15 @@ class HairKit {
 
   /**
    * A lock along frames: a ridged prism (two lit faces on top, the dark underside below) that tapers to one
-   * vertex. Its width and height per t (0 root … 1 tip).
+   * vertex. Its width and height per t (0 root … 1 tip). Far LODs: every other frame (the ends kept); at 2 every
+   * other one again on long strands (never under 3: a curved lock made straight would cut through the head) and a
+   * flat underside (a triangular section).
    */
   ribbon(frames0: Frame[], o: RibbonOpts) {
     const b = this.b;
     let frames = frames0;
     if (b.lod >= 1 && frames.length > 3) frames = frames.filter((_, i) => i % 2 === 0 || i === frames.length - 1);
+    if (b.lod >= 2 && frames.length > 3) frames = frames.filter((_, i) => i % 2 === 0 || i === frames.length - 1);
     const n = frames.length;
     const W = typeof o.width === 'number' ? () => o.width as number : o.width;
     const T = typeof o.thick === 'number' ? () => o.thick as number : o.thick;
@@ -445,16 +448,20 @@ class HairKit {
         f.p.clone().addScaledVector(S, hw).addScaledVector(N, -sag),
         f.p.clone().addScaledVector(N, -sag - th * 0.3),
       ];
+      // Farthest LOD: the underside flat (from one edge to the other).
+      if (b.lod >= 2) pts.pop();
       rings.push(pts.map((p) => this.v(p, f.w, i === 0 ? 0.2 : 0, f.g, f.m)));
-      centers.push(pts.reduce((s, p) => s.add(p), V()).multiplyScalar(0.25));
+      centers.push(pts.reduce((s, p) => s.add(p), V()).multiplyScalar(1 / pts.length));
     }
+    // Sides of the section: 2 lit on top, the rest the underside.
+    const K = rings[0]?.length ?? 4;
     const regionOf = (...ids: number[]) => o.region ?? regionAt(this.cOf(...ids));
     for (let i = 0; i < rings.length - 1; i++) {
       const c = centers[i].clone().add(centers[i + 1]).multiplyScalar(0.5);
       const paint = paintOf(i);
       const under = o.under ?? darker(paint, 3);
-      for (let k = 0; k < 4; k++) {
-        const k1 = (k + 1) % 4;
+      for (let k = 0; k < K; k++) {
+        const k1 = (k + 1) % K;
         const q = [rings[i][k], rings[i][k1], rings[i + 1][k1], rings[i + 1][k]] as const;
         this.quadAway(q[0], q[1], q[2], q[3], c, k >= 2 ? under : paint, regionOf(...q), k >= 2 ? -0.6 : k === 1 ? -0.15 : 0.1);
       }
@@ -465,11 +472,12 @@ class HairKit {
       const tv = this.v(f.p, f.w, 0, f.g, f.m);
       const c = centers[centers.length - 1];
       const paint = paintOf(rings.length - 1);
-      for (let k = 0; k < 4; k++) b.triAway(last[k], last[(k + 1) % 4], tv, c, k >= 2 ? (o.under ?? darker(paint, 3)) : paint, regionOf(last[k], tv), k >= 2 ? -0.6 : 0);
+      for (let k = 0; k < K; k++) b.triAway(last[k], last[(k + 1) % K], tv, c, k >= 2 ? (o.under ?? darker(paint, 3)) : paint, regionOf(last[k], tv), k >= 2 ? -0.6 : 0);
     }
     if (o.cap && rings.length > 1) {
       const r0 = rings[0];
-      this.quadAway(r0[0], r0[1], r0[2], r0[3], centers[1], darker(paintOf(0), 1), regionOf(...r0));
+      if (K === 4) this.quadAway(r0[0], r0[1], r0[2], r0[3], centers[1], darker(paintOf(0), 1), regionOf(...r0));
+      else b.triAway(r0[0], r0[1], r0[2], centers[1], darker(paintOf(0), 1), regionOf(...r0));
     }
   }
 
@@ -562,7 +570,8 @@ class HairKit {
   mantle(o: MantleOpts) {
     const b = this.b;
     const cols = b.lod >= 1 ? Math.max(4, Math.round((o.cols * (b.lod === 1 ? 0.75 : 0.5)) / 2) * 2) : o.cols;
-    const hr = b.lod >= 2 ? Math.max(2, Math.ceil(o.hangRows * 0.6)) : o.hangRows;
+    // Far LODs: ¾ of the hanging rows at 1 (rounded), 0.6 at 2.
+    const hr = b.lod >= 2 ? Math.min(o.hangRows, Math.max(2, Math.ceil(o.hangRows * 0.6))) : b.lod === 1 ? Math.max(1, Math.round(o.hangRows * 0.75)) : o.hangRows;
     const sr = o.headRows ?? 2;
     const rows = hr + sr;
     const th = o.th ?? 0.011;
@@ -612,6 +621,8 @@ class HairKit {
         }
       }
     }
+    // The farthest LOD: no ends nor sides (the thickness, under a pixel there).
+    if (b.lod >= 2) return;
     // The ends: a band of thickness, darker.
     for (let i = 0; i < cols; i++) {
       const q = [outer[0][i], outer[0][i + 1], inner[0][i + 1], inner[0][i]] as const;

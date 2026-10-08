@@ -58,7 +58,7 @@ const MEDIDO: Record<OfficialMap, Record<Detalhe, MapNumbers>> = {
 };
 
 /** Characters: triangles of LOD0 / LOD1 / LOD2 at the 90th percentile of the looks, and each look's LOD1/LOD0 and LOD2/LOD0 at the 90th. */
-const PERSONAGEM = { p90: [5_072, 3_612, 2_409], razao1: 0.769, razao2: 0.523 };
+const PERSONAGEM = { p90: [5_072, 2_976, 1_664], razao1: 0.622, razao2: 0.353 };
 /** The heaviest gun in third person, and the heaviest first-person view (arms and gun). */
 const ARMA_3P = 580;
 const VIEWMODEL = 3_414;

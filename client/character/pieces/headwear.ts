@@ -59,6 +59,11 @@ class HeadKit {
   readonly b: FacetBuilder;
   readonly h: HeadShape;
   readonly fem: boolean;
+  /**
+   * Hats and helmets: their closed lofts stand well off the head (or over flattened hair), so they lose columns
+   * from the first far LOD; face pieces (masks, wraps) keep theirs up close.
+   */
+  far = false;
   constructor(
     readonly sex: Sex,
     seed: number,
@@ -82,8 +87,13 @@ class HeadKit {
     };
   }
 
-  /** Rows of a dome over the skull from edge(a) up to `top`, d(y, a) out (`bias` packs rows near the crown). */
-  dome(edge: Num, d: (y: number, a: number) => number, rows = 5, top = 1.79, bias = 1.4): Ring[] {
+  /**
+   * Rows of a dome over the skull from edge(a) up to `top`, d(y, a) out (`bias` packs rows near the crown). Far LODs:
+   * ¾ of the rows at 1, half at 2 (never under 2), like the head's shells.
+   */
+  dome(edge: Num, d: (y: number, a: number) => number, rows0 = 5, top = 1.79, bias = 1.4): Ring[] {
+    const lod = this.b.lod;
+    const rows = lod >= 2 ? Math.max(2, Math.ceil(rows0 / 2)) : lod === 1 ? Math.max(2, Math.ceil(rows0 * 0.75)) : rows0;
     return Array.from({ length: rows + 1 }, (_, r) => (a: number) => {
       const y = lerp(val(edge, a), top, 1 - Math.pow(1 - r / rows, bias));
       return this.h.point(y, a, 0).addScaledVector(this.out(y, a), d(y, a));
@@ -115,8 +125,11 @@ class HeadKit {
   loft(rings: Ring[], paint: Paint | PaintFn, o: LoftOptions = {}) {
     const b = this.b;
     const closed = o.arc === undefined;
-    // Far LOD: ¾ of the columns (only at 2: fewer columns up close would let the head through thin shells).
-    const cols = b.lod >= 2 ? lodSegments(o.cols ?? 14, 1) : (o.cols ?? 14);
+    // Far LODs: ¾ of the columns at 2 (fewer columns up close would let the head through thin shells), already at 1
+    // for the closed lofts of hats and helmets (`far`). Never half: the flattened hair would come through a crown.
+    const cols0 = o.cols ?? 14;
+    const far = this.far && closed;
+    const cols = b.lod >= 2 || (b.lod === 1 && far) ? lodSegments(cols0, 1) : cols0;
     const arc = o.arc ?? Math.PI * 2;
     const a0 = o.a0 ?? FRONT;
     const n = closed ? cols : cols + 1;
@@ -202,13 +215,15 @@ class HeadKit {
 
   /**
    * A bill (cap peaks, visors): a plate with thickness from the crown at (y, angle aC) outward, its root
-   * following the head, straight further out, rounded at the tip; `droop` lowers the tip, `bend` the sides.
+   * following the head, straight further out, rounded at the tip; `droop` lowers the tip, `bend` the sides. Far
+   * LODs: one row of at most 4 columns; at 2 no thickness.
    */
   bill(aC: number, y: number, d: number, o: { half: number; len: number; width: number; droop?: number; bend?: number; thick?: number; top?: Paint; under?: Paint; cols?: number }) {
     const out = new THREE.Vector3(-Math.cos(aC), 0, -Math.sin(aC));
     const lat = new THREE.Vector3(Math.sin(aC), 0, -Math.cos(aC));
-    const cols = o.cols ?? 6;
-    const rows = 2;
+    const lod = this.b.lod;
+    const cols = lod >= 1 ? Math.min(4, o.cols ?? 6) : (o.cols ?? 6);
+    const rows = lod >= 1 ? 1 : 2;
     const th = (o.thick ?? 0.008) / 2;
     const root = (u: number) => this.h.point(y, aC + u * o.half, d);
     const r0 = root(0);
@@ -239,6 +254,7 @@ class HeadKit {
         this.quad(q.map(dn), under, UP.clone().negate(), -1);
       }
     }
+    if (lod >= 2) return;
     // Thickness: the outer edge and the two sides.
     const edge = grid[rows];
     for (let i = 0; i < cols; i++) {
@@ -347,10 +363,12 @@ function woolBeanie(k: HeadKit) {
   const cols = 14;
   const d = (y: number, a: number) => 0.022 + (y - 1.7) * 0.09 + 0.014 * backness(a) * smooth(y, 1.72, 1.79);
   k.loft(k.dome(1.7, d, 4, 1.79, 1.3), PRIMARY, { cols, pole: k.crown(0.034, 0.024).setY(1.85) });
-  // Cuff: ribs as alternating faces, a band on each edge; above the brows in front, lower at the back.
+  // Cuff: ribs as alternating faces, a band on each edge; above the brows in front, lower at the back (the farthest
+  // LOD: its outside only).
   const cy0 = (a: number) => 1.704 - 0.04 * backness(a);
   const cy1 = (a: number) => cy0(a) + 0.044;
-  k.loft([k.on(cy0, 0.008), k.on(cy0, 0.032), k.on(cy1, 0.034), k.on(cy1, 0.02)], (_j, _a, _y, i) => (i % 2 ? darker(SECONDARY, 1) : SECONDARY), { cols });
+  const cuff = [k.on(cy0, 0.008), k.on(cy0, 0.032), k.on(cy1, 0.034), k.on(cy1, 0.02)];
+  k.loft(k.b.lod >= 2 ? cuff.slice(1, 3) : cuff, (_j, _a, _y, i) => (i % 2 ? darker(SECONDARY, 1) : SECONDARY), { cols });
 }
 
 /** Skullcap: a tight shell down to the ears, seams every third column. */
@@ -406,11 +424,14 @@ function brimmed(k: HeadKit, s: BrimSpec) {
     k.oval((a) => lerp(s.band(a) + s.thick + s.bandH, s.top, 0.5), cx * 0.965, cf * 0.965, cb * 0.965),
     k.oval(s.top, cx * 0.89, cf * 0.89, cb * 0.89, { k: s.k }),
   ];
-  k.loft(rings, (j, _a, _y, i) => (j === 5 ? (s.bandPaint ? s.bandPaint(i) : SECONDARY) : PRIMARY), {
+  // Far LODs: the brim straight from the band to its edge, the crown straight up to its top (no middle rings); at 2
+  // the brim's edge without thickness. Paints and shades by the full profile's band.
+  const keep = k.b.lod >= 2 ? [0, 2, 5, 6, 8] : k.b.lod === 1 ? [0, 2, 3, 5, 6, 8] : rings.map((_, i) => i);
+  k.loft(keep.map((i) => rings[i]), (j, _a, _y, i) => (keep[j] === 5 ? (s.bandPaint ? s.bandPaint(i) : SECONDARY) : PRIMARY), {
     cols: s.cols ?? 14,
     pole: new THREE.Vector3(0, s.pole, 0.006),
     // The underside of the brim a little darker (the gradient does the rest), the band's edge in shadow.
-    shade: (j) => (j <= 1 ? -0.6 : 0),
+    shade: (j) => (keep[j] <= 1 ? -0.6 : 0),
   });
 }
 
@@ -518,6 +539,8 @@ function fullFace(k: HeadKit) {
 
 function headwear(id: string, sex: Sex): PieceGeometry {
   const k = new HeadKit(sex, id.length * 71 + id.charCodeAt(0));
+  // Hats and helmets stand off the head (the shemagh wraps the face: it keeps its columns up close).
+  k.far = id !== 'shemagh';
   const h = k.h;
   switch (id) {
     case 'boneReto':
@@ -906,10 +929,13 @@ function temples(k: HeadKit, from: (s: number) => THREE.Vector3, paint: Paint, w
 function backStrap(k: HeadKit, y: Num, hgt: number, f: number, d: Num, paint: Paint, cols = 10) {
   const arc = Math.PI * 2 - 2 * f;
   const yy = (a: number) => val(y, a);
-  k.loft([k.on(yy, (a) => val(d, a) - 0.004), k.on(yy, d), k.on((a) => yy(a) + hgt, d), k.on((a) => yy(a) + hgt, (a) => val(d, a) - 0.004)], paint, { a0: FRONT + f, arc, cols });
+  const rings = [k.on(yy, (a) => val(d, a) - 0.004), k.on(yy, d), k.on((a) => yy(a) + hgt, d), k.on((a) => yy(a) + hgt, (a) => val(d, a) - 0.004)];
+  // The farthest LOD: the outside only (its edges are under a pixel).
+  k.loft(k.b.lod >= 2 ? rings.slice(1, 3) : rings, paint, { a0: FRONT + f, arc, cols });
 }
 
 function faceItem(id: string, sex: Sex, k: HeadKit): PieceGeometry {
+  k.far = false;
   const h = k.h;
   const fem = k.fem;
   const tipY = fem ? 1.622 : 1.617;

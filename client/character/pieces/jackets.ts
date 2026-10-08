@@ -11,11 +11,15 @@
 // lining, and the edges and hem bridge the two, which is the fabric's thickness. Quilted pieces bulge between
 // horizontal seams. Collars: stand, ribbed, shirt (fall collar + points), notch lapels, fur, hood down; capes
 // and ponchos are cones over the shoulders (with the hood up for the hooded cape).
+// Far LODs (the tubes' convention, see builder.ts `withLod`): the torso sheet, panels, bands and slabs keep ¾ of
+// their columns (½ at 2, but open fronts) and every other inner row (the shoulders' slope keeps its rows); at 2 the
+// thickness (hem band, slab walls, panel edges) and the linings go (the open fronts' facings stay: without them the
+// top shows through the far edge); no buttons nor seams from 1.
 import * as THREE from 'three';
 import type { Sex } from '@shared/protocol';
 import type { Generator, PieceGeometry } from '.';
 import { headShell, sideName, type BodyParts, type Side } from '../body';
-import { segment, type FacetBuilder, type Rim, type Weights } from '../builder';
+import { lodThin, segment, type FacetBuilder, type Rim, type Weights } from '../builder';
 import { darker, DETAIL, fixed, PRIMARY, SECONDARY, type Paint } from '../palette';
 import type { BoneName, RegionName } from '../rig';
 import { foldShade, folds, start } from './common';
@@ -40,6 +44,11 @@ const ELBOW = 0.006;
 const YJ = 0.95;
 /** Top of the torso sheet (the collar covers the edge). */
 const TOP = 1.465;
+/**
+ * Columns around the torso at a level of detail: ¾ at 1, ½ at 2, never under 6. Open fronts keep ¾ at 2: fewer, from
+ * the opening's edge, would cut the front corners and let the top under them through.
+ */
+const lodCols = (cols: number, lod: number, open = false) => (lod <= 0 ? cols : Math.max(6, Math.round(cols * (lod === 1 || open ? 0.75 : 0.5))));
 const METAL = fixed('steel');
 const BRASS = fixed('brass');
 const BAND = darker(PRIMARY, 1);
@@ -176,6 +185,16 @@ class Jacket extends Kit {
     return this.spec.open ? this.angX(this.spec.open(y), y) - FRONT : 0;
   }
 
+  /** Where the front opening starts widening going up (a V's top button), or null (none, or open all the way). */
+  openStart(): number | null {
+    const open = this.spec.open;
+    if (!open) return null;
+    const y0 = this.coat ? YJ : this.spec.hem;
+    const base = open(y0);
+    for (let y = y0 + 0.005; y < TOP; y += 0.005) if (open(y) > base + 0.002) return y - 0.005 > y0 + 0.001 ? Math.round((y - 0.005) * 1e4) / 1e4 : null;
+    return null;
+  }
+
   v(s: Surf, ao = 0) {
     return this.b.vertex(s.p, s.w, ao, { gordo: s.gordo, magro: s.magro });
   }
@@ -190,25 +209,42 @@ class Jacket extends Kit {
 
   // --- Torso ------------------------------------------------------------------------------------------------
 
-  /** Rows of the torso sheet: hem band, the body's own rows (or the quilting seams), color blocks, the top. */
+  /**
+   * Rows of the torso sheet: hem band, the body's own rows (or the quilting seams), color blocks, the top. Far LODs:
+   * under the shoulders every other row (one in four at 2: the torso is nearly straight there); the shoulders' slope
+   * keeps its rows but the one just under the top (the lowest one alone at 2: fewer would let the shoulder through);
+   * quilting keeps its seams at 1 and only the bulges at 2 (as puffy, no valleys); the hem band is flat at 2.
+   */
   torsoRows(): { y: number; off: number; paint?: Paint }[] {
     const s = this.spec;
+    const lod = this.b.lod;
     const y0 = this.coat ? YJ : s.hem;
     const band = this.coat ? null : s.band === undefined ? { h: 0.03, out: 0.006, paint: BAND } : s.band;
     const bh = band?.h ?? 0;
     const ys = new Set<number>();
     if (s.puff) {
-      for (let y = y0 + s.puff.step / 2; y < TOP - 0.02; y += s.puff.step / 2) if (y > y0 + bh + 0.01) ys.add(Math.round(y * 1e4) / 1e4);
-      for (const y of [1.435, 1.45]) ys.add(y);
+      for (let y = y0 + s.puff.step / 2; y < TOP - 0.02; y += s.puff.step / 2) {
+        if (y > y0 + bh + 0.01 && (lod < 2 || this.puffAt(y) > s.puff.amp * 0.5)) ys.add(Math.round(y * 1e4) / 1e4);
+      }
+      for (const y of lod >= 1 ? [1.435] : [1.435, 1.45]) ys.add(y);
     } else {
       // The body's own rows: all of them over the chest and shoulders (the pecs), every other one lower down (loose cloth).
-      this.p.s.torso.forEach((r, i) => {
-        if (r[0] > y0 + bh + 0.015 && r[0] < TOP - 0.004 && (r[0] > 1.2 || i % 2 === 1)) ys.add(r[0]);
-      });
+      const body = this.p.s.torso.map((r) => r[0]).filter((y, i) => y > y0 + bh + 0.015 && y < TOP - 0.004 && (y > 1.2 || i % 2 === 1));
+      if (lod <= 0) for (const y of body) ys.add(y);
+      else {
+        const low = lodThin(body.filter((y) => y < 1.38), 1);
+        const high = body.filter((y) => y >= 1.38 && y < TOP - 0.01);
+        for (const y of lod >= 2 ? lodThin(low, 2, 2) : low) ys.add(y);
+        for (const y of lod >= 2 ? high.slice(0, 1) : high) ys.add(y);
+      }
     }
+    // Far LODs: a row where a V opening starts (its edge would otherwise start at the row below, down the belly).
+    const yo = lod >= 1 ? this.openStart() : null;
+    if (yo !== null && yo > y0 + bh + 0.015 && yo < TOP - 0.015 && [...ys].every((y) => Math.abs(y - yo) > 0.015)) ys.add(yo);
     for (const y of s.ts ?? []) if (y > y0 + bh && y < TOP) ys.add(y);
     const rows: { y: number; off: number; paint?: Paint }[] = [];
-    if (band) rows.push({ y: y0, off: -0.004, paint: band.paint }, { y: y0, off: band.out, paint: band.paint }, { y: y0 + bh, off: band.out, paint: band.paint }, { y: y0 + bh, off: 0 });
+    if (band && lod >= 2) rows.push({ y: y0, off: 0, paint: band.paint }, { y: y0 + bh, off: 0 });
+    else if (band) rows.push({ y: y0, off: -0.004, paint: band.paint }, { y: y0, off: band.out, paint: band.paint }, { y: y0 + bh, off: band.out, paint: band.paint }, { y: y0 + bh, off: 0 });
     else rows.push({ y: y0, off: 0 });
     for (const y of [...ys].sort((a, b) => a - b)) rows.push({ y, off: 0 });
     rows.push({ y: TOP, off: 0 });
@@ -219,7 +255,7 @@ class Jacket extends Kit {
   torso() {
     const s = this.spec;
     const rows = this.torsoRows();
-    const cols = s.cols ?? 10;
+    const cols = lodCols(s.cols ?? 10, this.b.lod, !!s.open);
     const paint = s.body ?? (() => PRIMARY);
     const at = (y: number, i: number) => {
       const h = this.half(y);
@@ -259,8 +295,13 @@ class Jacket extends Kit {
     }
   }
 
-  /** A ring around the torso standing out `out` (belts, drawcord channels; `walls` false: a flush stripe). */
-  band(y0: number, y1: number, out: number, paint: Paint, walls = true, cols = this.spec.cols ?? 10) {
+  /**
+   * A ring around the torso standing out `out` (belts, drawcord channels; `walls` false: a flush stripe). Far LODs:
+   * the torso's columns; no walls at 2.
+   */
+  band(y0: number, y1: number, out: number, paint: Paint, walls0 = true, cols0 = this.spec.cols ?? 10) {
+    const cols = lodCols(cols0, this.b.lod, !!this.spec.open);
+    const walls = walls0 && this.b.lod < 2;
     const rows = [
       { y: y0, off: 0 },
       { y: y0, off: out },
@@ -287,15 +328,20 @@ class Jacket extends Kit {
   /**
    * A panel of cloth with a lining: rows `ys` (top to bottom), angles from `range(y)` over `cols` columns, on
    * the surface `f`. The edges and the bottom bridge the outside and the lining (the fabric's thickness).
-   * `lift(a)` raises some columns off the surface (an overlapping flap).
+   * `lift(a)` raises some columns off the surface (an overlapping flap). Far LODs: ¾ of the columns (½ at 2, never
+   * under 3); at 2 every other inner row and the outside only (the lining and the edges are seen only through the
+   * openings, a pixel or two at that distance).
    */
   panel(
     f: SurfFn,
-    ys: readonly number[],
+    ys0: readonly number[],
     range: (y: number) => readonly [number, number],
-    cols: number,
+    cols0: number,
     o: { side?: Side; paint?: (y: number, a: number) => Paint; lining?: Paint; lift?: (a: number) => number; thick?: number; liningYs?: readonly number[] },
   ) {
+    const lod = this.b.lod;
+    const cols = lod <= 0 ? cols0 : Math.max(3, Math.round(cols0 * (lod === 1 ? 0.75 : 0.5)));
+    const ys = lod >= 2 ? lodThin(ys0, lod) : ys0;
     const lift = o.lift ?? (() => 0);
     const thick = o.thick ?? 0.01;
     const paint = o.paint ?? (() => PRIMARY);
@@ -315,8 +361,10 @@ class Jacket extends Kit {
         this.quadOut(outer[j][i], outer[j][i + 1], outer[j + 1][i + 1], outer[j + 1][i], m.n, paint(yM, aM), m.region, shade);
       }
     }
-    // The lining (it may have fewer rows: it is only seen through the openings).
-    const lys = o.liningYs ?? ys;
+    if (lod >= 2) return;
+    // The lining (it may have fewer rows: it is only seen through the openings; at 1 just its top and bottom).
+    const lys0 = o.liningYs ?? ys;
+    const lys = lod >= 1 ? [lys0[0], lys0[lys0.length - 1]] : lys0;
     const inner = lys.map((y) => Array.from({ length: cols + 1 }, (_, i) => innerAt(y, i)));
     for (let j = 0; j < lys.length - 1; j++) {
       const yM = (lys[j] + lys[j + 1]) / 2;
@@ -394,7 +442,8 @@ class Jacket extends Kit {
     const puffU = (t: number) => (q ? q.amp * 0.85 * Math.abs(Math.sin((Math.PI * t) / 0.5)) : 0);
     const puffF = (t: number) => (q ? q.amp * 0.8 * Math.abs(Math.sin((Math.PI * t) / (end / 2))) : 0);
     const upRings = q ? [0, 0.25, 0.5, 0.75, 1] : [0, 0.35, 0.7, 1];
-    const foreRings = q ? [0, end / 4, end / 2, (3 * end) / 4, end] : [0, 0.45, end, ...(s.foreRings ?? [])].sort((a, b) => a - b);
+    // Far LODs: a plain forearm is one straight span from the elbow to the cuff (far clear of the arm).
+    const foreRings = q ? [0, end / 4, end / 2, (3 * end) / 4, end] : [0, ...(this.b.lod >= 1 ? [] : [0.45]), end, ...(s.foreRings ?? [])].sort((a, b) => a - b);
     for (const side of [-1, 1] as Side[]) {
       const paint = s.arm ? (t: number, a: number) => s.arm!(t, a, side) : PRIMARY;
       p.upperArm(side, 0, 1, this.d + 0.002, {
@@ -498,9 +547,12 @@ class Jacket extends Kit {
 
   /**
    * A flat piece with thickness lying on the jacket: rows (y, X from, X to) on one side, `h` thick (or [at X
-   * from, at X to]: a lapel rolls up along its fold, so it catches the light differently from the cloth).
+   * from, at X to]: a lapel rolls up along its fold, so it catches the light differently from the cloth). Far LODs:
+   * every other inner row; at 2 the top face only.
    */
-  slab(side: Side, rows: readonly (readonly [number, number, number])[], h: number | readonly [number, number], paint: Paint, base = 0, wall: Paint = darker(paint, 1)) {
+  slab(side: Side, rows0: readonly (readonly [number, number, number])[], h: number | readonly [number, number], paint: Paint, base = 0, wall: Paint = darker(paint, 1)) {
+    const lod = this.b.lod;
+    const rows = lodThin(rows0, lod);
     const pt = (y: number, X: number, off: number) => this.surf(y, this.angX(side * X, y), off);
     const [h0, h1] = typeof h === 'number' ? [h, h] : h;
     const top = rows.map(([y, x0, x1]) => [this.v(pt(y, x0, base + h0)), this.v(pt(y, x1, base + h1))]);
@@ -511,12 +563,14 @@ class Jacket extends Kit {
       const yM = (y0 + y1) / 2;
       const m = pt(yM, (a0 + a1 + b0 + b1) / 4, base + (h0 + h1) / 2);
       this.quadOut(top[r][0], top[r][1], top[r + 1][1], top[r + 1][0], m.n, paint, m.region);
+      if (lod >= 2) continue;
       // Outer and inner walls (outward = from the other edge toward this one).
       const pa = pt(yM, (a0 + a1) / 2, base).p;
       const pb = pt(yM, (b0 + b1) / 2, base).p;
       this.quadOut(bot[r][1], top[r][1], top[r + 1][1], bot[r + 1][1], pb.clone().sub(pa), wall, m.region);
       this.quadOut(bot[r][0], top[r][0], top[r + 1][0], bot[r + 1][0], pa.clone().sub(pb), wall, m.region);
     }
+    if (lod >= 2) return;
     // End walls (skipped where the slab comes to a point).
     for (const [r, nb] of [
       [0, 1],
@@ -654,6 +708,8 @@ class Jacket extends Kit {
 
   /** Big buttons (coats) down a column at X. */
   bigButtons(y0: number, y1: number, n: number, paint: Paint, X = 0, size = 0.016) {
+    // Far LODs: none (under a pixel from 20 m).
+    if (this.b.lod >= 1) return;
     for (let i = 0; i < n; i++) {
       const y = lerp(y0, y1, n > 1 ? i / (n - 1) : 0.5);
       this.box(y, this.angX(X, y), new THREE.Vector3(size, size, 0.006), paint, 0.003);

@@ -661,8 +661,9 @@ const stack = (y0: number, amp: number) => (y: number, a: number, s: Side) => am
 
 // --- Detail helpers ------------------------------------------------------------------------------------------------
 
-/** Belt loops around the band (front, sides and the back middle). */
+/** Belt loops around the band (front, sides and the back middle); none at the far LODs (under a pixel wide). */
 function loops(c: Ctx, paint: Paint = PRIMARY, wide = false, few = false) {
+  if (c.b.lod >= 1) return;
   const y = Y_BAND(c);
   const xs = [-0.12, 0.12];
   const backs = few ? [0] : [-0.1, 0, 0.1];
@@ -671,8 +672,9 @@ function loops(c: Ctx, paint: Paint = PRIMARY, wide = false, few = false) {
   for (const X of backs) c.k.box(y, c.k.angX(X, y, true), size, paint, c.band.out);
 }
 
-/** The front button (or snap) on the band. */
+/** The front button (or snap) on the band (none at the far LODs). */
 function button(c: Ctx, paint: Paint = BRASS, X = 0) {
+  if (c.b.lod >= 1) return;
   const y = Y_BAND(c);
   c.k.box(y, c.k.angX(X, y), new THREE.Vector3(0.015, 0.015, 0.006), paint, c.band.out);
 }
@@ -725,13 +727,15 @@ function backPockets(c: Ctx, paint: Paint = PRIMARY, o: { stitch?: Paint; flap?:
     }
     c.k.box(y, a, new THREE.Vector3(w, 0.085, 0.007), paint);
     if (o.flap !== undefined) c.k.box(y + 0.036, c.k.angX(s * 0.072, y + 0.036, true), new THREE.Vector3(w + 0.006, 0.026, 0.01), o.flap);
-    else if (o.stitch !== undefined) c.k.box(y + 0.022, a, new THREE.Vector3(w - 0.012, 0.005, 0.0085), o.stitch);
+    // The stitched line: only up close (5 mm tall).
+    else if (o.stitch !== undefined) c.b.detail(() => c.k.box(y + 0.022, a, new THREE.Vector3(w - 0.012, 0.005, 0.0085), o.stitch!));
     if (o.snap !== undefined) c.k.box(y + 0.03, a, new THREE.Vector3(0.01, 0.01, 0.004), o.snap, 0.009);
   }
 }
 
-/** Drawstring cords hanging from an elastic band. */
+/** Drawstring cords hanging from an elastic band (none at the far LODs: 6 mm cords). */
 function drawstring(c: Ctx, paint: Paint = DETAIL) {
+  if (c.b.lod >= 1) return;
   const yk = Y_BAND(c) - 0.006;
   for (const s of [-1, 1]) boxOn(c.waist, yk, FRONT, new THREE.Vector3(0.006, 0.075, 0.006), paint, { off: c.band.out + 0.002, tilt: s * 0.22, at: [s * 0.008, -0.034] });
   // The knot.
