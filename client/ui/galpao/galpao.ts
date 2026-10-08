@@ -9,6 +9,7 @@
 import { STICKERS } from '@shared/achievements';
 import type { Appearance } from '@shared/appearance';
 import type { Sex } from '@shared/protocol';
+import { IS_MOBILE } from '../../core/device';
 import type { Progress } from '../../gameplay/progress';
 import { t, type StringKey } from '../strings';
 import { ArsenalBoard, BOARD, cardWeapon } from './arsenalBoard';
@@ -83,7 +84,7 @@ export class GalpaoHome {
   /** Where every borrowed element came from (given back by dispose: the classic home needs them). */
   private readonly moved: { el: HTMLElement; parent: HTMLElement; next: Node | null }[] = [];
   private readonly reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  private readonly touch = matchMedia('(pointer: coarse)').matches;
+  private readonly touch = IS_MOBILE;
   private onKey = (e: KeyboardEvent) => this.key(e);
   private onResize = () => this.root.classList.toggle('compact', innerHeight < 560 || innerWidth < 700);
 

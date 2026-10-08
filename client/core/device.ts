@@ -10,11 +10,13 @@ function detectMobile(): boolean {
   const forced = new URLSearchParams(location.search).get('mobile');
   if (forced === '1') return true;
   if (forced === '0') return false;
-  // Touch as the main input (a laptop with a touch screen still has a fine pointer as primary), or a phone or
-  // tablet user agent.
-  const coarse = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
-  const touch = navigator.maxTouchPoints > 0;
-  return (coarse && touch) || /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle/i.test(ua) || iPadOS;
+  // The device, not the screen size: a phone or tablet user agent, or a touch screen as the primary pointer. A
+  // laptop with a touch screen has the mouse or touchpad as primary (pointer: fine). Other fine pointers don't
+  // count: a tablet's stylus (S Pen) reports any-pointer: fine, and an Android tablet asks for the desktop site
+  // (a Linux user agent) by default.
+  if (/Android|iPhone|iPad|iPod|Mobile|Silk|Kindle|Tablet/i.test(ua) || iPadOS) return true;
+  if ((navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData?.mobile) return true;
+  return navigator.maxTouchPoints > 0 && matchMedia('(pointer: coarse)').matches;
 }
 
 export const IS_MOBILE = detectMobile();
