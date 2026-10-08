@@ -14,6 +14,10 @@ import { loadTextureOverrides } from '../world/surfaces';
 import { zombieAtmosphere } from '../zombies/ambience';
 import { loadSettings, objectDetail, type ObjectDetail } from '../core/settings';
 import POINTS from './benchPontos.json';
+import { createGalpao } from '../ui/galpao/scene';
+import { labels as galpaoLabels } from '../ui/galpao/galpao';
+import { BOARD } from '../ui/galpao/arsenalBoard';
+import { STATION_ORDER } from '../ui/galpao/galpaoRules';
 
 export interface BenchPoint {
   nome: string;
@@ -36,6 +40,7 @@ export interface BenchSample {
 const DEG = Math.PI / 180;
 
 export async function runBench(slug: string) {
+  if (slug === 'galpao') return galpaoBench();
   if (!isOfficialMap(slug)) throw new Error(`bench: mapa oficial desconhecido "${slug}"`);
   const q = new URLSearchParams(location.search);
   const asked = q.get('detalhe');
@@ -159,6 +164,44 @@ export async function runBench(slug: string) {
   Object.assign(window, { __ocBench: bench });
   const start = Number(q.get('ponto') ?? 0);
   if (points.length) console.log('[bench]', slug, bench.detalhe, go(Math.min(start, points.length - 1)));
+}
+
+/**
+ * `?bench=galpao` (PF-35): the home's warehouse alone (no account, no server), its full build or, with
+ * `&detalhe=leve`, the lighter one phones get; each station measured (every pass of a frame together: the most
+ * over a few frames, a CCTV feed renders every third). Results in window.__ocBench.galpao.
+ */
+async function galpaoBench() {
+  const q = new URLSearchParams(location.search);
+  const mobile = q.get('detalhe') === 'leve';
+  const style = document.createElement('style');
+  style.textContent = 'body > *:not(#game) { display: none !important; } #game { position: fixed; inset: 0; } #game canvas { width: 100%; height: 100%; display: block; }';
+  document.head.appendChild(style);
+  const canvas = document.createElement('canvas');
+  document.getElementById('game')!.appendChild(canvas);
+  const g = await createGalpao({ canvas, mobile, labels: galpaoLabels(), playerTag: 'BENCH #0001', arsenal: BOARD });
+  const info = (window as unknown as { __ocGalpao: { chamadas: number; triangulos: number; quadros: number } }).__ocGalpao;
+  const frames = (n: number) => new Promise<void>((done) => {
+    const start = info.quadros;
+    const wait = () => (info.quadros - start >= n ? done() : requestAnimationFrame(wait));
+    requestAnimationFrame(wait);
+  });
+  const out: { estacao: string; chamadas: number; triangulos: number }[] = [];
+  for (const station of ['home', ...STATION_ORDER] as const) {
+    g.goTo(station, true);
+    await frames(20);
+    let calls = 0;
+    let tris = 0;
+    for (let k = 0; k < 6; k++) {
+      await frames(1);
+      calls = Math.max(calls, info.chamadas);
+      tris = Math.max(tris, info.triangulos);
+    }
+    out.push({ estacao: station, chamadas: calls, triangulos: tris });
+  }
+  g.goTo('home', true);
+  console.table(out);
+  Object.assign(window, { __ocBench: { pronto: true, mapa: 'galpao', detalhe: mobile ? 'leve' : 'normal', galpao: out } });
 }
 
 /** Map sounds play nothing on the bench. */

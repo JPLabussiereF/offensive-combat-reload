@@ -244,12 +244,17 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   const TS = mobile ? 512 : 1024;
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false });
+  // Dev only (PF-35): what the last frame drew, every pass together (the scene, a CCTV feed every third frame, the
+  // post chain), in window.__ocGalpao; client/dev/bench.ts (?bench=galpao) measures with it.
+  const devInfo = import.meta.env.DEV ? { renderer, chamadas: 0, triangulos: 0, quadros: 0 } : null;
+  if (devInfo) Object.assign(window, { __ocGalpao: devInfo });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.25 : 1.6));
   renderer.shadowMap.enabled = true;
   // PCFSoftShadowMap was removed (three warns and falls back); PCF now does a soft Vogel-disk filter itself
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.localClippingEnabled = true;
   const scene = new THREE.Scene();
+  if (devInfo) Object.assign(devInfo, { scene });
   scene.background = new THREE.Color(0x060708);
   scene.fog = new THREE.FogExp2(0x0d0f12, 0.03);
   await tick(0.05);
@@ -1401,6 +1406,10 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   function loop(now: number) {
     if (disposed) return;
     raf = requestAnimationFrame(loop);
+    if (devInfo) {
+      renderer.info.autoReset = false;
+      renderer.info.reset();
+    }
     const dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt; frame++;
     // camera
     if (move) {
@@ -1475,6 +1484,11 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     postU.tB1.value = rtA.texture; postU.tB2.value = rtC.texture;
     pass(post, null);
     updateSurfaces(dt);
+    if (devInfo) {
+      devInfo.chamadas = renderer.info.render.calls;
+      devInfo.triangulos = renderer.info.render.triangles;
+      devInfo.quadros++;
+    }
   }
   await tick(1);
   raf = requestAnimationFrame(loop);
