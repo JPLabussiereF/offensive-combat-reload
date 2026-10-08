@@ -125,6 +125,19 @@ describe('sessões sob demanda', () => {
     a.close();
     b.close();
   });
+
+  it('recusa a entrada com um código para o cliente traduzir, e o texto em pt-BR para clientes antigos', async () => {
+    // Entering before the hello.
+    const early = await Player.connect(game, await (await signedIn('Apressado')).ticket());
+    early.send({ t: 'play', map: 'rua', mode: 'mata-mata' });
+    expect(await early.next('error')).toEqual({ t: 'error', code: 'sem_ola', message: 'Diga olá primeiro.' });
+    early.close();
+    // A session that closed meanwhile.
+    const p = await lobby('Atrasado');
+    p.send({ t: 'join', session: 'sessao-que-nao-existe' });
+    expect(await p.next('error')).toEqual({ t: 'error', code: 'sessao_inexistente', message: 'Essa sessão não existe mais.' });
+    p.close();
+  });
 });
 
 describe('mapas da comunidade online', () => {
@@ -186,7 +199,7 @@ describe('mapas da comunidade online', () => {
     expect((await fan.req('GET', `/api/mapas/${id}`)).body).toMatchObject({ tipo: 'comunidade', exclusivo: 'zumbi' });
     const p = await lobby('Sobrevivente');
     p.send({ t: 'play', map: id, mode: 'mata-mata' });
-    expect((await p.next('error')).message).toBe('Esse modo não é jogado nesse mapa.');
+    expect(await p.next('error')).toMatchObject({ code: 'modo_fora_do_mapa', message: 'Esse modo não é jogado nesse mapa.' });
     const joined = await enterMap(p, id, 'zumbi');
     expect(joined.session).toMatchObject({ map: id, mode: 'zumbi', mapaNome: 'Cemitério da Capela (cópia)' });
     // The match runs on the copy's navmesh, counting down to the first wave: in 'joined' when the navmesh was

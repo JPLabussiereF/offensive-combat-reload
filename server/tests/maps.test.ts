@@ -154,7 +154,8 @@ describe('mapas da comunidade', () => {
     p.send({ t: 'hello' });
     await p.next('welcome');
     p.send({ t: 'play', map: id, mode: 'mata-mata' });
-    expect((await p.next('error')).message).toBe('Esse mapa não está disponível.');
+    // The refusal by code (PF-30), with the pt-BR text kept for clients cached from before.
+    expect(await p.next('error')).toMatchObject({ code: 'mapa_indisponivel', message: 'Esse mapa não está disponível.' });
     expect((await mod.req('DELETE', `/api/mapas/${id}/ocultar`)).status).toBe(204);
     expect((await list(other, '?q=Mapa%20Feio')).map((m) => m.id)).toEqual([id]);
     expect((await enterMap(p, id)).session.map).toBe(id);

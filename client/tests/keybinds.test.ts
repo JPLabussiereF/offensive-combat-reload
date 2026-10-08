@@ -184,16 +184,32 @@ describe('nome das teclas', () => {
     expect(keyLabel('Digit1', 'en')).toBe('1');
   });
 
-  it('teclas com nome, nos dois idiomas', () => {
+  it('teclas com nome, nos quatro idiomas', () => {
     expect(keyLabel('Space', 'pt-BR')).toBe('Espaço');
     expect(keyLabel('Space', 'en')).toBe('Space');
+    expect(keyLabel('Space', 'es')).toBe('Espacio');
+    expect(keyLabel('Space', 'de')).toBe('Leertaste');
     expect(keyLabel('ShiftLeft', 'pt-BR')).toBe('Shift esquerdo');
     expect(keyLabel('ShiftLeft', 'en')).toBe('Left Shift');
+    expect(keyLabel('ShiftLeft', 'es')).toBe('Shift izquierdo');
+    expect(keyLabel('ShiftLeft', 'de')).toBe('Shift links');
+    expect(keyLabel('ArrowUp', 'es')).toBe('Flecha arriba');
+    expect(keyLabel('WheelDown', 'de')).toBe('Mausrad runter');
+    // One name for every language.
+    expect(keyLabel('Tab', 'de')).toBe('Tab');
+  });
+
+  it('espanhol e alemão não ficam com o nome em inglês (antes: tudo que não era pt-BR virava en)', () => {
+    for (const code of ['Space', 'ShiftLeft', 'AltRight', 'ArrowLeft', 'Mouse0', 'Mouse1', 'Mouse2', 'WheelUp', 'NumpadEnter']) {
+      for (const lang of ['es', 'de'] as const) expect({ code, lang, same: keyLabel(code, lang) === keyLabel(code, 'en') }).toEqual({ code, lang, same: false });
+    }
   });
 
   it('botões do mouse', () => {
     expect(keyLabel('Mouse0', 'pt-BR')).toBe('Botão esquerdo');
     expect(keyLabel('Mouse2', 'en')).toBe('Right click');
+    expect(keyLabel('Mouse0', 'es')).toBe('Clic izquierdo');
+    expect(keyLabel('Mouse2', 'de')).toBe('Rechtsklick');
     expect(keyLabel('Mouse3', 'en')).toBe('Mouse 4');
   });
 

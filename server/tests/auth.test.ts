@@ -133,6 +133,26 @@ describe('recuperação de senha', () => {
     for (let i = 0; i < 5; i++) expect((await new Browser(game).req('POST', '/api/auth/recuperar', { email })).status).toBe(204);
     expect(outbox.filter((m) => m.to === email)).toHaveLength(3);
   });
+
+  it('manda o e-mail no idioma pedido, e em pt-BR sem idioma ou com um que o jogo não tem', async () => {
+    const { email } = await new Browser(game).register();
+    const ask = async (idioma?: unknown) => {
+      expect((await new Browser(game).req('POST', '/api/auth/recuperar', idioma === undefined ? { email } : { email, idioma })).status).toBe(204);
+      return outbox.filter((m) => m.to === email).pop()!;
+    };
+    const de = await ask('de');
+    expect(de.subject).toBe('Offensive Combat: Passwort zurücksetzen');
+    expect(de.text).toContain('öffne diesen Link innerhalb von 24 Stunden');
+    expect(de.text).toMatch(/#redefinir=[\w-]+/);
+    expect((await ask('es')).subject).toBe('Offensive Combat: restablece tu contraseña');
+    expect((await ask('fr')).subject).toBe('Offensive Combat: redefinir sua senha');
+    // Three per hour per account: the next ones go to a new account.
+    const other = (await new Browser(game).register()).email;
+    expect((await new Browser(game).req('POST', '/api/auth/recuperar', { email: other })).status).toBe(204);
+    expect(outbox.filter((m) => m.to === other).pop()!.subject).toBe('Offensive Combat: redefinir sua senha');
+    expect((await new Browser(game).req('POST', '/api/auth/recuperar', { email: other, idioma: 'en' })).status).toBe(204);
+    expect(outbox.filter((m) => m.to === other).pop()!.text).toContain('open this link within 24 hours');
+  });
 });
 
 describe('perfil', () => {
