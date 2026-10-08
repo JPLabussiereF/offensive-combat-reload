@@ -67,7 +67,7 @@ const labels = (): GalpaoLabels => ({
   adminSub: t('gpAdminScreenSub'),
   danger: t('gpDanger'),
   highVoltage: t('gpHighVoltage'),
-  exit: t('gpExit'),
+  yard: t('gpYard'),
   album: [t('gpAlbumCover1'), t('gpAlbumCover2'), t('gpAlbumCover3'), t('gpAlbumCover4', { n: STICKERS.length })],
 });
 

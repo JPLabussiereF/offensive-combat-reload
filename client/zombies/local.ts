@@ -3,12 +3,14 @@
 // It answers the zombie side (client.ts) with the same messages the server sends, so everything on screen is
 // the same online and alone: the coffin's rolls (damaged ones included), the barricades with their prices,
 // boards and the zombies going around them. There's no account XP without the server (like every offline mode),
-// and with nobody to revive you, going down alone ends the run.
+// and with nobody to revive you, going down alone ends the run, unless the cat is there to get you up (PF-29:
+// Sétima Vida, while she has lifts left).
 import type { NavMesh } from 'recast-navigation';
 import { gunStats, grenadeStats, type Loadout } from '@shared/arsenal';
 import { isGun, progOf } from '@shared/progression';
 import { explosionDamage, type HitRegion } from '@shared/weapons';
 import type { ClientMsg, ServerMsg, Vec3, ZHazard } from '@shared/protocol';
+import type { PetId } from '@shared/pets';
 import { grenadeDamageToZombie, gunDamageToZombie, isBoss, knifeDamageToZombie, weaponMul, ZOMBIE, zombieLoadout, type ZombieMapData } from '@shared/zombies';
 import { ZombieMatch } from '@shared/zombieMatch';
 import type { ZombieLink } from './link';
@@ -22,6 +24,12 @@ export interface LocalZombieOptions {
   setLoadout(lo: Loadout): void;
   /** A new run starts: back at a spawn point. */
   newMatch(): void;
+  /** The pet along (its PvE switch on), if any. */
+  pet?: PetId | null;
+  /** Our health as a fraction of the max (the iguana's tail). */
+  health?(): number;
+  /** Back up from down (the cat) with this fraction of our health. */
+  revive?(health: number): void;
 }
 
 export class LocalZombies implements ZombieLink {
@@ -48,14 +56,15 @@ export class LocalZombies implements ZombieLink {
           this.dispatch({ t: 'playerLoadout', id: o.me, lo });
         },
         bleedOut: () => {},
-        revive: () => {},
+        revive: (_id, health) => o.revive?.(health),
         allowRespawn: () => {},
         newMatch: () => o.newMatch(),
+        health: () => o.health?.() ?? 1,
       },
       navMesh,
       map,
     );
-    this.match.join(o.me, o.name);
+    this.match.join(o.me, o.name, o.pet ?? null);
   }
 
   get loadout(): Loadout {

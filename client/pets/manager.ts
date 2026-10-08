@@ -57,7 +57,7 @@ const ACT_GESTURE: Partial<Record<PetEvent['act'], Gesture>> = { hold: 'bite', n
 
 let pawTexture: THREE.CanvasTexture | null = null;
 /** A paw print (white, tinted with the collar's color): a big pad and four toes, with a dark outline to read over anything. */
-function pawTex(): THREE.CanvasTexture {
+export function pawTex(): THREE.CanvasTexture {
   if (pawTexture) return pawTexture;
   const c = document.createElement('canvas');
   c.width = c.height = 64;
@@ -368,8 +368,8 @@ export class PetManager {
         break;
       case 'duck':
         if (zombie) this.paw(over(zombie.feet, 2.2 * zombie.scale), color, now + PAW_TIME * 1000);
+        // (the quack comes from the float itself: client/zombies/view.ts)
         sfx.at(a.model.root.position, 'normal', (s) => s.witchSpell());
-        if (zombie) sfx.at(zombie.feet, 'normal', (s) => s.quack());
         break;
       case 'stone':
         this.voice(a, () => a.model.root.position, (s) => s.otterChirp());

@@ -75,6 +75,11 @@ export class Zombie implements Target {
   /** How far out of the ground (0: under it, 1: up). */
   rise = 1;
   groanIn = 2 + Math.random() * 6;
+  /** The Bruxinha's duck float around its belly (PF-29), made the first time it's caught. */
+  private float: THREE.Group | null = null;
+  private floatT = 0;
+  /** When it was caught (to quack now and then, low). */
+  quackIn = 0;
 
   constructor(
     readonly kind: ZKind,
@@ -189,7 +194,47 @@ export class Zombie implements Target {
       fuse: this.flags & ZF.fuse ? Math.min(1, this.fuseT / Math.max(0.1, t.preparo)) : null,
       spit: this.flags & ZF.spit ? Math.min(1, this.spitT / Math.max(0.1, ZOMBIE.tipos.cuspidor.cuspe?.preparo ?? 0.6)) : null,
       special: sp ? { kind: sp.kind, t: Math.min(1, Math.max(0, (now - sp.t0) / Math.max(1, sp.t1 - sp.t0))) } : null,
+      stuck: this.flags & ZF.duck ? 'duck' : this.flags & ZF.held ? 'held' : null,
     };
+  }
+
+  /**
+   * The duck float (PF-29): a yellow ring around the belly, above the groin (the hitbox stays where it is: a shot
+   * there counts as always), with a rubber duck's head at the front. Only the float bobs.
+   */
+  private renderFloat(dt: number, scene: THREE.Scene) {
+    const on = !!(this.flags & ZF.duck) && this.active && !this.dying && !this.hidden;
+    if (!on) {
+      if (this.float) this.float.visible = false;
+      return;
+    }
+    if (!this.float) {
+      const g = new THREE.Group();
+      const yellow = toon(0xf2c230);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.11, 8, 18), yellow);
+      ring.rotation.x = Math.PI / 2;
+      g.add(ring);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), yellow);
+      head.position.set(0, 0.16, -0.38);
+      g.add(head);
+      const beak = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.12, 6), toon(0xf07a1e));
+      beak.rotation.x = -Math.PI / 2;
+      beak.position.set(0, 0.15, -0.52);
+      g.add(beak);
+      for (const s of [-1, 1]) {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.02, 6, 4), toon(0x1a1414));
+        eye.position.set(s * 0.06, 0.2, -0.48);
+        g.add(eye);
+      }
+      scene.add(g);
+      this.float = g;
+    }
+    this.floatT += dt;
+    const g = this.float;
+    g.visible = true;
+    g.scale.setScalar(this.scale);
+    g.position.copy(this.position).setY(this.position.y + 1.05 * this.scale + Math.sin(this.floatT * 3.2) * 0.04);
+    g.rotation.set(Math.sin(this.floatT * 2.1) * 0.08, this.yaw, Math.sin(this.floatT * 2.7) * 0.08);
   }
 
   render(dt: number, now: number) {
@@ -208,6 +253,7 @@ export class Zombie implements Target {
       return;
     }
     a.visible = this.buffer.length > 0 && !this.hidden;
+    this.renderFloat(dt, a.root.parent as THREE.Scene);
     if (!a.visible) return;
     a.root.position.copy(this.position);
     a.root.position.y -= (1 - this.rise) * RISE_DEPTH * this.scale;
@@ -230,6 +276,7 @@ export class Zombie implements Target {
   }
 
   dispose(scene: THREE.Scene) {
+    if (this.float) scene.remove(this.float);
     this.rig.dispose();
     scene.remove(this.avatar.root);
     this.avatar.dispose();
@@ -374,6 +421,14 @@ export class ZombieView {
   /** Every few seconds a zombie groans; only the nearest few, or it would be a wall of noise. */
   private groans(dt: number) {
     const ear = this.hooks.ear();
+    // In the duck float: a low quack now and then (about every 1.5 s).
+    for (const z of this.active.values()) {
+      if (!(z.flags & ZF.duck) || z.dying) continue;
+      z.quackIn -= dt;
+      if (z.quackIn > 0) continue;
+      z.quackIn = 1.4 + Math.random() * 0.3;
+      this.sfx.at(z.position.clone().setY(z.position.y + 1), 'step', (s) => s.quack());
+    }
     const near = [...this.active.values()].filter((z) => !z.dying).sort((a, b) => a.position.distanceToSquared(ear) - b.position.distanceToSquared(ear)).slice(0, 6);
     for (const z of near) {
       z.groanIn -= dt;

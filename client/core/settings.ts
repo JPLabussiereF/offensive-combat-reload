@@ -40,6 +40,8 @@ export interface Settings {
    * keys on layouts other than QWERTY where the browser has no layout map (Firefox).
    */
   keyLabels: Record<string, string>;
+  /** PvP only: other players' pets aren't drawn (PF-29); the own pet stays. Saved on this device. */
+  hidePets: boolean;
 }
 
 const KEY = 'oc.settings.v1';
@@ -61,6 +63,7 @@ const DEFAULTS: Settings = {
   padSensitivity: 1,
   keybinds: mergeKeybinds(undefined),
   keyLabels: {},
+  hidePets: false,
 };
 
 export function loadSettings(): Settings {

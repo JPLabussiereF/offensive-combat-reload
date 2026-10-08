@@ -19,7 +19,8 @@ export interface GalpaoLabels {
   adminSub: string;
   danger: string;
   highVoltage: string;
-  exit: string;
+  /** The sign over the front door (the yard's: PF-29). */
+  yard: string;
   /** Magazine cover, in order: masthead, title line 1, title line 2, footer. */
   album: string[];
 }
@@ -1035,7 +1036,7 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   for (let i = 0; i < 5; i++) { const a = (i / 5) * TAU; bo.box(M.poly, 0.3, 0.03, 0.04, 10.35 + Math.cos(a) * 0.15, 0.06, 5.95 + Math.sin(a) * 0.15, 0, -a, 0); }
   bo.cyl(M.galv, 0.025, 0.025, 0.4, 10, 10.35, 0.25, 5.95); bo.box(M.poly, 0.48, 0.08, 0.46, 10.35, 0.48, 5.95); bo.box(M.poly, 0.06, 0.55, 0.44, 10.1, 0.82, 5.95, 0, 0, -0.12);
   bo.flush(world);
-  const exitS = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.16), new THREE.MeshBasicMaterial({ map: textTex([{ t: labels.exit }], { w: 256, h: 96, bg: '#0d7a3a', fg: '#eafff0', font: '800 64px "Barlow Condensed", Arial Narrow, sans-serif' }), color: new THREE.Color(1.8, 1.8, 1.8) }));
+  const exitS = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.16), new THREE.MeshBasicMaterial({ map: textTex([{ t: labels.yard }], { w: 256, h: 96, bg: '#0d7a3a', fg: '#eafff0', font: '800 64px "Barlow Condensed", Arial Narrow, sans-serif' }), color: new THREE.Color(1.8, 1.8, 1.8) }));
   exitS.position.set(-0.55, 2.6, 7.94); exitS.rotation.y = Math.PI; world.add(exitS);
   // monitors
   const monG = new THREE.Group(); world.add(monG);

@@ -57,7 +57,11 @@
         <div class="zwave-row"><b id="zwave-title"></b><span id="zwave-sub"></span></div>
         <div id="zboss" class="hidden"><span id="zboss-name"></span><div class="zboss-bar"><div id="zboss-fill"></div></div></div>
       </div>
-      <div id="zmoney" class="hidden"><span class="zmoney-sign">$</span><b id="zmoney-num">0</b></div>
+      <div id="zmoney" class="hidden">
+        <span class="zmoney-sign">$</span><b id="zmoney-num">0</b>
+        <!-- Zumbi: the pet's face with its cooldown ring (PF-29), only for its owner; on phones the first chip of #buffs. Not a button. -->
+        <span id="zpet" class="hidden" aria-hidden="true"><span class="zpet-ring"><img id="zpet-face" alt="" /></span><b id="zpet-n"></b><span id="zpet-text"></span></span>
+      </div>
       <div id="zsummary" class="hidden">
         <div class="zsum-card sticker">
           <div id="zsum-title"></div>
@@ -444,6 +448,7 @@
               <div class="pm-sub" data-sub="video">
                 <label class="pm-row"><span class="pm-row-text"><span id="lbl-fov"></span><small id="desc-fov"></small></span><input id="set-fov" type="range" min="55" max="95" step="1" /><output id="out-fov"></output></label>
                 <div class="pm-row pm-row-toggle"><span class="pm-row-text"><span id="lbl-quality"></span><small id="desc-quality"></small></span><div id="set-quality" class="pm-seg"></div></div>
+                <div class="pm-row pm-row-toggle"><span class="pm-row-text"><span id="lbl-hide-pets"></span><small id="desc-hide-pets"></small></span><button id="set-hide-pets" type="button" class="pm-toggle"></button></div>
                 <div id="fs-desktop" class="pm-row pm-row-toggle desktop-only"><span class="pm-row-text"><span id="lbl-fullscreen-desktop"></span><small id="desc-fullscreen-desktop"></small></span><button id="set-fullscreen-desktop" type="button" class="pm-toggle"></button></div>
               </div>
               <div class="pm-sub" data-sub="audio">

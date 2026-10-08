@@ -107,6 +107,8 @@ export class Screens {
       ['desc-fov', 'pmDescFov'],
       ['lbl-quality', 'quality'],
       ['desc-quality', 'pmDescQuality'],
+      ['lbl-hide-pets', 'hidePets'],
+      ['desc-hide-pets', 'pmDescHidePets'],
       ['lbl-fullscreen-desktop', 'fullscreenOnPlay'],
       ['desc-fullscreen-desktop', 'pmDescFullscreen'],
       ['lbl-vol', 'volume'],
@@ -652,7 +654,7 @@ export class Screens {
     segmented<Settings['spatialAudio']>('set-spatial', [['auto', 'spatialAuto'], ['hrtf', 'spatialHeadphones'], ['stereo', 'spatialSpeakers']], () => s.spatialAudio, (v) => (s.spatialAudio = v));
     segmented<Quality>('set-quality', [['auto', 'qualityAuto'], ['baixa', 'qualityLow'], ['media', 'qualityMedium'], ['alta', 'qualityHigh']], () => s.quality, (v) => (s.quality = v));
     // On/off switches (one setting may have two: "fullscreen when playing" on a phone and on a computer).
-    type ToggleKey = 'aimAssist' | 'fullscreen' | 'adsHold' | 'invertY';
+    type ToggleKey = 'aimAssist' | 'fullscreen' | 'adsHold' | 'invertY' | 'hidePets';
     const toggles: [string, ToggleKey][] = [];
     const paintToggles = () => {
       for (const [id, key] of toggles) {
@@ -673,6 +675,7 @@ export class Screens {
     toggle('set-ads-hold', 'adsHold');
     toggle('set-fullscreen', 'fullscreen');
     toggle('set-invert', 'invertY');
+    toggle('set-hide-pets', 'hidePets');
     // Computer: the same setting, where fullscreen lets the game keep Esc (device.ts CAN_KEEP_ESCAPE).
     if (CAN_KEEP_ESCAPE) toggle('set-fullscreen-desktop', 'fullscreen');
     else $('fs-desktop').classList.add('hidden');
