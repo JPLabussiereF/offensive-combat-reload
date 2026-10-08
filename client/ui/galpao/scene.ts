@@ -42,8 +42,20 @@ export interface GalpaoOptions {
   onZoom?(full: boolean): void;
 }
 
+/**
+ * A character for the hero table (the player's own, client/ui/galpao/heroCharacter.ts), in the hero group's space:
+ * the scene adds it, calls `update` every frame and `dispose` when it is replaced or the scene goes.
+ */
+export interface GalpaoHero {
+  object: THREE.Object3D;
+  update(dt: number, camera: THREE.Camera, time: number): void;
+  dispose(): void;
+}
+
 export interface Galpao {
   goTo(id: StationId | 'home', instant?: boolean): void;
+  /** Puts a character at the hero table in place of the clay mannequin (null: the mannequin again). */
+  setHero(h: GalpaoHero | null): void;
   intro(): void;
   readonly station: CamStation;
   setDuration(s: number): void;
@@ -1377,6 +1389,15 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   // ---------- loop ----------
   let last = performance.now(), time = 0, frame = 0, raf = 0;
   const headQ = new THREE.Quaternion();
+  let heroModel: GalpaoHero | null = null;
+  const dropHero = () => {
+    if (!heroModel) return;
+    const o = heroModel.object;
+    pick.profile = (pick.profile ?? []).filter((x) => x !== o);
+    o.removeFromParent();
+    heroModel.dispose();
+    heroModel = null;
+  };
   function loop(now: number) {
     if (disposed) return;
     raf = requestAnimationFrame(loop);
@@ -1426,7 +1447,8 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     }
     for (const [id, k] of Object.entries(keys)) { k.boost = lerp(k.boost, peekId === id ? 1 : 0, 1 - Math.exp(-dt * 5)); if (!launchState || id !== 'play') k.light.intensity = k.base * (1 + k.boost * 0.9); }
     // character: head follows the camera a little
-    {
+    if (heroModel) heroModel.update(dt, cam, time);
+    else {
       const lookAt = cam.position.clone(); const local = charG.worldToLocal(lookAt).sub(headPivot.position);
       const yaw = clamp(Math.atan2(local.x, local.z), -0.6, 0.6), pitch = clamp(-Math.atan2(local.y, Math.hypot(local.x, local.z)) * 0.5 + 0.35, -0.1, 0.55);
       headQ.setFromEuler(new THREE.Euler(pitch + Math.sin(time * 0.6) * 0.015, yaw * 0.7, 0)); headPivot.quaternion.slerp(headQ, 1 - Math.exp(-dt * 2.5));
@@ -1492,6 +1514,13 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
 
   return {
     goTo,
+    setHero(h: GalpaoHero | null) {
+      if (disposed) return h?.dispose();
+      dropHero();
+      heroModel = h;
+      charG.visible = !h;
+      if (h) { hero.add(h.object); addPick('profile', h.object); }
+    },
     intro() { if (disposed) return; station = 'intro'; goTo('home'); if (move) move.dur = 3.2; },
     get station() { return station; },
     setDuration(s: number) { duration = s; },
@@ -1520,6 +1549,7 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     resize,
     dispose() {
       if (disposed) return;
+      dropHero();
       disposed = true;
       cancelAnimationFrame(raf);
       for (const id of timers) clearTimeout(id);

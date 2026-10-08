@@ -6298,6 +6298,8 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   display: none;
 }
 .galpao {
+  /* Above the classic home's sticky card and its transformed buttons (they make their own layers). */
+  z-index: 2;
   --gp-ink: #1e1d1b;
   --gp-paper: #ece6d7;
   --gp-orange: #f07a2a;
@@ -6668,13 +6670,17 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   justify-content: center;
 }
 .gp-loading {
-  gap: 18px;
   background: #060708;
   opacity: 0;
   visibility: hidden;
   transition:
-    opacity 0.4s,
-    visibility 0.4s;
+    opacity 0.6s,
+    visibility 0.6s;
+}
+/* The splash is the name alone: no HUD under it. */
+.galpao.loading .gp-top,
+.galpao.loading .gp-shade {
+  visibility: hidden;
 }
 .galpao.loading .gp-loading {
   opacity: 1;
@@ -6682,22 +6688,6 @@ html:not(.mobile) #tab-arsenal .hint-touch {
 }
 .gp-loading .gp-logo {
   font-size: clamp(30px, 4.5vw, 56px);
-  letter-spacing: 0.14em;
-}
-.gp-load-track {
-  width: min(320px, 70vw);
-  height: 2px;
-  background: rgba(241, 238, 232, 0.14);
-}
-#gp-load-bar {
-  display: block;
-  height: 100%;
-  width: 0;
-  background: var(--gp-orange);
-  transition: width 0.25s;
-}
-.gp-loading .gp-kicker {
-  color: rgba(241, 238, 232, 0.55);
   letter-spacing: 0.14em;
 }
 .gp-launch {

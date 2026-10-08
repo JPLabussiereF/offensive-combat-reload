@@ -4,12 +4,16 @@
 // It only presents: the tabs, their data and everything they do are still the home's (client/ui/home.ts), which
 // asks this module to fly when a tab opens and is asked to open a tab when a station is picked. Without WebGL (or
 // on a CPU renderer) start() gives up and the classic tabbed home stays.
-// The scene is client/ui/galpao/scene.ts; the Arsenal's pegboard tags and card are client/ui/galpao/arsenalBoard.ts.
+// The scene is client/ui/galpao/scene.ts; the Arsenal's pegboard tags and card are client/ui/galpao/arsenalBoard.ts;
+// the player's character leaning on the hero table is client/ui/galpao/heroCharacter.ts.
 import { STICKERS } from '@shared/achievements';
+import type { Appearance } from '@shared/appearance';
+import type { Sex } from '@shared/protocol';
 import type { Progress } from '../../gameplay/progress';
 import { t, type StringKey } from '../strings';
 import { ArsenalBoard, BOARD, cardWeapon } from './arsenalBoard';
 import { hop, keyAction, lightScene, STATION_ORDER, stationOf, stationOrder, tabOf, type CamStation, type HomeTab, type StationId } from './galpaoRules';
+import { heroCharacter } from './heroCharacter';
 import { createGalpao, type Galpao, type GalpaoLabels } from './scene';
 
 const str = (key: string, params?: Record<string, string | number>) => t(key as StringKey, params);
@@ -42,6 +46,9 @@ export interface GalpaoStart {
   staff: boolean;
   playerTag: string;
   progress: Progress | null;
+  /** The account's character, for the hero table. */
+  look: Appearance;
+  sex: Sex;
   hooks: GalpaoHooks;
 }
 
@@ -101,8 +108,8 @@ export class GalpaoHome {
   private async boot() {
     const root = this.root;
     root.hidden = false;
+    // The splash is the game's name alone, until the warehouse is built and the camera flies in.
     root.classList.add('loading');
-    this.setProgress(0);
     this.onResize();
     this.buildMenu();
     $('gp-quick').onclick = () => this.o.hooks.quickPlay();
@@ -125,7 +132,6 @@ export class GalpaoHome {
       playerTag: this.o.playerTag.replace('#', ' #').toUpperCase(),
       labels: labels(),
       arsenal: BOARD,
-      onProgress: (p) => this.setProgress(p),
       onArrive: (id) => {
         this.at = id;
         this.arrived = true;
@@ -143,6 +149,7 @@ export class GalpaoHome {
     });
     if (this.disposed) return scene.dispose();
     this.scene = scene;
+    this.setLook(this.o.look, this.o.sex);
     for (const [id, panes] of Object.entries(PANES) as [Exclude<StationId, 'arsenal'>, string[]][]) {
       const surf = root.querySelector<HTMLElement>(`.gp-surf[data-station="${id}"]`)!;
       for (const p of panes) this.borrow($(p), surf);
@@ -176,9 +183,15 @@ export class GalpaoHome {
     into.appendChild(el);
   }
 
-  private setProgress(p: number) {
-    $('gp-load-bar').style.width = `${Math.round(p * 100)}%`;
-    $('gp-load-text').textContent = t(p < 0.95 ? 'gpLoadingBuild' : 'gpLoadingLights');
+  /** The character at the hero table (again after the player changes the look); the clay mannequin if it can't be built. */
+  setLook(look: Appearance, sex: Sex) {
+    if (!this.scene) return;
+    try {
+      this.scene.setHero(heroCharacter(look, sex));
+    } catch (err) {
+      console.warn('Galpão: o personagem não foi montado; fica o boneco.', err);
+      this.scene.setHero(null);
+    }
   }
 
   // ---- stations

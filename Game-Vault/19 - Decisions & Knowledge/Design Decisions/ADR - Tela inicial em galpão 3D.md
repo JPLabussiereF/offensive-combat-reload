@@ -4,6 +4,7 @@ type: decision
 status: documented
 area: ui
 source_paths:
+  - client/ui/galpao/heroCharacter.ts
   - client/ui/galpao/galpao.ts
   - client/ui/galpao/scene.ts
   - client/ui/galpao/arsenalBoard.ts
@@ -55,6 +56,9 @@ Trocar a cara da tela inicial sem reescrever as abas (que já têm regras, teste
 7. **Partida:** ao sair para uma partida (online, bots, campo de tiro), a porta de enrolar sobe, a luz entra e aparece **ENTRANDO NA PARTIDA** com o nome da sessão ou do modo e o mapa (no máximo 4 s se a aba estiver escondida); depois a home some e o jogo carrega como antes. O editor de mapas sai direto. Com `prefers-reduced-motion`, sem voo de abertura e sem a cinemática.
 8. **Visual das abas:** as abas mantêm a marcação; o CSS do galpão (`#galpao .gp-surf …`) troca as variáveis (`--ink`, `--paper`, `--display`, `--body`) e os componentes comuns para papel e tinta (fontes Barlow, Barlow Condensed e JetBrains Mono), e painéis escuros nas Configurações e no Gerenciamento.
 
+> [!info] Revisão (08/10/2026, pedido do dev)
+> A splash ficou **só com o nome do jogo** (saíram a barra e os textos de carga; o HUD e a home clássica ficam escondidos por baixo, `z-index` do `#galpao` e `galpao-on` desde o começo da montagem). O **boneco de argila** da mesa deu lugar ao **personagem da conta** (`client/ui/galpao/heroCharacter.ts`: `Character` com a aparência do perfil, sem armas, posado nos ossos — tronco inclinado, IK de dois ossos nos braços até as mãos no tampo — e a cabeça olhando entre a câmera e a mesa a cada quadro), entregue à cena por `Galpao.setHero`. O boneco continua só como reserva se o personagem não puder ser montado.
+
 ## Motivo
 
 - É o design pedido, com os dados e as funções que o jogo tem.
@@ -64,7 +68,7 @@ Trocar a cara da tela inicial sem reescrever as abas (que já têm regras, teste
 ## Consequências
 
 - A tela inicial logada usa **um contexto WebGL a mais** (o do galpão; o palco do personagem do cartão não é criado quando o galpão roda). O renderizador do jogo já existe por baixo, parado. A cena é descartada (`dispose`) ao sair da home.
-- O carregamento da cena (texturas procedurais na thread principal) leva de 1 a 2 s numa GPU de mesa, com a barra "MONTANDO O GALPÃO". Ver [[Loading Performance]].
+- O carregamento da cena (texturas procedurais na thread principal) leva de 1 a 2 s numa GPU de mesa, com uma splash só com o nome do jogo. Ver [[Loading Performance]].
 - Há duas apresentações do Arsenal da tela inicial: o painel perfurado (galpão) e o canvas (home clássica), com o mesmo modelo e o mesmo salvamento.
 - Iniciar uma partida pela tela inicial leva ~2,7 s a mais por causa da cinemática.
 - O cartão do personagem com os ícones equipados não aparece no galpão; o retrato continua no botão da conta, e o editor de personagem fica no Perfil.

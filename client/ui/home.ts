@@ -311,6 +311,7 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
     const key = `${s}|${JSON.stringify(look)}`;
     if (key === shownLook) return;
     shownLook = key;
+    galpao?.setLook(look, s);
     if (!useGalpao) {
       stage ??= new Stage($<HTMLCanvasElement>('char-canvas'), { wheelZoom: false });
       stage.show(look, s);
@@ -424,20 +425,29 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
   const startGalpao = async () => {
     if (galpao || galpaoStarting || !me) return;
     galpaoStarting = true;
+    // The classic home stays out of sight under the splash.
+    $('home-in').classList.add('galpao-on');
+    home.classList.add('galpao-mode');
     const g = await GalpaoHome.start({
       staff: isEquipe(me),
       playerTag: me.tag,
       progress,
+      look: profile?.aparencia ?? defaultAppearance(sex),
+      sex,
       hooks: { showTab: (next) => showTab(next), quickPlay: () => playHooks.quickPlay(), quickLine: () => playHooks.quickLine() },
     });
     galpaoStarting = false;
     if (!g) {
       // No warehouse here: the classic home, with its character card.
+      setGalpao(null);
       useGalpao = false;
       shownLook = '';
       return renderAccount();
     }
-    if (!me) return g.dispose();
+    if (!me) {
+      g.dispose();
+      return setGalpao(null);
+    }
     setGalpao(g);
     // A tab opened while it was building (a link from an e-mail, choosing a name) gets its station.
     if (tab !== 'play') g.follow(tab);

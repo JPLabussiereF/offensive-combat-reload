@@ -4,6 +4,7 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - client/ui/galpao/heroCharacter.ts
   - client/ui/galpao/galpaoRules.ts
   - client/ui/galpao/arsenalBoard.ts
   - client/ui/galpao/scene.ts
@@ -54,11 +55,11 @@ Página rolável com duas caras, conforme a conta (`/api/me`). Enquanto a consul
 Desde 08/10/2026 ([[ADR - Tela inicial em galpão 3D]], design "Galpão Home"), quem está logado e tem WebGL por GPU vê a tela inicial como um **galpão 3D**. As abas da seção 2.1 continuam as mesmas (marcação, regras, chamadas): o galpão só as **apresenta**, movendo cada painel `#tab-*` para dentro de um objeto da cena (`GalpaoHome` em `client/ui/galpao/galpao.ts`; cena em `scene.ts`).
 
 ```text
-           visão geral (câmera atrás da mesa do boneco)                     numa estação
+        visão geral (câmera diante da mesa do personagem)                 numa estação
 ┌ OFFENSIVE COMBAT                          [retrato Nome#1234 Nv]  ┐   ┌ OFFENSIVE COMBAT / JOGAR              [conta] ┐
 │                                   ┌ ENTRADA RÁPIDA        ENTER ┐ │   │      a aba presa no objeto (homografia)       │
 │   galpão 3D (luz, poeira,         │ Mata-mata · Online · mapas  │ │   │                                               │
-│   boneco, objetos das estações)   └─────────────────────────────┘ │   │                                               │
+│   personagem, estações)           └─────────────────────────────┘ │   │                                               │
 │                                   01 JOGAR      02 MAPAS  …       │   │                                               │
 │                                   07 GERENCIAMENTO (equipe)       │   │ [‹ GALPÃO Esc]   dica   [Q ‹ ant. 01/07 próx. › E] │
 └───────────────────────────────────────────────────────────────────┘   └───────────────────────────────────────────────┘
@@ -74,7 +75,8 @@ Desde 08/10/2026 ([[ADR - Tela inicial em galpão 3D]], design "Galpão Home"), 
 | 06 Configurações | quadro elétrico | `#tab-settings` (o `#menu-settings` emprestado), painel escuro |
 | 07 Gerenciamento | monitor de segurança (só equipe) | `#tab-management`, painel escuro |
 
-- **Abertura:** barra "MONTANDO O GALPÃO" / "ACENDENDO AS LUZES" enquanto a cena é montada, depois um voo de ~3 s até a visão geral (sem voo com `prefers-reduced-motion`).
+- **Abertura:** uma splash só com o nome do jogo ("OFFENSIVE COMBAT", sem barra nem texto, e sem o HUD nem a home clássica por baixo) enquanto a cena é montada; depois ela some e a câmera voa ~3 s até a visão geral (sem voo com `prefers-reduced-motion`).
+- **Personagem:** na mesa do centro está o **personagem da conta** (a aparência do perfil, como na partida, sem armas), inclinado com as mãos apoiadas no tampo e a cabeça acompanhando a câmera. Muda junto quando o jogador personaliza o personagem; se não puder ser montado, fica o boneco de argila do design.
 - **Teclas:** na visão geral, **1–7** vão às estações e **Enter** é a entrada rápida; numa estação, **Q/E** ou setas trocam de estação e **Esc** volta (no Arsenal, primeiro fecha a ficha). Clicar num objeto na visão geral também leva à estação; passar o mouse destaca o objeto e o item do menu.
 - **Começar uma partida:** a porta de enrolar sobe, a luz invade e aparece "ENTRANDO NA PARTIDA" com o nome da sessão (ou o modo) e o mapa; depois o jogo carrega como antes. O editor de mapas sai direto.
 - **Avisos:** o `#home-status` vira o aviso escuro acima da barra.
