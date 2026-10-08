@@ -22,7 +22,7 @@ tags:
   - art
   - weapons
   - assets
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Weapon Models
@@ -103,10 +103,12 @@ Ver [[Grenades]], [[Land Mines]] e [[Buffs & Debuffs]].
 
 ## Primeira pessoa x terceira pessoa
 
+**Modelo de longe (PF-35, T8 e P11):** a terceira pessoa usa o mesmo construtor com `farModel` ligado (`gunParts(g, true)`, `knifeModel(form, true)`): cilindros e cones com até 8 lados, esferas 6 × 4, aros 4 × 12, sem as letras de pixel ("RH", "NO PAIN NO GAIN") e sem as peças cuja maior medida fica abaixo de 1,5 cm ou aros de tubo fino (aros e ponto do ponto vermelho, bolinhas da batata, tachinhas, miras de ferro miúdas). Toda arma cabe em 800 triângulos (a mais pesada, o fuzil da tia, 580; o pistolão caiu de 2.786 para 252); o viewmodel continua com todo o detalhe (até 3.414). Medido por `bun tools/orcamento.ts` e travado em `client/tests/polyBudget.test.ts`.
+
 | | Primeira pessoa (`Viewmodel`) | Terceira pessoa (`heldWeapons.ts`) |
 | --- | --- | --- |
 | Cena | `vmScene`, câmera própria ([[ADR - Viewmodel em cena e câmera próprias]]) | cena do mundo, presa a sockets do personagem |
-| Armas de fogo | um *kit* por visual (`gunModelKey`), montado uma vez e guardado: trocar de arma não custa nada; partes rígidas + braços fundidos num mesh toon (`bakeStaticParts`); carregador, clarão e brilhos separados. `setGun` põe a arma na mão (e refaz os braços quando a mão de apoio muda entre guarda-mão e punho de pistola); `draw(s)` faz a arma subir de baixo durante o tempo de saque | `heldGun(g)`: um mesh por visual, cache `gun|<gunModelKey>`. Na mão (`hand_R`) ficam as duas armas, só a que está na mão aparece; a primária fica nas costas (`back`), inclusive enquanto a secundária está na mão |
+| Armas de fogo | um *kit* por visual (`gunModelKey`), montado uma vez e guardado: trocar de arma não custa nada; partes rígidas + braços fundidos num mesh toon (`bakeStaticParts`); carregador, clarão e brilhos separados. `setGun` põe a arma na mão (e refaz os braços quando a mão de apoio muda entre guarda-mão e punho de pistola); `draw(s)` faz a arma subir de baixo durante o tempo de saque | `heldGun(g)`: um mesh por visual, cache `gun|<gunModelKey>`, montado com o **modelo de longe** (`gunParts(g, true)`, PF-35 T8). Na mão (`hand_R`) ficam as duas armas, só a que está na mão aparece; a primária fica nas costas (`back`), inclusive enquanto a secundária está na mão |
 | Faca | aparece só durante o golpe, na mão direita (ou espelhada para a esquerda sem mão direita) | `heldKnife(form)`, na mão durante o golpe; a arma de fogo vai para as costas |
 | Granada | mão esquerda, tremendo enquanto "cozinha" | mão esquerda, com o arremesso animado |
 | Material | `MeshToonMaterial` com cor por vértice | **um** material toon compartilhado por todas as armas de todos |

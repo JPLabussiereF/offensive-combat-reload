@@ -12,6 +12,13 @@ source_paths:
   - client/character/material.ts
   - client/character/palette.ts
   - client/character/pieces/index.ts
+  - client/character/pieces/jackets.ts
+  - client/character/pieces/hair.ts
+  - client/character/pieces/shoes.ts
+  - client/character/pieces/headwear.ts
+  - client/character/pieces/tactical.ts
+  - tools/orcamento.ts
+  - client/tests/polyBudget.test.ts
   - client/character/items/tops.ts
   - client/entities/avatar.ts
   - client/entities/dummy.ts
@@ -23,7 +30,7 @@ tags:
   - art
   - characters
   - assets
-updated: 2026-10-05
+updated: 2026-10-08
 ---
 
 # Character Models
@@ -88,8 +95,28 @@ De dentro para fora: cabelo e barba (0) < roupas de baixo e de cima (1) < calça
 | Bakeado (`Character.bake()`) | **uma** `SkinnedMesh` por nível de LOD, cores finais nos vértices, triângulos escondidos removidos | `bakedMaterial()` compartilhado | jogo |
 
 - O bake guarda vivos só os morphs `punho_L`/`punho_R`; qualquer mudança desfaz o bake sozinha.
-- **LOD:** `THREE.LOD` com níveis a 0, 20 e 45 m (histerese de 10%). Os níveis distantes regeneram as peças com menos detalhe. Ver [[Performance Rendering]].
+- **LOD:** `THREE.LOD` com níveis a 0, 20 e 45 m (10 e 25 m com o detalhe Leve, `setCharacterDetail`, PF-35 L7; histerese de 10%). Os níveis distantes regeneram as peças com menos detalhe (`withLod`). Ver [[Performance Rendering]].
 - Resultado (doc): 1 draw call por personagem + armas, 3,5–4,5 mil triângulos vestido.
+
+### Níveis de longe de verdade (PF-35, T9 e P10)
+
+Até a PF-35, várias peças feitas fora de `tube()` ignoravam o LOD (a lâmina do tronco das jaquetas, os painéis dos casacos, o manto e as mechas dos cabelos, os calçados, os chapéus) e o LOD1 de um visual tinha ~77% dos triângulos do LOD0. Agora, só nos níveis 1 e 2 (o LOD0 não mudou: 684 de 684 peças com o mesmo hash):
+
+- `builder.ts`: esferas, cilindros e toros anexados com ¾ (LOD1) e ½ (LOD2) dos segmentos; bordas (punhos, barras, golas, cós) sem o lábio no LOD1 e sem a borda no LOD2; `lodThin` tira uma linha sim, outra não.
+- `headShell` (cascas sobre a cabeça: cabelos, barbas, chapéus): as fechadas usam as 12 colunas da própria cabeça (alinhadas, para a cabeça não atravessar), as outras ¾.
+- Jaquetas e casacos: tronco com ¾ das colunas e metade das linhas (½ das colunas no LOD2 só em frentes fechadas), uma linha onde o decote em V começa, painéis com ¾ e ½, forro só no LOD1; botões grandes e costuras finas somem.
+- Cabelos (mechas triangulares e manto mais simples no LOD2), calçados (5 e 4 estações, seção de 4 pontos), chapéus e capacetes, calças (passadores, botão e costuras somem) e táticos (placas e faixas mais simples, sem espessura no LOD2).
+
+| 200 visuais (semente 35) | LOD0 | LOD1 | LOD2 | LOD1/LOD0 (p90) | LOD2/LOD0 (p90) |
+| --- | --- | --- | --- | --- | --- |
+| Antes (p90) | 5.072 | 3.612 | 2.409 | 0,769 | 0,523 |
+| Depois (p90) | 5.072 | 2.976 | 1.664 | 0,622 | 0,353 |
+| Orçamento | 5.000 | 3.200 | 2.000 | 0,65 | 0,40 |
+
+Visual padrão: 3.482 / 2.300 / 1.450 → 3.482 / 1.908 / 1.101. O LOD0 no p90 fica 1,4% acima de 5.000 (travado no medido +5%, P10). Medido por `bun tools/orcamento.ts` e travado em `client/tests/polyBudget.test.ts`. A maior folga que sobra está na cabeça do corpo no LOD1 (432 triângulos, as mesmas linhas e feições do LOD0).
+
+> [!warning] Riscos conhecidos dos níveis de longe
+> Jaqueta aberta a 4–7 mm da blusa por baixo; no LOD2 cada painel de saia de casaco tem 3 colunas e a calça pode encostar num joelho muito levantado; placas táticas sem espessura afastadas 1–6 cm do corpo no LOD2 (vistas de lado). Imagens de antes e depois na aprovação da PF-35.
 
 ## Onde aparece
 

@@ -12,10 +12,12 @@ source_paths:
   - server/app.ts
   - client/character/body.ts
   - client/world/halloween.ts
+  - client/ui/galpao/scene.ts
+  - tools/orcamento.ts
 tags:
   - performance
   - gargalos
-updated: 2026-10-05
+updated: 2026-10-08
 ---
 
 # Known Bottlenecks
@@ -33,6 +35,8 @@ Gargalos e limitações de desempenho evidenciados no código ou na documentaç�
 | 7 | **Geometrias despejadas do cache de corpos não são liberadas** | `client/character/body.ts` | Memória depende do GC | Limite de 120 entradas. Ver [[Memory]]. |
 | 8 | **Ordenação de todas as fontes de luz** a cada 0,2 s | `client/world/halloween.ts` (`LightPool.update`) | O(n log n) por escolha; n = velas/lampiões do mapa | Frequência reduzida (5×/s). |
 | 9 | **Gravação de progresso em lote a cada 60 s** | `server/app.ts` (`FLUSH_EVERY_MS`) | Queda abrupta do processo (sem SIGTERM) perde até 60 s de progresso | Gravação também ao sair e no SIGTERM. Ver [[ADR - Progresso gravado em lotes por delta]]. |
+| 10 | **Peso geométrico dos mapas no celular** (PF-35) | `tools/orcamento.ts`, `client/tests/polyBudget.test.ts` | Antes, o celular desenhava os mesmos objetos que o PC: Jardim do Dragão com 524 mil triângulos na pior câmera, 44 mil deles instâncias invisíveis | Cortes sem perda para todos e o detalhe Leve: Jardim 394 mil (Normal) / 312 mil (Leve). Ver [[ADR - Detalhe geométrico Normal e Leve]] e [[Performance Rendering]]. Restam: a Vila no Leve com 271 chamadas (orçamento 250; peças únicas com textura própria, P13) e o FPS num celular fraco ainda não medido (no PC rápido o FPS não muda de forma mensurável: o gargalo não são os triângulos). |
+| 11 | **Quadro inteiro do galpão (tela inicial)** | `?bench=galpao` (`client/dev/bench.ts`) | Cada quadro desenha a cena de novo para a sombra do sol, para 2 holofotes com sombra e, a cada 3 quadros, para uma câmera de CCTV: 168–187 mil triângulos e 750–895 chamadas no build normal, 58–65 mil e 264–358 no build leve do celular (medido no Chrome com GPU, 1280×720) | Só informação (P14 da PF-35): o orçamento do galpão vale para a passada da câmera, 9,6–17,3 mil triângulos. |
 
 ## Código relacionado
 
