@@ -14,7 +14,7 @@ tags:
   - game
   - ui
   - settings
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Settings
@@ -57,7 +57,7 @@ A subaba **Toque** também tem o botão "Tela cheia" (onde há a API), o aviso d
 
 ## Outras preferências locais
 
-- `oc.bots` — preferências da tela inicial (`client/ui/home.ts`): `skill` (dificuldade), `count` (bots), `map`, `mode` (`online` | `bots` | `treino`, a aba Jogar abre nele) e `filtro` (mapas marcados no Online). Valores inválidos voltam ao padrão.
+- `oc.bots` — preferências da tela inicial (`client/ui/home.ts`): `skill` (dificuldade), `count` (bots), `map` (mapa de bots e do treino), `mode` (`online` | `bots` | `treino`, a aba Jogar abre nele), `game` (tipo de partida) e `onlineMap` (mapa do Online; `null` = Qualquer mapa). O antigo `fora`/`filtro` (filtro de vários mapas) é convertido ao abrir e não é mais gravado. Valores inválidos voltam ao padrão.
 - Chaves antigas `oc.name`, `oc.sex`, `oc.profile` são apagadas ao abrir a tela inicial (nome, corpo e progressão passaram a viver na conta).
 
 ## Código relacionado

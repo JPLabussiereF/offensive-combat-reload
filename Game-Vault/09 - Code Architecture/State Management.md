@@ -22,7 +22,7 @@ source_paths:
 tags:
   - architecture
   - state
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # State Management
@@ -43,7 +43,7 @@ Não há biblioteca de estado (Redux, signals, store). O estado vive **em variá
 | Loadout do jogador na sessão | `SPlayer.loadout` (recalculado por `loadoutOf` na escolha e ao subir de nível), `held`/`heldBefore`/`heldAt` (arma em mãos, pela `FLAG.secondary`) | `server/session.ts` | vida do jogador na sessão |
 | Progresso no cliente | `Progress` (`xpOf`, `chosen`: a `ArsenalChoice`) alimentado por `progresso` (`armas`, `escolha`) | `client/gameplay/progress.ts` | sessão da página |
 | Preferências do jogador | `localStorage['oc.settings.v1']` (`Settings`) | `client/core/settings.ts` | persistente no navegador |
-| Preferências do modo bots | `localStorage['oc.bots']` (`skill`, `count`, `map`) | `client/ui/home.ts` | persistente no navegador |
+| Preferências da aba Jogar | `localStorage['oc.bots']` (`mode`, `game`, `map`, `onlineMap`, `skill`, `count`) | `client/ui/home.ts` (migração do filtro antigo em `client/ui/playRules.ts`) | persistente no navegador |
 | Sessão de login | cookie `oc_sessao` HttpOnly (o JS não lê) + tabela `session` (só o SHA-256) | `server/auth/sessions.ts` | 30 dias, renovado no uso |
 | Dados efêmeros compartilhados | Redis: `ws:ticket:*` (30 s), `rl:*` (limites e bloqueios) | `server/api.ts`, `server/auth/password.ts` | segundos a minutos |
 | Dados persistentes | PostgreSQL (`account`, `player_profile`, `player_stats`, `weapon_progress`, `session_participation`, `sanction`, `auth_event`, `map`, `map_version`...) | `server/accounts.ts` | permanente |

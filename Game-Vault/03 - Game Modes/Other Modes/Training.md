@@ -18,7 +18,7 @@ tags:
   - game
   - modes
   - offline
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Training
@@ -40,7 +40,7 @@ Nenhum.
 ## Regras
 
 - **Sem servidor e sem conta.** Com conta, usa os níveis de arma e a escolha do Arsenal da conta (secundária e melhorias). Sem conta, rifle e pistola sem melhorias; a escolha feita no Arsenal vale só para aquela partida. **Não rende progresso** ([[Progression]]).
-- **Mapa:** o escolhido no seletor da home ([[Game Modes Index]]).
+- **Mapa:** o cartão escolhido na aba Jogar (só os mapas abertos; o último escolhido em qualquer aba) ([[Game Modes Index]]).
 - **Bonecos** (`map.dummies`, só neste modo): têm hitboxes por região (cabeça, tronco, braços, pernas), barra de vida e as mesmas regras de regeneração (4 s, 25/s).
   - Quantidade por mapa: Rua dos Vizinhos **12** (4 patrulham), Jardim do Dragão **13** (5 patrulham), Vila Assombrada **13** (3 patrulham). Os que patrulham vão e voltam num eixo (`patrol`).
   - O boneco abatido fica oprimível por 6 s ([[Humiliation]]).
@@ -50,7 +50,7 @@ Nenhum.
 
 ## Fluxo da partida
 
-Home → "Campo de tiro" → o mapa é montado → o jogador nasce num ponto `spawnsA` → atira nos bonecos → `Esc` para pausar (ou trocar armas no Arsenal) → "Sair do treino" e confirmar para voltar à tela inicial.
+Aba Jogar → **Campo de tiro** → clicar num mapa (só escolhe, desde a PF-32) → botão laranja **CAMPO DE TIRO** ("Bonecos parados · {mapa}") → o mapa é montado → o jogador nasce num ponto `spawnsA` → atira nos bonecos → `Esc` para pausar (ou trocar armas no Arsenal) → "Sair do treino" e confirmar para voltar à tela inicial.
 
 ## Respawn
 
@@ -83,7 +83,7 @@ Nenhum.
 
 ## Código relacionado
 
-- `client/ui/home.ts`: botão `home-offline`
+- `client/ui/home.ts`: `#home-play-cta` com o Campo de tiro escolhido (`startOffline`); na landing, `#land-range`
 - `client/main.ts`: `DummyManager` só com `choice.mode === 'offline'`; `spawnsA`; `onKill` e `award` locais
 - `client/entities/dummy.ts`: vida, morte, opressão e respawn dos bonecos
 

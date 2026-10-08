@@ -4,6 +4,7 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - client/ui/playRules.ts
   - shared/modes.ts
   - client/ui/home.ts
   - client/net/connection.ts
@@ -14,7 +15,7 @@ tags:
   - game
   - ui
   - matchmaking
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Matchmaking UI
@@ -23,17 +24,18 @@ Não existe matchmaking automático (fila, busca por habilidade ou região). A "
 
 ## Online na aba Jogar (`#home-lobby`)
 
-Com o modo **Online** escolhido na aba Jogar da tela inicial ([[Menus]]):
+Com **Online** escolhido na aba Jogar da tela inicial ([[Menus]]; disposição da PF-32), o jogador escolhe o tipo de partida e **um mapa** (ou **Qualquer mapa**), e o botão laranja entra. A lista ao lado mostra as sessões **desse mapa e desse tipo**, então ela sempre bate com o que o botão vai fazer.
 
 | Elemento | Comportamento |
 | --- | --- |
-| Tipo de partida (`#home-game`) | **Mata-mata**, **Corrida armada** ou **Zumbi** (botões, salvo em `oc.bots.game`), com uma linha explicando o modo. Filtra a lista, as contagens dos mapas e a entrada rápida, e é o modo da sessão criada. Ver [[Free For All]], [[Gun Game]] e [[Zombie]]. |
-| Filtro de mapas | Os três mapas oficiais abertos (sem `exclusivo`) como caixas de marcar, numa grade que ocupa a linha inteira como os cartões de modo (todos marcados por padrão, salvos em `oc.bots.filtro`). Cada um mostra quantas sessões tem: antes de conectar, por `GET /api/sessoes` (ao abrir, ao voltar ao modo Online e a cada 10 s); conectado, pela lista ao vivo. Sem servidor, mostra o clima do mapa. As sessões abrem sob demanda ([[Matchmaking]]): a **entrada rápida** manda `play` para o mapa da sessão mais cheia com vaga entre os marcados, ou para um dos marcados quando ninguém joga neles (o servidor abre a sala). Num modo de um mapa só (o **Zumbi**, só no Cemitério da Capela) o filtro some: aparece só esse mapa, marcado, com "Só no Cemitério da Capela", e a lista, a entrada rápida e o seletor de mapa de "Criar sessão" ficam nele. O cemitério é exclusivo do zumbi: nunca aparece no filtro, na lista nem no "Criar sessão" dos outros modos. |
-| **JOGAR ONLINE** (cartão do personagem) | **Entrada rápida:** conecta se preciso e entra na sessão **mais cheia que não esteja lotada** do tipo de partida escolhido, entre os mapas marcados. Sem mapa marcado: "Marque pelo menos um mapa."; sem sessão livre: "Nenhuma sessão aberta nos mapas selecionados.". A escolha é feita no cliente a partir da lista; o servidor só recebe um `join` comum. |
-| Título | "Sessões abertas (N)", contando só as dos mapas marcados. |
-| **VER MAIS (N)** | A lista mostra **6 sessões por vez**; o botão só aparece quando sobram sessões e mostra mais 6 a cada clique. Volta a 6 ao mudar o filtro ou o modo. |
-| Lista (`#session-list`) | **Já carregada ao abrir a aba** (`GET /api/sessoes`, atualizada a cada 10 s; ao vivo depois de conectar). Uma linha por sessão do tipo escolhido nos mapas marcados: **nome**, **mapa** em texto menor (omitido quando o nome da sessão começa com o nome do mapa, caso das abertas por `play`), uma **etiqueta do modo** (cor por modo), **jogadores/máximo** e **ENTRAR** (conecta se preciso e entra), ou **LOTADA** (desabilitado) quando cheia. Vazia: "Nenhuma sessão aberta. Crie a primeira!" ou, se o filtro escondeu todas, "Nenhuma sessão aberta nos mapas selecionados.". |
-| Criar sessão | Campo de nome (máx. `NET.sessionNameMax` = 24 caracteres), seletor de mapa, seletor de **modo** (sincronizado com o tipo de partida) e **CRIAR** (Enter também cria); conecta se preciso. No celular o nome ocupa a linha de cima. |
+| Tipo de partida (`#home-game`) | **Mata-mata**, **Corrida armada** ou **Zumbi** (salvo em `oc.bots.game`), com a descrição embaixo num espaço fixo. Filtra a lista, as contagens dos mapas e o botão laranja, e é o modo da sessão criada. Ver [[Free For All]], [[Gun Game]] e [[Zombie]]. |
+| Mapas (`#home-maps`) | Cartões de **escolha única**: primeiro **Qualquer mapa** (o padrão; `oc.bots.onlineMap = null`), depois os oficiais de `/api/mapas?tipo=oficial` e os mapas das sessões abertas (um mapa da comunidade com gente jogando, com o cartão de `GET /api/mapas/:id`). A linha de cada cartão diz **"N jogando"** (soma dos jogadores das sessões do mapa e do tipo; no Qualquer mapa, do tipo inteiro) ou "ninguém agora"; antes de a lista chegar, o clima ou "por {autor}" ("Onde tiver mais gente" no Qualquer mapa). A escolha fica em `oc.bots.onlineMap`; se um mapa da comunidade escolhido sai da lista (ninguém mais joga nele), vale Qualquer mapa sem apagar a escolha, e ele volta escolhido se reaparecer. Num modo de um mapa só (o **Zumbi**, só no Cemitério da Capela) aparece só esse mapa, marcado, com "Só no Cemitério da Capela" e sem Qualquer mapa; o cemitério nunca aparece nos outros tipos. **Todos os mapas ›** abre a aba Mapas. |
+| Botão laranja **JOGAR ONLINE** (`#home-play-cta`) | Conecta se preciso e manda `play {map, mode}`: com um mapa escolhido, esse mapa; com **Qualquer mapa**, o mapa da sessão **mais cheia que não esteja lotada** do tipo, ou um **mapa oficial** do tipo ao acaso quando ninguém joga (`quickTarget` em `client/ui/playRules.ts`). Quem escolhe a sala dentro do mapa é o servidor (a primeira com vaga, ou uma nova; [[Matchmaking]]), por isso os textos não prometem "a mais cheia". A linha do botão diz o resultado: "Mata-mata · Rua dos Vizinhos · 9 jogando", "· abre uma sessão nova" quando ninguém joga ali, "Mata-mata · qualquer mapa · 11 jogando"; sem a contagem até a lista chegar. A **ENTRADA RÁPIDA** (e Enter) da visão geral do galpão e o **JOGAR ONLINE** do cartão do personagem (home clássica, fora da aba Jogar) fazem o mesmo, sempre online, com o tipo e o mapa do Online ("Mata-mata · Online · Rua dos Vizinhos" ou "· Qualquer mapa"). |
+| Título | "Sessões em {mapa} (N)" ("Sessões em qualquer mapa (N)"); "(…)" até a lista chegar. |
+| **VER MAIS (N)** | A lista mostra **6 sessões por vez**; o botão só aparece quando sobram sessões e mostra mais 6 a cada clique. Volta a 6 ao trocar o lugar, o tipo ou o mapa. |
+| Lista (`#session-list`) | **Já carregada ao abrir a aba** (`GET /api/sessoes`, atualizada a cada 10 s; ao vivo depois de conectar), na ordem do servidor. Uma linha por sessão: **nome**, o **mapa** em texto menor só com Qualquer mapa (e não quando o nome começa com ele, caso das abertas por `play`), **jogadores/máximo** e **ENTRAR** (conecta se preciso e entra), ou **LOTADA** (desabilitado). Saiu a etiqueta colorida do modo (a lista já é de um tipo). Vazia: "Ninguém em {mapa} agora. JOGAR ONLINE abre uma sessão nova." (com um mapa) ou "Nenhuma sessão aberta. JOGAR ONLINE abre a primeira." (Qualquer mapa); antes da lista, "Buscando sessões…"; se nenhuma lista chegou e o pedido falhou (servidor fora), "Sem servidor agora. Bots e treino funcionam offline." (`listFailed`). |
+| **+ Criar sessão com nome** | Recolhido num link: abre só o campo do nome (máx. `NET.sessionNameMax` = 24 caracteres) e **CRIAR** (Enter também cria; o × fecha e limpa), com a linha "em {mapa} · {tipo}": a sessão é criada no mapa e no tipo escolhidos (`create {name, map, mode}`), conectando se preciso. Com Qualquer mapa o link fica desabilitado, com "Escolha um mapa para criar uma sessão com nome." numa linha embaixo. Saíram os seletores de mapa e de modo da criação. Sem nome, o servidor chama a sala de "Sala de {nome}". |
+| Celular deitado (galpão) | O rodapé tem **SESSÕES (N)**, que mostra a lista por cima dos mapas (**‹ MAPAS** volta; **+ CRIAR** no topo troca a linha de cima pelo campo do nome, que fica no alto para o teclado virtual não cobri-lo; no Qualquer mapa ele fica desabilitado, com o aviso como dica). Trocar de lugar ou de mapa fecha a lista. |
 | Status (`#home-status`) | Aviso no rodapé: "Conectando ao servidor…", "Conectado como {nome}.", "Entrando…", erros. |
 
 A lista é **atualizada ao vivo**: depois do `welcome`, o servidor envia mensagens `sessions` e a aba é redesenhada.
@@ -43,7 +45,7 @@ Antes do `join`/`create`, o cliente manda a escolha do Arsenal (`loadout`) para 
 **A conexão de jogo só abre quando o jogador escolhe entrar** (ENTRAR, CRIAR ou JOGAR ONLINE); a lista vem antes, por HTTP. A conexão fecha ao trocar para Contra bots ou Campo de tiro, ao sair da conta ou ao começar um modo offline. Ver [[ADR - Conexão online aberta sob demanda na tela inicial]].
 
 > [!info]
-> Desde a PF-6 (fase 2) não há sessão fixa: elas abrem sob demanda e fecham vazias; cada sessão tem até 10 jogadores (`NET.maxPlayers` = 10 em `shared/protocol.ts`). Os mapas do filtro online vêm de `/api/mapas?tipo=oficial` somados aos mapas das sessões abertas (um mapa da comunidade com gente jogando aparece com o seu cartão), e criar sessão aceita qualquer um deles. A aba **Mapas** ([[Menus]]) joga qualquer mapa oficial ou da comunidade online (**Jogar**: `play` no modo escolhido). Ver [[Free For All]].
+> Desde a PF-6 (fase 2) não há sessão fixa: elas abrem sob demanda e fecham vazias; cada sessão tem até 10 jogadores (`NET.maxPlayers` = 10 em `shared/protocol.ts`). Os cartões de mapa do Online vêm de `/api/mapas?tipo=oficial` somados aos mapas das sessões abertas (um mapa da comunidade com gente jogando aparece com o seu cartão), e criar sessão usa o mapa escolhido, qualquer um deles. A aba **Mapas** ([[Menus]]) joga qualquer mapa oficial ou da comunidade online (**Jogar**: `play` no modo escolhido). Ver [[Free For All]].
 
 ## Pré-condições e erros
 
@@ -55,14 +57,15 @@ Antes do `join`/`create`, o cliente manda a escolha do Arsenal (`loadout`) para 
 
 ## Offline e bots
 
-Para os modos sem servidor não há lista: o mapa é escolhido nos botões de mapa da aba Jogar (ou da landing, sem conta), junto com o tipo de partida (os modos com `bots: true`), dificuldade e número de bots; no Campo de tiro, clicar no mapa já começa. Com **Zumbi** escolhido em "Contra bots", dificuldade e número de bots somem, só o Cemitério da Capela aparece e o botão vira **ENCARAR A HORDA SOZINHO** (o jogo solo, [[Zombie]]). O cemitério não aparece nos botões dos outros modos, no Campo de tiro nem na vitrine de mapas da landing, e nunca fica salvo como o mapa escolhido (`oc.bots.map`): os seletores fora do zumbi só oferecem os mapas sem `exclusivo`. Ver [[Menus]], [[Training]] e [[Versus Bots]].
+Para os modos sem servidor não há lista: o mapa é o cartão escolhido na aba Jogar (ou o botão da landing, sem conta), junto com o tipo de partida (os modos com `bots: true`), dificuldade e número de bots no painel lateral (no celular deitado, dois seletores nativos no rodapé). No Campo de tiro, desde a PF-32, o clique no mapa **só escolhe** e o botão laranja começa, como nas outras abas. Com **Zumbi** escolhido em "Contra bots", dificuldade e número de bots somem, só o Cemitério da Capela aparece (marcado) e o botão vira **ENCARAR A HORDA SOZINHO** (o jogo solo, [[Zombie]]). O cemitério não aparece nos cartões dos outros modos, no Campo de tiro nem na vitrine de mapas da landing, e nunca fica salvo como o mapa escolhido (`oc.bots.map`): fora do zumbi só os mapas sem `exclusivo`. Ver [[Menus]], [[Training]] e [[Versus Bots]].
 
 > [!info] Correção na landing (2026-10-06)
 > O seletor de tipo de partida da landing (sem conta) tinha o mesmo id da seção "Sobre" (`land-game`), e o preenchimento caía na seção errada. Agora é `#land-games`.
 
 ## Código relacionado
 
-- `client/ui/home.ts` — `renderPlay`, `renderLobby`, `connect`, `join`, handlers de `#home-quick`, `#home-more`, `#session-create-btn`, `closeReason`.
+- `client/ui/home.ts` — `renderPlay`, `renderLobby`, `connect`, `join`, `quickJoin`, `refreshList` (`listFailed`), handlers de `#home-play-cta`, `#home-quick`, `#home-maps`, `#home-more`, `#home-create-toggle`, `#session-create-btn`, `#home-sessions-toggle`, `closeReason`.
+- `client/ui/playRules.ts` — `effectiveOnlineMap`, `sessionsFor`, `playersOn`, `quickTarget`, `migrateOnlineMap`, `ctaText` (testes em `client/tests/playRules.test.ts`).
 - `client/net/connection.ts` — `Connection.open`, `next`, `hold`/`release`.
 - `shared/protocol.ts` — `SessionInfo`, mensagens `hello`/`welcome`/`sessions`/`join`/`create`/`joined`, `NET`, `CLOSE`.
 - `shared/maps.ts` — `OFFICIAL_MAPS`; `client/world/mapLoader.ts` — `OFFICIAL_INFO` (nome e `exclusivo` dos oficiais).

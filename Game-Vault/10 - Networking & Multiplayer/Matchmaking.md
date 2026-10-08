@@ -16,7 +16,7 @@ tags:
   - game
   - networking
   - lobby
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Matchmaking
@@ -69,7 +69,7 @@ A lista, o botão de entrar (desabilitado quando cheia) e o campo de criar sala 
 - Um único processo: as salas existem só na memória dele; não há descoberta entre servidores. Ver [[Problem - Estado das partidas só em memória de um processo]].
 - Sem senha/convite para salas privadas; qualquer conta logada pode entrar em qualquer sala listada.
 - Sem limite explícito de salas por jogador (criar uma sala nova sai da anterior, que é removida se ficar vazia).
-- A tela inicial filtra pelos mapas oficiais de `/api/mapas` somados aos mapas das salas abertas; um mapa da comunidade sem ninguém jogando só abre sala pela aba Mapas (Jogar) ou pela entrada rápida de quem o tem no filtro.
+- A tela inicial oferece os mapas oficiais de `/api/mapas` somados aos mapas das salas abertas, um de cada vez (ou Qualquer mapa: o da sala mais cheia não lotada do tipo); um mapa da comunidade sem ninguém jogando só abre sala pela aba Mapas (Jogar), ou pelo botão laranja de quem o deixou escolhido enquanto ele ainda estava na lista.
 
 ## Código relacionado
 

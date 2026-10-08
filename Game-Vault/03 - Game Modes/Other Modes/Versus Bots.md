@@ -21,7 +21,7 @@ tags:
   - modes
   - offline
   - bots
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Versus Bots
@@ -43,7 +43,7 @@ Nenhum.
 ## Regras
 
 - **Sem servidor e sem conta.** Com conta, o jogador usa os níveis e a escolha do Arsenal da conta, **travados** na partida (o Arsenal da pausa mostra só o equipamento em uso, para consulta, como online: [[ADR - Equipamento travado no mata-mata]]). Sem conta, Rifle Padrão, pistola e faca de cozinha sem melhorias. **Não rende progresso** ([[Progression]]).
-- **Quantidade:** 3, 5, 7 ou 9 (padrão 7). **Dificuldade:** fácil, normal ou difícil (padrão normal). A escolha e o mapa ficam salvos em `localStorage` (`oc.bots`).
+- **Quantidade:** 3, 5, 7 ou 9 (padrão 7). **Dificuldade:** fácil, normal ou difícil (padrão normal). Escolhidas no painel lateral da aba Jogar (no celular deitado, dois seletores nativos no rodapé), com o mapa num cartão; o botão laranja **CONTRA N BOTS** ("Mata-mata · Rua dos Vizinhos · Normal") começa ([[Menus]]). A escolha e o mapa ficam salvos em `localStorage` (`oc.bots`).
 - **Bots:** recebem um nome sorteado de uma lista de 12 ("Bot Clebinho", "Sgt. Parafuso", "Dona Bateria", "Capitão Lag", "Recruta 404", "Vovó Turbo"…) e um visual aleatório com os mesmos efeitos de corpo. Usam o mesmo movimento, as mesmas hitboxes e, a cada vida, sorteiam uma arma **sem melhorias**: um rifle (60%; qualquer um dos sete, com a mesma chance) ou uma secundária (40%; qualquer uma das sete, com a mesma chance — desde a PF-10, antes eram submetralhadora 25% e pistola 15%) (`pickGun` em `client/ai/botGuns.ts`), e uma das sete facas, também com a mesma chance. Nada é trancado para eles (bot não tem conta). Com uma secundária na mão, o Rifle Padrão aparece nas costas. O kill feed mostra a arma e a faca do bot. Dão facadas letais de perto.
   - Os bots **não lançam granadas** e **não pegam a cereja** (README).
   - Na corrida armada recebem as armas do degrau (`Bot.arm`) e, com o Sabre de Luz, correm direto para esfaquear em vez de atirar.
@@ -113,7 +113,7 @@ Nenhum.
 - `client/ai/bot.ts`: `Bot`, `BOT_SKILLS`
 - `client/ai/navmesh.ts`: `NavMap` (recast-navigation)
 - `client/main.ts`: hooks `damagePlayer`, `kill`, `tauntStarted`, `humiliation`
-- `client/ui/home.ts`: seletores `bot-count` e `bot-skill`
+- `client/ui/home.ts`: `#home-skills` e `#home-counts` (painel lateral), `#home-skill-sel` e `#home-count-sel` (celular deitado), `#home-play-cta`, `startBots`
 
 ## UI relacionada
 
