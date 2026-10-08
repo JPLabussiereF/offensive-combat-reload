@@ -230,6 +230,26 @@ export function ghostInstances(scene: THREE.Object3D): BudgetReport['fantasmas']
   return out;
 }
 
+/**
+ * What a map should cost at each object detail (PF-35): triangles at the worst sample camera, the median one and
+ * the sun's shadow, and draw calls (worst camera plus shadow). The official maps are held to it
+ * (client/tests/polyBudget.test.ts, with 5% of slack); the map editor only warns over the light one. MAP_BUDGET
+ * stays the hard ceiling of every map.
+ */
+export const DETAIL_BUDGET = {
+  normal: { pior: 400_000, mediana: 300_000, sombra: 220_000, chamadas: 320 },
+  leve: { pior: 300_000, mediana: 220_000, sombra: 220_000, chamadas: 250 },
+} as const;
+
+export type DetailBudgetKey = keyof (typeof DETAIL_BUDGET)['leve'];
+
+/** What of a measured map is over DETAIL_BUDGET at `detail`, with the value and the limit. */
+export function overDetailBudget(r: BudgetReport, detail: keyof typeof DETAIL_BUDGET): { key: DetailBudgetKey; value: number; max: number }[] {
+  const b = DETAIL_BUDGET[detail];
+  const got: Record<DetailBudgetKey, number> = { pior: r.camera.triangulos, mediana: r.camera.mediana.triangulos, sombra: r.sombra.triangulos, chamadas: r.drawCalls };
+  return (Object.keys(b) as DetailBudgetKey[]).filter((k) => got[k] > b[k]).map((key) => ({ key, value: got[key], max: b[key] }));
+}
+
 /** A built map's budget, with its data's spawns, sun and shadow. */
 export function measureMapBudget(scene: THREE.Object3D, data: MapData): BudgetReport {
   const { a, b, ffa } = data.spawns;

@@ -154,6 +154,7 @@ const CSS = `
 #editor .ed-status.ed-err { color: #ff8a8a; }
 #editor .ed-budget { flex: 0 1 auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 #editor .ed-budget.ed-over { color: #ffb0b0; }
+#editor .ed-budget .ed-budget-warn { color: #ffd27a; }
 #editor .ed-budget details { max-height: 30vh; overflow: auto; }
 #editor .ed-meter { display: inline-block; width: 80px; height: 8px; background: #0f141c; border-radius: 4px; overflow: hidden; }
 #editor .ed-meter i { display: block; height: 100%; background: #2fbf6c; }
