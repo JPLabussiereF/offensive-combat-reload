@@ -76,7 +76,7 @@ Desde 08/10/2026 ([[ADR - Tela inicial em galpão 3D]], design "Galpão Home"), 
 | 07 Gerenciamento | monitor de segurança (só equipe) | `#tab-management`, painel escuro |
 
 - **Abertura:** uma splash só com o nome do jogo ("OFFENSIVE COMBAT", sem barra nem texto, e sem o HUD nem a home clássica por baixo) enquanto a cena é montada; depois ela some e a câmera voa ~3 s até a visão geral (sem voo com `prefers-reduced-motion`).
-- **Personagem:** na mesa do centro está o **personagem da conta** (a aparência do perfil, como na partida, sem armas), inclinado com as mãos apoiadas no tampo e a cabeça acompanhando a câmera. Muda junto quando o jogador personaliza o personagem; se não puder ser montado, fica o boneco de argila do design.
+- **Personagem:** na mesa do centro está o **personagem da conta** (a aparência do perfil, como na partida, sem armas), inclinado com as mãos apoiadas no tampo e a cabeça acompanhando a câmera. Muda junto quando o jogador personaliza o personagem (salvar no editor do Perfil recarrega a conta: a mesa, o retrato do botão da conta e a ficha); se não puder ser montado, fica o boneco de argila do design.
 - **Teclas:** na visão geral, **1–7** vão às estações e **Enter** é a entrada rápida; numa estação, **Q/E** ou setas trocam de estação e **Esc** volta (no Arsenal, primeiro fecha a ficha). Clicar num objeto na visão geral também leva à estação; passar o mouse destaca o objeto e o item do menu.
 - **Começar uma partida:** a porta de enrolar sobe, a luz invade e aparece "ENTRANDO NA PARTIDA" com o nome da sessão (ou o modo) e o mapa; depois o jogo carrega como antes. O editor de mapas sai direto.
 - **Avisos:** o `#home-status` vira o aviso escuro acima da barra.
