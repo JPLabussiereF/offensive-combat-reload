@@ -144,7 +144,8 @@ interface Part {
   waiting: boolean;
   /** The vigil's extra XP below 1 point, carried to the next gain (a 3 XP kill with +10% must not round the bonus away). */
   xpCarry: number;
-  /** On a tombstone: when the next ghosts come (0: not on one). */
+  /** On a tombstone since then (0: not on one), and when the next ghosts come. */
+  tombSince: number;
   tombNext: number;
   /** The last time a ghost hit this player (at most one hit every fantasmas.golpeIntervaloSegundos). */
   ghostHitAt: number;
@@ -309,6 +310,7 @@ export class ZombieMatch {
       thornNext: 0,
       waiting,
       xpCarry: 0,
+      tombSince: 0,
       tombNext: 0,
       ghostHitAt: 0,
     });
@@ -784,7 +786,7 @@ export class ZombieMatch {
   /** A new match for whoever is there: fresh money and weapons, no barricades, everyone back at once. */
   private restart() {
     for (const p of this.parts.values()) {
-      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0, bleedUntil: 0, bleedNext: 0, thornNext: 0, waiting: false, xpCarry: 0, tombNext: 0, ghostHitAt: 0 });
+      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0, bleedUntil: 0, bleedNext: 0, thornNext: 0, waiting: false, xpCarry: 0, tombSince: 0, tombNext: 0, ghostHitAt: 0 });
       this.host.setLoadout(p.id, zombieLoadout(p.items));
     }
     this.resetBarricades(true);
@@ -1005,12 +1007,14 @@ export class ZombieMatch {
     for (const p of this.parts.values()) {
       const tomb = p.state === 'up' && p.alive && p.grounded && tombs.length ? tombUnder(tombs, p.feet) : null;
       if (!tomb) {
-        p.tombNext = 0;
+        p.tombSince = p.tombNext = 0;
         continue;
       }
-      if (now < p.tombNext) continue;
+      // A while up there, not a touch: then they come, and more for as long as the player stays.
+      if (!p.tombSince) p.tombSince = now;
+      if (now - p.tombSince < F.esperaSegundos * 1000 || now < p.tombNext) continue;
       p.tombNext = now + F.intervaloSegundos * 1000;
-      this.raiseGhosts(p, [tomb.x, 0, tomb.z], now);
+      this.raiseGhosts(p, now);
     }
     for (const g of [...this.ghosts.values()]) {
       const t = this.parts.get(g.target);
@@ -1023,7 +1027,8 @@ export class ZombieMatch {
       const aim: Vec3 = [t.feet[0] + Math.cos(g.phase) * 0.8, t.feet[1] + 1.2 + Math.sin(g.phase * 1.7) * 0.25, t.feet[2] + Math.sin(g.phase) * 0.8];
       const d: Vec3 = [aim[0] - g.pos[0], aim[1] - g.pos[1], aim[2] - g.pos[2]];
       const len = Math.hypot(d[0], d[1], d[2]);
-      const step = Math.min(len, F.velocidade * dt);
+      // A dive from the sky, then the chase at a pace a sprint outruns.
+      const step = Math.min(len, (len > 10 ? F.mergulho : F.velocidade) * dt);
       if (len > 1e-6) for (let i = 0; i < 3; i++) g.pos[i] += (d[i] / len) * step;
       const reach = Math.hypot(g.pos[0] - t.feet[0], g.pos[1] - (t.feet[1] + 1.1), g.pos[2] - t.feet[2]);
       if (reach > F.alcance || now < g.nextHit || now - t.ghostHitAt < F.golpeIntervaloSegundos * 1000) continue;
@@ -1033,18 +1038,22 @@ export class ZombieMatch {
     }
   }
 
-  /** fantasmas.porVez ghosts rise around a tombstone after `p` (up to fantasmas.maximo in the match). */
-  private raiseGhosts(p: Part, at: Vec3, now: number) {
+  /**
+   * fantasmas.porVez ghosts after `p`, coming down from the sky: high above and spread around them, never next to
+   * them (up to fantasmas.maximo in the match).
+   */
+  private raiseGhosts(p: Part, now: number) {
     const F = ZOMBIE.fantasmas;
     const n = Math.min(F.porVez, F.maximo - this.ghosts.size);
     if (n <= 0) return;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + this.host.rng() * 0.5;
-      const r = 2.5 + this.host.rng() * 2;
+      const r = F.ceuRaio * (0.6 + this.host.rng() * 0.4);
       const id = ++this.ghostSeq;
-      this.ghosts.set(id, { id, target: p.id, pos: [at[0] + Math.cos(a) * r, 1 + this.host.rng() * 1.5, at[2] + Math.sin(a) * r], until: now + F.duracaoSegundos * 1000, nextHit: now + this.host.rng() * F.recargaSegundos * 1000, phase: a });
+      const pos: Vec3 = [p.feet[0] + Math.cos(a) * r, p.feet[1] + F.ceuAltura * (0.85 + this.host.rng() * 0.3), p.feet[2] + Math.sin(a) * r];
+      this.ghosts.set(id, { id, target: p.id, pos, until: now + F.duracaoSegundos * 1000, nextHit: now, phase: a });
     }
-    this.host.emit({ t: 'zghost', fx: 'rise', n, at, target: p.id });
+    this.host.emit({ t: 'zghost', fx: 'rise', n, at: [p.feet[0], p.feet[1] + F.ceuAltura, p.feet[2]], target: p.id });
   }
 
   /** Ghosts within `radius` of `at` are scared away (a grenade's blast, a knife swing). */

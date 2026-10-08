@@ -14,8 +14,9 @@ export class GhostView {
   private group = new THREE.Group();
   private drawn = new Map<number, Drawn>();
   private body: THREE.BufferGeometry;
-  private sheet = new THREE.MeshLambertMaterial({ color: 0xf1f4ff, emissive: 0x4a5878, transparent: true, opacity: 0.82 });
-  private dark = new THREE.MeshBasicMaterial({ color: 0x15121f });
+  // No fog: they come down from 30 m up, where the yard's fog (18-85 m) would swallow them; they glow a little.
+  private sheet = new THREE.MeshLambertMaterial({ color: 0xf1f4ff, emissive: 0x6a7aa0, transparent: true, opacity: 0.85, fog: false });
+  private dark = new THREE.MeshBasicMaterial({ color: 0x15121f, fog: false });
   private eye = new THREE.SphereGeometry(0.055, 8, 6);
   private mouth = new THREE.SphereGeometry(0.06, 8, 6).scale(1, 1.4, 0.5);
   private dir = new THREE.Vector3();

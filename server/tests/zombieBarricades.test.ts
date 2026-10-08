@@ -736,31 +736,56 @@ describe('lápides assombradas (fantasmas)', () => {
   const F = () => ZOMBIE.fantasmas;
   const rises = (h: { events: ServerMsg[] }) => h.events.filter((e) => e.t === 'zghost' && e.fx === 'rise');
 
-  it('em cima da lápide chama 10 na hora e mais 10 a cada 2 s; pular por cima não conta', () => {
+  it('só depois de 3 s seguidos em cima: encostar ou pular por cima não chama nada; depois, mais 10 a cada 2 s', () => {
     const tomb = lone('arco');
     const feet = { at: onTop(tomb), grounded: false };
     const { h, match, tick } = haunted(feet);
     tick(1);
     expect(match.ghosts.size).toBe(0);
     feet.grounded = true;
-    tick(0.1);
+    tick(F().esperaSegundos - 0.5);
+    expect(match.ghosts.size).toBe(0);
+    // Stepping off restarts the count.
+    feet.at = [tomb.x + 6, 0, tomb.z];
+    tick(0.2);
+    feet.at = onTop(tomb);
+    tick(F().esperaSegundos - 0.5);
+    expect(match.ghosts.size).toBe(0);
+    tick(0.6);
     expect(match.ghosts.size).toBe(F().porVez);
     expect(rises(h)[0]).toMatchObject({ n: F().porVez, target: 1 });
     tick(F().intervaloSegundos);
     expect(match.ghosts.size).toBe(2 * F().porVez);
-    // Off the stone: no more come.
     feet.at = [tomb.x + 6, 0, tomb.z];
     tick(F().intervaloSegundos * 2);
     expect(rises(h)).toHaveLength(2);
   });
 
-  it('perseguem e batem 10 (no máximo um golpe a cada 0,5 s), e somem depois de 20 s', () => {
+  it('descem do céu: nascem lá no alto e longe, nunca na frente do jogador', () => {
     const tomb = lone('arco');
     const feet = { at: onTop(tomb), grounded: true };
-    const { h, match, tick } = haunted(feet);
-    tick(0.1);
+    const { match, tick } = haunted(feet);
+    tick(F().esperaSegundos + 0.05);
+    expect(match.ghosts.size).toBe(F().porVez);
+    for (const g of match.ghosts.values()) {
+      expect(g.pos[1] - feet.at[1]).toBeGreaterThan(F().ceuAltura * 0.8);
+      expect(Math.hypot(g.pos[0] - feet.at[0], g.pos[2] - feet.at[2])).toBeGreaterThan(F().ceuRaio * 0.5);
+    }
+  });
+
+  /** On the stone long enough to call them, then off it, and time for them to dive down. */
+  function chased() {
+    const tomb = lone('arco');
+    const feet = { at: onTop(tomb), grounded: true };
+    const run = haunted(feet);
+    run.tick(F().esperaSegundos + 0.05);
     feet.at = [tomb.x + 3, 0, tomb.z];
-    tick(4);
+    return { ...run, feet };
+  }
+
+  it('perseguem e batem 10 (no máximo um golpe a cada 0,5 s), e somem depois de 20 s', () => {
+    const { h, match, tick } = chased();
+    tick(8);
     expect(h.hits.length).toBeGreaterThan(0);
     expect(h.hits.every(([, a]) => a === F().dano)).toBe(true);
     for (let i = 1; i < h.hits.length; i++) expect(h.hits[i][0] - h.hits[i - 1][0]).toBeGreaterThanOrEqual(F().golpeIntervaloSegundos * 1000);
@@ -769,12 +794,8 @@ describe('lápides assombradas (fantasmas)', () => {
   });
 
   it('uma facada espanta os que estão perto; uma granada, os que estão no raio do estouro', () => {
-    const tomb = lone('arco');
-    const feet = { at: onTop(tomb), grounded: true };
-    const { h, match, tick } = haunted(feet);
-    tick(0.1);
-    feet.at = [tomb.x + 3, 0, tomb.z];
-    tick(1.5);
+    const { h, match, tick, feet } = chased();
+    tick(8);
     const close = [...match.ghosts.values()].filter((g) => Math.hypot(g.pos[0] - feet.at[0], g.pos[1] - 1.1, g.pos[2] - feet.at[2]) <= F().sustoFaca).length;
     expect(close).toBeGreaterThan(0);
     const before = match.ghosts.size;
@@ -786,12 +807,9 @@ describe('lápides assombradas (fantasmas)', () => {
   });
 
   it('o alvo caído ou morto: os fantasmas dele vão embora', () => {
-    const tomb = lone('arco');
-    const feet = { at: onTop(tomb), grounded: true };
-    const { h, match, tick } = haunted(feet);
-    tick(0.1);
+    const { h, match, tick, feet } = chased();
     expect(match.ghosts.size).toBe(F().porVez);
-    feet.at = [tomb.x + 6, 0, tomb.z];
+    feet.at = [feet.at[0] + 3, 0, feet.at[2]];
     Object.assign(match.parts.get(1) as object, { state: 'down', downUntil: h.t + 100_000 });
     tick(0.1);
     expect(match.ghosts.size).toBe(0);

@@ -227,8 +227,9 @@ A base do muro deixava uma beirada para subir nas grades, e dava para subir na s
 
 Subir numa lápide (arco, cruz, laje ou obelisco, dentro ou fora do muro) desperta os mortos:
 
-- Em cima de uma lápide, **10 fantasmas** sobem em volta dela na hora, e **mais 10 a cada 2 s** que o jogador continua lá. Só conta quem está **pisando** no topo da pedra (`tombUnder` em `shared/tombs.ts`: pés na altura do topo e sobre ele; passar do lado ou pular por cima não conta).
-- Eles **voam atrás de quem subiu** por **20 s**, atravessando muros, a 6 m/s: mais rápidos que andar (5,5) e mais lentos que correr (8).
+- Ficar **3 s seguidos** em cima de uma lápide chama **10 fantasmas**, e **mais 10 a cada 2 s** que o jogador continua lá. Encostar, pular por cima ou descer antes dos 3 s não chama nada (descer zera a contagem). Só conta quem está **pisando** no topo da pedra (`tombUnder` em `shared/tombs.ts`: pés na altura do topo e sobre ele; passar do lado ou pular por cima não conta).
+- Eles **descem do céu**: nascem uns 30 m acima do jogador, espalhados a 12–20 m em volta (nunca na frente nem perto dele), e mergulham a 14 m/s.
+- Perto dele (a menos de 10 m) passam a **perseguir** a 6 m/s, mais rápidos que andar (5,5) e mais lentos que correr (8), atravessando muros, por **20 s** desde que surgiram.
 - Cada um que chega **tira 10 de vida**, de novo só depois de 1,5 s; o jogador leva **no máximo um golpe a cada 0,5 s** (dez fantasmas juntos não derrubam de uma vez).
 - **Não morrem**: tiro não pega. Uma **facada** (o golpe, acertando algo ou não) espanta os que estão a até 2,5 m; uma **granada**, os que estão a até 6 m do estouro.
 - Somem quando o tempo acaba ou quando o alvo cai ou morre. No máximo 60 na partida; partida nova, nenhum.
@@ -309,7 +310,7 @@ Tudo em `shared/data/zumbi.json`, menos os dados do mapa, que ficam no campo `zu
 | `caixa` | $950, gira 3,5 s, oferta 8 s, alcance 2,5 m | |
 | `caixa.danificada` | chance por raridade 25/18/12/6%; defeitos 45/45/10%; pente ×0,6, reserva ×0,5, dano ×0,75 | armas danificadas |
 | `barricadas` | 5 tábuas × 150, $300, erguer 2,5 s, repregar 0,8 s, +$10 até $150/onda, alcance 2,4 m, `dano` por tipo | barricadas |
-| `fantasmas` | 10 por vez, mais 10 a cada 2 s em cima; 20 s; 6 m/s; 10 de dano (recarga 1,5 s, um golpe a cada 0,5 s no alvo); faca espanta a 2,5 m, granada a 6 m; máximo 60 | lápides assombradas |
+| `fantasmas` | 3 s em cima para chamar; 10 por vez, mais 10 a cada 2 s em cima; descem do céu (30 m acima, 12–20 m em volta, mergulho a 14 m/s); 20 s; 6 m/s; 10 de dano (recarga 1,5 s, um golpe a cada 0,5 s no alvo); faca espanta a 2,5 m, granada a 6 m; máximo 60 | lápides assombradas |
 | `totem` | $500, alcance 2,2 m, intervalo 0 s, dinheiro ×1,2, XP ×1,1 | Vigília Sem Trégua |
 | `espinhos` | 10 a cada 1 s em cima; sangra 10 s, 2 por tique de 1 s; conta com os pés a 0,3 m ou mais, até 0,5 m do muro e 0,8 m da sebe | grade e sebe |
 | `raridades`, `itens`, `inicial` | | o caixão |

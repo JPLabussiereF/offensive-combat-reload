@@ -484,14 +484,15 @@ async function stand(who: In, at: Vec3) {
 const eyeDist = (feet: Vec3, z: Vec3, scale = 1) => Math.hypot(z[0] - feet[0], z[1] + 1.1 * scale - (feet[1] + 1.6), z[2] - feet[2]);
 
 describe('modo zumbi no servidor', () => {
-  it('lápides assombradas no servidor: quem sobe numa lápide do mapa chama os fantasmas, que vêm no zsnap', async () => {
+  it('lápides assombradas no servidor: quem fica em cima de uma lápide do mapa chama os fantasmas, que vêm no zsnap', async () => {
     quick();
     ZOMBIE.inicioSegundos = 30;
     const a = await joinWith(await lobby(await account('Profanador')), 'nova');
     // An arched stone of the map's own pieces (the server reads them from the map, as for an editor-made map).
     const tomb = ZOMBIE.mapas.cemiterio!.lapides!.find((t) => t.kind === 'arco')!;
     await stand(a, [tomb.x, 1.32, tomb.z]);
-    const rise = await a.p.next('zghost', (m) => m.fx === 'rise' && m.target === a.id, 3000);
+    // A while up there (fantasmas.esperaSegundos), then they come down from the sky.
+    const rise = await a.p.next('zghost', (m) => m.fx === 'rise' && m.target === a.id, (ZOMBIE.fantasmas.esperaSegundos + 3) * 1000);
     expect(rise.n).toBe(ZOMBIE.fantasmas.porVez);
     const snap = await a.p.next('zsnap', (m) => (m.g?.length ?? 0) > 0, 2000);
     expect(snap.g).toHaveLength(ZOMBIE.fantasmas.porVez);

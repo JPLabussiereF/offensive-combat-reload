@@ -171,12 +171,17 @@ export const ZOMBIE = { ...data, mapas: { cemiterio: { ...cemiterio.zumbi, lapid
    */
   totem: { custo: number; alcance: number; intervaloSegundos: number; dinheiro: number; xp: number };
   /**
-   * The haunted graves: standing on a tombstone calls `porVez` ghosts at once and `porVez` more every
-   * `intervaloSegundos` up there. They fly after that player through walls for `duracaoSegundos`, hit for `dano`
+   * The haunted graves: `esperaSegundos` in a row on a tombstone call `porVez` ghosts, and `porVez` more every
+   * `intervaloSegundos` up there. They come down from the sky (`ceuAltura` above the player, up to `ceuRaio` away,
+   * diving at `mergulho` until close). They fly after that player through walls for `duracaoSegundos`, hit for `dano`
    * (each again after `recargaSegundos`, the player at most once every `golpeIntervaloSegundos`) and never die: a knife
    * swing scares those within `sustoFaca` m, a grenade those within `sustoGranada` m of the blast.
    */
   fantasmas: {
+    esperaSegundos: number;
+    ceuAltura: number;
+    ceuRaio: number;
+    mergulho: number;
     porVez: number;
     intervaloSegundos: number;
     duracaoSegundos: number;
