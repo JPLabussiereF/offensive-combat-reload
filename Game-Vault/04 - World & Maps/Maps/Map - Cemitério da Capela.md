@@ -119,6 +119,7 @@ Os do [[Zombie|modo zumbi]]: sobreviver às ondas. Pontos de interesse: o caixã
 ## Zonas especiais
 
 - **Faixas das brechas** (dentro da espessura do muro): na navmesh, cada uma é um polígono à parte com a sua flag ([[ADR - Barricadas como polígonos próprios na navmesh]]); uma barricada fechada tira esse polígono do mapa dos zumbis.
+- **Lápides assombradas**: subir em qualquer lápide (141, dentro e fora do muro) chama fantasmas que perseguem quem subiu ([[Zombie]]). O topo de cada uma é a caixa do colisor dela (`TOMB_BOXES` em `shared/tombs.ts`, a mesma tabela que o mapa usa).
 - **Raio de trabalho** de uma brecha: 2,4 m do centro, dos dois lados (`barricadas.alcance`).
 - **Espinhos** (`thornsAt` em `shared/barricades.ts`, números em `espinhos`): a grade do muro (fora das brechas) e a **sebe** (`zumbi.sebe` em `cemiterio.json`; na main era `mapas.cemiterio.sebe` em `shared/data/zumbi.json`). Conta quem está com os pés a 0,3 m do chão ou mais e a até 0,5 m da linha do muro ou 0,8 m da linha da sebe: em pé no chão, o corpo do jogador (raio 0,35 m) nunca chega tão perto, então só quem sobe leva. Os espinhos desenhados (pontas claras nos trilhos e na face da sebe) são só visuais, sem colisão; a navmesh não muda. Regra em [[Zombie]].
 

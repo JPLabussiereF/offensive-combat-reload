@@ -9,7 +9,7 @@ import { gunStats, grenadeStats, type Loadout } from '@shared/arsenal';
 import { isGun, progOf } from '@shared/progression';
 import { explosionDamage, type HitRegion } from '@shared/weapons';
 import type { ClientMsg, ServerMsg, Vec3 } from '@shared/protocol';
-import { grenadeDamageToZombie, gunDamageToZombie, isBoss, knifeDamageToZombie, weaponMul, zombieLoadout, type ZombieMapData } from '@shared/zombies';
+import { grenadeDamageToZombie, gunDamageToZombie, isBoss, knifeDamageToZombie, weaponMul, ZOMBIE, zombieLoadout, type ZombieMapData } from '@shared/zombies';
 import { ZombieMatch } from '@shared/zombieMatch';
 import type { ZombieLink } from './link';
 
@@ -101,6 +101,8 @@ export class LocalZombies implements ZombieLink {
       case 'boom': {
         const blast = grenadeStats([]).explosao;
         for (const h of msg.zs ?? []) m.damage(h.z, me, grenadeDamageToZombie(explosionDamage(blast, h.dist), m.wave), 'grenade');
+        // The haunted graves' ghosts never die: a blast scares them away.
+        m.scareGhosts(msg.p, ZOMBIE.fantasmas.sustoGranada);
         return;
       }
       case 'box':
@@ -108,6 +110,9 @@ export class LocalZombies implements ZombieLink {
         return;
       case 'totem':
         m.useTotem(me);
+        return;
+      case 'zscare':
+        m.knifeScare(me);
         return;
       case 'barricade':
         m.barricadeWork(me, msg.i, msg.on);

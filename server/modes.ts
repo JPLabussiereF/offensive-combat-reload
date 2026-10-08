@@ -11,8 +11,9 @@ import { loadoutKnife, type GunStats, type Loadout } from '@shared/arsenal';
 import type { WeaponId } from '@shared/progression';
 import { critRegion, explosionDamage, HIT_REGIONS, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
 import { afterDeath, afterKill, GUN_GAME, ladderLoadout, ladderStart, type LadderPos } from '@shared/gunGame';
-import { grenadeDamageToZombie, gunDamageToZombie, isBoss, kindScale, knifeDamageToZombie, startItems, weaponMul, zombieLoadout, type ZKind } from '@shared/zombies';
+import { grenadeDamageToZombie, gunDamageToZombie, isBoss, kindScale, knifeDamageToZombie, startItems, weaponMul, ZOMBIE, zombieLoadout, type ZKind } from '@shared/zombies';
 import { ZombieMatch, type ZombieHost } from '@shared/zombieMatch';
+import { tombsOf } from '@shared/tombs';
 import { addZombieStat, loadoutOf, stickerAdd } from './progress';
 import { loadNavmesh } from './navmesh';
 import type { MapRuntime } from './maps';
@@ -194,7 +195,9 @@ class ZombieMode implements SessionMode {
   private disposed = false;
 
   constructor(private host: ModeHost) {
-    const data = host.map.data.zumbi;
+    const zumbi = host.map.data.zumbi;
+    // The haunted graves: this map's own tombstones (an editor-made map with stones gets them too).
+    const data = zumbi && { ...zumbi, lapides: tombsOf(host.map.data.pecas) };
     if (!data) {
       console.error(`[zumbi] o mapa ${host.map.id} não tem dados do modo zumbi`);
       return;
@@ -312,9 +315,16 @@ class ZombieMode implements SessionMode {
     );
   }
 
+  /** The last snapshot carried ghosts (so the one after they're all gone still goes out). */
+  private hadGhosts = false;
+
   snapshot(): ServerMsg | null {
     const m = this.match;
-    if (!m || (m.phase !== 'wave' && m.zombies.size === 0)) return null;
+    if (!m) return null;
+    // Ghosts can be out between waves too (the haunted graves); one more snapshot once they're gone clears them.
+    const ghosts = m.ghosts.size > 0;
+    if (m.phase !== 'wave' && m.zombies.size === 0 && !ghosts && !this.hadGhosts) return null;
+    this.hadGhosts = ghosts;
     return m.snapshot();
   }
 
@@ -340,6 +350,8 @@ class ZombieMode implements SessionMode {
         return m.useBox(p.id);
       case 'totem':
         return m.useTotem(p.id);
+      case 'zscare':
+        return m.knifeScare(p.id);
       case 'revive':
         if (typeof msg.id === 'number') m.revive(p.id, msg.id, !!msg.on);
         return;
@@ -389,6 +401,8 @@ class ZombieMode implements SessionMode {
   blast(p: SPlayer, at: Vec3, reached: { z: number; dist: number }[], blast: GrenadeLevel) {
     const m = this.match;
     if (!m) return;
+    // The haunted graves' ghosts never die: a blast scares them away.
+    m.scareGhosts(at, ZOMBIE.fantasmas.sustoGranada);
     const seen = new Set<number>();
     for (const h of reached.slice(0, 64)) {
       const z = typeof h?.z === 'number' ? m.hittable(h.z) : null;

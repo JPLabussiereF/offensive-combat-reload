@@ -6,6 +6,7 @@
 // bonfire, the giant pumpkin, the grandfather clock, glowing mushrooms and bats.
 // Static pieces go through the MapBuilder batches; only animated props are separate meshes. Every gag is
 // registered on the PropBus, so online everyone in the session sees the same thing.
+import { TOMB_BOXES, type TombKind } from '@shared/tombs';
 import * as THREE from 'three';
 import { fitText } from './canvasText';
 import RAPIER from '@dimforge/rapier3d-compat';
@@ -409,7 +410,7 @@ export function deadTree(b: MapBuilder, x: number, z: number, scale: number, ran
   if (o.collide !== false) b.cuboidCollider(V(x + lx * 0.2 * s, y + h * 0.32, z + lz * 0.2 * s), V(0.3 * s, h * 0.32, 0.3 * s), NO_ROT, 'wood', undefined, 'trunk');
 }
 
-export type TombKind = 'arco' | 'cruz' | 'laje' | 'obelisco';
+export type { TombKind };
 
 /**
  * Tombstone at (x, z) facing `yaw` (0 = its face looks toward +Z), slightly crooked. Returns where an
@@ -426,30 +427,28 @@ export function tombstone(b: MapBuilder, x: number, z: number, yaw: number, kind
     b.addGeometry(geo, mat, t);
     geo.dispose();
   };
-  const collide = (cx: number, cy: number, cz: number, hx: number, hy: number, hz: number) => b.cuboidCollider(V(cx, cy, cz).applyMatrix4(m), V(hx, hy, hz), q, 'concrete');
+  // The collider is the shared table's box (shared/tombs.ts): the zombie match tells who stands on a stone by it.
+  const { c, h } = TOMB_BOXES[kind];
+  b.cuboidCollider(V(...c).applyMatrix4(m), V(...h), q, 'concrete');
   const face = (y: number, depth: number, w: number, h: number) => ({ at: V(0, y, depth + 0.012).applyMatrix4(m), yaw, w, h, tilt: q.clone() });
   put(new THREE.BoxGeometry(0.95, 0.16, 0.45).translate(0, 0.08, 0), SPOOKY.stoneDark);
   if (kind === 'arco') {
     put(new THREE.BoxGeometry(0.72, 0.8, 0.18).translate(0, 0.56, 0));
     put(new THREE.CylinderGeometry(0.36, 0.36, 0.18, 14, 1, false, -Math.PI / 2, Math.PI).rotateX(Math.PI / 2).translate(0, 0.96, 0));
-    collide(0, 0.66, 0, 0.36, 0.66, 0.1);
     return face(0.72, 0.09, 0.62, 0.62);
   }
   if (kind === 'cruz') {
     put(new THREE.BoxGeometry(0.18, 1.55, 0.16).translate(0, 0.9, 0));
     put(new THREE.BoxGeometry(0.8, 0.18, 0.16).translate(0, 1.22, 0));
-    collide(0, 0.85, 0, 0.12, 0.85, 0.1);
     return face(0.62, 0.08, 0.16, 0.5);
   }
   if (kind === 'laje') {
     put(new THREE.BoxGeometry(0.9, 0.28, 1.9).translate(0, 0.14, -0.9));
     put(new THREE.BoxGeometry(0.8, 0.62, 0.16).translate(0, 0.47, 0.05));
-    collide(0, 0.3, -0.45, 0.45, 0.3, 1.0);
     return face(0.5, 0.13, 0.7, 0.45);
   }
   put(new THREE.CylinderGeometry(0.12, 0.3, 2.1, 4, 1).rotateY(Math.PI / 4).translate(0, 1.2, 0));
   put(new THREE.ConeGeometry(0.15, 0.3, 4).rotateY(Math.PI / 4).translate(0, 2.4, 0));
-  collide(0, 1.2, 0, 0.24, 1.2, 0.24);
   return face(0.8, 0.18, 0.3, 0.4);
 }
 

@@ -19,6 +19,7 @@ import { t, type StringKey } from '../ui/strings';
 import { ZombieView, Zombie } from './view';
 import { Coffin } from './coffin';
 import { Totem } from './totem';
+import { GhostView } from './ghosts';
 import { BarricadeView } from './barricades';
 import { flawText } from './ambience';
 import type { ZombieLink } from './link';
@@ -70,6 +71,8 @@ export class ZombieClient {
   readonly coffin: Coffin;
   /** The chapel's totem (the no-break vigil), where the map has one. */
   readonly totem: Totem | null;
+  /** The haunted graves' ghosts (drawn where the match says they are). */
+  readonly ghosts: GhostView;
   /** The vigil is on (for the rest of the match). */
   totemOn = false;
   readonly barricades: BarricadeView;
@@ -119,6 +122,7 @@ export class ZombieClient {
     this.view = new ZombieView(game.world, game.scene, game.registry, game.sfx, game.effects, { ear: () => game.feet() });
     this.coffin = new Coffin(game.scene, game.physics, this.map.caixa, game.sfx);
     this.totem = this.map.totem ? new Totem(game.scene, this.map.totem) : null;
+    this.ghosts = new GhostView(game.scene);
     this.barricades = new BarricadeView(game.scene, game.physics, this.map.barricadas, game.sfx, game.effects);
     this.bars = this.map.barricadas.map(() => emptyBarricade());
     if (sync) this.applySync(sync);
@@ -186,6 +190,7 @@ export class ZombieClient {
     const L = this.link;
     const g = this.game;
     L.on('zsnap', (m) => {
+      this.ghosts.snapshot(m.g);
       this.view.snapshot(m.time, m.z, m.boss?.[0]);
       this.left = m.left;
       this.boss = m.boss ? { id: m.boss[0], hp: m.boss[1], max: m.boss[2], kind: this.bossKind } : null;
@@ -248,6 +253,17 @@ export class ZombieClient {
         this.slowUntil = m.until;
       }
       g.shake(m.fx === 'charge' ? 0.9 : 0.5);
+    });
+    L.on('zghost', (m) => {
+      const at = new THREE.Vector3(...m.at);
+      if (m.fx === 'scare') {
+        g.effects.burst('debris', at.setY(at.y + 0.2), new THREE.Vector3(0, 1, 0), 14, 0xf1f4ff);
+        return;
+      }
+      g.sfx.ghostMoan();
+      if (m.target !== this.me) return;
+      g.hud.showBanner(t('zGhostsYou'), 'bird');
+      g.hud.notice(t('zGhostsHint', { s: ZOMBIE.fantasmas.duracaoSegundos }));
     });
     L.on('ztotem', (m) => {
       this.totemOn = m.on;
@@ -435,6 +451,11 @@ export class ZombieClient {
   }
 
   // --- E: the coffin, revives and barricades ---------------------------------------------------------------------
+
+  /** Our knife swung: with ghosts close by, the match is told (it scares the ones in reach). */
+  knifeSwing() {
+    if (this.ghosts.count && this.ghosts.near(this.game.feet().clone().setY(this.game.feet().y + 1.1), ZOMBIE.fantasmas.sustoFaca + 0.5)) this.link.send({ t: 'zscare' });
+  }
 
   private nearTotem(): boolean {
     if (!this.totem) return false;
@@ -658,6 +679,7 @@ export class ZombieClient {
     this.view.update(this.link.renderTime(), dt, now);
     this.coffin.update(dt, now);
     this.totem?.update(dt);
+    this.ghosts.update(dt);
     this.barricades.update(dt);
     this.view.render(dt, now);
     this.renderMarkers();
