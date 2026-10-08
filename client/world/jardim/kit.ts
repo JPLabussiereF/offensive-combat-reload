@@ -549,9 +549,9 @@ export function bambooGrove(c: Ctx, r: Rect, density = 1.1) {
     const geo = new THREE.CylinderGeometry(rad * 0.8, rad, h, 5).translate(0, h / 2, 0).rotateZ(lean).translate(sx, 0, sz);
     b.addGeometry(geo, paint, rand() < 0.5 ? 0x7cb342 : 0x689f38, true);
     geo.dispose();
-    // Bare stalks, no leafy tops: their nodes all the way up.
+    // Bare stalks, no leafy tops: their nodes all the way up (open rings: their caps barely show, PF-35).
     for (let y = 0.7 + rand() * 0.5; y < h - 0.3; y += 1.1) {
-      b.addGeometry(new THREE.CylinderGeometry(rad * 1.3, rad * 1.3, 0.05, 5).translate(sx - Math.sin(lean) * y, y, sz), paint, 0x557a2b, false);
+      b.addGeometry(new THREE.CylinderGeometry(rad * 1.3, rad * 1.3, 0.05, 5, 1, true).translate(sx - Math.sin(lean) * y, y, sz), paint, 0x557a2b, false);
     }
   }
   const inset = Math.min(0.3, w / 4, d / 4);

@@ -121,7 +121,8 @@ export class SkyLanterns {
   constructor(scene: THREE.Scene) {
     // A paper tube, wider at the top, lit from inside: brightest toward its open bottom where the candle
     // burns (the flame shows there), the paper deepening to orange toward the top.
-    const bodyGeo = new THREE.CylinderGeometry(0.42, 0.33, 0.95, 10, 4, true).toNonIndexed();
+    // 34 triangles (PF-35): six sides, the flame 4 × 3 (they float tens of meters up, by the hundred).
+    const bodyGeo = new THREE.CylinderGeometry(0.42, 0.33, 0.95, 6, 1, true).toNonIndexed();
     const p = bodyGeo.getAttribute('position');
     const top = new THREE.Color(0xd8742c);
     const bottom = new THREE.Color(0xffe0a0);
@@ -130,8 +131,8 @@ export class SkyLanterns {
     for (let i = 0; i < p.count; i++) colArr.set(c.copy(bottom).lerp(top, Math.pow((p.getY(i) + 0.475) / 0.95, 0.8)).toArray(), i * 3);
     bodyGeo.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
     const rim = mergeColoredParts([
-      { geo: new THREE.CircleGeometry(0.42, 10).rotateX(-Math.PI / 2), color: 0x8a3a12, pos: [0, 0.475, 0] },
-      { geo: new THREE.SphereGeometry(0.09, 6, 4), color: 0xfff6d8, pos: [0, -0.4, 0], scale: [1, 1.4, 1] },
+      { geo: new THREE.CircleGeometry(0.42, 6).rotateX(-Math.PI / 2), color: 0x8a3a12, pos: [0, 0.475, 0] },
+      { geo: new THREE.SphereGeometry(0.09, 4, 3), color: 0xfff6d8, pos: [0, -0.4, 0], scale: [1, 1.4, 1] },
     ]);
     const geo = mergeGeometriesSafe([bodyGeo, rim]);
     this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false }), SKY_N);

@@ -1046,10 +1046,10 @@ export class Lanterns {
     this.vel = new Float32Array(n * 2);
     this.at = new Float32Array(n * 3);
     const geo = mergeColoredParts([
-      // Light on purpose: there are over a hundred of them, all drawn every frame.
-      { geo: new THREE.SphereGeometry(0.3, 11, 8), color: 0xff4a32, pos: [0, 0, 0], scale: [1, 1.15, 1] },
-      { geo: new THREE.CylinderGeometry(0.308, 0.308, 0.035, 11, 1, true), color: 0xffd36b, pos: [0, 0.12, 0] },
-      { geo: new THREE.CylinderGeometry(0.308, 0.308, 0.035, 11, 1, true), color: 0xffd36b, pos: [0, -0.12, 0] },
+      // Light on purpose: there are over a hundred of them, all drawn every frame (8 × 6 and bands of 8 sides, PF-35).
+      { geo: new THREE.SphereGeometry(0.3, 8, 6), color: 0xff4a32, pos: [0, 0, 0], scale: [1, 1.15, 1] },
+      { geo: new THREE.CylinderGeometry(0.308, 0.308, 0.035, 8, 1, true), color: 0xffd36b, pos: [0, 0.12, 0] },
+      { geo: new THREE.CylinderGeometry(0.308, 0.308, 0.035, 8, 1, true), color: 0xffd36b, pos: [0, -0.12, 0] },
       { geo: new THREE.CylinderGeometry(0.13, 0.17, 0.08, 8), color: 0xf2b84a, pos: [0, 0.37, 0] },
       { geo: new THREE.CylinderGeometry(0.17, 0.13, 0.08, 8), color: 0xf2b84a, pos: [0, -0.37, 0] },
       { geo: new THREE.ConeGeometry(0.06, 0.34, 5), color: 0xc42020, pos: [0, -0.58, 0], rot: [Math.PI, 0, 0] },
