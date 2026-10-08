@@ -1,7 +1,7 @@
 // In-match HUD (section 5): DOM updated by direct reference, numbers throttled by the caller.
 import { IS_MOBILE } from '../core/device';
 import { gamepad } from '../core/gamepad';
-import { t } from './strings';
+import { locale, t } from './strings';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -284,7 +284,7 @@ export class Hud {
     if (money === null || money === this.zmoney) return;
     const grew = money > this.zmoney && this.zmoney >= 0;
     this.zmoney = money;
-    $('zmoney-num').textContent = money.toLocaleString('pt-BR');
+    $('zmoney-num').textContent = money.toLocaleString(locale());
     if (!grew) return;
     this.zmoneyEl.classList.remove('bump');
     void this.zmoneyEl.offsetWidth;

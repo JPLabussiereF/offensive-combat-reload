@@ -8,12 +8,12 @@ import type { GameModeId } from '@shared/modes';
 import { WAVES } from '@shared/zombies';
 import { levelForXp, PROGRESSION, type ProgWeapon } from '@shared/progression';
 import type { RebindableAction } from '../core/keybinds';
-import { getLang, t, type StringKey } from './strings';
+import { locale, t, type StringKey } from './strings';
 
 // No DOM here (the tests type-check without it): the names come straight from the strings, as in client/ui/arsenal.ts.
 const upgradeName = (w: ProgWeapon, id: string) => t(`upg_${w}_${id}` as StringKey);
 const progName = (w: ProgWeapon) => t(`prog_${w}` as StringKey);
-const points = (n: number) => n.toLocaleString(getLang() === 'en' ? 'en' : 'pt-BR', { maximumFractionDigits: 0 });
+const points = (n: number) => n.toLocaleString(locale(), { maximumFractionDigits: 0 });
 
 export type PausePlace = 'online' | 'bots' | 'range';
 export type BotSkill = 'facil' | 'normal' | 'dificil';

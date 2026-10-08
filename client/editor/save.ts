@@ -10,6 +10,7 @@ import { MAP_BUDGET, validateMapData, type MapData, type TipoMapa } from '@share
 import { isEquipe, type Papel } from '@shared/roles';
 import { ApiError, api } from '../net/api';
 import { forceBase } from './recovery';
+import { locale } from '../ui/strings';
 import { et } from './strings';
 
 /** The map being edited on the server (id null: a new map, not saved yet). */
@@ -67,7 +68,7 @@ export function saveErrorOf(err: unknown): SaveError {
       return new SaveError(et('errStale', { v: String(x.atual ?? '?') }), [], err.code, Number.isInteger(x.atual) ? (x.atual as number) : null);
     case 'orcamento_excedido': {
       const over = ((x.excedeu as string[]) ?? []).map((k) => (k === 'drawCalls' ? et('budgetDrawCalls') : et('budgetTriangles'))).join(', ');
-      return new SaveError(et('errBudget', { o: over, dc: String(x.drawCalls ?? '?'), tri: Number(x.triangulos ?? 0).toLocaleString(), dcMax: MAP_BUDGET.drawCalls, triMax: MAP_BUDGET.triangulos.toLocaleString() }), [], err.code);
+      return new SaveError(et('errBudget', { o: over, dc: String(x.drawCalls ?? '?'), tri: Number(x.triangulos ?? 0).toLocaleString(locale()), dcMax: MAP_BUDGET.drawCalls, triMax: MAP_BUDGET.triangulos.toLocaleString(locale()) }), [], err.code);
     }
     case 'mapa_invalido':
       return new SaveError(et('errInvalid'), (x.erros as string[]) ?? [], err.code);

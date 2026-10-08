@@ -3,7 +3,7 @@
 import { NAME_MAX, PASSWORD_MAX, type ApiErrorCode } from '@shared/account';
 import type { Sex } from '@shared/protocol';
 import { api, ApiError } from '../net/api';
-import { t, type StringKey } from './strings';
+import { locale, t, type StringKey } from './strings';
 
 export type AuthView = 'login' | 'register' | 'forgot' | 'reset' | 'name';
 
@@ -31,7 +31,7 @@ const ERRORS: Partial<Record<ApiErrorCode | 'offline', StringKey>> = {
   offline: 'errOffline',
 };
 
-export const formatDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
+export const formatDate = (iso: string) => new Date(iso).toLocaleDateString(locale(), { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 /** A message for an API error code (from an ApiError, or from a `#erro=` redirect). */
 export function errorText(err: unknown): string {
