@@ -17,7 +17,7 @@ import { GAME_MODE_IDS, modeAllowsMap, MODE_RULES } from '@shared/modes';
 import type { MapData } from '@shared/mapData';
 import { officialRuntime } from '../maps';
 import type { ServerMsg, Vec3 } from '@shared/protocol';
-import { gateFlag, insideWall, thornsAt, WALK_FLAG } from '@shared/barricades';
+import { gateFlag, insideWall, thornsAt, WALK_FLAG, wallBetween } from '@shared/barricades';
 import { TOMB_BOXES, tombUnder, type Tomb } from '@shared/tombs';
 import { treesOf, treeUnder, type Trunk } from '@shared/trees';
 import { onAltar } from '@shared/altar';
@@ -1061,5 +1061,67 @@ describe('altar (sacrilégio) e árvores (corvos)', () => {
     match.leave(1);
     expect(of(h, 'zcrows').at(-1)).toEqual({ t: 'zcrows', id: 1, on: false });
   });
+});
+
+describe('zumbi não arranha através da grade (PF-16)', () => {
+  const open = () => true;
+  const shut = () => false;
+
+  it('o muro fica no meio quando a linha entre os dois cruza as grades ou uma brecha fechada', () => {
+    const m = MAP();
+    // Across the west wall's bars (the west gap is at z = 5).
+    expect(wallBetween(m, [-20.6, 0, -6], [-19.4, 0.1, -6], open)).toBe(true);
+    // Across the west gap: open, nothing in between; shut by boards, the boards are.
+    expect(wallBetween(m, [-20.6, 0, 5], [-19.4, 0.1, 5], open)).toBe(false);
+    expect(wallBetween(m, [-20.6, 0, 5], [-19.4, 0.1, 5], shut)).toBe(true);
+    // Through the gate (north side, z = 18).
+    expect(wallBetween(m, [0.5, 0, 18.7], [0.2, 0.1, 17.4], open)).toBe(false);
+    expect(wallBetween(m, [6, 0, 18.7], [6, 0.1, 17.4], open)).toBe(true);
+    // Both inside, or both outside: never.
+    expect(wallBetween(m, [-19, 0, -6], [-18, 0, -6], shut)).toBe(false);
+    expect(wallBetween(m, [-22, 0, -6], [-21, 0, -6], shut)).toBe(false);
+  });
+
+  it('parado colado na grade por fora, o zumbi não acerta quem está logo atrás dela; na brecha aberta, acerta', () => {
+    // West wall: the bars at z = 1, the west gap (open) at z = 5. A zombie that can't walk, put against the wall
+    // outside, and the player right behind it inside, within a swipe's reach of each other.
+    for (const [z0, through] of [[1, false], [5, true]] as const) {
+      waveOf('comum', 1);
+      Object.assign(ZOMBIE.tipos.comum, { andar: [0, 0], correr: [0, 0] });
+      MAP().surgir = [[-24, 0, z0]];
+      const feet: Vec3 = [-19.6, 0.1, z0];
+      const hits: Vec3[] = [];
+      const f = fake([feet], 3, (_id, _amount, from) => hits.push([...from]));
+      for (let s = 0; s < 30 && !f.match.zombies.size; s++) f.step(1);
+      const z = [...f.match.zombies.values()][0];
+      z.agent.teleport({ x: -20.75, y: 0, z: z0 });
+      f.step(0.2);
+      expect(insideWall(MAP(), z.pos)).toBe(false);
+      expect(Math.hypot(z.pos[0] - feet[0], z.pos[2] - feet[2])).toBeLessThan(ZOMBIE.tipos.comum.alcance);
+      f.step(4);
+      expect({ z0, hit: hits.length > 0 }).toEqual({ z0, hit: through });
+      f.match.dispose();
+      Object.assign(ZOMBIE, structuredClone(ORIGINAL));
+    }
+  }, 30_000);
+
+  it('o Segurança (alcance maior) não arranha através da grade quem está encostado nela por dentro', () => {
+    // Against the bars the navmesh keeps a zombie 0.75 m off the wall's line: 1.37 m from a player pressed on the
+    // inside, beyond a plain zombie's reach (1.3) but within the bruiser's (1.7) and the bosses'.
+    waveOf('brutamontes', 1);
+    Object.assign(ZOMBIE.tipos.brutamontes, { andar: [0, 0], correr: [0, 0] });
+    MAP().surgir = [[-24, 0, 1]];
+    const feet: Vec3 = [-19.38, 0.1, 1];
+    const hits: Vec3[] = [];
+    const f = fake([feet], 3, (_id, _amount, from) => hits.push([...from]));
+    for (let s = 0; s < 30 && !f.match.zombies.size; s++) f.step(1);
+    const z = [...f.match.zombies.values()][0];
+    expect(z.kind).toBe('brutamontes');
+    z.agent.teleport({ x: -20.75, y: 0, z: 1 });
+    f.step(0.2);
+    expect(Math.hypot(z.pos[0] - feet[0], z.pos[2] - feet[2])).toBeLessThan(ZOMBIE.tipos.brutamontes.alcance);
+    f.step(5);
+    expect(hits).toHaveLength(0);
+  }, 30_000);
 });
 

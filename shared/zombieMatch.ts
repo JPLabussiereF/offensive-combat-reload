@@ -35,6 +35,7 @@ import {
   needsWork,
   smashesThrough,
   thornsAt,
+  wallBetween,
 } from './barricades';
 import { tombUnder } from './tombs';
 import { treeUnder } from './trees';
@@ -1325,6 +1326,8 @@ export class ZombieMatch {
     // The way to its target: around the shut gaps, or through one, tearing the boards down (the bruiser and the
     // bosses always; everyone else only when no gap is left open).
     const cross = insideWall(this.map, z.pos) !== insideWall(this.map, t.feet);
+    // The bars (or the boards) in between: no swipe through them, it goes around (or tears the boards down).
+    const walled = cross && this.walled(z.pos, t.feet);
     const through = cross && (smashesThrough(z.kind) || this.bars.every(isClosed));
     const gap = through ? this.blockingGap(z) : -1;
     if (gap !== z.smash) this.atBoards(z, gap, t);
@@ -1332,7 +1335,7 @@ export class ZombieMatch {
     if (isBoss(z.kind) && this.bossMove(z, t, d, now, standing)) return;
     const type = isBoss(z.kind) ? null : ZOMBIE.tipos[z.kind as ZType];
     const reach = isBoss(z.kind) ? ZOMBIE.chefes[z.kind as BossId].alcance : type!.alcance;
-    if (z.kind === 'inchado' && d <= reach && dy < 2) return this.startAct(z, 'fuse', now + type!.preparo * 1000);
+    if (z.kind === 'inchado' && d <= reach && dy < 2 && !walled) return this.startAct(z, 'fuse', now + type!.preparo * 1000);
     if (z.kind === 'cuspidor') {
       const s = type!.cuspe!;
       if (d >= s.minimo && d <= s.alcance && dy < 3 && now >= (z.cd.spit ?? 0) && this.clearLine(z.pos, t.feet)) {
@@ -1347,13 +1350,18 @@ export class ZombieMatch {
         return;
       }
     }
-    if (d <= reach && dy < 2 && now >= z.nextAttack && z.kind !== 'inchado') {
+    if (d <= reach && dy < 2 && now >= z.nextAttack && z.kind !== 'inchado' && !walled) {
       z.yaw = yawTo(t.feet[0] - z.pos[0], t.feet[2] - z.pos[2]);
       const windup = isBoss(z.kind) ? ZOMBIE.chefes[z.kind as BossId].preparo : type!.preparo;
       return this.startAct(z, 'swipe', now + windup * 1000);
     }
     if (gap >= 0) return this.smashBoards(z, gap, now);
     this.chase(z, t.feet, now);
+  }
+
+  /** The wall stands between `a` and `b` (off the open gaps): a swipe can't reach through. */
+  private walled(a: Vec3, b: Vec3): boolean {
+    return wallBetween(this.map, a, b, (i) => !isClosed(this.bars[i]));
   }
 
   /** The shut gap a zombie stands at, in its way (its target is on the other side of the wall); -1: none. */
@@ -1460,7 +1468,8 @@ export class ZombieMatch {
     switch (act) {
       case 'swipe': {
         const reach = isBoss(z.kind) ? ZOMBIE.chefes[z.kind as BossId].alcance : ZOMBIE.tipos[z.kind as ZType].alcance;
-        if (t?.state === 'up' && dist2(z.pos, t.feet) <= reach + 0.6 && Math.abs(t.feet[1] - z.pos[1]) < 2.2) this.host.hurt(t.id, zombieHit(z.kind, wave), z.pos);
+        // Still in reach when it lands, and nothing of the wall in between (the target may have stepped behind the bars).
+        if (t?.state === 'up' && dist2(z.pos, t.feet) <= reach + 0.6 && Math.abs(t.feet[1] - z.pos[1]) < 2.2 && !this.walled(z.pos, t.feet)) this.host.hurt(t.id, zombieHit(z.kind, wave), z.pos);
         z.nextAttack = now + (isBoss(z.kind) ? ZOMBIE.chefes[z.kind as BossId].recarga : ZOMBIE.tipos[z.kind as ZType].recarga) * 1000;
         break;
       }
