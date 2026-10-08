@@ -29,7 +29,7 @@ import {
 } from '@shared/progression';
 import type { ServerMsg } from '@shared/protocol';
 import { computeDamage, explosionDamage, HIT_REGIONS } from '@shared/weapons';
-import { gunDamageToZombie, grenadeDamageToZombie, itemOf, itemSlot, knifeDamageToZombie, rarityMul, startItems, withItem, ZOMBIE, zombieGunData, zombieLoadout } from '@shared/zombies';
+import { gunDamageToZombie, grenadeDamageToZombie, itemOf, knifeDamageToZombie, rarityMul, startItems, withItem, ZOMBIE, zombieGunData, zombieLoadout } from '@shared/zombies';
 import { Progress } from '../gameplay/progress';
 import { pickGun } from '../ai/botGuns';
 import { LocalZombies } from '../zombies/local';
@@ -302,7 +302,7 @@ beforeAll(async () => {
 });
 
 describe('zumbi sozinho (LocalZombies)', () => {
-  it('o mesmo motor e as mesmas regras de dano do servidor: rifle inicial, faca, granada e a arma do caixão com as melhorias dela', () => {
+  it('o mesmo motor e as mesmas regras de dano do servidor: pistola inicial, faca, granada e a arma do caixão com as melhorias dela', () => {
     // Wave 1: only the gravedigger, standing still and harmless; a cheap, quick coffin whose first weapon comes
     // intact (the damaged roll comes after).
     Object.assign(ZOMBIE, { inicioSegundos: 0.2 });
@@ -318,7 +318,7 @@ describe('zumbi sozinho (LocalZombies)', () => {
     const heard: Loadout[] = [];
     const solo = new LocalZombies(navMesh, ZOMBIE.mapas.cemiterio!, { me: 1, name: 'Sozinho', hurt: (n) => hurt.push(n), setLoadout: (lo) => handed.push(lo), newMatch: () => {} });
     solo.on('playerLoadout', (m) => heard.push(m.lo));
-    // Whatever the account has, the solo game starts with the plain rifle.
+    // Whatever the account has, the solo game starts with the plain Doorman's Pistol.
     expect(solo.loadout).toEqual(zombieLoadout(startItems()));
 
     let feet: [number, number, number] = [0, 0.1, -17];
@@ -333,7 +333,8 @@ describe('zumbi sozinho (LocalZombies)', () => {
       solo.send(msg);
       return before - boss.hp;
     };
-    expect(lost({ t: 'zhit', z: boss.id, region: 'peito', dist: 10, w: 'rifle' })).toBe(gunDamageToZombie(gunStats('rifle'), 10, 'peito', 1, 1, true));
+    expect(solo.loadout.primaria).toBe('pistola');
+    expect(lost({ t: 'zhit', z: boss.id, region: 'peito', dist: 10, w: 'pistola' })).toBe(gunDamageToZombie(gunStats('pistola'), 10, 'peito', 1, 1, true));
     expect(lost({ t: 'zstab', z: boss.id })).toBe(knifeDamageToZombie(1));
     expect(lost({ t: 'boom', id: 1, p: [0, 0.1, -25], hits: [], zs: [{ z: boss.id, dist: 2 }] })).toBe(grenadeDamageToZombie(explosionDamage(grenadeStats([]).explosao, 2), solo.match.wave));
 
@@ -346,7 +347,8 @@ describe('zumbi sozinho (LocalZombies)', () => {
     const offer = itemOf(solo.match.sync().box.item)!;
     expect(offer).toBeDefined();
     solo.send({ t: 'box' });
-    const lo = zombieLoadout({ ...startItems(), [itemSlot(offer)]: offer.id });
+    // The coffin's rule: a rifle moves the starting pistol to the secondary; another sidearm goes beside it.
+    const lo = zombieLoadout(withItem(startItems(), offer, null));
     expect(handed.at(-1)).toEqual(lo);
     expect(heard.at(-1)).toEqual(lo);
     expect(solo.loadout).toEqual(lo);

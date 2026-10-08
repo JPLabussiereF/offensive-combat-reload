@@ -51,7 +51,7 @@ updated: 2026-10-07
 
 # Zombie
 
-**Zumbi** (`'zumbi'` em [[Shared Systems|shared/modes.ts]]): sobrevivência **cooperativa em ondas** no [[Map - Cemitério da Capela]], um mapa **só deste modo**. A vizinhança morreu e voltou: os zumbis sobem das covas do campo do lado de fora do muro do cemitério e só entram pelas **cinco brechas** dele, que o time pode **barricar** para mandar a horda para onde quer. Cada zumbi morto dá **XP de conta** a quem matou (só online, decidido pelo servidor) e **dinheiro da partida**, gasto no **Caixão Misterioso** (armas aleatórias, que às vezes vêm **danificadas**) e em **barricadas**. Todo mundo começa com o mesmo Rifle Padrão sem melhorias: **comprar armas é a progressão do modo**. São **12 ondas** e **3 chefes**; sobreviver à última vence.
+**Zumbi** (`'zumbi'` em [[Shared Systems|shared/modes.ts]]): sobrevivência **cooperativa em ondas** no [[Map - Cemitério da Capela]], um mapa **só deste modo**. A vizinhança morreu e voltou: os zumbis sobem das covas do campo do lado de fora do muro do cemitério e só entram pelas **cinco brechas** dele, que o time pode **barricar** para mandar a horda para onde quer. Cada zumbi morto dá **XP de conta** a quem matou (só online, decidido pelo servidor) e **dinheiro da partida**, gasto no **Caixão Misterioso** (armas aleatórias, que às vezes vêm **danificadas**) e em **barricadas**. Todo mundo começa só com a mesma **Pistola do Porteiro** sem melhorias: **comprar armas é a progressão do modo** (o Rifle Padrão sai do caixão). São **12 ondas** e **3 chefes**; sobreviver à última vence.
 
 > As regras globais (movimento, tiro, hitboxes, coletáveis) são as de [[Game Rules]], [[Combat]] e [[Damage System]]. Esta nota registra o que difere. Decisões: [[ADR - Modo zumbi cooperativo com caixão e raridades]] (design original), [[ADR - Mapa exclusivo e barricadas no modo zumbi]] (mapa e barricadas), [[ADR - Caixão fixo com armas danificadas]] (o caixão, no lugar do pato), [[ADR - Zumbis simulados no servidor sobre navmesh pré-gerada]] e [[ADR - Barricadas como polígonos próprios na navmesh]] (arquitetura).
 
@@ -84,7 +84,7 @@ Um só time: todos os jogadores da sessão contra os zumbis. **Não há fogo ami
 
 | Item | No modo zumbi |
 |---|---|
-| Primária | **Rifle Padrão sem melhorias**, o mesmo para todos: as armas (rifle, secundária, faca) e as melhorias do Arsenal da conta **não valem** aqui (`startItems`, `zombieLoadout`) |
+| Primária | **Pistola do Porteiro sem melhorias** (`pistolaInicial`, raridade inicial ×1), a mesma para todos, na mão da primária; o rifle vem do caixão. As armas (rifle, secundária, faca) e as melhorias do Arsenal da conta **não valem** aqui (`startItems`, `zombieLoadout`) |
 | Secundária | vazia até sair uma do caixão |
 | Faca | a faca de cozinha (golpe rápido `F`/`V`): **120 de dano** contra zumbis (mata um zumbi da onda 1, depois só ajuda); o Sabre de Luz do caixão multiplica pela raridade |
 | Granadas | 2 granadas de fragmentação básicas (sem mina nem Dose Dupla), **devolvidas só no intervalo** entre ondas (não recarregam com o tempo). Contra zumbis o dano cresce 25% por onda (`armas.granadaPorOnda`) |
@@ -185,12 +185,13 @@ Um caixão velho com um "?" brilhando e um **feixe de luz** que se vê de longe,
 - `E` perto dele (2,2 m): paga **$950** e gira (3,5 s, as armas passam piscando). Para numa arma, que fica flutuando, na cor da raridade, por **8 s** só para quem pagou: `E` de novo pega. Não pegou, perdeu (é assim que se recusa uma arma).
 - O sorteio é **no servidor** online (`rollBox` e `rollFlaw`, `Math.random` do servidor): a raridade pelo peso, uma arma dela e, por cima, **se vem danificada**. **Nunca sai a arma que você já tem intacta naquele lugar** (uma cópia danificada pode sair de novo).
 - A arma nova vai para o **lugar dela** (rifle → primária; qualquer secundária → secundária; sabre → faca; `itemSlot` usa `PRIMARIES`) e a que estava lá **é jogada fora**.
+- **A pistola inicial** fica na mão da primária: quando sai um rifle, ele vai para a primária e a pistola passa para a secundária (se estiver vazia), em vez de ser jogada fora; quando sai outra pistola do mesmo tipo (a Pistola do Porteiro comum), ela toma o lugar da inicial; outra arma de mão (grampeador, garrucha...) fica na secundária, ao lado dela (`withItem`). O dano de cada uma é o da raridade dela, esteja na primária ou na secundária (`itemOfGun` procura a arma nos dois lugares).
 - **A raridade multiplica o dano contra zumbis** (não muda o comportamento da arma).
 
 | Raridade | Chance | Dano × | Vem danificada | Armas (arma + melhorias fixas) |
 |---|---|---|---|---|
-| Inicial | — | 1,0 | nunca | Rifle Padrão (só no começo) |
-| Comum | 50% | 1,4 | 25% | Rifle com Ponto Vermelho; Rifle Silencioso (ponto vermelho + silenciador); Pistola do Porteiro; Pistola da Batata; Liquidificador; **Grampeador do RH**; **Revólver do Delegado da Quadrilha** |
+| Inicial | — | 1,0 | nunca | Pistola do Porteiro (só no começo) |
+| Comum | 50% | 1,4 | 25% | **Rifle Padrão**; Rifle com Ponto Vermelho; Rifle Silencioso (ponto vermelho + silenciador); Pistola do Porteiro; Pistola da Batata; Liquidificador; **Grampeador do RH**; **Revólver do Delegado da Quadrilha** |
 | Rara | 32% | 1,9 | 18% | Rifle Firme (ponto vermelho + empunhadura); Rifle do Vovô (empunhadura + luneta); Pistola Ligeira (gatilho + ponto vermelho + coldre); Liquidificador com Motor (motor + holográfica); **Furadeira do Vizinho de Domingo**; **Garrucha do Cangaceiro** |
 | Épica | 14% | 2,6 | 12% | Rifle Remendado (empunhadura + pente); Liquidificador Turbo (motor + holo + coronha); Liquidificador Pipoqueiro (motor + holo + tambor); **Pistolão do Marombeiro** |
 | Lendária | 4% | 3,5 | **6%** | Rifle Completo (ponto vermelho + empunhadura + pente); Liquidificador Supremo (as 4); **Sabre de Luz Paraguaio** (o item `{ "arma": "faca", "faca": "sabre" }`: a faca vira o sabre, 420 por golpe) |
@@ -253,7 +254,7 @@ Decidido pelo motor (`ZombieMatch.useTotem`): no servidor online (mensagem `tote
 
 - Vida a zero **durante uma onda** (zumbi, chefe, queda, a própria granada; **não** cair para fora do mapa): você **cai** (`Session.onLethal` → `ZombieMatch.lethal`). Caído não anda, não atira, a câmera fica rente ao chão, a tela mostra "CAÍDO!" e quanto falta para sangrar; os zumbis passam a ignorar você.
 - Um colega fica a até 2,5 m e **segura E por 3 s** ("Segure para reanimar Fulano", cruz vermelha sobre quem caiu, vista através das paredes): você levanta com 50% da vida e ele ganha $100 e 10 XP. Afastar-se ou soltar cancela. Reanimar tem prioridade sobre o caixão e as barricadas no `E`.
-- Ninguém veio em **30 s**: você **sangra até morrer** e fica fora até o **intervalo**; volta lá com o **rifle inicial** (as armas do caixão se perdem) e com o seu dinheiro.
+- Ninguém veio em **30 s**: você **sangra até morrer** e fica fora até o **intervalo**; volta lá com a **pistola inicial** (as armas do caixão se perdem) e com o seu dinheiro.
 - No fim de cada onda, quem está caído levanta sozinho. Morrer fora de uma onda (uma queda no intervalo) é o renascimento comum de 5 s ([[Respawn]]).
 - **Quem entra com uma onda em andamento espera ela acabar**: fica de fora como os mortos ("Onda em andamento — você entra quando esta onda acabar", vendo o pátio de um ponto de nascimento) e entra no **começo do intervalo**, com $500 e o rifle inicial; as barricadas chegam como estão. Antes da primeira onda e nos intervalos, entra na hora. Quem ainda está esperando quando a partida acaba não ganha a vitória (XP e estatísticas) nem conta a partida: não jogou. Sair e voltar zera dinheiro e armas. (Antes, quem entrava no meio da onda já entrava de pé.)
 
