@@ -1416,7 +1416,8 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     // camera
     if (move) {
       move.t = Math.min(1, move.t + dt / move.dur);
-      const e = smoother(move.t);
+      // clamped: the polynomial gives 1.0000000000000013 for t = 0.9999999999999987, and the curve read past its end breaks
+      const e = clamp(smoother(move.t), 0, 1);
       cam.position.copy(move.curve.getPointAt(e));
       cam.quaternion.slerpQuaternions(move.q0, move.q1, smoother(clamp((move.t - 0.04) / 0.9, 0, 1)));
       cam.fov = lerp(move.fov0, move.fov1, e); cam.filmOffset = lerp(move.film0, move.film1, e); cam.updateProjectionMatrix();
