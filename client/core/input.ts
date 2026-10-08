@@ -226,6 +226,14 @@ export class Input {
     return hit;
   }
 
+  /**
+   * True once per press of one physical key (`KeyD`), whatever action it's bound to: for keys that mean
+   * something else only when the actions can't be used (zumbi: switching who we watch while out, with D and F).
+   */
+  consumeKey(code: string): boolean {
+    return this.pressed.delete(code);
+  }
+
   /** Whether the action was pressed since it was last consumed, without consuming it. */
   peek(a: Action): boolean {
     return this.vPressed.has(a) || BINDINGS[a].some((c) => this.pressed.has(c));

@@ -95,6 +95,7 @@ Ver [[Grenades]] e [[Buffs & Debuffs]].
 
 - **Death cam offline:** na morte, um raio para baixo acha o chão; em 0,6 s o olho desce até 0,4 m acima dele e a câmera inclina (pitch −0,4 rad, roll 0,5 rad).
 - **Death cam online/contra bots:** 3 m atrás do corpo e 2,2 m acima, olhando para quem matou (se vivo), suavizada com taxa 4/s. Serve para ver a própria [[Humiliation]]. Ver [[Flow - Death and Respawn]].
+- **Assistir um colega (zumbi, online):** fora da onda, depois de 2 s, a câmera vai para os olhos de um colega de pé: a posição dele (interpolada como o corpo dele) mais a altura dos olhos (`MOVE.eyeStand`, `eyeCrouch` agachado, ×0,32 caído; suavizada a 12/s), o yaw e o pitch dele, sem tremor nem inclinação. O FOV segue a mira dele (`ads.zoom` da arma dele, suavizado). Os braços e a arma dele vêm de um segundo `Viewmodel` no `vmScene`, criado só na primeira vez. Ver [[Zombie]].
 - **Humiliation (terceira pessoa):** câmera orbital (`Taunt.cameraPose`): raio 3,3 m, altura 1,5 m, gira 0,5 rad/s em volta do jogador, com raio contra paredes (mínimo 0,6 m). A posição e a rotação são misturadas com a de primeira pessoa por `taunt.blend`; o avatar só aparece com `blend > 0.15` e o viewmodel some com `blend ≥ 0.5`.
 
 ## Outros consumidores da câmera

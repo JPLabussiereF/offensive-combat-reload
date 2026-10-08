@@ -1127,6 +1127,63 @@ html:not(.mobile) #chat-close {
   letter-spacing: 0.04em;
   color: var(--hud-dim);
 }
+/* Zumbi, watching a teammate: the death card steps aside (no red, at the top) and the view is theirs. */
+#death.spectating {
+  background: none;
+  align-items: flex-start;
+  padding-top: calc(96px + var(--safe-t, 0px));
+}
+#death.spectating #death-msg {
+  font-size: 22px;
+}
+#spectate {
+  position: absolute;
+  left: 50%;
+  bottom: calc(150px + var(--safe-b));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: var(--hud-glass);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  text-align: center;
+  text-shadow: var(--hud-shadow);
+}
+#spectate button {
+  pointer-events: auto;
+  width: 36px;
+  height: 36px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 10px;
+  background: none;
+  color: #fff;
+  font: 900 14px var(--body);
+  cursor: pointer;
+}
+#spec-label {
+  font: 900 11px var(--body);
+  letter-spacing: 0.12em;
+  color: var(--hud-dim);
+}
+#spec-name {
+  font: 400 22px var(--display);
+  line-height: 1.1;
+}
+#spec-info {
+  font: 800 13px var(--body);
+}
+#spec-hint {
+  margin-top: 2px;
+  font: 700 11px var(--body);
+  color: var(--hud-dim);
+}
+#spec-hint.hidden {
+  display: none;
+}
 @keyframes popin-card {
   from {
     transform: scale(0.8);

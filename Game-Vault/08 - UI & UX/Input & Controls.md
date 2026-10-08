@@ -56,6 +56,7 @@ flowchart LR
 | Trocar de arma (a outra) | roda do mouse (para baixo; alternativa: para cima) | direcional ← / → | botão de troca (acima do pular) |
 | Oprimir / interagir | E | △ / Y | tocar no prompt |
 | Zumbi: doar / recusar a arma que o caixão oferece ([[Zombie]]) | Z / X | — | — |
+| Zumbi, fora da onda: assistir o colega anterior / o próximo ([[Zombie]]) | D / F (teclas físicas, fixas: fora da onda não se anda nem se ataca) | LB / RB | setas da barra "Assistindo" |
 | Placar (segurar) | Tab | Share/View ou touchpad | botão (alterna) |
 | Chat | Enter, alternativa T | — | botão |
 | Pausa (no menu: volta um nível) | Esc (fixo) | Options / Menu abre e volta ao jogo; ◯ / B volta um nível | botão |

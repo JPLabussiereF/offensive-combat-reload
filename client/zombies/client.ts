@@ -133,6 +133,11 @@ export class ZombieClient {
     this.listen();
   }
 
+  /** Online, out until the break (bled out, or joined during a wave): the game shows a teammate's view (spectate.ts). */
+  get outOfWave() {
+    return this.link.online && this.diedInWave && !this.game.alive();
+  }
+
   /** Joined during a wave and still waiting for the break (the game shows the wait instead of spawning us). */
   get waitingToJoin() {
     return this.joinedInWave && this.diedInWave;
