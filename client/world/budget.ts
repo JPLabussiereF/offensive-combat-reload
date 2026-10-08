@@ -17,12 +17,20 @@ export interface BudgetView {
 }
 
 export interface BudgetReport extends BudgetSample {
-  /** The worst camera pass (without the shadow): the most draw calls and the most triangles, and where each was seen. */
-  camera: BudgetSample & { piorChamadas: BudgetView; piorTriangulos: BudgetView };
+  /**
+   * The worst camera pass (without the shadow): the most draw calls and the most triangles, and where each was
+   * seen; and the median sample camera's (half the cameras see more, half see less).
+   */
+  camera: BudgetSample & { piorChamadas: BudgetView; piorTriangulos: BudgetView; mediana: BudgetSample };
   /** The sun's shadow pass (the same every frame: the sun doesn't move). */
   sombra: BudgetSample;
   /** How many cameras were tried. */
   amostras: number;
+  /**
+   * Instances at scale zero inside an InstancedMesh's count (a pool's empty slots): sent to the GPU every frame
+   * for nothing, whatever the camera (pools aren't culled). Draw calls: the meshes with nothing but those.
+   */
+  fantasmas: BudgetSample & { instancias: number };
   /** What's over MAP_BUDGET (empty: it fits). */
   excedeu: ('drawCalls' | 'triangulos')[];
 }
@@ -164,8 +172,8 @@ export function measureBudget(scene: THREE.Object3D, o: BudgetOptions): BudgetRe
   cam.rotation.order = 'YXZ';
   const frustum = new THREE.Frustum();
   const m = new THREE.Matrix4();
-  const worst: BudgetReport['camera'] = { drawCalls: 0, triangulos: 0, piorChamadas: { onde: [0, 0, 0], yaw: 0 }, piorTriangulos: { onde: [0, 0, 0], yaw: 0 } };
-  let samples = 0;
+  const worst: BudgetReport['camera'] = { drawCalls: 0, triangulos: 0, piorChamadas: { onde: [0, 0, 0], yaw: 0 }, piorTriangulos: { onde: [0, 0, 0], yaw: 0 }, mediana: { drawCalls: 0, triangulos: 0 } };
+  const seen: BudgetSample[] = [];
   for (const p of spots) {
     for (let k = 0; k < YAWS; k++) {
       const yaw = (k / YAWS) * Math.PI * 2;
@@ -174,17 +182,52 @@ export function measureBudget(scene: THREE.Object3D, o: BudgetOptions): BudgetRe
       cam.updateMatrixWorld(true);
       frustum.setFromProjectionMatrix(m.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
       const s = pass(list, frustum, false);
-      samples++;
+      seen.push(s);
       if (s.drawCalls > worst.drawCalls) [worst.drawCalls, worst.piorChamadas] = [s.drawCalls, { onde: [...p], yaw }];
       if (s.triangulos > worst.triangulos) [worst.triangulos, worst.piorTriangulos] = [s.triangulos, { onde: [...p], yaw }];
     }
   }
+  worst.mediana = { drawCalls: median(seen.map((s) => s.drawCalls)), triangulos: median(seen.map((s) => s.triangulos)) };
+  const { malhas: _, ...fantasmas } = ghostInstances(scene);
   const drawCalls = worst.drawCalls + sombra.drawCalls;
   const triangulos = Math.round(worst.triangulos + sombra.triangulos);
   const excedeu: BudgetReport['excedeu'] = [];
   if (drawCalls > MAP_BUDGET.drawCalls) excedeu.push('drawCalls');
   if (triangulos > MAP_BUDGET.triangulos) excedeu.push('triangulos');
-  return { drawCalls, triangulos, camera: { ...worst, triangulos: Math.round(worst.triangulos) }, sombra: { ...sombra, triangulos: Math.round(sombra.triangulos) }, amostras: samples, excedeu };
+  return { drawCalls, triangulos, camera: { ...worst, triangulos: Math.round(worst.triangulos) }, sombra: { ...sombra, triangulos: Math.round(sombra.triangulos) }, amostras: seen.length, fantasmas, excedeu };
+}
+
+/** The middle value (the mean of the two middle ones for an even count), rounded; 0 for none. */
+function median(values: number[]): number {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const h = sorted.length >> 1;
+  return Math.round(sorted.length % 2 ? sorted[h] : (sorted[h - 1] + sorted[h]) / 2);
+}
+
+/** Instances at scale zero within each InstancedMesh's count (BudgetReport.fantasmas), with the meshes they're in. */
+export function ghostInstances(scene: THREE.Object3D): BudgetReport['fantasmas'] & { malhas: { nome: string; instancias: number; triangulos: number }[] } {
+  const out = { drawCalls: 0, triangulos: 0, instancias: 0, malhas: [] as { nome: string; instancias: number; triangulos: number }[] };
+  const m = new THREE.Matrix4();
+  scene.traverseVisible((o) => {
+    const inst = o as THREE.InstancedMesh;
+    if (!inst.isInstancedMesh || inst.count === 0) return;
+    const cost = costOf(inst);
+    if (!cost || !cost.triangles) return;
+    let zero = 0;
+    for (let i = 0; i < inst.count; i++) {
+      inst.getMatrixAt(i, m);
+      if (Math.abs(m.determinant()) < 1e-12) zero++;
+    }
+    if (!zero) return;
+    const tris = (cost.triangles / inst.count) * zero;
+    out.instancias += zero;
+    out.triangulos += tris;
+    if (zero === inst.count) out.drawCalls += cost.calls;
+    out.malhas.push({ nome: inst.name || `${(inst.geometry as THREE.BufferGeometry).type} ${(inst.material as THREE.MeshBasicMaterial).color?.getHexString() ?? ''}`, instancias: zero, triangulos: Math.round(tris) });
+  });
+  out.triangulos = Math.round(out.triangulos);
+  return out;
 }
 
 /** A built map's budget, with its data's spawns, sun and shadow. */
