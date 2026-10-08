@@ -141,7 +141,7 @@ async function boot() {
   // The map editor comes in through the home's choice (the Mapas tab's Editar and Novo mapa) or, between
   // reloads, its handoff (client/editor/launch.ts: opening a map's current version again after a 409).
   const handoff = embed ? null : takeHandoff();
-  const picked: HomeChoice = embed ? await embed.choice() : handoff ? handoffChoice(handoff) : await showHome();
+  const picked: HomeChoice = embed ? await embed.choice() : handoff ? handoffChoice(handoff) : await showHome({ software: quality.software });
   if (picked.mode === 'editor') {
     // The editor runs on its own loop: no input, player or HUD; leaving it reloads the page.
     await runEditor({ ctx, quality, physics, mapa: picked.mapa, rascunho: picked.rascunho });

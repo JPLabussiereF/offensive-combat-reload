@@ -4,6 +4,7 @@ type: reference
 status: documented
 area: reference
 source_paths:
+  - client/ui/galpao/galpao.ts
   - server/modes.ts
   - shared/gunGame.ts
   - shared/zombies.ts
@@ -26,7 +27,7 @@ tags:
   - game
   - reference
   - glossary
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Glossário
@@ -201,6 +202,8 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | PadNav | Navegação dos menus pelo controle | [[Input & Controls]] |
 | Trilho / painel do menu de pausa | O trilho (`.pm-rail`: onde se está, voltar, as duas abas, a saída) e o painel da aba aberta (`#pm-panel`) do menu de pausa e do cartão de início; `pauseContext` diz o que o trilho mostra em cada lugar × modo | [[Menus]] · [[ADR - Menu de pausa com trilho e abas]] |
 | `data-pad-back` / `data-pad-explicit` / `data-pad-subtabs` | Marcas para o `PadNav`: o botão que ◯/B aperta / tela que marca o seu voltar em cada nível (sem chutar pelo texto) / subabas que L1/R1 só trocam quando não há outra barra | [[Menus]] |
+| Galpão | `GalpaoHome`, `createGalpao`, `#galpao`, `oc.galpao` | A tela inicial logada em 3D: um galpão com sete **estações** (objetos que seguram as abas: mesa, cortiça, painel perfurado, revista, armário, quadro elétrico, monitor); a home clássica fica sem GPU ou com `oc.galpao` = 'off' | [[Menus]] · [[ADR - Tela inicial em galpão 3D]] |
+| Superfície (galpão) | `.gp-surf`, `bindSurface`, homografia | O elemento DOM de uma estação, preso ao objeto 3D por uma `matrix3d` a cada quadro | [[ADR - Tela inicial em galpão 3D]] |
 | Canvas do Arsenal | `ArsenalCanvas`, `canvasLayout`, `data-pad-pan` | A aba Arsenal da tela inicial: quadros por espaço, armas e melhorias ligadas, câmera com arrastar e zoom, painel de detalhes | [[Inventory UI]] · [[ADR - Arsenal da tela inicial em canvas]] |
 | Primária / Alternativa | Os dois espaços de tecla de cada ação | [[ADR - Teclas remapeáveis com primária e alternativa]] |
 

@@ -4,6 +4,7 @@ type: decision
 status: documented
 area: ui
 source_paths:
+  - client/ui/galpao/arsenalBoard.ts
   - client/ui/arsenalCanvas.ts
   - client/ui/arsenalCanvasLayout.ts
   - client/ui/arsenalTree.ts
@@ -18,7 +19,7 @@ tags:
   - decision
   - ui
   - inventory
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # ADR - Arsenal da tela inicial em canvas
@@ -33,6 +34,9 @@ updated: 2026-10-07
 
 > [!info] Revisão (07/10/2026, PF-11)
 > [[ADR - Menu de pausa com trilho e abas]] tirou a árvore do menu de pausa e do campo de tiro: lá o Arsenal virou a lista dos quatro espaços em uso com o cartão do espaço. O canvas continua só na aba Arsenal da tela inicial, agora como a **única** apresentação da progressão inteira; a primeira consequência abaixo ("duas apresentações…") vale como "o canvas e o cartão da pausa usam o mesmo modelo e o mesmo salvamento".
+
+> [!info] Revisão (08/10/2026, Galpão)
+> [[ADR - Tela inicial em galpão 3D]] trocou a apresentação da tela inicial logada. Onde o galpão roda, o Arsenal da tela inicial é o **painel perfurado** com etiquetas e a ficha da arma (`client/ui/galpao/arsenalBoard.ts`), com o mesmo modelo (`arsenalTree`) e o mesmo salvamento (`Progress`). O canvas desta ADR continua na **home clássica** (renderização por software, sem WebGL ou `oc.galpao` = 'off'), sem mudança.
 
 ## Contexto
 

@@ -4,6 +4,7 @@ type: system
 status: documented
 area: testing
 source_paths:
+  - client/tests/galpaoRules.test.ts
   - client/tests/weapon.test.ts
   - server/tests/secondaries.test.ts
   - client/tests/aimAssist.test.ts
@@ -62,7 +63,7 @@ source_paths:
 tags:
   - testes
   - unitarios
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Unit Tests
@@ -233,6 +234,7 @@ Os mapas são montados **sem tela** no Bun (`tools/headless.ts`: canvas falso, `
 - `client/tests/editorBatches.test.ts` (P46, `client/editor/batches.ts`): no Jardim, o editor com lotes desenha em chamadas próximas às do jogo (o teste imprime: jogo 233, editor sem lotes 1.682, com lotes 142, sem recorte); a peça selecionada sai do lote e volta; as cópias seguem a malha que se move e o raio da seleção acerta a malha da peça, nunca o lote; materiais iguais de peças diferentes dividem um lote e o material que muda sai dele; peça remontada ou apagada troca ou leva as cópias.
 - `client/tests/editorCamera.test.ts` (`client/editor/cameraMath.ts`, etapa 3): frente, direita e cima batem com a câmera do three; olhar para um ponto; olhar em volta e voar; órbita em volta do pivô (a distância fica e ele continua no centro) e em volta do meio da seleção fora do centro (ele fica no mesmo lugar da tela), parando no topo; arrastar leva o ponto do pivô pixel por pixel; a roda aproxima do pivô no meio da tela, vai na direção do cursor fora dele e, na ortográfica, deixa parado o ponto sob o cursor; F põe a caixa inteira na tela; as vistas pelos eixos; a transição gira pelo lado curto.
 - `client/tests/editorTools.test.ts` (`client/editor/tools.ts`): encaixe livre, com Ctrl, com o botão de grade e com passos escolhidos (vírgula aceita, faixas); as escolhas voltam do navegador e o que estiver quebrado volta ao padrão (Pivô, Global); Pivô e Centro (posição, giro e escala do gizmo); eixos Local e Global; girar com o Centro gira em volta do meio da seleção e com o Pivô em volta da ativa; escalar com o Centro espalha e aumenta o que tem escala.
+- `client/tests/galpaoRules.test.ts` (`client/ui/galpao/galpaoRules.ts`): as sete estações na ordem do menu e o Gerenciamento só para a equipe; anterior e próxima dando a volta; a aba de cada estação e a estação de cada aba (os formulários da conta no Perfil); as teclas na visão geral (1–7, Enter só depois de chegar), numa estação (Q/E, setas, Esc fechando antes a ficha da arma) e nada no voo de abertura; quem recebe o galpão (não em renderização por software nem com `oc.galpao` = 'off') e a cena leve.
 - `client/tests/editorBoxSelect.test.ts` (`client/editor/boxSelect.ts`): o retângulo em pixels vira coordenadas da vista; polígono por dentro, por cima, cruzando e a lasca que só tem a caixa por perto; recorte no plano de perto; numa cena com caixotes, chão, uma peça atrás da câmera, uma oculta e uma malha instanciada: o que encosta entra (o chão também), atrás da câmera e oculto não, em perspectiva e na ortográfica de cima; Shift soma, Ctrl alterna.
 - `client/tests/editorClipboard.test.ts` (`client/editor/clipboard.ts`): colar um grupo dá ids novos, os filhos penduram no grupo novo, tudo deslocado, e um desfazer tira tudo; a peça de dentro de um grupo volta para ele ou, com ele apagado, para o topo no mesmo lugar do mundo; a cópia não muda com edições depois; colar duas vezes não repete id nem id de piada, cada rato ganha o seu lugar, a bruxa (uma só) fica de fora; o ponto de colar.
 - `client/tests/editorShortcuts.test.ts` (`client/editor/shortcuts.ts`): Q W E R T, F, F2, Delete, Backspace, Esc; Ctrl (ou Cmd) com Z, Y, Shift+Z, D, C, V, A, G e o que fica para o navegador; nada com um campo de texto em foco; as letras são da câmera com o botão direito; Shift e Alt não trocam ferramenta; o que conta como campo de texto.

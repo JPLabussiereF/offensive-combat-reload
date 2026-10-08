@@ -4,6 +4,10 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - client/ui/galpao/galpaoRules.ts
+  - client/ui/galpao/arsenalBoard.ts
+  - client/ui/galpao/scene.ts
+  - client/ui/galpao/galpao.ts
   - client/zombies/ambience.ts
   - shared/modes.ts
   - client/ui/ladder.ts
@@ -28,12 +32,12 @@ tags:
   - game
   - ui
   - menus
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Menus
 
-Telas fora da partida e o menu de pausa. Todas vivem em `index.html`; a lógica está em `client/ui/menu.ts` (classe `Screens`: carregamento e menu início/pausa), `client/ui/pauseMenu.ts` (regras puras do menu de pausa) e `client/ui/home.ts` (tela inicial).
+Telas fora da partida e o menu de pausa. Todas vivem em `index.html`; a lógica está em `client/ui/menu.ts` (classe `Screens`: carregamento e menu início/pausa), `client/ui/pauseMenu.ts` (regras puras do menu de pausa), `client/ui/home.ts` (tela inicial) e `client/ui/galpao/` (a tela inicial logada em 3D, o Galpão).
 
 ## 1. Tela de carregamento (`#loading`)
 
@@ -45,7 +49,38 @@ Telas fora da partida e o menu de pausa. Todas vivem em `index.html`; a lógica 
 
 Página rolável com duas caras, conforme a conta (`/api/me`). Enquanto a consulta não volta, nenhuma das duas aparece. Os textos vêm de atributos `data-t` preenchidos por `t()` (`client/ui/strings.ts`).
 
-### 2.1 Logado (`#home-in`)
+### 2.0 Logado: o Galpão (`#galpao`)
+
+Desde 08/10/2026 ([[ADR - Tela inicial em galpão 3D]], design "Galpão Home"), quem está logado e tem WebGL por GPU vê a tela inicial como um **galpão 3D**. As abas da seção 2.1 continuam as mesmas (marcação, regras, chamadas): o galpão só as **apresenta**, movendo cada painel `#tab-*` para dentro de um objeto da cena (`GalpaoHome` em `client/ui/galpao/galpao.ts`; cena em `scene.ts`).
+
+```text
+           visão geral (câmera atrás da mesa do boneco)                     numa estação
+┌ OFFENSIVE COMBAT                          [retrato Nome#1234 Nv]  ┐   ┌ OFFENSIVE COMBAT / JOGAR              [conta] ┐
+│                                   ┌ ENTRADA RÁPIDA        ENTER ┐ │   │      a aba presa no objeto (homografia)       │
+│   galpão 3D (luz, poeira,         │ Mata-mata · Online · mapas  │ │   │                                               │
+│   boneco, objetos das estações)   └─────────────────────────────┘ │   │                                               │
+│                                   01 JOGAR      02 MAPAS  …       │   │                                               │
+│                                   07 GERENCIAMENTO (equipe)       │   │ [‹ GALPÃO Esc]   dica   [Q ‹ ant. 01/07 próx. › E] │
+└───────────────────────────────────────────────────────────────────┘   └───────────────────────────────────────────────┘
+```
+
+| Estação | Objeto | Aba |
+| --- | --- | --- |
+| 01 Jogar | mesa tática com o mapa | `#tab-play` em três colunas de cartões e o botão laranja (entrada rápida, contra N bots ou campo de tiro) |
+| 02 Mapas | quadro de cortiça | `#tab-maps` |
+| 03 Arsenal | painel perfurado com as armas penduradas | etiquetas e ficha da arma (ver [[Inventory UI]]) |
+| 04 Álbum | revista na mesa (a capa abre, as abas viram a página em 3D) | `#tab-album` em página dupla |
+| 05 Perfil | armário com a placa do jogador | `#tab-profile` e `#tab-auth` (nome, editor de personagem) |
+| 06 Configurações | quadro elétrico | `#tab-settings` (o `#menu-settings` emprestado), painel escuro |
+| 07 Gerenciamento | monitor de segurança (só equipe) | `#tab-management`, painel escuro |
+
+- **Abertura:** barra "MONTANDO O GALPÃO" / "ACENDENDO AS LUZES" enquanto a cena é montada, depois um voo de ~3 s até a visão geral (sem voo com `prefers-reduced-motion`).
+- **Teclas:** na visão geral, **1–7** vão às estações e **Enter** é a entrada rápida; numa estação, **Q/E** ou setas trocam de estação e **Esc** volta (no Arsenal, primeiro fecha a ficha). Clicar num objeto na visão geral também leva à estação; passar o mouse destaca o objeto e o item do menu.
+- **Começar uma partida:** a porta de enrolar sobe, a luz invade e aparece "ENTRANDO NA PARTIDA" com o nome da sessão (ou o modo) e o mapa; depois o jogo carrega como antes. O editor de mapas sai direto.
+- **Avisos:** o `#home-status` vira o aviso escuro acima da barra.
+- **Sem galpão** (renderização por software, sem WebGL, ou `localStorage['oc.galpao'] = 'off'`): fica a tela da seção 2.1.
+
+### 2.1 Logado sem galpão (`#home-in`)
 
 - **Cabeçalho:** logo, abas **JOGAR / MAPAS / ARSENAL / ÁLBUM / PERFIL / CONFIGURAÇÕES** e, só para admin e moderador (`papeis` de `/api/me`), **GERENCIAMENTO** (`role="tab"`, L1/R1 no controle) e um botão da conta com o retrato do personagem (`renderPortrait`, close no rosto), `Nome#1234`, selo de nível e barra de XP da conta (`xpNoNivel / xpProximo`). O botão abre a aba Perfil.
 - **Cartão do personagem** (lateral, fixo ao rolar no computador; empilhado no celular): o **personagem real** da conta em 3D (o mesmo palco `Stage` do editor, `client/ui/customize.ts`: parado, girando devagar, arrastar gira; sem zoom pela roda para não travar a rolagem), os ícones do que vai para a partida — primária, secundária escolhida, faca e granada, com a forma ligada (ex.: "🔫 🛎️ 🐔 🧨 equipados"; `weaponIcon`), abates e partidas, botão **PERSONALIZAR** (abre o editor de [[Character Customization]] no lugar do painel, que ocupa a largura toda) e, no modo Online, **JOGAR ONLINE** com a dica "Entra direto na sessão mais cheia dos mapas filtrados".
