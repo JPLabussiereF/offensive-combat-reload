@@ -150,6 +150,16 @@ describe('carregar o que foi salvo', () => {
   });
 });
 
+describe('teclas do caixão no modo zumbi', () => {
+  it('Z doa e X recusa por padrão, e um save antigo (sem elas) ganha essas teclas', () => {
+    expect(DEFAULT_KEYBINDS.donate).toEqual(['KeyZ', null]);
+    expect(DEFAULT_KEYBINDS.refuse).toEqual(['KeyX', null]);
+    const old = mergeKeybinds({ jump: ['Space', null] });
+    expect(old.donate).toEqual(['KeyZ', null]);
+    expect(old.refuse).toEqual(['KeyX', null]);
+  });
+});
+
 describe('tabela usada pelo Input', () => {
   it('junta as duas teclas, pula os vazios e inclui as fixas', () => {
     const r = assign(DEFAULT_KEYBINDS, 'jump', 1, 'KeyV');

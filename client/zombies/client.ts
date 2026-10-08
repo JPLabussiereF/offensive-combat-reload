@@ -5,7 +5,7 @@
 // barricade (held). It reports our hits on zombies; it never decides one: the match does.
 import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
-import type { PlayerInfo, ServerMsg, Vec3, ZBarricade, ZombieSync, ZPhase } from '@shared/protocol';
+import type { BoxInfo, PlayerInfo, ServerMsg, Vec3, ZBarricade, ZombieSync, ZPhase } from '@shared/protocol';
 import type { GunStats } from '@shared/arsenal';
 import { critRegion, type HitRegion } from '@shared/weapons';
 import { emptyBarricade, inGap, inReach, insideWall, needsWork } from '@shared/barricades';
@@ -43,6 +43,8 @@ export interface ZombieGame {
   /** Where we look (yaw, the game's convention: 0 looks down -Z), for the HUD's arrows. */
   yaw(): number;
   nameOf(id: number): string;
+  /** The key an action is on, for the coffin's hints (null: none, or no keyboard in use: a controller, a phone). */
+  keyName(action: 'donate' | 'refuse'): string | null;
   /** Teammates (online): where each one is. */
   teammates(): { id: number; position: THREE.Vector3; alive: boolean }[];
   /** Full ammo and grenades (a wave cleared). */
@@ -274,8 +276,14 @@ export class ZombieClient {
     L.on('zbox', (m) => {
       this.coffin.set(m, L.now());
       if (m.by === this.me && m.money !== undefined) this.money = m.money;
+      // Donated: the weapon stays for anyone else to take.
+      const it = m.state === 'offer' && m.open ? itemOf(m.item) : undefined;
+      if (it) {
+        const names = { item: t(`zitem_${it.id}` as StringKey), rarity: t(`rar_${it.raridade}` as StringKey) };
+        g.hud.notice(m.by === this.me ? t('zBoxYouDonated', names) : t('zBoxDonatedNotice', { ...names, name: g.nameOf(m.by ?? -1) }));
+      }
       // Our roll came out damaged: said loud, before we decide to take it.
-      if (m.state === 'offer' && m.by === this.me && m.flaw) {
+      if (m.state === 'offer' && m.by === this.me && m.flaw && !m.open) {
         g.hud.showBanner(t('zBoxDamagedOffer', { flaw: t(`zFlaw_${m.flaw}` as StringKey) }), 'flaw');
       }
     });
@@ -527,8 +535,8 @@ export class ZombieClient {
   }
 
   /**
-   * E pressed: the coffin's purchase (or taking its weapon) when we're at it. True when E was ours (the coffin,
-   * or a teammate down or a barricade, which are held: see hold).
+   * E pressed: the coffin's purchase (or taking its weapon: ours, or one a teammate donated) when we're at it.
+   * True when E was ours (the coffin, or a teammate down or a barricade, which are held: see hold).
    */
   press(): boolean {
     if (this.downed || !this.game.alive()) return this.downed;
@@ -539,11 +547,41 @@ export class ZombieClient {
     }
     if (this.nearCoffin()) {
       const st = this.coffin.state;
-      if (st.state === 'offer' && st.by === this.me && st.item) this.lastOffer = { item: st.item, flaw: st.flaw };
+      if (this.canTake(st) && st.item) this.lastOffer = { item: st.item, flaw: st.flaw };
       this.link.send({ t: 'box' });
       return true;
     }
     return this.nearGap() !== null;
+  }
+
+  /** Whether E takes the weapon the coffin is offering: our own roll, or one donated by someone else. */
+  private canTake(st: BoxInfo): boolean {
+    return st.state === 'offer' && (st.open ? st.by !== this.me : st.by === this.me);
+  }
+
+  /** The weapon the coffin is offering us, still ours to decide on (donate or turn down), while we're at it. */
+  private ownOffer(): boolean {
+    const st = this.coffin.state;
+    return !this.downed && this.game.alive() && this.nearCoffin() && st.state === 'offer' && st.by === this.me && !st.open;
+  }
+
+  /** Donating only makes sense with someone else in the match to take it. */
+  private canDonate(): boolean {
+    return this.game.teammates().length > 0;
+  }
+
+  /** Z: the weapon the coffin offers us stays there for anyone else to take. True when Z was ours. */
+  donate(): boolean {
+    if (!this.ownOffer() || !this.canDonate()) return false;
+    this.link.send({ t: 'boxDonate' });
+    return true;
+  }
+
+  /** X: the weapon the coffin offers us is turned down (the coffin closes, free to spin again). True when X was ours. */
+  refuse(): boolean {
+    if (!this.ownOffer()) return false;
+    this.link.send({ t: 'boxRefuse' });
+    return true;
   }
 
   /**
@@ -599,10 +637,18 @@ export class ZombieClient {
         return { text: t('zBoxSpinning'), frac: 1 - left / (ZOMBIE.caixa.girarSegundos * 1000) };
       case 'offer': {
         const it = itemOf(st.item);
-        const frac = left / (ZOMBIE.caixa.ofertaSegundos * 1000);
-        if (st.by !== this.me || !it) return { text: t('zBoxOther', { name: this.game.nameOf(st.by ?? -1) }), frac };
+        const frac = left / ((st.open ? ZOMBIE.caixa.doacaoSegundos : ZOMBIE.caixa.ofertaSegundos) * 1000);
+        const name = this.game.nameOf(st.by ?? -1);
+        if (!it || (st.by !== this.me && !st.open)) return { text: t('zBoxOther', { name }), frac };
         const names = { item: t(`zitem_${it.id}` as StringKey), rarity: t(`rar_${it.raridade}` as StringKey) };
-        return { text: st.flaw ? t('zBoxTakeDamaged', { ...names, flaw: t(`zFlaw_${st.flaw}` as StringKey) }) : t('zBoxTake', names), frac };
+        if (st.open && st.by === this.me) return { text: t('zBoxYouDonated', names), frac };
+        const take = st.flaw ? t('zBoxTakeDamaged', { ...names, flaw: t(`zFlaw_${st.flaw}` as StringKey) }) : t('zBoxTake', names);
+        if (st.open) return { text: t('zBoxTakeDonated', { take, name }), frac };
+        // Ours: E takes it, Z leaves it for the others, X turns it down (the keys shown only on a keyboard).
+        const donate = this.canDonate() ? this.game.keyName('donate') : null;
+        const refuse = this.game.keyName('refuse');
+        const hints = [donate && t('zBoxDonateKey', { key: donate }), refuse && t('zBoxRefuseKey', { key: refuse })].filter(Boolean);
+        return { text: [take, ...hints].join(' · '), frac };
       }
     }
   }

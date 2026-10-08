@@ -399,6 +399,11 @@ async function boot() {
           alive: () => !player.dead,
           yaw: () => player.yaw,
           nameOf: (id) => nameOf(id),
+          keyName: (a) => {
+            if (gamepad.device === 'pad' || IS_MOBILE) return null;
+            const k = screens.keyName(a);
+            return k === '—' ? null : k;
+          },
           teammates: () => [...(net?.players.values() ?? [])].map((p) => ({ id: p.id, position: p.position, alive: p.alive })),
           refill: () => {
             for (const g of Object.values(guns)) g.refill();
@@ -1920,6 +1925,9 @@ async function boot() {
         }
       }
       zombies?.hold(input.down('taunt') && !fireIntent);
+      // Zumbi: the weapon the coffin offers us, left there for the others (Z) or turned down (X).
+      if (input.consume('donate')) zombies?.donate();
+      if (input.consume('refuse')) zombies?.refuse();
       // The melee key swings the knife; with only a blade in hand (the lightsaber) the fire button does too.
       const swing = input.consume('melee') || (bladeOnly && (input.consume('fire') || input.down('fire')));
       if (swing && !fireIntent && !taunt.active && !thrower.busy && !downed) startMelee();

@@ -146,6 +146,8 @@ export const ZOMBIE = { ...data, mapas: { cemiterio: { ...cemiterio.zumbi, lapid
     custo: number;
     girarSegundos: number;
     ofertaSegundos: number;
+    /** A donated weapon (Z on our own offer) waits this long in the coffin for someone else to take it. */
+    doacaoSegundos: number;
     alcance: number;
     /**
      * Damaged rolls: the chance by rarity, how likely each flaw is once damaged, and the penalties (fraction

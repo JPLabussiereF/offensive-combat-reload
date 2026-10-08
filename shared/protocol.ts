@@ -130,6 +130,8 @@ export interface BoxInfo {
   flaw: ZFlaw | null;
   /** Server time the current state ends (0: it doesn't). */
   until: number;
+  /** The offer was donated by `by`: anyone else may take it (they can't take it back). */
+  open?: boolean;
 }
 
 /**
@@ -257,6 +259,10 @@ export type ClientMsg =
   | { t: 'zstab'; z: number }
   /** Zumbi: E at the Mystery Coffin: pays and spins it, or takes the weapon it's offering us. */
   | { t: 'box' }
+  /** Zumbi: Z on the coffin's offer to us: it stays there for anyone else to take (with E). */
+  | { t: 'boxDonate' }
+  /** Zumbi: X on the coffin's offer to us: turned down, the coffin closes. */
+  | { t: 'boxRefuse' }
   /** Zumbi: E at the chapel's totem: pays and turns on the no-break vigil for the rest of the match. */
   | { t: 'totem' }
   /** Zumbi: our knife swung (anything in reach or not): ghosts close by are scared away. */

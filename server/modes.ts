@@ -348,6 +348,10 @@ class ZombieMode implements SessionMode {
         return this.onStab(m, p, msg.z, now);
       case 'box':
         return m.useBox(p.id);
+      case 'boxDonate':
+        return m.donateBox(p.id);
+      case 'boxRefuse':
+        return m.refuseBox(p.id);
       case 'totem':
         return m.useTotem(p.id);
       case 'zscare':

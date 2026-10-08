@@ -32,6 +32,8 @@ const ACTION_NAME: Record<RebindableAction, StringKey> = {
   weapon2: 'keyWeapon2',
   swapWeapon: 'keySwapWeapon',
   taunt: 'keyTaunt',
+  donate: 'keyDonate',
+  refuse: 'keyRefuse',
   scoreboard: 'keyScoreboard',
   chat: 'keyChat',
 };

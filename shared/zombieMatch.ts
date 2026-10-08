@@ -250,7 +250,7 @@ export class ZombieMatch {
   /** The ghosts of the haunted graves (whoever stands on a tombstone calls them). */
   readonly ghosts = new Map<number, Ghost>();
   private ghostSeq = 0;
-  private box: BoxInfo & { pending: string | null; pendingFlaw: ZFlaw | null } = { state: 'idle', by: null, item: null, flaw: null, until: 0, pending: null, pendingFlaw: null };
+  private box: BoxInfo & { pending: string | null; pendingFlaw: ZFlaw | null } = { state: 'idle', by: null, item: null, flaw: null, until: 0, open: false, pending: null, pendingFlaw: null };
   private spits: { to: Vec3; at: number; damage: number; radius: number; from: Vec3 }[] = [];
   private waves: Shockwave[] = [];
   /** Zombies about to come out (their spot already shown), and when. */
@@ -321,7 +321,8 @@ export class ZombieMatch {
     this.stopWork(id);
     this.parts.delete(id);
     for (const p of this.parts.values()) if (p.reviving?.target === id) p.reviving = null;
-    if (this.box.by === id && (this.box.state === 'offer' || this.box.state === 'rolling')) this.setBox('idle', null, null, null, 0);
+    // Our own roll goes with us; a weapon we donated stays for the others.
+    if (this.box.by === id && ((this.box.state === 'offer' && !this.box.open) || this.box.state === 'rolling')) this.setBox('idle', null, null, null, 0);
     if (!this.parts.size) this.reset();
   }
 
@@ -341,13 +342,13 @@ export class ZombieMatch {
   }
 
   sync(): ZombieSync {
-    const { state, by, item, flaw, until } = this.box;
+    const { state, by, item, flaw, until, open } = this.box;
     return {
       phase: this.phase,
       wave: this.wave,
       until: this.until,
       total: this.spec.total,
-      box: { state, by, item, flaw, until },
+      box: { state, by, item, flaw, until, ...(open ? { open } : {}) },
       down: [...this.parts.values()].filter((p) => p.state === 'down').map((p) => [p.id, p.downUntil]),
       bars: this.bars.map((b) => ({ ...b })),
       totem: this.totem.on,
@@ -409,14 +410,20 @@ export class ZombieMatch {
   // --- The Mystery Coffin ------------------------------------------------------------------------------------
 
   /**
-   * E at the coffin: takes the weapon it's offering this player, or pays and spins it. The roll (the item, and
-   * whether it comes damaged) is made here when paid; everyone sees it when the coffin stops.
+   * E at the coffin: takes the weapon it's offering this player (or one a teammate donated), or pays and spins
+   * it. The roll (the item, and whether it comes damaged) is made here when paid; everyone sees it when the
+   * coffin stops.
    */
   useBox(id: number) {
     const p = this.parts.get(id);
     if (!p || p.state !== 'up' || this.phase === 'waiting' || this.phase === 'over') return;
     const [x, y, z] = this.map.caixa;
     if (Math.hypot(p.feet[0] - x, p.feet[2] - z) > ZOMBIE.caixa.alcance + 1 || Math.abs(p.feet[1] - y) > 2) return;
+    if (this.box.state === 'offer' && this.box.open) {
+      // Donated: anyone but the donor takes it.
+      if (this.box.by !== id) this.takeBox(p);
+      return;
+    }
     if (this.box.state === 'offer' && this.box.by === id) return this.takeBox(p);
     if (this.box.state !== 'idle' || p.money < ZOMBIE.caixa.custo) return;
     p.money -= ZOMBIE.caixa.custo;
@@ -437,15 +444,32 @@ export class ZombieMatch {
     this.setBox('idle', null, null, null, 0);
   }
 
-  private setBox(state: BoxInfo['state'], by: number | null, item: string | null, flaw: ZFlaw | null, until: number, money?: number) {
-    Object.assign(this.box, { state, by, item, flaw, until });
-    this.host.emit({ t: 'zbox', state, by, item, flaw, until, ...(money !== undefined ? { money } : {}) });
+  /**
+   * Z on the weapon the coffin is offering us: we don't want it, but it stays there (same item, same flaw) for
+   * anyone else to take with E, for a while. It isn't handed to anyone, and we can't take it back.
+   */
+  donateBox(id: number) {
+    const b = this.box;
+    if (!this.parts.has(id) || b.state !== 'offer' || b.by !== id || b.open) return;
+    this.setBox('offer', id, b.item, b.flaw, this.now + ZOMBIE.caixa.doacaoSegundos * 1000, undefined, true);
+  }
+
+  /** X on the weapon the coffin is offering us: turned down, it's gone and the coffin closes (free to spin again). */
+  refuseBox(id: number) {
+    const b = this.box;
+    if (!this.parts.has(id) || b.state !== 'offer' || b.by !== id || b.open) return;
+    this.setBox('idle', null, null, null, 0);
+  }
+
+  private setBox(state: BoxInfo['state'], by: number | null, item: string | null, flaw: ZFlaw | null, until: number, money?: number, open = false) {
+    Object.assign(this.box, { state, by, item, flaw, until, open });
+    this.host.emit({ t: 'zbox', state, by, item, flaw, until, ...(open ? { open } : {}), ...(money !== undefined ? { money } : {}) });
   }
 
   private tickBox(now: number) {
     const b = this.box;
     if (b.state === 'idle' || now < b.until) return;
-    // Left on offer too long: gone (that's how a weapon is turned down).
+    // Left on offer too long (ours, or a donated one nobody took): gone.
     if (b.state === 'rolling') this.setBox('offer', b.by, b.pending, b.pendingFlaw, now + ZOMBIE.caixa.ofertaSegundos * 1000);
     else this.setBox('idle', null, null, null, 0);
   }
@@ -815,7 +839,7 @@ export class ZombieMatch {
     this.waves = [];
     this.offTotem(false);
     this.ghosts.clear();
-    Object.assign(this.box, { state: 'idle', by: null, item: null, flaw: null, until: 0, pending: null, pendingFlaw: null });
+    Object.assign(this.box, { state: 'idle', by: null, item: null, flaw: null, until: 0, open: false, pending: null, pendingFlaw: null });
   }
 
   private clearZombies(announce: boolean) {
