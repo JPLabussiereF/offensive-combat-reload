@@ -26,9 +26,21 @@ const YARD_OUT = V(0.75, 0, 10.4);
 export const RACK = { x0: -1.0, x1: -2.5, y: 1.45, z: 7.93 };
 /** The station's camera (the PF-36 framing) looks from here: the pets on the mat turn to it. */
 const STATION_EYE = V(2.2, 1.3, 4.8);
-/** The roll-up door's threshold (the launch runs out through it). */
-const LAUNCH_DOOR = V(5.9, 0, -7.9);
-const LAUNCH_OUT = V(6.1, 0, -10.8);
+/** The roll-up door's threshold (the launch runs out through it, on the door's left, clear of the play table and of
+ * the drums), crossed RUN_DOOR s in (the white starts at 1.6 s), after a RUN_HOP s jump down. */
+const LAUNCH_DOOR = V(4.0, 0, -7.9);
+const LAUNCH_OUT = V(4.2, 0, -10.8);
+const RUN_DOOR = 1.3;
+const RUN_HOP = 0.35;
+const RUN_AHEAD = 3.6;
+/** The play table (scene.ts tableAt 5.2, -4.5, 3.0 x 1.7) with some room: the run keeps to its left. */
+const PLAY_TABLE = { x: 3.35, z0: -5.7, z1: -3.3 };
+/** The character's hands on the hero table (heroCharacter.ts WRIST): a small pet keeps 0.25 m from them. */
+const HERO_HANDS = [V(-0.66, 0.975, 0.36), V(-0.02, 0.975, 0.33)];
+const HERO_ROOM = 0.25;
+/** How far apart (px) the tags' rows hang, at most three of them, and the room (px) between two tags of a row. */
+const TAG_ROW = 48;
+const TAG_GAP = 4;
 /** The swap's timings (s): on the mat by ENTER, the gesture from GESTURE_AT. */
 const ENTER = 0.7;
 const GESTURE_AT = 0.75;
@@ -101,7 +113,7 @@ export class PetStage {
   /** Where the overview's pet stands, after the menu check (null: hidden). */
   private spot: { at: THREE.Vector3; pose: 'sit' | 'table' } | null = null;
   private spotKey = '';
-  private launching: { runs: boolean; path: THREE.Vector3[] | null; dur: number } | null = null;
+  private launching: { runs: boolean; from: THREE.Vector3 | null; prev: THREE.Vector3 | null; speed: number } | null = null;
   private pick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ visible: false }));
   private peekWas: StationId | null = null;
 
@@ -115,6 +127,11 @@ export class PetStage {
   /** The invisible box around the overview's pet: clicking it goes to the station. */
   get pickables(): THREE.Object3D[] {
     return this.overview && this.spot ? [this.pick] : [];
+  }
+
+  /** Where the overview's pet is (the menu's PETS item hovered: the camera leans toward it), or null. */
+  peekPoint(): THREE.Vector3 | null {
+    return this.overview && this.spot ? this.spot.at.clone().setY(this.spot.at.y + 0.3) : null;
   }
 
   /** The pet shown at the station (its card): the one called in. */
@@ -237,7 +254,7 @@ export class PetStage {
 
   /** The launch: the pet taken along runs out ahead through the roll-up door (`runs` false: it stays, it isn't along). */
   launch(runs: boolean) {
-    this.launching = { runs: runs && !!this.overview && !this.o.reduceMotion, path: null, dur: 1.9 };
+    this.launching = { runs: runs && !!this.overview && !this.o.reduceMotion, from: null, prev: null, speed: 0 };
   }
 
   private buildRack() {
@@ -326,6 +343,12 @@ export class PetStage {
       return;
     }
     const at = V(...s.at);
+    // Room from the character's hands (on the table top): slid outward along the table if it's too close.
+    if (s.pose === 'sit')
+      for (const h of HERO_HANDS) {
+        const d = Math.hypot(at.x - h.x, at.z - h.z);
+        if (d < HERO_ROOM) at.x += Math.sign(at.x - h.x || 1) * Math.sqrt(Math.max(0, HERO_ROOM * HERO_ROOM - (at.z - h.z) ** 2)) - (at.x - h.x);
+      }
     this.spot = { at, pose: s.pose };
     const menu = f.menuRect;
     if (!menu || f.station !== 'home' || !f.arrived) return;
@@ -424,6 +447,7 @@ export class PetStage {
     this.tagReveal = Math.max(0, Math.min(1, this.tagReveal + (want ? f.dt / 0.35 : -f.dt / 0.16)));
     const r = smooth(this.tagReveal);
     const v = V();
+    const shown: { el: HTMLElement; x: number; y: number }[] = [];
     for (const [id, el] of this.tags) {
       if (r <= 0) {
         el.style.visibility = 'hidden';
@@ -435,14 +459,32 @@ export class PetStage {
         el.style.visibility = 'hidden';
         continue;
       }
-      const x = (v.x * 0.5 + 0.5) * f.vw;
-      const y = (0.5 - v.y * 0.5) * f.vh;
+      shown.push({ el, x: (v.x * 0.5 + 0.5) * f.vw, y: (0.5 - v.y * 0.5) * f.vh });
+    }
+    // The hooks are close together (closer still on a phone): left to right, each tag hangs on the highest of three
+    // rows where it clears the one before it, or, with no room in any, a little to the right of its hook, its string
+    // still straight up to the hook. Never on top of each other.
+    shown.sort((a, b) => a.x - b.x);
+    const right = [-Infinity, -Infinity, -Infinity];
+    for (const { el, x, y } of shown) {
+      const w = el.offsetWidth || 60;
+      let row = right.findIndex((edge) => x - w / 2 >= edge + TAG_GAP);
+      let at = x;
+      if (row < 0) {
+        row = right.indexOf(Math.min(...right));
+        at = right[row] + TAG_GAP + w / 2;
+      }
+      right[row] = at + w / 2;
+      const drop = row * TAG_ROW;
       el.style.visibility = 'visible';
       el.style.opacity = r.toFixed(3);
       el.style.pointerEvents = r > 0.9 ? 'auto' : 'none';
-      el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) translate(-50%,0)`;
+      el.style.setProperty('--drop', `${drop + 6}px`);
+      el.style.setProperty('--sx', `${(x - at).toFixed(1)}px`);
+      el.style.transform = `translate(${at.toFixed(1)}px,${(y + drop).toFixed(1)}px) translate(-50%,0)`;
     }
   }
+
 
   // ---- the launch
 
@@ -455,35 +497,49 @@ export class PetStage {
       this.rim.intensity = 0;
       return;
     }
-    if (!L.path) {
-      // From 1 m ahead of the camera and 0.7 m to its side, on the floor, to the roll-up door; a short way gets a
-      // bend so it runs at 4 m/s or more and still crosses the threshold at about 1.9 s.
-      const cam = f.camera;
-      const fwd = V(0, 0, -1).applyQuaternion(cam.quaternion).setY(0).normalize();
-      const right = V(-fwd.z, 0, fwd.x);
-      const start = cam.position.clone().addScaledVector(fwd, 1).addScaledVector(right, 0.7).setY(0);
-      const pts = [start];
-      if (start.distanceTo(LAUNCH_DOOR) < 7.6) pts.push(start.clone().lerp(LAUNCH_DOOR, 0.5).addScaledVector(right, 2.2));
-      pts.push(LAUNCH_DOOR.clone(), LAUNCH_OUT.clone());
-      L.path = pts;
-      const curve = new THREE.CatmullRomCurve3(pts);
-      // The threshold is the second-to-last point: about 1.9 s to get there.
-      const toDoor = curve.getLength() * (1 - 1 / (pts.length - 1)) || 1;
-      L.dur = (curve.getLength() / toDoor) * 1.9;
+    if (!L.from) {
+      L.from = root.position.clone();
       a.pose = restPose();
       a.pose.hover = a.ref.id === 'bruxinha' ? 0.35 : 0;
     }
-    const curve = new THREE.CatmullRomCurve3(L.path);
-    const k = Math.min(1, t / L.dur);
-    const p = curve.getPointAt(k);
-    const ahead = curve.getPointAt(Math.min(1, k + 0.02));
+    // The camera flies to the door faster than a pet runs from where it stood: it runs on the floor RUN_AHEAD m ahead
+    // of the camera (any nearer is under the frame), a little to its left (the play table is on the right), closing
+    // in to cross the threshold at RUN_DOOR s, then on at 4.5 m/s into the light outside (the sky plane 1.6 m out
+    // hides it) before the white comes in. The first RUN_HOP s it jumps down from where it was (the table).
+    const cam = f.camera.position;
+    const c = V(cam.x, 0, cam.z);
+    const toDoor = LAUNCH_DOOR.clone().sub(c);
+    const far = toDoor.length() || 1;
+    const dir = toDoor.divideScalar(far);
+    const u = Math.min(1, t / RUN_DOOR);
+    const p = V();
+    if (u < 1) {
+      const ahead = Math.min(far, RUN_AHEAD + (far - Math.min(far, RUN_AHEAD)) * smooth(u));
+      p.copy(c).addScaledVector(dir, ahead).add(V(dir.z, 0, -dir.x).multiplyScalar(0.4 * (1 - smooth(u))));
+      if (p.z > PLAY_TABLE.z0 && p.z < PLAY_TABLE.z1) p.x = Math.min(p.x, PLAY_TABLE.x);
+    } else {
+      const out = LAUNCH_OUT.clone().sub(LAUNCH_DOOR);
+      const k = Math.min(1, ((t - RUN_DOOR) * 4.5) / out.length());
+      p.copy(LAUNCH_DOOR).addScaledVector(out, k);
+      root.visible = k < 1;
+    }
+    if (t < RUN_HOP) {
+      const k = smooth(t / RUN_HOP);
+      const y = L.from.y * (1 - k) + Math.sin(k * Math.PI) * 0.3;
+      p.lerp(L.from, 1 - k).setY(y);
+    }
+    const prev = L.prev ?? p.clone();
+    const moved = V(p.x - prev.x, 0, p.z - prev.z);
+    if (moved.lengthSq() > 1e-8) root.rotation.y = yawTo(prev, p);
+    L.speed += ((f.dt > 0 ? Math.min(8, moved.length() / f.dt) : 0) - L.speed) * Math.min(1, f.dt * 8);
+    L.prev = p.clone();
     root.position.copy(p);
-    if (ahead.distanceToSquared(p) > 1e-6) root.rotation.y = yawTo(p, ahead);
-    root.visible = k < 1;
-    a.pose.speed = curve.getLength() / L.dur;
+    if (u < 1) root.visible = true;
+    a.pose.speed = L.speed;
     a.anim.update(f.dt, a.pose);
     this.rim.intensity = 0;
   }
+
 
   /** Back from a launch that didn't happen (the home stays). */
   resetLaunch() {

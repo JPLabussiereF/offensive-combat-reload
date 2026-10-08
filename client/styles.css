@@ -7635,6 +7635,15 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   padding: 4px 8px 5px;
   border-radius: 2px;
 }
+.gp-pettag::before {
+  content: '';
+  position: absolute;
+  left: calc(50% + var(--sx, 0px));
+  bottom: 100%;
+  width: 1px;
+  height: var(--drop, 6px);
+  background: rgba(230, 224, 210, 0.55);
+}
 .gp-pettag .gp-tag-line i {
   background: #9a917e;
 }
@@ -7677,6 +7686,19 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   max-height: calc(100% - 120px);
   gap: 8px;
   padding: 10px 12px;
+}
+/* In portrait the card is a sheet along the bottom: the rack, its tags and the doormat are framed above it. */
+@media (orientation: portrait) {
+  .galpao .gp-petcard,
+  .galpao.compact .gp-petcard {
+    top: auto;
+    bottom: 84px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: 44%;
+    transform: none;
+  }
 }
 .pc-state .gp-chip.red,
 .pets-item .gp-chip.red {

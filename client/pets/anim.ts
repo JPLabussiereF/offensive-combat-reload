@@ -142,8 +142,8 @@ export class PetAnimator {
     if (up > 0) {
       const a = up * 1.05;
       body.rotation.x += a;
-      body.position.y += up * 0.2;
-      body.position.z += up * 0.18;
+      body.position.y += up * 0.32;
+      body.position.z += up * 0.16;
       legs[0].rotation.x += up * 0.35 - a + up * 1.3;
       legs[1].rotation.x += up * 0.35 - a + up * 1.3;
       legs[2].rotation.x -= a;

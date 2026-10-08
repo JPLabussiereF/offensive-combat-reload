@@ -512,12 +512,12 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   stencil(st.profile, -9.9, 4.7, -Math.PI / 2); stencil(st.settings, 9.6, -2.6, Math.PI / 2); stencil(st.admin, 6.4, 6.0, Math.PI / 2, 1.8);
   stencil(st.pets, -1.4, 6.55, Math.PI, 1.8);
   // wall zone numerals
-  const wallNum = (txt: string, x: number, y: number, z: number, ry: number) => {
+  const wallNum = (txt: string, x: number, y: number, z: number, ry: number, size = 1.3) => {
     const m = std({ map: textTex([{ t: txt }], { w: 256, h: 256, font: '800 210px "Barlow Condensed", Arial Narrow, sans-serif', fg: 'rgba(225,220,205,1)' }), transparent: true, opacity: 0.55, roughness: 0.9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
-    mesh(new THREE.PlaneGeometry(1.3, 1.3), m, world, x, y, z, 0, ry, 0, false);
+    mesh(new THREE.PlaneGeometry(size, size), m, world, x, y, z, 0, ry, 0, false);
   };
   wallNum('01', 8.6, 3.2, -7.95, 0); wallNum('02', -5.7, 3.4, -7.95, 0); wallNum('03', -11.95, 3.6, -5.0, Math.PI / 2); wallNum('06', 11.95, 3.6, -4.6, -Math.PI / 2);
-  wallNum('07', -1.75, 2.45, 7.95, Math.PI);
+  wallNum('07', -1.75, 2.18, 7.95, Math.PI, 0.8);
 
   // ---------- lights ----------
   const env = new THREE.Scene();
@@ -1180,7 +1180,8 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   const surfOf = (id: CamStation): Surf | undefined => (id === 'home' || id === 'intro' ? undefined : SURF[id]);
   /** The 07 · PETS pose (the PF-36 framing): 3/4 from the right of the door, the card's room on the right. */
   const PETS_POSE = { pos: V(2.2, 1.3, 4.8), target: V(-1.0, 0.8, 7.9), fov: 40, film: 6 };
-  const PETS_PORTRAIT = { target: V(-0.4, 0.7, 7.6), fov: 52 };
+  /** In portrait the card is a sheet along the bottom: from farther back and looking down, wide, the rack and the mat in the top half. */
+  const PETS_PORTRAIT = { pos: V(-1.1, 1.5, 3.8), target: V(-1.2, -0.5, 7.6), fov: 84 };
 
   // ---------- post chain ----------
   const rtOpts = { type: THREE.HalfFloatType, depthBuffer: true };
@@ -1266,7 +1267,7 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     }
     if (id === 'pets') {
       // A fixed pose (no surface to frame): the pet on the mat left of center, the card on the right.
-      if (portrait) return { pos: PETS_POSE.pos.clone(), target: PETS_PORTRAIT.target.clone(), up: V(0, 1, 0), fov: PETS_PORTRAIT.fov, film: 0 };
+      if (portrait) return { pos: PETS_PORTRAIT.pos.clone(), target: PETS_PORTRAIT.target.clone(), up: V(0, 1, 0), fov: PETS_PORTRAIT.fov, film: 0 };
       return { pos: PETS_POSE.pos.clone(), target: PETS_POSE.target.clone(), up: V(0, 1, 0), fov: PETS_POSE.fov, film: vw < 900 ? 4.5 : PETS_POSE.film };
     }
     return surfPose(id);
@@ -1516,7 +1517,8 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     } else if (arrived && station === 'home') {
       const p = poseFor('home');
       const tgt = p.target.clone();
-      if (peekId) { const c = peekId === 'pets' ? PET_MAT.clone().setY(0.6) : surfBasis(SURF[peekId]!).c; tgt.lerp(c, 0.035); }
+      // (the pets' item: toward the pet on the table, if there's one; the door is behind the camera)
+      if (peekId) { const c = peekId === 'pets' ? petStage?.peekPoint() ?? null : surfBasis(SURF[peekId]!).c; if (c) tgt.lerp(c, 0.035); }
       peekT.lerp(tgt, 1 - Math.exp(-dt * 3));
       const breathe = V(Math.sin(time * 0.31) * 0.012, Math.sin(time * 0.43) * 0.008, 0);
       cam.position.copy(p.pos).add(breathe);
