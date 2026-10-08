@@ -42,7 +42,23 @@ function mergeColored(root: THREE.Object3D): THREE.BufferGeometry {
   return mergeGeometries(parts) ?? new THREE.BufferGeometry();
 }
 
+/**
+ * A model's glowing parts (a lightsaber's blade), each as its own geometry in `root`'s space with its own (unlit)
+ * material: the merged mesh leaves them out, which is right for a gun's tiny sight dots but not for a blade.
+ */
+function glowParts(root: THREE.Object3D): { geo: THREE.BufferGeometry; mat: THREE.Material }[] {
+  root.updateMatrixWorld(true);
+  const out: { geo: THREE.BufferGeometry; mat: THREE.Material }[] = [];
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || (m.material as THREE.Material).type !== 'MeshBasicMaterial') return;
+    out.push({ geo: m.geometry.clone().applyMatrix4(m.matrixWorld), mat: m.material as THREE.Material });
+  });
+  return out;
+}
+
 const cache = new Map<string, THREE.BufferGeometry>();
+const glowCache = new Map<string, { geo: THREE.BufferGeometry; mat: THREE.Material }[]>();
 function cached(key: string, make: () => THREE.Object3D): THREE.BufferGeometry {
   let g = cache.get(key);
   if (!g) {
@@ -66,13 +82,19 @@ export function heldGun(g: GunLookKey): THREE.Mesh {
   return mesh;
 }
 
-/** A knife: blade out of the thumb side of the fist (hand socket space). */
+/**
+ * A knife: blade out of the thumb side of the fist (hand socket space). A lightsaber's blade is all glow: left out
+ * of the merged mesh, it rides along as children (shown and hidden with the knife).
+ */
 export function heldKnife(form: KnifeId): THREE.Mesh {
   const mesh = new THREE.Mesh(
     cached(`knife|${form}`, () => knifeModel(form)),
     sharedMaterial(),
   );
   mesh.castShadow = true;
+  let glows = glowCache.get(form);
+  if (!glows) glowCache.set(form, (glows = glowParts(knifeModel(form))));
+  for (const g of glows) mesh.add(new THREE.Mesh(g.geo, g.mat));
   return mesh;
 }
 

@@ -56,6 +56,33 @@ export function insideWall(map: ZombieMapData, p: Vec3): boolean {
 }
 
 /**
+ * Whether the wall stands between `a` and `b` (a zombie's swipe, PF-16): they're on opposite sides of it and the
+ * straight line between them meets it off an open gap (the bars, the stone base, or a gap shut by boards). `open`:
+ * whether gap i (the map's order) has no boards. On the same side, nothing of the wall is in between.
+ */
+export function wallBetween(map: ZombieMapData, a: Vec3, b: Vec3, open: (i: number) => boolean): boolean {
+  if (insideWall(map, a) === insideWall(map, b)) return false;
+  const [x0, z0, x1, z1] = map.dentro;
+  const sides: [axis: 'x' | 'z', fixed: number, from: number, to: number][] = [
+    ['x', z0, x0, x1],
+    ['x', z1, x0, x1],
+    ['z', x0, z0, z1],
+    ['z', x1, z0, z1],
+  ];
+  for (const [axis, fixed, from, to] of sides) {
+    // Where the line crosses this side of the wall (along it), if it does.
+    const [ac, bc] = axis === 'x' ? [a[2], b[2]] : [a[0], b[0]];
+    if ((ac - fixed) * (bc - fixed) > 0 || ac === bc) continue;
+    const k = (fixed - ac) / (bc - ac);
+    const along = axis === 'x' ? a[0] + (b[0] - a[0]) * k : a[2] + (b[2] - a[2]) * k;
+    if (along < from || along > to) continue;
+    const through = map.barricadas.some((g, i) => g.eixo === axis && Math.abs((axis === 'x' ? g.centro[2] : g.centro[0]) - fixed) < 0.3 && Math.abs(along - (axis === 'x' ? g.centro[0] : g.centro[2])) <= g.largura / 2 && open(i));
+    if (!through) return true;
+  }
+  return false;
+}
+
+/**
  * Where a player is up on the thorns: on the wall's ledge or bars (off the gaps) or on the hedge. The capsule
  * (radius 0.35) keeps anyone standing on the ground farther than the bands from both center lines, so only
  * climbing counts.

@@ -10,6 +10,8 @@ source_paths:
   - client/tests/aimAssist.test.ts
   - client/tests/keybinds.test.ts
   - client/tests/zombieSpectate.test.ts
+  - client/tests/zombiePose.test.ts
+  - client/tests/heldKnife.test.ts
   - client/tests/spatial.test.ts
   - server/tests/appearance.test.ts
   - server/tsconfig.json
@@ -87,6 +89,14 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 - **Carregar o salvo:** sem nada volta o padrão (cópia); ação nova recebe o padrão; respeita espaço vazio de propósito; descarta lixo; tecla duplicada fica só na primeira.
 - **Teclas do caixão no modo zumbi:** `Z` doa e `X` recusa por padrão, e um save antigo (sem essas ações) as ganha.
 - **Tabela do Input** e **nome das teclas** (QWERTY, AZERTY via mapa do navegador, fallback do Firefox, código desconhecido).
+
+## `client/tests/heldKnife.test.ts` → [[Weapon Models]]
+
+3 casos: o Sabre de Luz em terceira pessoa tem a lâmina (filhos com material de brilho, mais de 60 cm de ponta a ponta), não só o cabo; a lâmina some e aparece com a faca; as outras facas continuam uma malha só. Sem a correção da PF-17, o primeiro falha.
+
+## `client/tests/zombiePose.test.ts` → [[NPC Behavior]]
+
+4 casos (a pose do zumbi sem navegador, o boneco olhando para −Z): parado e andando, o pescoço fica à frente do quadril; correndo, mais à frente; os braços esticados à frente, quase na altura do ombro; o grito da noiva joga o peito para trás. Sem a correção da PF-15, três deles falham.
 
 ## `client/tests/zombieSpectate.test.ts` → [[Zombie]]
 
