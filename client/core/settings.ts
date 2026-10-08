@@ -1,4 +1,5 @@
 import type { Quality } from '../render/quality';
+import { isLang, type Lang } from '@shared/langs';
 import { IS_MOBILE } from './device';
 import { mergeKeybinds, type Keybinds } from './keybinds';
 
@@ -40,6 +41,8 @@ export interface Settings {
    * keys on layouts other than QWERTY where the browser has no layout map (Firefox).
    */
   keyLabels: Record<string, string>;
+  /** The language chosen on this device (PF-30); unset: the browser's (client/ui/strings.ts resolveLang). */
+  idioma?: Lang;
 }
 
 const KEY = 'oc.settings.v1';
@@ -69,7 +72,8 @@ export function loadSettings(): Settings {
     if (raw) {
       const saved = JSON.parse(raw);
       // Keybinds merge action by action (a plain spread would drop the defaults of actions added later).
-      return { ...DEFAULTS, ...saved, keybinds: mergeKeybinds(saved?.keybinds), keyLabels: cleanLabels(saved?.keyLabels) };
+      // A language that isn't one of the game's is dropped (the browser's applies).
+      return { ...DEFAULTS, ...saved, keybinds: mergeKeybinds(saved?.keybinds), keyLabels: cleanLabels(saved?.keyLabels), idioma: isLang(saved?.idioma) ? saved.idioma : undefined };
     }
   } catch {
     /* storage unavailable */

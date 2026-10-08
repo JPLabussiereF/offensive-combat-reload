@@ -72,7 +72,8 @@ import { MODE_RULES, type GameModeId } from '@shared/modes';
 import { FINAL_STEP, killsForStep, ladderLoadout, type LadderPos } from '@shared/gunGame';
 import { ladderTabSub, renderLadderTab, stepName } from './ui/ladder';
 import { Scoreboard } from './ui/scoreboard';
-import { DEATH_MESSAGES, getLang, pick, t, type StringKey } from './ui/strings';
+import { DEATH_MESSAGES, getLang, pick, resolveLang, setLang, systemLang, t, type StringKey } from './ui/strings';
+import { LANG_LOCALE } from '@shared/langs';
 import { itemOf, startItems, ZOMBIE, zombieGunData, zombieLoadout, zombieMapOf, type ZItems } from '@shared/zombies';
 import { gateAreas } from '@shared/barricades';
 import { ZombieClient, type ZombieLink } from './zombies/client';
@@ -103,6 +104,12 @@ async function boot() {
   const bootT0 = performance.now();
   const boot: Record<string, number> = {};
   const mark = (name: string) => (boot[name] = Math.round(performance.now() - bootT0));
+  // The language comes first (PF-30): every screen below builds its texts once, in the language set now (the one
+  // saved on this device, else the browser's).
+  const settings = loadSettings();
+  setLang(resolveLang(settings.idioma, systemLang()));
+  document.documentElement.lang = LANG_LOCALE[getLang()];
+  document.title = t('docTitle');
   const screens = new Screens();
   screens.setProgress(0.1);
   // Controllers drive the menus from the start (home, editor), and the match once it begins.
@@ -118,7 +125,6 @@ async function boot() {
   const sfx = new Sfx();
   const textures = loadTextureOverrides(ctx.renderer);
   screens.setProgress(1);
-  const settings = loadSettings();
   applyKeybinds(settings.keybinds);
   quality.set(settings.quality);
   if (quality.software) screens.showGpuWarning(quality.gpu);
@@ -141,13 +147,15 @@ async function boot() {
   // The map editor comes in through the home's choice (the Mapas tab's Editar and Novo mapa) or, between
   // reloads, its handoff (client/editor/launch.ts: opening a map's current version again after a 409).
   const handoff = embed ? null : takeHandoff();
-  const picked: HomeChoice = embed ? await embed.choice() : handoff ? handoffChoice(handoff) : await showHome({ software: quality.software });
+  const picked: HomeChoice = embed ? await embed.choice() : handoff ? handoffChoice(handoff) : await showHome({ software: quality.software, onLanguage: (l) => screens.chooseLanguage(l) });
   if (picked.mode === 'editor') {
     // The editor runs on its own loop: no input, player or HUD; leaving it reloads the page.
     await runEditor({ ctx, quality, physics, mapa: picked.mapa, rascunho: picked.rascunho });
     return;
   }
   const choice = picked;
+  // From here on a match runs: a language chosen in the pause is saved and applies back at the start.
+  screens.inMatch = true;
   /** The editor's map played in its Game tab: the document being edited (not saved). */
   const tested = embed ? { data: embed.data } : null;
   const online = choice.mode === 'online' ? choice : null;
