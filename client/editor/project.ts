@@ -184,7 +184,7 @@ export class ProjectPanel {
         continue;
       }
       const kinds = Object.values(MAP_CATALOG)
-        .filter((k) => k.categoria === f && match(k.nome.pt, k.nome.en, k.id))
+        .filter((k) => k.categoria === f && match(...Object.values(k.nome), k.id))
         .sort((a, b) => nameOf(a.nome).localeCompare(nameOf(b.nome)));
       for (const k of kinds) out.push({ item: { kind: 'peca', tipo: k.id }, name: nameOf(k.nome), glyph, off: atLimit(d, k.id) ? et('limitReached', { nome: nameOf(k.nome) }) : null });
     }
