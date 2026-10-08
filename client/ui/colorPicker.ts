@@ -402,6 +402,8 @@ export class ColorPicker {
     }
     this.say(colorLimit(n, this.o.slot, this.o.channel));
     if (n !== this.hex) this.pick(n);
+    // The code as it went to the look (adjusted to the limits), even while the field has the focus.
+    this.input.value = this.hex.slice(1);
   }
 
   /** Back to the color it had when the picker opened. */
