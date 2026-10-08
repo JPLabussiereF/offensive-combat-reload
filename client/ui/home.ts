@@ -3,8 +3,10 @@
 // the training range, and the match type (mata-mata or corrida armada) for online and bots. Signed out: a
 // landing page with the account form and a quick game against bots. Resolves with the chosen mode.
 //
-// Online sessions open on demand (PF-6): quick join and the map filters send 'play' (a session of the map with
-// room, or a new one); the list shows the sessions open now. Online, the maps offered are the official ones from
+// The Play tab (PF-32) is one path: where to play, the match type, one map (online also "Qualquer mapa"), and the
+// orange button, which always stays in the same place and says what it will do (rules in client/ui/playRules.ts).
+// Online sessions open on demand (PF-6): the orange button sends 'play' for the chosen map (a session of the map
+// with room, or a new one); the list shows the sessions of that map open now. Online, the maps offered are the official ones from
 // /api/mapas (their name, emoji and color from the current version) plus the maps of the sessions open now (a
 // community map someone is playing); offline (bots, the range), the official maps shipped with the client
 // (client/world/mapLoader.ts OFFICIAL_INFO). The Mapas tab (client/ui/maps.ts) lists every map, plays it online
@@ -22,6 +24,7 @@ import { DEFAULT_GAME_MODE, GAME_MODE_IDS, isGameModeId, modeAllowsMap, MODE_RUL
 import { isEquipe } from '@shared/roles';
 import { OFFICIAL_INFO } from '../world/mapLoader';
 import { cardOf, playableMaps, unknownSessionMaps, type MapCard } from './mapsRules';
+import { ctaText, effectiveOnlineMap, migrateOnlineMap, playersOn, quickTarget, say, sessionsFor, type CtaState } from './playRules';
 import { showMaps } from './maps';
 import { showManagement } from './management';
 import { Progress } from '../gameplay/progress';
@@ -94,18 +97,22 @@ const openMap = (m: OfficialMapId) => PVP_MAPS.includes(m);
 /** A map's thumbnail: its card's color and emoji. */
 const thumb = (c: { cartao: { emoji: string; cor: string } }) => `<span class="map-thumb" style="--tint:${esc(c.cartao.cor)}">${esc(c.cartao.emoji)}</span>`;
 
-const MODES: { id: PlayMode; title: StringKey; desc: StringKey; color: string }[] = [
-  { id: 'online', title: 'modeOnline', desc: 'modeOnlineDesc', color: '#ff7a1a' },
-  { id: 'bots', title: 'modeBots', desc: 'modeBotsDesc', color: '#2f9bff' },
-  { id: 'treino', title: 'modeRange', desc: 'modeRangeDesc', color: '#ffd23f' },
+/** Where to play, with the short label the compact table (a phone) shows. */
+const MODES: { id: PlayMode; title: StringKey; short: StringKey }[] = [
+  { id: 'online', title: 'modeOnline', short: 'modeOnlineShort' },
+  { id: 'bots', title: 'modeBots', short: 'modeBotsShort' },
+  { id: 'treino', title: 'modeRange', short: 'modeRangeShort' },
 ];
 
 /** A game mode's name ("Mata-mata", "Corrida armada") and one line about it. */
 export const gameModeName = (m: GameModeId) => t(`gameMode_${m}` as StringKey);
 const gameModeDesc = (m: GameModeId) => t(`gameModeDesc_${m}` as StringKey);
-/** Colors of each game mode's tag in the session list. */
-const GAME_TINT: Record<GameModeId, string> = { 'mata-mata': '#ffe2b8', 'corrida-armada': '#e3dbff', zumbi: '#c9f5b0' };
-/** A mode played on one map only (zumbi): the map filter and the map choice don't apply. */
+/** A game mode's name on the compact table (only the long ones have a short one). */
+const GAME_SHORT: Partial<Record<GameModeId, StringKey>> = { 'corrida-armada': 'gameModeShort_corrida-armada' };
+const gameModeShort = (m: GameModeId) => (GAME_SHORT[m] ? t(GAME_SHORT[m]) : gameModeName(m));
+/** The "Qualquer mapa" card's look (it is no map: a die). */
+const ANY_CARD = { cartao: { emoji: '🎲', cor: '#e6dfcf' } };
+/** A mode played on one map only (zumbi): the map choice doesn't apply. */
 const oneMap = (m: GameModeId) => modeMaps(m).length === 1;
 /** The map a match of `m` is played on: the chosen one, if the mode is played there. */
 const mapFor = (m: GameModeId, wanted: OfficialMapId) => (modeMaps(m).includes(wanted) ? wanted : modeMaps(m)[0]);
@@ -119,6 +126,29 @@ export function closeReason(code: number) {
 /** A row of toggle buttons (difficulty, bot count, map); `on` marks the chosen one. */
 const segButtons = (items: { label: string; on: boolean; data: string }[]) =>
   items.map((i) => `<button type="button" class="seg-btn" data-v="${esc(i.data)}" aria-pressed="${i.on}">${esc(i.label)}</button>`).join('');
+/**
+ * Fills a row of buttons, untouched when nothing changed (the session list comes again every 10 s) and otherwise
+ * keeping its scroll (the compact table's maps scroll sideways) and the focused button (keyboard, controller).
+ */
+const drawn = new WeakMap<HTMLElement, string>();
+const KEYS = ['data-map', 'data-any', 'data-all', 'data-mode', 'data-v'];
+const keyOf = (b: Element) => KEYS.map((a) => b.getAttribute(a)).join('|');
+function redraw(el: HTMLElement, html: string) {
+  if (drawn.get(el) === html) return;
+  drawn.set(el, html);
+  const { scrollLeft, scrollTop } = el;
+  const focused = document.activeElement;
+  const key = focused && focused !== el && el.contains(focused) ? keyOf(focused) : null;
+  el.innerHTML = html;
+  el.scrollLeft = scrollLeft;
+  el.scrollTop = scrollTop;
+  if (key !== null) [...el.querySelectorAll<HTMLElement>('button')].find((b) => keyOf(b) === key)?.focus({ preventScroll: true });
+}
+/** Toggle buttons with a long label and a short one (`.l` / `.s`: the compact table shows the short one). */
+const segLabeled = (attr: string, items: { label: string; short: string; on: boolean; data: string }[]) =>
+  items
+    .map((i) => `<button type="button" class="seg-btn" ${attr}="${esc(i.data)}" aria-pressed="${i.on}"><span class="l">${esc(i.label)}</span><span class="s">${esc(i.short)}</span></button>`)
+    .join('');
 
 /** Fills every `data-t` element of the home with its string. */
 function translate(root: HTMLElement) {
@@ -186,15 +216,16 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
   const status = $('home-status');
   const list = $('session-list');
   const createInput = $<HTMLInputElement>('session-new-name');
-  const newMapSel = $<HTMLSelectElement>('session-new-map');
-  const newModeSel = $<HTMLSelectElement>('session-new-mode');
+  const skillSel = $<HTMLSelectElement>('home-skill-sel');
+  const countSel = $<HTMLSelectElement>('home-count-sel');
   translate(home);
-  newMapSel.innerHTML = PVP_MAPS.map((id) => `<option value="${id}">${mapName(id)}</option>`).join('');
-  newMapSel.title = t('mapLabel');
-  newModeSel.innerHTML = GAME_MODE_IDS.map((id) => `<option value="${id}">${esc(gameModeName(id))}</option>`).join('');
-  newModeSel.title = t('gameModeTitle');
   createInput.placeholder = t('sessionNamePlaceholder');
   createInput.maxLength = NET.sessionNameMax;
+  // The compact table's bot options (a phone): the system's own picker.
+  skillSel.innerHTML = SKILLS.map(([v, k]) => `<option value="${v}">${esc(t(k))}</option>`).join('');
+  skillSel.title = t('botSkill');
+  countSel.innerHTML = COUNTS.map((n) => `<option value="${n}">${esc(t('playBotsN', { n }))}</option>`).join('');
+  countSel.title = t('botCount');
 
   // The pause menu's settings (its sub-tabs: aim, video, audio, keys or the controller, touch on phones) live in
   // the Settings tab while the home is open (given back on leaving).
@@ -202,20 +233,20 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
   const settingsHome = { parent: settingsPanel.parentElement!, next: settingsPanel.nextSibling };
   $('tab-settings').appendChild(settingsPanel);
 
-  // --- Preferences (oc.bots): mode, match type, map, online map filter, difficulty and bot count -------
-  // The online filter keeps the maps taken out of it (`fora`): a map that shows up later (a community map with a
-  // session) comes in ticked.
-  let prefs: { skill: BotSkillName; count: number; map: OfficialMapId; mode: PlayMode; game: GameModeId; fora: string[] } = {
+  // --- Preferences (oc.bots): where, match type, map, the online map, difficulty and bot count ----------
+  // `map` is the last concrete open map (bots and the range; online too when one is picked); `onlineMap` is the
+  // online choice, null for "Qualquer mapa". The old online filter (`fora`, before it `filtro`) becomes the one map
+  // left ticked, or "Qualquer mapa" (migrateOnlineMap), and is no longer saved.
+  let prefs: { skill: BotSkillName; count: number; map: OfficialMapId; mode: PlayMode; game: GameModeId; onlineMap: string | null } = {
     skill: 'normal',
     count: 7,
     map: 'rua',
     mode: 'online',
     game: DEFAULT_GAME_MODE,
-    fora: [],
+    onlineMap: null,
   };
   try {
     const saved = JSON.parse(localStorage.getItem(BOTS_KEY) ?? '{}');
-    const str = (v: unknown): v is string => typeof v === 'string';
     prefs = {
       skill: SKILLS.some(([s]) => s === saved.skill) ? saved.skill : prefs.skill,
       count: COUNTS.includes(saved.count) ? saved.count : prefs.count,
@@ -223,14 +254,11 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
       map: isOfficialMap(saved.map) && openMap(saved.map) ? saved.map : prefs.map,
       mode: MODES.some((m) => m.id === saved.mode) ? saved.mode : prefs.mode,
       game: isGameModeId(saved.game) ? saved.game : prefs.game,
-      // (before PF-6's community maps the filter kept the ticked maps: `filtro`)
-      fora: Array.isArray(saved.fora) ? saved.fora.filter(str) : Array.isArray(saved.filtro) ? PVP_MAPS.filter((m) => !saved.filtro.includes(m)) : prefs.fora,
+      onlineMap: saved && typeof saved === 'object' ? migrateOnlineMap(saved, PVP_MAPS) : null,
     };
   } catch {
     /* storage unavailable */
   }
-  newMapSel.value = prefs.map;
-  newModeSel.value = prefs.game;
   const savePrefs = () => {
     try {
       localStorage.setItem(BOTS_KEY, JSON.stringify(prefs));
@@ -511,6 +539,8 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
   /** The open sessions: live from the connection, else from GET /api/sessoes (refreshed while Online is shown). */
   let sessions: SessionInfo[] = [];
   let listed = false;
+  /** GET /api/sessoes failed before any list came (the server is down): the list says so. */
+  let listFailed = false;
   /** The maps offered online: the official ones (the server's current versions once they come) and the sessions' maps. */
   let cards: MapCard[] = BUNDLED;
   let officialList: MapaResumo[] | null = null;
@@ -545,6 +575,11 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
   /** The maps a mode is played on online. */
   const onlineMaps = (g: GameModeId) => cards.filter((c) => modeAllowsMap(g, c.exclusivo));
   const cardFor = (id: string) => cards.find((c) => c.id === id) ?? BUNDLED.find((c) => c.id === id);
+  const nameOf = (id: string) => cardFor(id)?.nome ?? id;
+  /** The map the online choice stands for now (null: "Qualquer mapa"). A map that left the list isn't forgotten. */
+  const onlineMap = () => effectiveOnlineMap(prefs.onlineMap, cards, prefs.game);
+  /** The training range's map: the last open map chosen. */
+  const rangeMap = (): OfficialMapId => (openMap(prefs.map) ? prefs.map : PVP_MAPS[0]);
   const closeConn = () => {
     if (conn) conn.onClose = () => {};
     conn?.close();
@@ -556,6 +591,10 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
     /** How many sessions the list shows (one more page per "show more"). */
     const PAGE = 6;
     let pageSize = PAGE;
+    /** The compact table (a phone): the sessions shown in place of the maps. */
+    let sessionsOpen = false;
+    /** "+ Criar sessão com nome" opened (only the name: the map and the type are the ones chosen). */
+    let createOpen = false;
     const leave = (choice: HomeChoice) => {
       clearInterval(poll);
       const go = () => {
@@ -580,93 +619,147 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
       return [t('modeRange'), t('gpLaunchRange', { map })];
     };
 
-    // --- Play tab ---------------------------------------------------------------------------------------
+    // --- Play tab (PF-32: where → match type → one map → the orange button) ------------------------------
+    /** A map's line on its card before the session list (or offline): its weather, or who made it. */
+    const blurbOf = (c: MapCard) =>
+      isOfficialMap(c.id) && c.tipo === 'oficial' ? t(OFFICIAL_BLURB[c.id].when) : c.autor ? t('mapsBy', { autor: c.autor }) : t('mapsCommunitySub');
+    /** How many play online on a map (null: every map of the type), as the card's line. */
+    const playersLine = (map: string | null) => {
+      const n = playersOn(sessions, prefs.game, map);
+      return n ? t('playPlayers', { n }) : t('playNobody');
+    };
+    /** A map card: one choice (aria-pressed), never a start. */
+    const tile = (attr: string, card: { cartao: { emoji: string; cor: string } }, name: string, sub: string, on: boolean) =>
+      `<button type="button" class="map-btn map-tile" ${attr} aria-pressed="${on}">${thumb(card)}<span class="map-text"><b>${esc(name)}</b><small>${esc(sub)}</small></span><span class="map-mark" aria-hidden="true"></span></button>`;
+    /** The online choice's name: the map's, or "qualquer mapa" inside a sentence. */
+    const onlineLabel = (map: string | null) => (map ? nameOf(map) : t('playAnyMap').toLocaleLowerCase());
+
     const renderPlay = () => {
       const online = prefs.mode === 'online';
       const range = prefs.mode === 'treino';
-      $('home-modes').innerHTML = MODES.map(
-        (m) => `<button type="button" class="mode-card" data-mode="${m.id}" aria-pressed="${prefs.mode === m.id}" style="--c:${m.color}">
-          <span class="mode-title"><i></i><b>${t(m.title)}</b></span><span class="mode-desc">${t(m.desc)}</span></button>`,
-      ).join('');
-      // The match type: online and against bots (only the modes bots can play), not on the range.
+      const bots = prefs.mode === 'bots';
+      const tabPlay = $('tab-play');
+      // Where: a short toggle on the sheet's head, with one line on it beside.
+      redraw(
+        $('home-modes'),
+        segLabeled(
+          'data-mode',
+          MODES.map((m) => ({ label: t(m.title), short: t(m.short), on: prefs.mode === m.id, data: m.id })),
+        ),
+      );
+      $('home-play-hint').textContent = t(online ? 'gpPlayHintOnline' : range ? 'gpPlayHintRange' : 'gpPlayHintBots');
+      // The match type: online and against bots (only the modes bots can play). On the range the row keeps its
+      // height and says there is none, so the maps stay where they are.
       const games = online ? GAME_MODE_IDS : BOT_GAMES;
       if (!games.includes(prefs.game)) prefs.game = games[0];
-      $('home-game-box').classList.toggle('hidden', range);
-      $('home-game').innerHTML = segButtons(games.map((m) => ({ label: gameModeName(m), on: prefs.game === m, data: m })));
-      $('home-game-hint').textContent = gameModeDesc(prefs.game);
-      newModeSel.value = prefs.game;
-      // New sessions only on the maps the mode is played on (online: the server's maps, community ones included).
-      const sessionMaps = onlineMaps(prefs.game);
-      const pickedMap = sessionMaps.some((c) => c.id === newMapSel.value) ? newMapSel.value : (sessionMaps.find((c) => c.id === prefs.map) ?? sessionMaps[0])?.id;
-      newMapSel.innerHTML = sessionMaps.map((c) => `<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join('');
-      if (pickedMap) newMapSel.value = pickedMap;
-      // Offline (bots, the range) the maps shipped with the game; online the server's.
-      const shown: MapCard[] = range ? BUNDLED.filter((c) => !c.exclusivo) : online ? sessionMaps : BUNDLED.filter((c) => modeMaps(prefs.game).includes(c.id as OfficialMapId));
-      // A one-map mode (zumbi with only its cemetery) only shows its map.
+      redraw($('home-game'), range ? '' : segLabeled('data-v', games.map((m) => ({ label: gameModeName(m), short: gameModeShort(m), on: prefs.game === m, data: m }))));
+      $('home-game-hint').textContent = range ? t('playRangeType') : gameModeDesc(prefs.game);
+
+      // The maps: one chosen. Offline (bots, the range) the maps shipped with the game; online the server's.
+      const shown: MapCard[] = range ? BUNDLED.filter((c) => !c.exclusivo) : online ? onlineMaps(prefs.game) : BUNDLED.filter((c) => modeMaps(prefs.game).includes(c.id as OfficialMapId));
+      // A one-map mode (zumbi with only its cemetery) only shows its map, chosen.
       const single = !range && shown.length === 1;
-      $('home-map-title').textContent = t(online && !single ? 'mapFilterTitle' : 'mapLabel');
-      $('home-map-hint').textContent = single ? t('zMapOnly') : online ? t('mapFilterHint') : range ? t('mapHintRange') : t('mapHintBots');
-      $('home-maps').innerHTML = shown
-        .map((c) => {
-          const on = single || (online ? !prefs.fora.includes(c.id) : !range && prefs.map === c.id);
-          const n = sessions.filter((s) => s.map === c.id && s.mode === prefs.game).length;
-          const blurb = isOfficialMap(c.id) && c.tipo === 'oficial' ? t(OFFICIAL_BLURB[c.id].when) : c.autor ? t('mapsBy', { autor: c.autor }) : t('mapsCommunitySub');
-          const sub = online && listed ? (n === 1 ? t('sessionsOne') : t('sessionsMany', { n })) : blurb;
-          return `<button type="button" class="map-btn${online ? ' filter' : ''}" data-map="${esc(c.id)}" aria-pressed="${on}">
-          ${thumb(c)}
-          <span class="map-text"><b>${esc(c.nome)}</b><small>${esc(sub)}</small></span><span class="map-mark"></span></button>`;
-        })
-        .join('');
-      $('home-bot-opts').classList.toggle('hidden', prefs.mode !== 'bots');
-      $('home-skills').innerHTML = segButtons(SKILLS.map(([v, k]) => ({ label: t(k), on: prefs.skill === v, data: v })));
-      $('home-counts').innerHTML = segButtons(COUNTS.map((n) => ({ label: String(n), on: prefs.count === n, data: String(n) })));
+      const oMap = onlineMap();
+      const chosen: string | null = online ? oMap : bots ? mapFor(prefs.game, prefs.map) : rangeMap();
+      $('home-map-title').textContent = t('mapLabel');
+      $('home-map-hint').textContent = single ? t('zMapOnly') : '';
+      const tiles = shown.map((c) => tile(`data-map="${esc(c.id)}"`, c, c.nome, online && listed ? playersLine(c.id) : blurbOf(c), c.id === chosen));
+      // Online, "Qualquer mapa" first (where most people are: the fullest session of the type).
+      if (online && !single) tiles.unshift(tile('data-any="1"', ANY_CARD, t('playAnyMap'), listed ? playersLine(null) : t('playAnyMapSub'), oMap === null));
+      // The compact table's last card opens the Mapas station (elsewhere the link on the maps' head does).
+      tiles.push(`<button type="button" class="map-all" data-all="1">${esc(t('playAllMaps'))}</button>`);
+      redraw($('home-maps'), tiles.join(''));
+
+      // The side panel: sessions online, the options against bots (the horde alone in zumbi), the range's line.
+      const solo = bots && prefs.game === 'zumbi';
+      $('home-lobby').classList.toggle('hidden', !online);
+      $('home-bot-opts').classList.toggle('hidden', !bots);
+      $('home-range-info').classList.toggle('hidden', !range);
+      $('home-bot-title').textContent = t(solo ? 'playHordeTitle' : 'playBotsTitle');
+      redraw($('home-skills'), segButtons(SKILLS.map(([v, k]) => ({ label: t(k), on: prefs.skill === v, data: v }))));
+      redraw($('home-counts'), segButtons(COUNTS.map((n) => ({ label: String(n), on: prefs.count === n, data: String(n) }))));
       // Zumbi offline is the player alone against the horde: no bots to pick.
-      const solo = prefs.game === 'zumbi';
       $('home-skills').parentElement!.classList.toggle('hidden', solo);
       $('home-counts').parentElement!.classList.toggle('hidden', solo);
-      $('home-bots').textContent = solo ? t('zSolo') : t('versusBots', { n: prefs.count });
+      $('home-horde-info').textContent = t('playHordeInfo');
+      $('home-horde-info').classList.toggle('hidden', !solo);
+      $('home-range-info').innerHTML ||= `<h4>${esc(t('playRangeTitle'))}</h4><p class="hint">${esc(t('playRangeInfo'))}</p>`;
+
+      // The compact table's foot: SESSÕES (N) online, the bot options as selects, the horde's line.
+      const toggle = $('home-sessions-toggle');
+      toggle.classList.toggle('hidden', !online);
+      toggle.textContent = t('playSessionsBtn', { n: listed ? sessionsFor(sessions, prefs.game, oMap).length : '…' });
+      toggle.setAttribute('aria-pressed', String(online && sessionsOpen));
+      skillSel.classList.toggle('hidden', !bots || solo);
+      countSel.classList.toggle('hidden', !bots || solo);
+      skillSel.value = prefs.skill;
+      countSel.value = String(prefs.count);
+      $('home-horde-short').textContent = t('playHordeShort');
+      $('home-horde-short').classList.toggle('hidden', !solo);
+      if (!online) sessionsOpen = false;
+      tabPlay.classList.toggle('sessions-open', sessionsOpen);
+
+      // The orange button: always there, saying what it is about to do.
+      const state: CtaState = online
+        ? { where: 'online', mode: gameModeName(prefs.game), map: onlineLabel(oMap), players: listed ? playersOn(sessions, prefs.game, oMap) : null }
+        : bots
+          ? { where: 'bots', mode: gameModeName(prefs.game), map: nameOf(chosen!), solo, count: prefs.count, skill: t(SKILLS.find(([s]) => s === prefs.skill)![1]) }
+          : { where: 'treino', map: nameOf(chosen!) };
+      const cta = ctaText(state);
+      const ctaEl = $('home-play-cta');
+      ctaEl.querySelector('b')!.textContent = say(cta.title);
+      ctaEl.querySelector('span')!.textContent = say(cta.detail);
+      // The classic home's quick join beside the character (the other tabs): online, with the same line.
       $('home-quick-box').classList.toggle('hidden', !online);
-      $('home-lobby').classList.toggle('hidden', !online);
-      // The warehouse's table: a line on the mode and the orange button that starts it.
-      $('home-play-hint').textContent = t(online ? 'gpPlayHintOnline' : range ? 'gpPlayHintRange' : 'gpPlayHintBots');
-      const cta = $('home-play-cta');
-      const ctaMap = mapName(range ? (openMap(prefs.map) ? prefs.map : PVP_MAPS[0]) : mapFor(prefs.game, prefs.map));
-      cta.querySelector('b')!.textContent = online ? t('playOnline') : range ? t('modeRange').toUpperCase() : solo ? t('zSolo') : t('versusBots', { n: prefs.count });
-      cta.querySelector('span')!.textContent = online ? t('quickJoinHint') : t('gpCtaLine', { mode: range ? t('gpRangeTargets') : gameModeName(prefs.game), map: ctaMap });
+      $('home-quick-sub').textContent = online ? say(cta.detail) : '';
       galpao?.refreshQuick();
       renderLobby();
       renderGuest();
     };
 
-    /** The list is there as soon as the tab opens (GET /api/sessoes); long lists come a page at a time. */
+    /**
+     * The sessions of the chosen map and type ("Qualquer mapa": every map of the type), in the server's order and a
+     * page at a time; there as soon as the tab opens (GET /api/sessoes). Below, the named session, folded.
+     */
     const renderLobby = () => {
-      // The chosen match type and the ticked maps.
-      const single = onlineMaps(prefs.game).length === 1;
-      const shown = sessions.filter((s) => (single || !prefs.fora.includes(s.map)) && s.mode === prefs.game);
-      $('home-lobby-title').textContent = listed ? t('openSessions', { n: shown.length }) : t('sessions');
-      list.classList.toggle('hidden', !listed);
+      const map = onlineMap();
+      const label = onlineLabel(map);
+      const shown = sessionsFor(sessions, prefs.game, map);
+      $('home-lobby-title').textContent = t('playSessionsOn', { map: label, n: listed ? shown.length : '…' });
       list.innerHTML = '';
-      const more = shown.length - pageSize;
-      $('home-more').classList.toggle('hidden', !listed || more <= 0);
+      const more = listed ? shown.length - pageSize : 0;
+      $('home-more').classList.toggle('hidden', more <= 0);
       $('home-more').textContent = t('moreSessions', { n: more });
-      if (!listed) return;
-      if (!shown.length) {
-        list.innerHTML = `<li class="empty">${t(sessions.length ? 'noSessionsFiltered' : 'noSessions')}</li>`;
-        return;
-      }
-      for (const s of shown.slice(0, pageSize)) {
+      // The empty list says what to do next (the orange button opens a session by itself).
+      const empty = (text: string) => (list.innerHTML = `<li class="empty">${esc(text)}</li>`);
+      if (!listed) empty(t(listFailed ? 'playSessionsOffline' : 'playSessionsLoading'));
+      else if (!shown.length) empty(map ? t('noSessionsMap', { map: label }) : t('noSessions'));
+      for (const s of listed ? shown.slice(0, pageSize) : []) {
         const li = document.createElement('li');
         const full = s.players >= s.max;
-        li.innerHTML = `<span class="s-name"><b></b><small></small></span><span class="tag s-mode"></span><span class="s-count">${s.players}/${s.max}</span><button class="small-btn" ${full ? 'disabled' : ''}>${full ? t('full') : t('join')}</button>`;
+        li.innerHTML = `<span class="s-name"><b></b><small></small></span><span class="s-count">${s.players}/${s.max}</span><button class="small-btn" ${full ? 'disabled' : ''}>${full ? t('full') : t('join')}</button>`;
         li.querySelector('.s-name b')!.textContent = s.name;
-        const tag = li.querySelector<HTMLElement>('.s-mode')!;
-        tag.textContent = gameModeName(s.mode);
-        tag.style.background = GAME_TINT[s.mode] ?? '#fff';
-        // Sessions opened by 'play' are named after their map: no need to say it twice.
-        li.querySelector('.s-name small')!.textContent = s.name.startsWith(s.mapaNome) ? '' : s.mapaNome;
+        // The map only with "Qualquer mapa", and not when the name says it (sessions opened by 'play' are named after it).
+        li.querySelector('.s-name small')!.textContent = map === null && !s.name.startsWith(s.mapaNome) ? s.mapaNome : '';
         li.querySelector('button')!.addEventListener('click', () => void join({ t: 'join', session: s.id }));
         list.appendChild(li);
       }
+      // A named session: on the chosen map and type; with "Qualquer mapa" there is no map to create it on.
+      const canCreate = map !== null;
+      if (!canCreate && createOpen) {
+        createOpen = false;
+        createInput.value = '';
+      }
+      const toggle = $<HTMLButtonElement>('home-create-toggle');
+      toggle.disabled = !canCreate;
+      toggle.title = canCreate ? '' : t('playCreatePickMap');
+      toggle.setAttribute('aria-expanded', String(createOpen));
+      toggle.innerHTML ||= `<span class="l">${esc(t('playCreateToggle'))}</span><span class="s">${esc(t('playCreateShort'))}</span><i class="x">×</i>`;
+      $('home-create-pick').textContent = t('playCreatePickMap');
+      $('home-create-pick').classList.toggle('hidden', canCreate);
+      $('session-create').classList.toggle('hidden', !createOpen);
+      $('home-lobby').classList.toggle('create-open', createOpen);
+      $('home-create-where').textContent = t('playCreateWhere', { map: label, mode: gameModeName(prefs.game) });
     };
 
     /** Opens the game connection and starts listening to the session list. False if it could not. */
@@ -769,24 +862,29 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
       setStatus('');
       renderPlay();
     };
+    // A map card only chooses (in every tab; the orange button starts). An open official map is also the map of
+    // bots and the range; online the choice is kept apart ("Qualquer mapa" only exists online).
     $('home-maps').onclick = (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-map]');
-      const id = b?.dataset.map;
-      if (!id) return;
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-map], [data-any], [data-all]');
+      if (!b) return;
+      if (b.dataset.all) return showTab('maps');
+      const id = b.dataset.any ? null : (b.dataset.map ?? null);
       if (prefs.mode === 'online') {
         if (onlineMaps(prefs.game).length === 1) return;
-        prefs.fora = prefs.fora.includes(id) ? prefs.fora.filter((m) => m !== id) : [...prefs.fora, id];
-        pageSize = PAGE;
+        prefs.onlineMap = id;
+        if (id !== null && isOfficialMap(id) && openMap(id)) prefs.map = id;
       } else {
-        // Offline: the maps shipped with the game.
-        if (!isOfficialMap(id)) return;
-        if (prefs.mode === 'treino') return void startOffline(id);
-        if (oneMap(prefs.game)) return;
+        // Offline: the open maps shipped with the game (a one-map mode's only map is never kept as the choice).
+        if (id === null || !isOfficialMap(id) || !openMap(id)) return;
+        if (prefs.mode === 'bots' && oneMap(prefs.game)) return;
         prefs.map = id;
       }
+      pageSize = PAGE;
+      sessionsOpen = false;
       savePrefs();
       renderPlay();
     };
+    $('home-all-maps').onclick = () => showTab('maps');
     const segClick = (id: string, apply: (v: string) => void) => {
       $(id).onclick = (e) => {
         const b = (e.target as HTMLElement).closest<HTMLElement>('[data-v]');
@@ -797,63 +895,81 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
       };
     };
     const setSkill = (v: string) => (prefs.skill = v as BotSkillName);
-    const setCount = (v: string) => (prefs.count = Number(v));
+    const setCount = (v: string) => COUNTS.includes(Number(v)) && (prefs.count = Number(v));
     const setGame = (v: string) => isGameModeId(v) && (prefs.game = v);
     segClick('home-game', (v) => {
       setGame(v);
       pageSize = PAGE;
     });
     segClick('land-games', setGame);
-    newModeSel.onchange = () => {
-      setGame(newModeSel.value);
-      pageSize = PAGE;
-      savePrefs();
-      renderPlay();
-    };
     segClick('home-skills', setSkill);
     segClick('home-counts', setCount);
     segClick('land-skills', setSkill);
     segClick('land-counts', setCount);
     // (a one-map mode's only button changes nothing: its map is never kept as the choice)
     segClick('land-map-pick', (v) => isOfficialMap(v) && openMap(v) && (prefs.map = v));
-    $('home-bots').onclick = () => void startBots();
+    // The compact table's selects write the same preferences as the toggles.
+    skillSel.onchange = () => {
+      if (SKILLS.some(([s]) => s === skillSel.value)) setSkill(skillSel.value);
+      savePrefs();
+      renderPlay();
+    };
+    countSel.onchange = () => {
+      setCount(countSel.value);
+      savePrefs();
+      renderPlay();
+    };
+    // The compact table: SESSÕES (N) shows the list in place of the maps; ‹ MAPAS goes back.
+    $('home-sessions-toggle').onclick = () => {
+      sessionsOpen = !sessionsOpen;
+      renderPlay();
+    };
+    $('home-maps-back').onclick = () => {
+      sessionsOpen = false;
+      renderPlay();
+    };
     $('home-more').onclick = () => {
       pageSize += PAGE;
       renderLobby();
     };
-    // Quick join: plays the map of the fullest session (not full) of the filtered maps, or one of those maps when
-    // nobody is playing them (the server opens a session).
-    /** The maps the quick join picks from: the ticked ones (a one-map mode's only map). */
-    const quickMaps = () => {
-      const all = onlineMaps(prefs.game).map((c) => c.id);
-      return all.length === 1 ? all : all.filter((m) => !prefs.fora.includes(m));
-    };
+    // The online button (and the warehouse's ENTRADA RÁPIDA): 'play' on the chosen map; with "Qualquer mapa", the
+    // map of the fullest session of the type with room, or an official map of the type when nobody plays (the
+    // server picks the room on the map, or opens one).
     const quickJoin = async () => {
       if (busy) return;
       if (!(await connect())) return;
-      const maps = quickMaps();
-      if (!maps.length) return setStatus(t('pickAMap'), true);
-      const best = sessions.filter((s) => maps.includes(s.map) && s.mode === prefs.game && s.players < s.max).sort((a, b) => b.players - a.players)[0];
-      void join({ t: 'play', map: best?.map ?? maps[Math.floor(Math.random() * maps.length)], mode: prefs.game });
+      const officials = onlineMaps(prefs.game)
+        .filter((c) => c.tipo === 'oficial')
+        .map((c) => c.id);
+      void join({ t: 'play', map: quickTarget(sessions, prefs.game, onlineMap(), officials) ?? DEFAULT_MAP, mode: prefs.game });
     };
     $('home-quick').onclick = () => void quickJoin();
     $('home-play-cta').onclick = () => {
       if (prefs.mode === 'online') void quickJoin();
       else if (prefs.mode === 'bots') void startBots();
-      else void startOffline(prefs.map);
+      else void startOffline(rangeMap());
     };
     playHooks = {
       quickPlay: () => void quickJoin(),
       quickLine: () => {
-        const names = quickMaps().map((id) => cardFor(id)?.nome ?? id);
-        return t('gpQuickLine', { mode: gameModeName(prefs.game), maps: names.length ? names.join(', ') : t('gpNoMapMarked') });
+        const map = onlineMap();
+        return t('gpQuickLine', { mode: gameModeName(prefs.game), map: map ? nameOf(map) : t('playAnyMap') });
       },
     };
-    const create = () =>
-      join({ t: 'create', name: createInput.value, map: cardFor(newMapSel.value) ? newMapSel.value : DEFAULT_MAP, mode: isGameModeId(newModeSel.value) ? newModeSel.value : prefs.game });
-    $('session-create-btn').onclick = () => void create();
+    // A named session: only the name; the map and the type are the ones chosen (never "Qualquer mapa").
+    const create = () => {
+      const map = onlineMap();
+      if (map !== null) void join({ t: 'create', name: createInput.value, map, mode: prefs.game });
+    };
+    $('home-create-toggle').onclick = () => {
+      createOpen = !createOpen;
+      if (!createOpen) createInput.value = '';
+      renderLobby();
+      if (createOpen) createInput.focus();
+    };
+    $('session-create-btn').onclick = () => create();
     createInput.onkeydown = (e) => {
-      if (e.key === 'Enter') void create();
+      if (e.key === 'Enter') create();
     };
 
     // --- Landing: a game against bots without an account ------------------------------------------------
@@ -871,7 +987,7 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
     $('land-bots').onclick = () => void startBots();
     $('land-range').onclick = () => void startOffline(prefs.map);
 
-    // The session counts on the map buttons, without a game connection (the list is public).
+    // The session list and the players on the map cards, without a game connection (the list is public).
     const refreshList = async () => {
       if (conn || prefs.mode !== 'online') return;
       try {
@@ -880,9 +996,14 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
         sessions = list;
         recomputeCards();
         listed = true;
+        listFailed = false;
         renderPlay();
       } catch {
-        /* server down: the maps keep their weather line */
+        // Server down: the maps keep their weather line, and the list says so if none ever came.
+        if (!listed && !listFailed) {
+          listFailed = true;
+          renderPlay();
+        }
       }
     };
     const poll = window.setInterval(() => void refreshList(), 10_000);

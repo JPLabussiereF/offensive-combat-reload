@@ -230,54 +230,70 @@
               <div class="char-name"><b id="char-tag"></b><span id="char-stats"></span></div>
               <button id="char-customize" type="button" class="small-btn alt" data-t="customizeShort"></button>
             </div>
+            <!-- Classic home: the quick join beside the character, on the other tabs (the Play tab has its orange button). -->
             <div id="home-quick-box">
               <button id="home-quick" type="button" class="big-btn" data-t="playOnline"></button>
-              <p class="home-hint" data-t="quickJoinHint"></p>
+              <p id="home-quick-sub" class="home-hint"></p>
             </div>
           </aside>
           <section class="home-panel home-card sticker">
-            <!-- In the warehouse the three .play-col are the tactical table's columns (on the classic home they don't box anything). -->
-            <div id="tab-play" class="home-pane">
-              <div class="gp-sheet-head gp-only">
-                <span><small class="gp-kicker" data-t="gpSign_play"></small><b data-t="gpSt_play"></b></span>
-                <span id="home-play-hint"></span>
-              </div>
-              <div class="play-col">
-                <div>
-                  <h3 data-t="modeTitle"></h3>
-                  <div id="home-modes" class="mode-grid"></div>
-                </div>
-              </div>
-              <div class="play-col">
-                <div id="home-game-box">
-                  <div class="pane-head"><h3 data-t="gameModeTitle"></h3><span id="home-game-hint" class="hint"></span></div>
+            <!-- Play (PF-32): where to play, the match type and one map, the side panel (sessions, bot options, the range) and the
+                 orange button. In the warehouse it fills the tactical table's sheet (compact on a phone); on the classic home, two
+                 columns or stacked (container queries in client/styles.css). -->
+            <div id="tab-play" class="home-pane play">
+              <header class="play-head">
+                <span class="play-title gp-only"><small class="gp-kicker" data-t="gpSign_play"></small><b data-t="gpSt_play"></b></span>
+                <div id="home-modes" class="seg play-where"></div>
+                <span id="home-play-hint" class="play-hint"></span>
+              </header>
+              <section class="play-main">
+                <div id="home-game-box" class="play-type">
+                  <h3 data-t="gameModeTitle"></h3>
                   <div id="home-game" class="seg"></div>
+                  <p id="home-game-hint" class="play-desc"></p>
                 </div>
-                <div>
-                  <div class="pane-head"><h3 id="home-map-title"></h3><span id="home-map-hint" class="hint"></span></div>
-                  <div id="home-maps" class="map-row"></div>
-                </div>
-                <div id="home-bot-opts" class="bot-opts">
-                  <div><h4 data-t="botSkill"></h4><div id="home-skills" class="seg"></div></div>
-                  <div><h4 data-t="botCount"></h4><div id="home-counts" class="seg"></div></div>
-                  <button id="home-bots" type="button" class="big-btn alt"></button>
-                </div>
-              </div>
-              <div class="play-col">
-                <div id="home-lobby">
-                  <h4 id="home-lobby-title"></h4>
-                  <ul id="session-list"></ul>
-                  <button id="home-more" type="button" class="small-btn alt hidden"></button>
-                  <div id="session-create" class="session-create">
-                    <input id="session-new-name" type="text" spellcheck="false" />
-                    <select id="session-new-map"></select>
-                    <select id="session-new-mode"></select>
-                    <button id="session-create-btn" type="button" class="small-btn" data-t="createSession"></button>
+                <div class="play-maps">
+                  <div class="pane-head">
+                    <h3 id="home-map-title"></h3><span id="home-map-hint" class="hint"></span>
+                    <button id="home-all-maps" type="button" class="link-btn" data-t="playAllMaps"></button>
                   </div>
+                  <div id="home-maps" class="map-grid"></div>
                 </div>
-                <!-- The table's orange button: the quick join online, the match against bots, or the range on the chosen map. -->
-                <button id="home-play-cta" type="button" class="gp-cta gp-only"><b></b><span></span></button>
-              </div>
+              </section>
+              <aside class="play-side">
+                <div class="play-panel">
+                  <div id="home-lobby">
+                    <div class="lobby-head">
+                      <button id="home-maps-back" type="button" class="small-btn alt" data-t="playBackMaps"></button>
+                      <h4 id="home-lobby-title"></h4>
+                    </div>
+                    <ul id="session-list"></ul>
+                    <button id="home-more" type="button" class="small-btn alt hidden"></button>
+                    <button id="home-create-toggle" type="button" class="link-btn"></button>
+                    <small id="home-create-pick" class="hint"></small>
+                    <div id="session-create" class="session-create hidden">
+                      <input id="session-new-name" type="text" spellcheck="false" />
+                      <button id="session-create-btn" type="button" class="small-btn" data-t="createSession"></button>
+                      <small id="home-create-where"></small>
+                    </div>
+                  </div>
+                  <div id="home-bot-opts" class="bot-opts">
+                    <h4 id="home-bot-title"></h4>
+                    <div><h4 data-t="botSkill"></h4><div id="home-skills" class="seg"></div></div>
+                    <div><h4 data-t="botCount"></h4><div id="home-counts" class="seg"></div></div>
+                    <p id="home-horde-info" class="hint"></p>
+                  </div>
+                  <div id="home-range-info" class="range-info"></div>
+                </div>
+                <div class="play-foot">
+                  <button id="home-sessions-toggle" type="button" class="small-btn alt"></button>
+                  <select id="home-skill-sel"></select>
+                  <select id="home-count-sel"></select>
+                  <span id="home-horde-short" class="hint"></span>
+                  <!-- The orange button: online (one map or any), against bots, or the range on the chosen map. -->
+                  <button id="home-play-cta" type="button" class="play-cta"><b></b><span></span></button>
+                </div>
+              </aside>
             </div>
             <div id="tab-arsenal" class="home-pane hidden">
               <!-- The Arsenal as a canvas (client/ui/arsenalCanvas.ts): the touch hint replaces the mouse one on phones. -->
