@@ -1,0 +1,111 @@
+// Pets on screen (PF-29): every pet fits the triangle budget (at most 2,000, the light version about a third: 10
+// players with a pet stay around 20 thousand), the Amora is the map's Chow Chow builder (the map's own unchanged),
+// and where a pet walks: the PvP leash (at most 0.7 m from the edge of its owner's body, always behind on its side)
+// and the zumbi's path behind and beside its owner, out of the cone in front of them.
+import { describe, expect, it } from 'bun:test';
+import { PET_IDS, PETS } from '@shared/pets';
+import { behindSpot, BODY_RADIUS, FRONT_RANGE, inFrontCone, newFollow, PVP_LEASH, stepFollow, type Owner } from '../pets/follow';
+import { loadClient } from '../../tools/headless';
+
+const { makePet } = await loadClient('client/pets/species.ts');
+const { PET_MAX_TRIS } = await loadClient('client/pets/rig.ts');
+const { chowParts } = await loadClient('client/world/dog.ts');
+const { PetAnimator, restPose, STATION_GESTURE, GESTURE_TIME } = await loadClient('client/pets/anim.ts');
+
+const coats = (id: (typeof PET_IDS)[number]) => (PETS[id].pelagens.length ? PETS[id].pelagens.map((p) => p.id) : ['']);
+
+describe('modelos dos pets', () => {
+  it('cada pet, em toda pelagem, cabe em 2 mil triângulos e a versão leve fica em até 35%', () => {
+    let worst = 0;
+    for (const id of PET_IDS)
+      for (const cor of coats(id)) {
+        const m = makePet(id, cor, 0xd8352a, 'match');
+        const t = m.triangles;
+        expect(t.full).toBeLessThanOrEqual(PET_MAX_TRIS);
+        expect(t.light / t.full).toBeLessThanOrEqual(0.35);
+        expect(t.light).toBeGreaterThan(100);
+        worst = Math.max(worst, t.full);
+        m.dispose();
+      }
+    // Ten players with the heaviest pet, all close: about 20 thousand triangles at most.
+    expect(worst * 10).toBeLessThanOrEqual(20_000);
+  });
+
+  it('a Amora pet é o mesmo construtor da Amora do mapa, com a cabeça e os olhos maiores', () => {
+    const map = chowParts();
+    const pet = chowParts({ pet: true });
+    // The map's dog sits (no legs of their own); the pet stands on four.
+    expect(map.legs).toHaveLength(0);
+    expect(pet.legs).toHaveLength(4);
+    // Same pieces of the head, 12% bigger.
+    expect(pet.head.length).toBe(map.head.length);
+    const r = (g: { parameters: { radius?: number } }) => g.parameters.radius ?? 0;
+    expect(r(pet.head[0].geo as never) / r(map.head[0].geo as never)).toBeCloseTo(1.12, 2);
+    // The eyes 15% more on top of that.
+    expect(r(pet.head[5].geo as never) / r(map.head[5].geo as never)).toBeCloseTo(1.12 * 1.15, 2);
+    expect(map.collar).toHaveLength(0);
+  });
+
+  it('cada pet tem o seu gesto na estação, curto o bastante para a troca caber em 2 s', () => {
+    for (const id of PET_IDS) {
+      const g = STATION_GESTURE[id];
+      expect(GESTURE_TIME[g]).toBeLessThanOrEqual(1);
+      const m = makePet(id, coats(id)[0], 0x2f7fe0, 'galpao');
+      const anim = new PetAnimator(m);
+      // It plays from start to end without throwing, the props shown only meanwhile.
+      for (let t = 0; t <= GESTURE_TIME[g]; t += 0.05) anim.update(0.05, { ...restPose(), gesture: g, gestureT: t });
+      anim.update(0.05, restPose());
+      expect([...m.props.values()].every((p: { visible: boolean }) => !p.visible)).toBe(true);
+      m.dispose();
+    }
+  });
+});
+
+describe('onde o pet anda', () => {
+  const owner: Owner = { x: 0, y: 0, z: 0, yaw: 0 };
+
+  it('no PvP: coleira curta, atrás e do mesmo lado, mesmo com o dono correndo e virando', () => {
+    const f = newFollow(owner, 1);
+    const o = { ...owner };
+    let maxGap = 0;
+    for (let i = 0; i < 400; i++) {
+      // Runs in a circle, turning.
+      o.yaw = i * 0.03;
+      o.x += -Math.sin(o.yaw) * 0.12;
+      o.z += -Math.cos(o.yaw) * 0.12;
+      stepFollow(f, o, 1 / 60, 'pvp', 1);
+      maxGap = Math.max(maxGap, Math.hypot(f.x - o.x, f.z - o.z) - BODY_RADIUS);
+    }
+    expect(maxGap).toBeLessThanOrEqual(PVP_LEASH + 1e-6);
+    // Standing still, it settles behind and to its side.
+    for (let i = 0; i < 200; i++) stepFollow(f, o, 1 / 60, 'pvp', 1);
+    const spot = behindSpot(o, 'pvp', 1);
+    expect(Math.hypot(f.x - spot.x, f.z - spot.z)).toBeLessThan(0.15);
+    expect(inFrontCone(o, f)).toBe(false);
+  });
+
+  it('no zumbi: segue o caminho do dono uns 1,2 m atrás e fora do cone da frente', () => {
+    const f = newFollow(owner, -1);
+    const o = { ...owner };
+    for (let i = 0; i < 240; i++) {
+      o.z -= 0.05;
+      stepFollow(f, o, 1 / 60, 'pve', -1);
+    }
+    const d = Math.hypot(f.x - o.x, f.z - o.z);
+    expect(d).toBeGreaterThan(0.8);
+    expect(d).toBeLessThan(2);
+    // Behind (larger z: the owner walks toward -z).
+    expect(f.z).toBeGreaterThan(o.z);
+    // The owner turns around: the pet is in front of them now, and goes around to behind.
+    o.yaw = Math.PI;
+    for (let i = 0; i < 240; i++) stepFollow(f, o, 1 / 60, 'pve', -1);
+    expect(inFrontCone(o, f)).toBe(false);
+    expect(Math.hypot(f.x - o.x, f.z - o.z)).toBeLessThan(FRONT_RANGE);
+  });
+
+  it('agindo, vai até o alvo em vez de seguir', () => {
+    const f = newFollow(owner, 1);
+    for (let i = 0; i < 180; i++) stepFollow(f, owner, 1 / 60, 'pve', 1, { x: 3, z: -4 });
+    expect(Math.hypot(f.x - 3, f.z + 4)).toBeLessThan(0.2);
+  });
+});
