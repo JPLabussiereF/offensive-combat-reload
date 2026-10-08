@@ -1814,10 +1814,13 @@ export class ZombieMatch {
     }
   }
 
-  /** Segura, Amora!: the zombie nearest her owner, held by the shin; a bruiser or a boss only takes a jolt. */
+  /**
+   * Segura, Amora!: the zombie nearest her owner, held by the shin; a bruiser or a boss only takes a jolt. She runs to
+   * it, so never one with the wall in between (off an open gap), as a swipe can't reach through it either.
+   */
   private petHold(p: Part, pet: PetState, now: number) {
     const A = PET_ABILITIES.amora;
-    const z = this.near(p, this.petTargets(now), A.alcance)[0];
+    const z = this.near(p, this.petTargets(now), A.alcance).find((o) => !this.walled(p.feet, o.pos));
     if (!z) return;
     const jolt = isBoss(z.kind) || z.kind === 'brutamontes';
     z.heldUntil = now + (jolt ? A.tranco : A.segura) * 1000;

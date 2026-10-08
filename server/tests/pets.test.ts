@@ -1,5 +1,6 @@
 // Pets (PF-29): the catalog and its rules (shared/pets.ts: sanitizePet, who sees what, which mode takes them), every
-// ability in the zumbi match engine with a fake clock (shared/zombieMatch.ts: the Amora's hold, the Bruxinha's duck,
+// ability in the zumbi match engine with a fake clock (shared/zombieMatch.ts: the Amora's hold, never through the
+// wall, the Bruxinha's duck,
 // the cat lifting its owner and yielding to a teammate without ever entering the revives, the weasel's boards, the
 // otter's stone and the iguana's tail), and the server (PATCH /api/perfil {pet}, PlayerInfo.pet by mode and switch,
 // never the name, and the pet reaching the zombie match).
@@ -187,6 +188,27 @@ describe('habilidades dos pets no motor do zumbi', () => {
     // The next hold waits for the cooldown.
     f.step(10);
     expect(f.pet(1, 'hold')).toHaveLength(1);
+  });
+
+  it('a Amora não atravessa o muro: só segura um zumbi sem o muro no meio (ou por um vão aberto)', () => {
+    quick();
+    for (const t of Object.values(ZOMBIE.tipos)) t.dano = 0;
+    Object.assign(PET_ABILITIES.amora, { alcance: 40, recarga: 0.5 });
+    const f = fakeMatch([[YARD, 'amora']]);
+    const walled = (pos: Vec3) => (f.match as unknown as { walled(a: Vec3, b: Vec3): boolean }).walled(YARD, pos);
+    let seen = 0;
+    let outside = 0;
+    f.until(
+      () => f.pet(1, 'hold').length >= 3,
+      () => {
+        for (const z of zs(f)) if (f.t >= z.riseUntil && walled(z.pos)) outside++;
+        // A held zombie stands still: where it is now is where it was held.
+        for (const ev of f.pet(1, 'hold').slice(seen)) expect(walled(zs(f).find((o) => o.id === ev.z)!.pos)).toBe(false);
+        seen = f.pet(1, 'hold').length;
+      },
+    );
+    // There were zombies out of the ground beyond the wall, in her range, and she left them alone.
+    expect(outside).toBeGreaterThan(0);
   });
 
   it('a Amora só dá um tranco no Segurança e nos chefes', () => {

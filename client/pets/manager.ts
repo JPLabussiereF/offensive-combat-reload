@@ -49,6 +49,8 @@ export interface PetHooks {
 const VOICE_GAP = 2;
 /** The paw over the target, at most (s). */
 const PAW_TIME = 1.5;
+/** How high (m) the Bruxinha flies while she casts: above the cemetery fence (bars about 2 m). */
+const CAST_HOVER = 2.4;
 /** How often the PvP line of sight is checked (s). */
 const SIGHT_EVERY = 0.1;
 
@@ -152,6 +154,8 @@ class PetActor {
   /** The iguana's tail grows back after this (match clock). */
   tailBack = 0;
   idleIn = 4;
+  /** The Bruxinha's height on her broom (m), eased: up over the cemetery's fence while she casts. */
+  hover = 0;
 
   constructor(
     readonly owner: number,
@@ -244,7 +248,12 @@ export class PetManager {
       p.speed = f.speed;
       p.dance = o.dancing && !a.act;
       p.sit = this.mode === 'pve' && o.downed && !a.act ? 1 : f.speed < 0.2 && !a.act ? Math.min(1, p.sit + dt * 0.6) : 0;
-      p.hover = a.pet.id === 'bruxinha' ? (this.mode === 'pvp' ? 0.22 : 0.6) : 0;
+      if (a.pet.id === 'bruxinha') {
+        // Casting she flies up high (CAST_HOVER), over the fence when her duck is outside it.
+        const want = this.mode === 'pvp' ? 0.22 : a.act?.act === 'duck' ? CAST_HOVER : 0.6;
+        a.hover += (want - a.hover) * Math.min(1, dt * 3);
+        p.hover = a.hover;
+      }
       p.tailGone = a.tailBack > now ? Math.min(1, (a.tailBack - now) / 4000) : 0;
       const g = a.act ? (ACT_GESTURE[a.act.act] ?? null) : null;
       if (g) {
