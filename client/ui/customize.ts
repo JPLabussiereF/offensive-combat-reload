@@ -970,6 +970,8 @@ export function showCustomizer(root: HTMLElement, o: Options): CustomizerHandle 
       closePicker();
       thumbs.dispose();
       stage.dispose();
+      // Its markup goes too (a dead stage and buttons left behind would show while the pane loads its next content).
+      root.querySelector(':scope > .customizer')?.remove();
       card?.classList.remove('wide');
       if (openEditor === handle) {
         openEditor = null;
