@@ -74,7 +74,19 @@ export function forbiddenReason(code: string): ForbiddenReason | null {
  */
 export const WHEEL_ACTIONS: ReadonlySet<RebindableAction> = new Set<RebindableAction>(['jump', 'fire', 'reload', 'melee', 'grenade', 'weapon1', 'weapon2', 'swapWeapon', 'taunt', 'donate', 'refuse']);
 
-const isWheel = (code: string) => code === 'WheelUp' || code === 'WheelDown';
+export const isWheel = (code: string) => code === 'WheelUp' || code === 'WheelDown';
+
+/**
+ * The fewest milliseconds between two weapon switches made with the mouse wheel (PF-34): one click of the wheel
+ * is one switch, and a free-spinning wheel or a trackpad gesture (dozens of wheel steps) switches about six times
+ * a second at most instead of flipping the gun at random. Keys, the controller and touch switch at once.
+ */
+export const WHEEL_SWAP_MS = 150;
+
+/** Whether a weapon switch from the wheel at `now` (ms) goes through, the last one taken at `lastWheelSwap`. */
+export function wheelSwapAllowed(now: number, lastWheelSwap: number): boolean {
+  return now - lastWheelSwap >= WHEEL_SWAP_MS;
+}
 
 /** Why `code` can't be bound to `action`, or null when it can. */
 export function bindRefusal(action: RebindableAction, code: string): BindRefusal | null {
