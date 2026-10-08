@@ -2,12 +2,11 @@
 // validateMapData, broken maps are refused with a reason, every kind of piece has its adapter in the client,
 // the pieces of the witch, the rat and the biscuit cabinet match the objects the server tracks, and the home's
 // table of the official maps (names, the mode each is made for) matches their data.
-import { tombsOf } from '@shared/tombs';
 import { describe, expect, it } from 'bun:test';
 import { MAP_BUDGET, MAP_FORMAT, validateMapData, type MapData } from '@shared/mapData';
 import { checkParam, checkPieceParams, MAP_CATALOG, SUPERFICIES } from '@shared/mapCatalog';
 import { OFFICIAL_MAPS, type OfficialMapId } from '@shared/maps';
-import { ZOMBIE } from '@shared/zombies';
+import { ZOMBIE, zombieMapOf } from '@shared/zombies';
 import rua from '@shared/data/mapas/rua.json';
 import jardim from '@shared/data/mapas/jardim.json';
 import halloween from '@shared/data/mapas/halloween.json';
@@ -214,8 +213,8 @@ describe('mapas oficiais', () => {
     expect(OFFICIAL.jardim.pecas.filter((p) => p.tipo === 'peixes')).toHaveLength(1);
   });
 
-  it('os dados de zumbi do Cemitério são os do modo (mais as lápides, tiradas das peças do mapa)', () => {
-    expect({ ...OFFICIAL.cemiterio.zumbi, lapides: tombsOf(OFFICIAL.cemiterio.pecas) } as unknown).toEqual(ZOMBIE.mapas.cemiterio);
+  it('os dados de zumbi do Cemitério são os do modo (mais as lápides, as árvores e o altar, tirados das peças do mapa)', () => {
+    expect(zombieMapOf(OFFICIAL.cemiterio.zumbi!, OFFICIAL.cemiterio.pecas) as unknown).toEqual(ZOMBIE.mapas.cemiterio);
     expect(ZOMBIE.mapas.cemiterio!.lapides!.length).toBe(OFFICIAL.cemiterio.pecas.filter((p) => p.tipo === 'lapide').length);
   });
 });

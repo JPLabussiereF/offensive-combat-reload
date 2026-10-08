@@ -1127,6 +1127,94 @@ html:not(.mobile) #chat-close {
   letter-spacing: 0.04em;
   color: var(--hud-dim);
 }
+/* Zumbi, the crows pecking us: black feathers drifting over the edges of the screen. */
+#crows {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+#crows .feather {
+  position: absolute;
+  width: 70px;
+  opacity: 0.85;
+  animation: feather-drift 2.4s ease-in-out infinite alternate;
+}
+#crows .feather svg {
+  display: block;
+  width: 100%;
+}
+#crows .f0 {
+  left: -2%;
+  top: 4%;
+  width: 75px;
+  --rot: -35deg;
+  animation-delay: -0.00s;
+}
+#crows .f1 {
+  left: 8%;
+  top: -6%;
+  width: 60px;
+  --rot: 20deg;
+  animation-delay: -0.37s;
+}
+#crows .f2 {
+  left: 88%;
+  top: 6%;
+  width: 80px;
+  --rot: 30deg;
+  animation-delay: -0.74s;
+}
+#crows .f3 {
+  left: 93%;
+  top: 40%;
+  width: 65px;
+  --rot: -15deg;
+  animation-delay: -1.11s;
+}
+#crows .f4 {
+  left: -4%;
+  top: 55%;
+  width: 70px;
+  --rot: 60deg;
+  animation-delay: -1.48s;
+}
+#crows .f5 {
+  left: 80%;
+  top: 78%;
+  width: 75px;
+  --rot: -50deg;
+  animation-delay: -1.85s;
+}
+#crows .f6 {
+  left: 12%;
+  top: 82%;
+  width: 60px;
+  --rot: 15deg;
+  animation-delay: -2.22s;
+}
+#crows .f7 {
+  left: 45%;
+  top: -8%;
+  width: 55px;
+  --rot: 85deg;
+  animation-delay: -2.59s;
+}
+#crows .f8 {
+  left: 60%;
+  top: 88%;
+  width: 65px;
+  --rot: -70deg;
+  animation-delay: -2.96s;
+}
+@keyframes feather-drift {
+  from {
+    transform: rotate(var(--rot)) translate(0, 0);
+  }
+  to {
+    transform: rotate(calc(var(--rot) + 14deg)) translate(12px, 18px);
+  }
+}
 /* Zumbi, watching a teammate: the death card steps aside (no red, at the top) and the view is theirs. */
 #death.spectating {
   background: none;

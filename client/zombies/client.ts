@@ -20,6 +20,7 @@ import { ZombieView, Zombie } from './view';
 import { Coffin } from './coffin';
 import { Totem } from './totem';
 import { GhostView } from './ghosts';
+import { CrowView } from './crows';
 import { BarricadeView } from './barricades';
 import { flawText } from './ambience';
 import type { ZombieLink } from './link';
@@ -111,6 +112,12 @@ export class ZombieClient {
   private heartbeatIn = 0;
   private markers = new Map<number, THREE.Sprite>();
   private markerTex: THREE.CanvasTexture | null = null;
+  /** Players profaned at the altar, until when (server ms): the horde goes after them, a mark floats over them. */
+  private marks = new Map<number, number>();
+  private markSprites = new Map<number, THREE.Sprite>();
+  private markTex: THREE.CanvasTexture | null = null;
+  /** The dead trees' crows, around whoever they peck. */
+  private crows: CrowView;
   private lastRender = 0;
 
   constructor(
@@ -125,6 +132,7 @@ export class ZombieClient {
     this.coffin = new Coffin(game.scene, game.physics, this.map.caixa, game.sfx);
     this.totem = this.map.totem ? new Totem(game.scene, this.map.totem) : null;
     this.ghosts = new GhostView(game.scene);
+    this.crows = new CrowView(game.scene, game.sfx);
     this.barricades = new BarricadeView(game.scene, game.physics, this.map.barricadas, game.sfx, game.effects);
     this.bars = this.map.barricadas.map(() => emptyBarricade());
     if (sync) this.applySync(sync);
@@ -158,6 +166,8 @@ export class ZombieClient {
 
   private applySync(s: ZombieSync) {
     this.totemOn = !!s.totem;
+    this.marks = new Map(s.marks ?? []);
+    for (const id of s.crows ?? []) this.crows.set(id, true);
     this.totem?.set(this.totemOn);
     this.phase = s.phase;
     this.wave = s.wave;
@@ -259,7 +269,35 @@ export class ZombieClient {
         this.slowFactor = m.slow;
         this.slowUntil = m.until;
       }
-      g.shake(m.fx === 'charge' ? 0.9 : 0.5);
+      g.shake(m.fx === 'charge' ? 0.9 : m.fx === 'sacrilege' ? 0.8 : 0.5);
+    });
+    L.on('zprofane', (m) => {
+      if (!m.until) {
+        this.marks.delete(m.id);
+        return;
+      }
+      this.marks.set(m.id, m.until);
+      // The bell tolls and the candles flare: everyone sees and hears who profaned the altar.
+      const a = this.map.altar;
+      const at = a ? new THREE.Vector3(a.c[0], a.c[1] + a.h[1] + 0.3, a.c[2]) : this.map.totem ? new THREE.Vector3(...this.map.totem) : null;
+      if (at) {
+        g.effects.burst('star', at, new THREE.Vector3(0, 1, 0), 26, 0xffd27a);
+        g.effects.burst('spark', at, new THREE.Vector3(0, 1, 0), 18, 0xff5a3a);
+        g.sfx.at(at, 'normal', (s) => s.bell(0.7));
+      }
+      const s = ZOMBIE.sacrilegio.profanadoSegundos;
+      if (m.id === this.me) {
+        g.hud.showBanner(t('zProfaneYou'), 'flaw');
+        g.hud.notice(t('zProfaneHint', { s }));
+      } else g.hud.notice(t('zProfaned', { name: g.nameOf(m.id), s }));
+    });
+    L.on('zcrows', (m) => {
+      this.crows.set(m.id, m.on);
+      if (m.id !== this.me) return;
+      g.hud.setCrows(m.on);
+      if (!m.on) return;
+      g.hud.showBanner(t('zCrowsYou'), 'bird');
+      g.hud.notice(t('zCrowsHint', { s: ZOMBIE.corvos.depoisSegundos }));
     });
     L.on('zghost', (m) => {
       const at = new THREE.Vector3(...m.at);
@@ -426,6 +464,9 @@ export class ZombieClient {
     // No barricades in a new match (the match says so too: 'zbar' 'reset').
     this.bars.forEach((_, i) => this.setBar(i, emptyBarricade(), 'reset'));
     for (const id of [...this.markers.keys()]) this.game.setDowned(id, false);
+    this.marks.clear();
+    this.crows.clear();
+    this.game.hud.setCrows(false);
   }
 
   // --- Combat: what we hit, the match decides ---------------------------------------------------------------
@@ -718,6 +759,16 @@ export class ZombieClient {
     return Math.max(0, (this.slowUntil - this.link.now()) / 1000);
   }
 
+  /** Seconds left profaned at the altar (0: not), for the buff panel. */
+  profanedLeft(): number {
+    return Math.max(0, ((this.marks.get(this.me) ?? 0) - this.link.now()) / 1000);
+  }
+
+  /** The crows are pecking us, for the buff panel. */
+  get crowsOnMe(): boolean {
+    return this.crows.has(this.me);
+  }
+
   /** Seconds left bleeding from the thorns (0: none), for the buff panel. */
   bleedLeft(): number {
     return Math.max(0, (this.bleedUntil - this.link.now()) / 1000);
@@ -734,6 +785,12 @@ export class ZombieClient {
     this.barricades.update(dt);
     this.view.render(dt, now);
     this.renderMarkers();
+    this.renderMarks(now);
+    this.crows.update(dt, (id) => {
+      if (id === this.me) return this.game.alive() ? this.game.feet() : null;
+      const p = this.game.teammates().find((o) => o.id === id);
+      return p?.alive ? p.position : null;
+    }, this.me);
     // The HUD, a few times a second is enough.
     this.lastRender += dt;
     if (this.lastRender < 1 / 15) return;
@@ -816,9 +873,53 @@ export class ZombieClient {
     }
   }
 
+  /** A mark over every teammate profaned at the altar (the horde's target), seen through walls, while it lasts. */
+  private renderMarks(now: number) {
+    const seen = new Set<number>();
+    for (const p of this.game.teammates()) {
+      const until = this.marks.get(p.id);
+      if (!until || until <= now || !p.alive) continue;
+      seen.add(p.id);
+      let s = this.markSprites.get(p.id);
+      if (!s) {
+        this.markTex ??= profaneTexture();
+        s = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.markTex, depthTest: false, depthWrite: false, transparent: true }));
+        s.scale.set(0.55, 0.55, 1);
+        s.renderOrder = 10;
+        this.game.scene.add(s);
+        this.markSprites.set(p.id, s);
+      }
+      s.position.copy(p.position).setY(p.position.y + 2.45 + Math.sin(performance.now() / 180) * 0.05);
+    }
+    for (const [id, s] of this.markSprites) {
+      if (seen.has(id)) continue;
+      this.game.scene.remove(s);
+      this.markSprites.delete(id);
+    }
+  }
+
   setDebug(v: boolean) {
     this.view.setDebug(v);
   }
+}
+
+/** The profaned mark: a skull on a dark red disc (64 px). */
+function profaneTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  g.fillStyle = 'rgba(120, 10, 24, 0.85)';
+  g.beginPath();
+  g.arc(32, 32, 30, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = '#fff';
+  g.font = '38px sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('\u2620', 32, 35);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
 
 /**

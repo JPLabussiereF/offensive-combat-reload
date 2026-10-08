@@ -11,9 +11,8 @@ import { loadoutKnife, type GunStats, type Loadout } from '@shared/arsenal';
 import type { WeaponId } from '@shared/progression';
 import { critRegion, explosionDamage, HIT_REGIONS, minPenetrationKeep, type GrenadeLevel, type HitRegion } from '@shared/weapons';
 import { afterDeath, afterKill, GUN_GAME, ladderLoadout, ladderStart, type LadderPos } from '@shared/gunGame';
-import { grenadeDamageToZombie, gunDamageToZombie, isBoss, kindScale, knifeDamageToZombie, startItems, weaponMul, ZOMBIE, zombieLoadout, type ZKind } from '@shared/zombies';
+import { grenadeDamageToZombie, gunDamageToZombie, isBoss, kindScale, knifeDamageToZombie, startItems, weaponMul, ZOMBIE, zombieLoadout, zombieMapOf, type ZKind } from '@shared/zombies';
 import { ZombieMatch, type ZombieHost } from '@shared/zombieMatch';
-import { tombsOf } from '@shared/tombs';
 import { addZombieStat, loadoutOf, stickerAdd } from './progress';
 import { loadNavmesh } from './navmesh';
 import type { MapRuntime } from './maps';
@@ -197,7 +196,7 @@ class ZombieMode implements SessionMode {
   constructor(private host: ModeHost) {
     const zumbi = host.map.data.zumbi;
     // The haunted graves: this map's own tombstones (an editor-made map with stones gets them too).
-    const data = zumbi && { ...zumbi, lapides: tombsOf(host.map.data.pecas) };
+    const data = zumbi && zombieMapOf(zumbi, host.map.data.pecas);
     if (!data) {
       console.error(`[zumbi] o mapa ${host.map.id} não tem dados do modo zumbi`);
       return;

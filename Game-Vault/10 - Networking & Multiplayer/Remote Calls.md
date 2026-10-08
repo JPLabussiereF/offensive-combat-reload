@@ -125,6 +125,8 @@ Convenções:
 | `zdie` | `id`, `by`, `how`, `award?`, `money?` | zumbi morreu | sala |
 | `zfx` | `fx` (`slam`/`summon`/`scream`/`blink`/`charge`/`pound`/`spit`/`boom`/`intro`/`rise`), `id?`, `at`, `to?`, `r?`, `t0`, `t1` | golpe telegrafado ou efeito (o dano cai em `t1`); `rise`: um zumbi vai sair do chão em `at` em `t1` (0,9 s depois; um por surgimento) | sala |
 | `zhitfx` | `id`, `fx`, `v?` (empurrão), `slow?`, `until?` | um golpe empurrou ou deixou alguém lento | sala (o cliente do jogador aplica) |
+| `zprofane` | `id`, `until` (0: a marca acabou) | `id` ficou 3 s no altar: profanado até `until`, alvo de todos os zumbis (vem junto com um `zhitfx` `sacrilege` com o empurrão `v` para ele) | sala |
+| `zcrows` | `id`, `on` | os corvos começaram (ou pararam) de bicar `id`, que ficou 3 s numa árvore; o dano vem nos `damage` comuns | sala |
 | `zghost` | `fx` (`rise` ou `scare`), `n`, `at`, `target?` | fantasmas subiram numa lápide atrás de `target`, ou foram espantados em `at`; as posições vão no `g` de cada `zsnap` | sala |
 | `ztotem` | `on`, `by` (null: apagou numa partida nova), `money?` (de quem pagou) | o totem da capela acendeu (ou apagou na partida nova) | sala |
 | `zbleed` | `id`, `until` (0: parou) | alguém subiu nos espinhos da grade ou da sebe e sangra até `until` | sala (o cliente do jogador mostra "Sangrando") |

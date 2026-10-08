@@ -29,6 +29,10 @@ source_paths:
   - client/zombies/link.ts
   - client/zombies/ambience.ts
   - client/zombies/spectate.ts
+  - client/zombies/crows.ts
+  - shared/trees.ts
+  - shared/altar.ts
+  - shared/seeded.ts
   - client/ai/navmesh.ts
   - client/character/animator.ts
   - client/entities/rig.ts
@@ -244,6 +248,23 @@ Subir numa lápide (arco, cruz, laje ou obelisco, dentro ou fora do muro) desper
 
 Decidido pelo motor (`ZombieMatch.tickGhosts`, `raiseGhosts`, `scareGhosts`, `knifeScare`): no servidor online, com a posição dos pés que ele já recebe, e no navegador no jogo solo. As lápides vêm das peças `lapide` do mapa (`ZOMBIE.mapas.cemiterio.lapides`), com as mesmas caixas que o mapa usa como colisor (`TOMB_BOXES`). Os fantasmas vão em cada `zsnap` (`g`) e são desenhados em `client/zombies/ghosts.ts`.
 
+### O altar e as árvores: sacrilégio e corvos (`sacrilegio`, `corvos`)
+
+Os outros lugares altos onde a horda não chega também punem, com a mesma regra das lápides: só depois de **3 s seguidos** em cima (encostar, pular por cima ou descer antes não conta; descer zera a contagem; só vale quem está pisando no topo).
+
+**O altar da capela (sacrilégio).** É a pedra embaixo do totem (2,4 × 1 × 0,8 m, topo a 1,6 m).
+- Depois de 3 s em cima: o sino toca, as velas soltam um clarão, e o jogador é **jogado para fora** do altar (empurrão de 9 m/s para longe do meio dele; bem no meio, para a frente, na direção da nave) e leva **25 de dano**.
+- E fica **Profanado por 20 s**: enquanto houver alguém profanado de pé, **todos os zumbis vão atrás dos profanados** (o mais perto entre eles), mesmo com outros jogadores mais perto; na hora do sacrilégio todos escolhem o alvo de novo. Fora de uma onda, só o empurrão e o dano valem.
+- Quem profanou vê a faixa "SACRILÉGIO! A horda inteira vem atrás de você" e o buff ☠️ Profanado com o tempo; os outros veem uma **caveira num disco vermelho** sobre ele (vista através das paredes) e o aviso "Fulano profanou o altar e virou o alvo da horda por 20 s". Voltar ao altar repete tudo (e renova os 20 s).
+- O altar vem das peças do mapa (`altarOf` em `shared/altar.ts`: a peça `caixa` cujo topo é onde o totem está e que o contém), então vale em qualquer mapa do modo que tenha totem.
+
+**As árvores (corvos).** Só as 6 árvores mortas que têm colisão (dentro e fora do muro); as da borda do mapa não colidem e não contam.
+- Depois de 3 s no alto do tronco, um bando de **corvos** começa a bicar: **5 de dano por segundo** enquanto o jogador está na árvore e por **mais 5 s** depois de descer. Voltar à árvore renova os 5 s.
+- Quem é bicado vê a faixa "CORVOS! Desça da árvore", o buff 🌳 Corvos ("na árvore e mais 5 s") e **penas pretas** balançando nas bordas da tela; os corvos voam em volta, mais altos e afastados da própria câmera. Os outros veem o bando de 7 corvos rodando e mergulhando na cabeça dele, e todos ouvem os grasnados (`client/zombies/crows.ts`, como os morcegos do mapa).
+- O tronco é a mesma caixa que o mapa usa como colisor: `shared/trees.ts` tira a inclinação e a altura da semente da peça (`treeShape`, com o gerador `shared/seeded.ts`) e monta a caixa (`trunkOf`); o desenho da árvore (`deadTree`) usa as mesmas funções, então o motor e o mapa não divergem.
+
+Morrer por eles (fora de uma onda; numa onda, cai) dá mensagens próprias ("Subiu no altar. O altar não gostou.", "Os corvos acharam você primeiro."). Decidido pelo motor (`ZombieMatch.tickPerches`, `profane`, e `nearest` para o alvo dos zumbis), no servidor online e no navegador no jogo solo; o mapa do modo leva o altar e os troncos junto com as lápides (`zombieMapOf`).
+
 ### O totem da capela: Vigília Sem Trégua (`totem`)
 
 No altar da capela, entre as duas velas, fica um **totem** (um ídolo de osso e madeira com chifres; olhos verdes apagados). `E` perto dele (a até 2,2 m, de pé) **acende a Vigília Sem Trégua**:
@@ -346,7 +367,7 @@ Tudo em `shared/data/zumbi.json`, menos os dados do mapa, que ficam no campo `zu
 - `shared/zombieMatch.ts`: o motor da partida (`ZombieMatch`): ondas com telegrafia de surgimento, zumbis numa `Crowd` do Detour com dois filtros (contornar / atravessar barricadas), ataques e arrombamento, chefes, cuspes e ondas de choque, o caixão, as barricadas (`barricadeWork`, `tickWork`), caído/reanimar, resumo. Roda no servidor e no navegador (solo).
 - `server/modes.ts` (`ZombieMode`): liga o motor à `Session`, valida `zhit`/`zstab`/granadas contra as posições do servidor (dano com a raridade e o defeito da arma), repassa `barricade`, dá o XP. `server/navmesh.ts`: carrega a navmesh pré-gerada. `server/session.ts`: ganchos e o estado `downed`.
 - `shared/data/mapas/cemiterio.json` (peças em `client/world/catalog/cemetery.ts`): o mapa ([[Map - Cemitério da Capela]]). `tools/bake-navmesh.ts` (`bun run navmesh`) e `shared/data/navmesh/cemiterio.json`: a navmesh do servidor, com as brechas marcadas ([[ADR - Barricadas como polígonos próprios na navmesh]]); `client/ai/navmesh.ts` (`soloNavMeshWithAreas`).
-- `client/zombies/`: `spectate.ts` (assistir um colega: quem, e a altura dos olhos), `client.ts` (eventos, HUD, `E` no caixão, nas barricadas e para reanimar, setas das brechas, caído, renascimento), `view.ts` (zumbis desenhados e interpolados, hitboxes, telegrafias, a de surgimento com mãos e feixe), `coffin.ts` (o caixão fixo, a placa de danificada), `barricades.ts` (as tábuas, o colisor delas, sons), `looks.ts` (visuais), `local.ts` (o jogo solo: o mesmo motor no navegador), `link.ts` (a interface `ZombieLink`), `ambience.ts` (névoa e a página do caixão na pausa, `flawText`).
+- `client/zombies/`: `crows.ts` (os corvos das árvores), `spectate.ts` (assistir um colega: quem, e a altura dos olhos), `client.ts` (eventos, HUD, `E` no caixão, nas barricadas e para reanimar, setas das brechas, caído, renascimento), `view.ts` (zumbis desenhados e interpolados, hitboxes, telegrafias, a de surgimento com mãos e feixe), `coffin.ts` (o caixão fixo, a placa de danificada), `barricades.ts` (as tábuas, o colisor delas, sons), `looks.ts` (visuais), `local.ts` (o jogo solo: o mesmo motor no navegador), `link.ts` (a interface `ZombieLink`), `ambience.ts` (névoa e a página do caixão na pausa, `flawText`).
 - `client/character/animator.ts`, `client/entities/rig.ts`, `client/entities/avatar.ts`, `client/net/remote.ts`: poses, hitboxes com escala, colega caído.
 - Testes: `server/tests/zombies.test.ts` (regras, motor, servidor real, progressão de armas, chefes, entrar no meio e esperar o intervalo, arma danificada na validação do servidor, barricadas no servidor e sincronia de quem entra no meio), `server/tests/zombieBarricades.test.ts` (mapa exclusivo, brechas na navmesh, barricadas no motor, armas danificadas), `server/tests/progression-modes.test.ts` (matriz com todas as combinações do caixão, danificadas incluídas) e `client/tests/offlineModes.test.ts` (jogo solo, arma danificada e barricada). Ver [[Integration Tests]].
 
