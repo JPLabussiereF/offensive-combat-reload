@@ -5,7 +5,7 @@
 // the game (health, eye height, hitbox, reload, speed) as you choose.
 import * as THREE from 'three';
 import {
-  allowedColors,
+  suggestedColors,
   ARM_LOSSES,
   BEARDS,
   BUILDS,
@@ -575,7 +575,7 @@ export function showCustomizer(root: HTMLElement, o: Options) {
     if (!it) return [];
     return it.channels.map((ch: Channel, i) => ({
       title: `${l(slot)} · ${l(ch)}`,
-      colors: allowedColors(slot, i),
+      colors: suggestedColors(slot, i),
       get: (a) => a.itens[slot]?.cores[i] ?? '',
       set: (a, color) => {
         const cur = a.itens[slot];
