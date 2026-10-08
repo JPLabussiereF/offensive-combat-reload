@@ -4,6 +4,7 @@ import { album, canFeature, sourcesFromProfile, titlesOf, type Own } from '@shar
 import { sanitizeAppearance, type Appearance } from '@shared/appearance';
 import { DELETION_GRACE_DAYS, formatTag, NAME_COOLDOWN_DAYS, type Participation, type ProfileResponse, type Totals, type ZombieTotals } from '@shared/account';
 import { legacyChoice, levelForXp, PROG_WEAPONS, sanitizeChoice, type ArsenalChoice, type ProgWeapon, type WeaponXp } from '@shared/progression';
+import { sanitizePet, type PetChoice } from '@shared/pets';
 import type { Sex } from '@shared/protocol';
 import { transaction, type Db, type Queryable } from './db';
 import { HttpError } from './http';
@@ -174,12 +175,14 @@ interface ProfileRow {
   /** The album sticker shown and the title worn (a page id); null: none. */
   featured_sticker: string | null;
   title: string | null;
+  /** The pet taken along, the switches and each pet's look (JSON, shared/pets.ts); null: never chose one. */
+  pet: unknown;
 }
 
 /** The account's game profile (one per account for now; the oldest one). */
 export async function profileOf(db: Queryable, accountId: string): Promise<ProfileRow> {
   const { rows } = await db.query<ProfileRow>(
-    'SELECT id, display_name, discriminator, sex, appearance, loadout, name_changed_at, featured_sticker, title FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1',
+    'SELECT id, display_name, discriminator, sex, appearance, loadout, name_changed_at, featured_sticker, title, pet FROM player_profile WHERE account_id = $1 ORDER BY created_at LIMIT 1',
     [accountId],
   );
   if (!rows[0]) throw new HttpError(404, 'nao_encontrado');
@@ -306,6 +309,7 @@ export async function fullProfile(db: Db, accountId: string): Promise<ProfileRes
     album,
     destaque: profile.featured_sticker,
     titulo: profile.title,
+    pet: sanitizePet(profile.pet),
     participacoes,
     nomeLiberaEm: libera && libera.getTime() > Date.now() ? libera.toISOString() : null,
     provedores: prov,
@@ -362,6 +366,17 @@ export async function setArsenal(db: Db, accountId: string, raw: unknown): Promi
   if (JSON.stringify(choice) !== JSON.stringify(sanitizeChoice(raw))) throw new HttpError(400, 'nivel_bloqueado');
   await db.query('UPDATE player_profile SET loadout = $2 WHERE id = $1', [profile.id, JSON.stringify(choice)]);
   return choice;
+}
+
+/**
+ * Saves the pet (shared/pets.ts): the one taken along (or none), the PvP / PvE switches and each pet's look.
+ * Anything invalid falls back to a valid choice, like the appearance; no pet needs the support pack for now (PF-28).
+ */
+export async function setPet(db: Queryable, accountId: string, raw: unknown): Promise<PetChoice> {
+  const p = await profileOf(db, accountId);
+  const pet = sanitizePet(raw);
+  await db.query('UPDATE player_profile SET pet = $2 WHERE id = $1', [p.id, JSON.stringify(pet)]);
+  return pet;
 }
 
 /**
@@ -439,6 +454,8 @@ export interface GameProfile {
   album: Own;
   /** The album sticker shown and the title worn (checked when they were chosen). */
   showcase?: { sticker: string | null; title: string | null };
+  /** The pet taken along (as of the connection: a change applies from the next one). */
+  pet?: PetChoice;
 }
 
 export async function loadGameProfile(db: Db, accountId: string): Promise<GameProfile> {
@@ -463,6 +480,7 @@ export async function loadGameProfile(db: Db, accountId: string): Promise<GamePr
     totals: totalsOf(stats.rows[0] ?? {}, zstats.rows[0] ?? {}),
     album,
     showcase: { sticker: profile.featured_sticker, title: profile.title },
+    pet: sanitizePet(profile.pet),
   };
 }
 

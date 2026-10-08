@@ -18,6 +18,7 @@ import { checkedPropsOf, CHECKED_PROPS, PROP_RANGE, type PickupKind } from '@sha
 import { isGun, weaponOfKill, type GunId, type WeaponId } from '@shared/progression';
 import { DEFAULT_LOADOUT, grenadeStats, knifePassive, loadoutKnife, slotStats, type GunSlot, type Loadout } from '@shared/arsenal';
 import type { GameModeId } from '@shared/modes';
+import { petAlong, playerPet } from '@shared/pets';
 import { accountLevelOf, addAccountXp, addTime, addWeaponXp, equip, loadoutOf, progressMsg, stickerAdd, stickerMax, stickerUps, type LevelUp, type LiveAccount } from './progress';
 import { createMode, type SessionMode } from './modes';
 import type { MapRuntime } from './maps';
@@ -218,8 +219,12 @@ export class Session {
     this.mode.dispose?.();
   }
 
-  /** `withLook`: include the appearance (only when a player appears, it doesn't change mid-session). */
+  /**
+   * `withLook`: include the appearance and the pet (only when a player appears, they don't change mid-session). The
+   * pet only if it comes along in this mode (its PvP or PvE switch), and never its name (only its owner sees that).
+   */
   private playerInfo(p: SPlayer, withLook = false): PlayerInfo {
+    const pet = withLook ? playerPet(p.conn.account.profile.pet) : null;
     return {
       id: p.id,
       name: p.name,
@@ -227,6 +232,7 @@ export class Session {
       sex: p.sex,
       lo: p.loadout,
       ...(withLook ? { ap: p.conn.account.profile.appearance } : {}),
+      ...(pet && petAlong(pet, this.mode.rules) ? { pet } : {}),
       kills: p.kills,
       deaths: p.deaths,
       score: p.score,
