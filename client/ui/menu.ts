@@ -7,7 +7,7 @@
 import { CAN_FULLSCREEN, CAN_KEEP_ESCAPE, enterFullscreen, IS_IOS, IS_MOBILE, STANDALONE } from '../core/device';
 import type { GamepadInput, PadButton } from '../core/gamepad';
 import { assign, clearSlot, keyLabel, mergeKeybinds, type LayoutMap, type RebindableAction, type Slot } from '../core/keybinds';
-import type { Settings } from '../core/settings';
+import { objectDetail, type ObjectDetail, type Settings } from '../core/settings';
 import type { Quality } from '../render/quality';
 import { esc } from './arsenal';
 import { backStep, KEY_GROUPS, type PauseContext } from './pauseMenu';
@@ -107,6 +107,8 @@ export class Screens {
       ['desc-fov', 'pmDescFov'],
       ['lbl-quality', 'quality'],
       ['desc-quality', 'pmDescQuality'],
+      ['lbl-detail', 'objectDetail'],
+      ['desc-detail', 'pmDescDetail'],
       ['lbl-fullscreen-desktop', 'fullscreenOnPlay'],
       ['desc-fullscreen-desktop', 'pmDescFullscreen'],
       ['lbl-vol', 'volume'],
@@ -651,6 +653,8 @@ export class Screens {
     };
     segmented<Settings['spatialAudio']>('set-spatial', [['auto', 'spatialAuto'], ['hrtf', 'spatialHeadphones'], ['stereo', 'spatialSpeakers']], () => s.spatialAudio, (v) => (s.spatialAudio = v));
     segmented<Quality>('set-quality', [['auto', 'qualityAuto'], ['baixa', 'qualityLow'], ['media', 'qualityMedium'], ['alta', 'qualityHigh']], () => s.quality, (v) => (s.quality = v));
+    // Shows the device's default until the player picks one (settings.ts objectDetail).
+    segmented<ObjectDetail>('set-detail', [['normal', 'detailNormal'], ['leve', 'detailLight']], () => objectDetail(s), (v) => (s.detalhe = v));
     // On/off switches (one setting may have two: "fullscreen when playing" on a phone and on a computer).
     type ToggleKey = 'aimAssist' | 'fullscreen' | 'adsHold' | 'invertY';
     const toggles: [string, ToggleKey][] = [];

@@ -55,7 +55,8 @@ export class Effects {
   private e = new THREE.Euler();
   private zAxis = new THREE.Vector3(0, 0, 1);
 
-  constructor(scene: THREE.Scene) {
+  /** `detail`: with the light object detail (PF-35, P7) the fireballs and the smoke are plain icosahedra (20 triangles, not 80). */
+  constructor(scene: THREE.Scene, detail: 'normal' | 'leve' = 'normal') {
     // Per-instance fade (0..1) multiplies the decal's alpha, so each mark disappears on its own schedule
     // while all of them stay one draw call.
     const decalGeo = new THREE.PlaneGeometry(0.13, 0.13);
@@ -101,7 +102,7 @@ export class Effects {
     this.muzzleLight = new THREE.PointLight(0xffc36b, 0, 9, 2);
     scene.add(this.muzzleLight);
 
-    const sphere = new THREE.IcosahedronGeometry(1, 1);
+    const sphere = new THREE.IcosahedronGeometry(1, detail === 'leve' ? 0 : 1);
     // Opaque, flat-shaded puffs read better as cartoon fire than additive glow (which washes out on sky).
     for (let i = 0; i < 12; i++) {
       const mesh = new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, depthWrite: false }));

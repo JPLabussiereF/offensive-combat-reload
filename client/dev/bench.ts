@@ -12,6 +12,7 @@ import { loadOfficialMap, startBuild, type LoadOptions } from '../world/mapLoade
 import { seeded } from '@shared/seeded';
 import { loadTextureOverrides } from '../world/surfaces';
 import { zombieAtmosphere } from '../zombies/ambience';
+import { loadSettings, objectDetail, type ObjectDetail } from '../core/settings';
 import POINTS from './benchPontos.json';
 
 export interface BenchPoint {
@@ -37,7 +38,8 @@ const DEG = Math.PI / 180;
 export async function runBench(slug: string) {
   if (!isOfficialMap(slug)) throw new Error(`bench: mapa oficial desconhecido "${slug}"`);
   const q = new URLSearchParams(location.search);
-  const detalhe = q.get('detalhe') === 'leve' ? 'leve' : q.get('detalhe') === 'normal' ? 'normal' : undefined;
+  const asked = q.get('detalhe');
+  const detalhe: ObjectDetail = asked === 'leve' || asked === 'normal' ? asked : objectDetail(loadSettings());
   const quality = (q.get('qualidade') ?? 'alta') as Quality;
   // Only the canvas: the home, menus and HUD stay hidden.
   const style = document.createElement('style');
@@ -58,7 +60,7 @@ export async function runBench(slug: string) {
   let map;
   try {
     Math.random = () => 0.37;
-    const build = startBuild(data, { physics, scene: ctx.scene, renderer: ctx.renderer, sfx: silentSfx, modo: 'jogo', ...(detalhe ? { detalhe } : {}) });
+    const build = startBuild(data, { physics, scene: ctx.scene, renderer: ctx.renderer, sfx: silentSfx, modo: 'jogo', detalhe });
     for (const peca of data.pecas) await build.piece(peca);
     Math.random = seeded(35);
     map = build.finish();
@@ -131,7 +133,7 @@ export async function runBench(slug: string) {
 
   const bench = {
     mapa: slug,
-    detalhe: detalhe ?? 'padrão',
+    detalhe,
     qualidade: quality,
     gpu: qm.gpu,
     buildMs: Math.round(buildMs),

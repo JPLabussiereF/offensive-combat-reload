@@ -57,6 +57,14 @@ function layerOf(slot: CharSlot): number {
 /** Levels of detail baked for the game, and the distance (m) each one starts at. */
 const LOD_LEVELS = [0, 1, 2] as const;
 const LOD_DISTANCES = [0, 20, 45];
+/** The light object detail (PF-35 L7): the far levels from 10 and 25 m. */
+const LOD_DISTANCES_LIGHT = [0, 10, 25];
+let lodDistances = LOD_DISTANCES;
+
+/** The object detail the characters baked from now on use (the game sets it when a match's map is built). */
+export function setCharacterDetail(detail: 'normal' | 'leve') {
+  lodDistances = detail === 'leve' ? LOD_DISTANCES_LIGHT : LOD_DISTANCES;
+}
 
 /** Morph targets that survive the bake (they change at runtime): the closed hands. */
 const LIVE_MORPHS = ['punho_L', 'punho_R'] as const;
@@ -613,7 +621,7 @@ export class Character {
    * in vertex colors (palette cell × tint × occlusion) and hidden regions removed (one shared material). The
    * weapons stay separate (visibility toggled by the game). The closed-hand morphs survive the bake. Any
    * later change unbakes automatically. Three levels of detail are baked (the pieces rebuilt with less
-   * detail) and switched by distance (LOD_DISTANCES).
+   * detail) and switched by distance (LOD_DISTANCES, or LOD_DISTANCES_LIGHT with the light object detail).
    */
   bake() {
     if (this.baked) return;
@@ -770,7 +778,7 @@ export class Character {
       // Level 0 until the renderer picks by distance.
       mesh.visible = i === 0;
       // 10% hysteresis: no flicker at the boundary.
-      lodObj.addLevel(mesh, LOD_DISTANCES[i] ?? 0, 0.1);
+      lodObj.addLevel(mesh, lodDistances[i] ?? 0, 0.1);
     });
     this.body.add(lodObj);
     this.baked = lodObj;

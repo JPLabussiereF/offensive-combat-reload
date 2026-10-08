@@ -1,4 +1,5 @@
 import type { Quality } from '../render/quality';
+import type { ObjectDetail } from '../world/mapBuilder';
 import { IS_MOBILE } from './device';
 import { mergeKeybinds, type Keybinds } from './keybinds';
 
@@ -13,6 +14,12 @@ export interface Settings {
   /** Spatial sound: 3D for headphones (HRTF), plain stereo for speakers, or automatic by device. */
   spatialAudio: 'auto' | 'hrtf' | 'stereo';
   quality: Quality;
+  /**
+   * Object detail (PF-35): 'leve' builds the maps simpler (foliage, dead trees, sky lanterns, roofs, sculpted
+   * props, shelves) and switches the characters to their far levels sooner. Read when a map is built (the next
+   * match). Absent until the player picks one: the device's default (defaultDetail).
+   */
+  detalhe?: ObjectDetail;
   // Touch (phones and tablets).
   /** Look speed of the touch drag (1 = default, ~0.18° per pixel). */
   touchSensitivity: number;
@@ -42,6 +49,20 @@ export interface Settings {
   keyLabels: Record<string, string>;
 }
 
+export type { ObjectDetail };
+
+/** The renderer runs on the CPU (QualityManager.software): its default object detail is Leve too. */
+let software = false;
+export function setSoftwareRenderer(on: boolean) {
+  software = on;
+}
+
+/** Leve on phones and tablets and with software rendering, Normal elsewhere. */
+export const defaultDetail = (): ObjectDetail => (IS_MOBILE || software ? 'leve' : 'normal');
+
+/** The object detail in effect: the player's choice, else the device's default. */
+export const objectDetail = (s: Settings): ObjectDetail => s.detalhe ?? defaultDetail();
+
 const KEY = 'oc.settings.v1';
 const DEFAULTS: Settings = {
   sensitivity: 2.5,
@@ -69,7 +90,9 @@ export function loadSettings(): Settings {
     if (raw) {
       const saved = JSON.parse(raw);
       // Keybinds merge action by action (a plain spread would drop the defaults of actions added later).
-      return { ...DEFAULTS, ...saved, keybinds: mergeKeybinds(saved?.keybinds), keyLabels: cleanLabels(saved?.keyLabels) };
+      const out: Settings = { ...DEFAULTS, ...saved, keybinds: mergeKeybinds(saved?.keybinds), keyLabels: cleanLabels(saved?.keyLabels) };
+      if (out.detalhe !== 'normal' && out.detalhe !== 'leve') delete out.detalhe;
+      return out;
     }
   } catch {
     /* storage unavailable */

@@ -16,6 +16,13 @@ import { affineRows } from './pose';
 
 const CELL = 40;
 
+/**
+ * How much detail the map is built with (PF-35): 'leve' builds foliage, dead trees, sky lanterns, roofs, sculpted
+ * props and shelves simpler (the player's "Detalhe dos objetos", client/core/settings.ts). Only what is drawn
+ * changes: the colliders are always the full ones. The server and the map editor always build 'normal'.
+ */
+export type ObjectDetail = 'normal' | 'leve';
+
 export interface PieceOpts {
   /** Hue multiplied over the surface texture. Default white. */
   tint?: THREE.ColorRepresentation;
@@ -87,6 +94,10 @@ export class MapBuilder {
    * carried by it. Null for pieces without one (and between pieces).
    */
   pose: THREE.Matrix4 | null = null;
+  /** The detail the map is built with (see ObjectDetail). */
+  detalhe: ObjectDetail = 'normal';
+  /** The static geometry gathered while a sculpted prop is built in the light detail (PF-35 L5; see gather). */
+  private gathered: { material: THREE.Material; castShadow: boolean; geos: THREE.BufferGeometry[] }[] | null = null;
 
   constructor(
     readonly physics: Physics,
@@ -94,6 +105,11 @@ export class MapBuilder {
     private readonly cell = CELL,
   ) {
     this.target = scene;
+  }
+
+  /** `normal` with the normal detail, `leve` with the light one (a count of segments, of clumps...). */
+  seg<T>(normal: T, leve: T): T {
+    return this.detalhe === 'leve' ? leve : normal;
   }
 
   // --- Low level --------------------------------------------------------------------------------
@@ -105,6 +121,42 @@ export class MapBuilder {
   addGeometry(geo: THREE.BufferGeometry, material: THREE.Material, tint: THREE.ColorRepresentation = 0xffffff, castShadow = true) {
     const g = normalize(geo, tint);
     if (this.pose) g.applyMatrix4(this.pose);
+    this.stats.pieces++;
+    if (this.gathered) {
+      let set = this.gathered.find((s) => s.material === material && s.castShadow === castShadow);
+      if (!set) this.gathered.push((set = { material, castShadow, geos: [] }));
+      set.geos.push(g);
+      return;
+    }
+    this.toBatch(g, material, castShadow);
+  }
+
+  /**
+   * From now on the static geometry is held back (a sculpted prop being built with the light detail, PF-35 L5)
+   * until `releaseGathered`: the whole prop is simplified as one mesh per material, not part by part.
+   */
+  gather() {
+    this.gathered = [];
+  }
+
+  /**
+   * What was gathered goes to the batches, merged per material and shadow, through `simplify` (given the whole
+   * prop's size, m).
+   */
+  releaseGathered(simplify: (g: THREE.BufferGeometry, o: { material: THREE.Material; size: number }) => THREE.BufferGeometry) {
+    const sets = this.gathered ?? [];
+    this.gathered = null;
+    const box = new THREE.Box3();
+    for (const s of sets) for (const g of s.geos) box.union((g.computeBoundingBox(), g.boundingBox!));
+    const size = box.isEmpty() ? 1 : Math.max(...box.getSize(new THREE.Vector3()).toArray());
+    for (const s of sets) {
+      const merged = s.geos.length === 1 ? s.geos[0] : mergeGeometries(s.geos, false)!;
+      if (merged !== s.geos[0]) for (const g of s.geos) g.dispose();
+      this.toBatch(simplify(merged, { material: s.material, size }), s.material, s.castShadow);
+    }
+  }
+
+  private toBatch(g: THREE.BufferGeometry, material: THREE.Material, castShadow: boolean) {
     g.computeBoundingBox();
     this.box3.copy(g.boundingBox!).getCenter(this.center);
     let id = this.materialIds.get(material);
@@ -119,7 +171,6 @@ export class MapBuilder {
       this.batches.set(key, batch);
     }
     batch.geos.push(g);
-    this.stats.pieces++;
   }
 
   private register(desc: RAPIER.ColliderDesc, physics: SurfaceMaterial, onShot?: SurfaceInfo['onShot'], occluder?: OccluderKind) {
