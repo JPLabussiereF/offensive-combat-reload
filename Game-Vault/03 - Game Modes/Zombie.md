@@ -45,13 +45,17 @@ source_paths:
   - server/tests/zombieBarricades.test.ts
   - server/tests/progression-modes.test.ts
   - client/tests/offlineModes.test.ts
+  - shared/pets.ts
+  - shared/data/pets.json
+  - client/pets/manager.ts
+  - server/tests/pets.test.ts
 tags:
   - game
   - modes
   - online
   - coop
   - zombies
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Zombie
@@ -77,7 +81,7 @@ Matar todos os zumbis da **onda 12** (o Prefeito e a escolta dele). Todos na par
 
 ## Condição de derrota
 
-Durante uma onda, **ninguém de pé**: todos caídos ou mortos. Sozinho, cair é perder (não há quem reanime). O resumo diz "A HORDA VENCEU".
+Durante uma onda, **ninguém de pé**: todos caídos ou mortos. Sozinho, cair é perder (não há quem reanime), **a não ser que a gata esteja vindo** (Sétima Vida, ver Pets abaixo): caído com carga da gata não conta como derrota. O resumo diz "A HORDA VENCEU".
 
 ## Times
 
@@ -278,11 +282,27 @@ No altar da capela, entre as duas velas, fica um **totem** (um ídolo de osso e 
 
 Decidido pelo motor (`ZombieMatch.useTotem`): no servidor online (mensagem `totem`, evento `ztotem`) e no navegador no jogo solo. O lugar fica no mapa (`zumbi.totem` em `shared/data/mapas/cemiterio.json`); o modelo, em `client/zombies/totem.ts`.
 
+### Pets (PF-29)
+
+Cada jogador pode trazer o seu pet ([[Pets]], com o interruptor **Junto no zumbi** ligado). Ele age **sozinho** quando a habilidade está pronta, **sem dano, sem dinheiro e sem estatística**, e os zumbis o ignoram (o pet não existe no motor; só o efeito). Números em `shared/data/pets.json`.
+
+| Pet | Habilidade | Resumo | Recarga |
+|---|---|---|---|
+| Amora | Segura, Amora! | segura pela canela, por 3 s, o zumbi mais perto do dono (até 7 m); o Segurança e os chefes só levam um tranco de 0,6 s (`ZF.held`) | 18 s |
+| Bruxinha | Feitiço do Pato | boia de patinho por 4 s no zumbi perigoso mais perto (até 10 m; variante antes de comum; chefes imunes): parado e levando tiro (`ZF.duck`) | 25 s |
+| Gata | Sétima Vida | levanta o dono caído em 6 s (começa 2 s depois da queda), 2 vezes por partida; **cede a vez a um colega** que comece a reanimar e nunca entra nas reanimações | cargas |
+| Fuinha | Mão na Massa | prega 1 tábua a cada 2,5 s, até 2, na barricada erguida mais danificada perto do dono (até 6 m), sem dinheiro | 15 s |
+| Lontra | Pedrada | cancela o cuspe da Tia ou o inchaço do Tio perto do dono (até 9 m) e deixa o zumbi tonto 1,5 s | 12 s |
+| Iguana | Rabo de Isca | um golpe deixa o dono com 35% da vida ou menos: os zumbis a até 8 m (não os chefes) vão atrás do rabo por 5 s | 40 s |
+
+Decidido pelo motor (`ZombieMatch.tickPets`): no servidor online, no navegador no solo. Evento `zpet` para a sala ([[Remote Calls]]); o dono vê o ícone do pet com a recarga no [[HUD]].
+
 ### Caído, reanimar, morrer
 
 - Vida a zero **durante uma onda** (zumbi, chefe, queda, a própria granada; **não** cair para fora do mapa): você **cai** (`Session.onLethal` → `ZombieMatch.lethal`). Caído não anda, não atira, a câmera fica rente ao chão, a tela mostra "CAÍDO!" e quanto falta para sangrar; os zumbis passam a ignorar você.
 - Um colega fica a até 2,5 m e **segura E por 3 s** ("Segure para reanimar Fulano", cruz vermelha sobre quem caiu, vista através das paredes): você levanta com 50% da vida e ele ganha $100 e 10 XP. Afastar-se ou soltar cancela. Reanimar tem prioridade sobre o caixão e as barricadas no `E`.
 - Ninguém veio em **30 s**: você **sangra até morrer** e fica fora até o **intervalo**; volta lá com a **pistola inicial** (as armas do caixão se perdem) e com o seu dinheiro.
+- **Com a gata** ([[Pets]]): 2 s depois da queda ela começa a te levantar, e em 6 s você volta com 50% (duas vezes por partida). A tela diz "A gata está te levantando · Ns"; os colegas veem uma pata na cor da coleira sobre a sua cruz vermelha e **continuam vendo o aviso de reanimar**: se um deles começa, a gata espera (e continua se ele soltar). No solo, o estado "caído" só existe para quem leva a gata.
 - **Assistir um colega** (PF-24, só online): quem está fora até o intervalo (sangrou até morrer, ou entrou com a onda em andamento) passa a ver, depois de **2 s** (`SPECTATE_DELAY`), **pelos olhos de um colega de pé**:
   - a câmera fica onde ele está e olha para onde ele olha, na altura dos olhos dele (em pé, agachado ou caído); a mira dele aproxima a visão (o zoom da arma dele);
   - os braços e a arma dele aparecem em primeira pessoa (um segundo viewmodel, com a aparência dele): mirando, correndo, recarregando, e cada tiro dele dá o coice e o clarão; o corpo dele não é desenhado;
@@ -351,7 +371,8 @@ Tudo em `shared/data/zumbi.json`, menos os dados do mapa, que ficam no campo `zu
 | `espinhos` | 10 a cada 1 s em cima; sangra 10 s, 2 por tique de 1 s; conta com os pés a 0,3 m ou mais, até 0,5 m do muro e 0,8 m da sebe | grade e sebe |
 | `raridades`, `itens`, `inicial` | | o caixão |
 | `zumbi` (em `shared/data/mapas/cemiterio.json`) | `dentro` (o muro), `sebe` (a sebe em volta do campo, com espinhos), 24 pontos de surgimento (fora do muro), o lugar do caixão, onde cada chefe surge, as 5 brechas (`barricadas`: eixo, centro, largura) | o mapa (o muro foi cortado nas brechas na conversão; `ZOMBIE.mapas.cemiterio`; `checkZombieMap`) |
-| `MODE_RULES.zumbi` | `weapons: 'mode'`, `lockedLoadout`, `grenades`, sem XP de arma, `rounds`, `bots` (jogo solo), `coop`, `ownMaps: true` | `shared/modes.ts` |
+| `MODE_RULES.zumbi` | `weapons: 'mode'`, `lockedLoadout`, `grenades`, sem XP de arma, `rounds`, `bots` (jogo solo), `coop`, `ownMaps: true`, `pets: 'ability'` | `shared/modes.ts` |
+| `shared/data/pets.json` | alcance, duração, recarga e cargas de cada habilidade dos pets | [[Pets]] |
 | Sala | sob demanda, aberta pelo `play` num mapa do modo (as salas fixas, como `zumbi-cemiterio`, saíram na PF-6) | `server/app.ts` |
 
 > [!info] A `sebe` (espinhos) fica no campo `zumbi` do mapa (`shared/data/mapas/cemiterio.json`, `zumbi.sebe`), validada por `checkZombieMap`; `ZOMBIE.mapas.cemiterio` lê esse campo. Na main ela ficava em `mapas.cemiterio` de `shared/data/zumbi.json`, que não tem mais `mapas` (merge de 07/10/2026). Ver [[Map - Cemitério da Capela]].

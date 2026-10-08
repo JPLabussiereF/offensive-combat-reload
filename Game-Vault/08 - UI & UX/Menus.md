@@ -4,6 +4,9 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - client/ui/galpao/petStage.ts
+  - client/ui/galpao/petBoard.ts
+  - client/ui/pets.ts
   - client/ui/galpao/heroCharacter.ts
   - client/ui/galpao/galpaoRules.ts
   - client/ui/galpao/arsenalBoard.ts
@@ -61,7 +64,7 @@ Desde 08/10/2026 ([[ADR - Tela inicial em galpão 3D]], design "Galpão Home"), 
 │   galpão 3D (luz, poeira,         │ Mata-mata · Online · mapas  │ │   │                                               │
 │   personagem, estações)           └─────────────────────────────┘ │   │                                               │
 │                                   01 JOGAR      02 MAPAS  …       │   │                                               │
-│                                   07 GERENCIAMENTO (equipe)       │   │ [‹ GALPÃO Esc]   dica   [Q ‹ ant. 01/07 próx. › E] │
+│                                   07 PETS   08 GERENCIAMENTO (eq.)│   │ [‹ GALPÃO Esc]   dica   [Q ‹ ant. 01/08 próx. › E] │
 └───────────────────────────────────────────────────────────────────┘   └───────────────────────────────────────────────┘
 ```
 
@@ -73,18 +76,28 @@ Desde 08/10/2026 ([[ADR - Tela inicial em galpão 3D]], design "Galpão Home"), 
 | 04 Álbum | revista na mesa (a capa abre, as abas viram a página em 3D) | `#tab-album` em página dupla |
 | 05 Perfil | armário com a placa do jogador | `#tab-profile` e `#tab-auth` (nome, editor de personagem) |
 | 06 Configurações | quadro elétrico | `#tab-settings` (o `#menu-settings` emprestado), painel escuro |
-| 07 Gerenciamento | monitor de segurança (só equipe) | `#tab-management`, painel escuro |
+| 07 Pets | a porta da frente com o quintal (PF-29) | porta-coleiras com etiquetas e a ficha do pet à direita (ver abaixo e [[Pets]]) |
+| 08 Gerenciamento | monitor de segurança (só equipe) | `#tab-management`, painel escuro |
+
+**07 · PETS — a porta do quintal** (PF-29, com o parecer de câmera da PF-36): a porta da frente do galpão (a placa SAÍDA virou **QUINTAL**) dá para um **quintal de verdade** (grama, muro baixo, a casinha da Amora com a plaquinha do nome, um céu próprio mais escuro que o das outras aberturas). Os pets "moram lá fora": **um por vez** entra pela porta.
+- **Câmera fixa** em 3/4 pela direita da porta (posição 2,2; 1,3; 4,8, alvo −1; 0,8; 7,9, campo de visão 40°, `filmOffset` 6 — 4,5 abaixo de 900 px; no retrato, alvo −0,4; 0,7; 7,6 e 52°), uma arandela quente sobre a porta e um spot no capacho (sombra só fora do celular), o numeral **07** na parede e **07 · PETS** no chão.
+- **Porta-coleiras** à esquerda da porta (x de −1 a −2,5 m): um gancho por pet, cada um com a coleira na cor escolhida para aquele pet; o do pet levado fica **vazio** (ele está com a coleira). Embaixo de cada gancho, uma **etiqueta** (DOM, `petBoard.ts`, pelo menos 44 px de toque, alcançável pelo controle) com o nome do pet; **verde "COM VOCÊ"** no levado; vermelha **"APOIO"** com como liberar num pet do pacote de apoio (nenhum por enquanto).
+- **Capacho:** ao chegar, o pet levado (ou o primeiro, sem pet) **já está sentado** a 0,7 m da soleira. **Clicar num gancho chama o pet**: o que estava sai trotando para o quintal enquanto o novo entra; o novo fica legível no capacho em até 0,8 s, faz o **gesto** dele em até 1 s (a Amora puxa um brinquedo de corda, a Bruxinha joga uma poção e surge um patinho, a gata se espreguiça e levanta, a lontra faz malabarismo, a fuinha dá 3 marteladas, a iguana mexe o rabo) e tudo leva menos de 2 s; um clique novo interrompe. Com movimento reduzido, a troca é seca.
+- **Escolher não é equipar:** a **ficha** à direita (no padrão da do Arsenal, sem cobrir o pet; `client/ui/pets.ts`, a mesma da aba clássica) mostra a espécie, o nome, **Levar este** (ou "✓ Vai com você" e **Deixar no quintal**), a habilidade do zumbi com os números, o nome (só o dono vê), a pelagem (o robe da Bruxinha), as 8 cores de coleira e os interruptores **Junto no PvP** e **Junto no zumbi**. Cada mudança salva na conta na hora.
+- **Na visão geral**, o pet levado aparece com o personagem: um pet pequeno ou a Bruxinha **sentados no tampo da mesa** (perto da revista no computador; na ponta esquerda no celular deitado), um cachorro **em pé atrás da mesa com as patas no tampo**; nunca embaixo do menu (a caixa dele é projetada na tela e conferida contra o menu) e **escondido no retrato**. Parado, só respira e faz um gesto a cada 8 a 15 s; uma luz fria e fraca o recorta do fundo; **clicar nele** leva à estação, e ele reage quando o mouse passa no item **PETS** do menu.
+- **Na cinemática de lançamento**, o pet levado **sai correndo** (desde o começo, a 4 m/s ou mais, de 1 m à frente da câmera e uns 0,7 m de lado) e cruza a soleira da porta de enrolar por volta de 1,9 s; a cinemática continua até 2,7 s. Se o pet não vai junto no modo da partida (o interruptor de PvP ou de PvE), ele não corre.
 
 - **Abertura:** uma splash só com o nome do jogo ("OFFENSIVE COMBAT", sem barra nem texto, e sem o HUD nem a home clássica por baixo) enquanto a cena é montada; depois ela some e a câmera voa ~3 s até a visão geral (sem voo com `prefers-reduced-motion`).
+- **Voos:** a duração vem do quanto a câmera gira (1 s até 60°, 1,2 s a 120°, 1,4 s a 180°: `flightDuration`), o horizonte inclina no máximo ~8° no caminho e uma curva que passaria pela mesa do personagem dá a volta por um ponto lateral; do Gerenciamento passa pelo ponto de passagem de sempre. Com `prefers-reduced-motion` não há voo: **um corte com mergulho no preto de ~0,2 s**, em toda estação (Perfil e Configurações também).
 - **Personagem:** na mesa do centro está o **personagem da conta** (a aparência do perfil, como na partida, sem armas), inclinado com as mãos apoiadas no tampo e a cabeça acompanhando a câmera. Muda junto quando o jogador personaliza o personagem (salvar no editor do Perfil recarrega a conta: a mesa, o retrato do botão da conta e a ficha); se não puder ser montado, fica o boneco de argila do design.
-- **Teclas:** na visão geral, **1–7** vão às estações e **Enter** é a entrada rápida; numa estação, **Q/E** ou setas trocam de estação e **Esc** volta (no Arsenal, primeiro fecha a ficha). Clicar num objeto na visão geral também leva à estação; passar o mouse destaca o objeto e o item do menu.
+- **Teclas:** na visão geral, **1–8** vão às estações (1 a 6 como antes; **7 os Pets**, **8 o Gerenciamento**) e **Enter** é a entrada rápida; numa estação, **Q/E** ou setas trocam de estação e **Esc** volta (no Arsenal, primeiro fecha a ficha). Clicar num objeto na visão geral também leva à estação; passar o mouse destaca o objeto e o item do menu.
 - **Começar uma partida:** a porta de enrolar sobe, a luz invade e aparece "ENTRANDO NA PARTIDA" com o nome da sessão (ou o modo) e o mapa; depois o jogo carrega como antes. O editor de mapas sai direto.
 - **Avisos:** o `#home-status` vira o aviso escuro acima da barra.
 - **Sem galpão** (renderização por software, sem WebGL, ou `localStorage['oc.galpao'] = 'off'`): fica a tela da seção 2.1.
 
 ### 2.1 Logado sem galpão (`#home-in`)
 
-- **Cabeçalho:** logo, abas **JOGAR / MAPAS / ARSENAL / ÁLBUM / PERFIL / CONFIGURAÇÕES** e, só para admin e moderador (`papeis` de `/api/me`), **GERENCIAMENTO** (`role="tab"`, L1/R1 no controle) e um botão da conta com o retrato do personagem (`renderPortrait`, close no rosto), `Nome#1234`, selo de nível e barra de XP da conta (`xpNoNivel / xpProximo`). O botão abre a aba Perfil.
+- **Cabeçalho:** logo, abas **JOGAR / MAPAS / ARSENAL / ÁLBUM / PERFIL / CONFIGURAÇÕES / PETS** e, só para admin e moderador (`papeis` de `/api/me`), **GERENCIAMENTO** (`role="tab"`, L1/R1 no controle) e um botão da conta com o retrato do personagem (`renderPortrait`, close no rosto), `Nome#1234`, selo de nível e barra de XP da conta (`xpNoNivel / xpProximo`). O botão abre a aba Perfil.
 - **Cartão do personagem** (lateral, fixo ao rolar no computador; empilhado no celular): o **personagem real** da conta em 3D (o mesmo palco `Stage` do editor, `client/ui/customize.ts`: parado, girando devagar, arrastar gira; sem zoom pela roda para não travar a rolagem), os ícones do que vai para a partida — primária, secundária escolhida, faca e granada, com a forma ligada (ex.: "🔫 🛎️ 🐔 🧨 equipados"; `weaponIcon`), abates e partidas, botão **PERSONALIZAR** (abre o editor de [[Character Customization]] no lugar do painel, que ocupa a largura toda) e, no modo Online, **JOGAR ONLINE** com a dica "Entra direto na sessão mais cheia dos mapas filtrados".
 - **Aba Jogar:**
   - *Modo:* três cartões, **Online**, **Contra bots** e **Campo de tiro**.
@@ -98,6 +111,7 @@ Desde 08/10/2026 ([[ADR - Tela inicial em galpão 3D]], design "Galpão Home"), 
 - **Aba Álbum** (`client/ui/album.ts`): o álbum de figurinhas (conquistas) por página, com o acabamento de cada figurinha, a barra até a próxima meta e o detalhe ao clicar. Calculado do perfil. Ver [[Achievements]].
 - **Aba Perfil** (`client/ui/profile.ts`): tag e nível com barra de XP, aviso de exclusão pendente (com cancelar), corpo (masculino/feminino), **Personalizar personagem**, estatísticas totais (e as do modo zumbi, numa grade própria, quando a conta já jogou), últimas sessões online, troca de nome (com carência), vincular/desvincular Discord, sair e excluir conta (com `confirm`). Ver [[Player Data]].
 - **Aba Configurações:** os mesmos controles do menu de pausa, com as mesmas subabas (Mira, Vídeo, Áudio, Teclas ou Controle, Toque no celular; ver [[Settings]]). O bloco `#menu-settings` é **emprestado** para a aba enquanto a tela inicial está aberta e devolvido ao `#menu` ao sair, por isso a mudança vale na hora. O botão "Ajustar botões" do editor de toque fica escondido aqui (os controles de toque só existem na partida). Com controle, L1/R1 continuam trocando as abas da tela inicial; as subabas se escolhem com o direcional e ✕. Clicar numa subaba só troca a seção: a aba e a barra de subabas continuam abertas (as abas da tela inicial são só as do cabeçalho, `.home-tabs [role="tab"]`; as subabas emprestadas também são `role="tab"` e não podem ser tratadas como aba da tela inicial — ver [[Lessons Learned]]).
+- **Aba Pets** (`#tab-pets`, `client/ui/pets.ts` `PetsTab`, PF-29): a lista dos seis pets com o **retrato 2D** de cada um (`client/pets/portrait.ts`) e a etiqueta "COM VOCÊ" no levado, o retrato grande do escolhido e a mesma **ficha** da estação 07 do galpão (Levar este, Deixar no quintal, habilidade, nome, pelagem, coleira, interruptores). Todos de graça. Ver [[Pets]].
 - Uma aba extra sem botão (`#tab-auth`) mostra o formulário "Escolher nome" (primeiro login pelo Discord) e o editor de personagem.
 
 ### 2.2 Deslogado: landing (`#home-out`)

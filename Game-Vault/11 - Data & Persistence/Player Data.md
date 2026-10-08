@@ -17,11 +17,13 @@ source_paths:
   - server/migrations/003_melhorias.sql
   - server/migrations/004_estatisticas_zumbi.sql
   - shared/zombieMatch.ts
+  - shared/pets.ts
+  - server/migrations/007_pets.sql
 tags:
   - game
   - data
   - player
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Player Data
@@ -57,6 +59,7 @@ Colunas e índices em [[Database]].
 | Sexo / corpo | `player_profile.sex` (`m`/`f`) | Trocar mantém a aparência (sanitizada para o novo corpo) |
 | Aparência | `player_profile.appearance` (jsonb, versão `v: 2`) | Sempre passa por `sanitizeAppearance` na leitura e escrita; `NULL` = padrão. Ver [[Character Customization]] |
 | `avatar_url`, `bio` | `player_profile` | Existem no schema; não usados pelo código atual (só zerados na anonimização) |
+| Pet ([[Pets]]) | `player_profile.pet` (jsonb, migration 007) | `{ id, pvp, pve, cfg }`: o pet levado (`id: null` = nenhum, "Deixar no quintal"), os interruptores **Junto no PvP** e **Junto no zumbi** e, **por pet**, o nome (só o dono vê; nunca vai para os outros), a pelagem e a coleira. Sempre passa por `sanitizePet` na leitura e na escrita; `NULL` = conta sem pet. Muda por `PATCH /api/perfil {pet}` (`setPet`); o jogo lê no login (`profile.pet`) e vale a partir da próxima conexão |
 
 ## Progresso e estatísticas
 
@@ -79,7 +82,7 @@ Regras de progressão: [[Progression]].
 
 Criado no handshake do WebSocket (`liveAccount(loadGameProfile(...), chatMutedUntil)`):
 
-- `profile: GameProfile` — `accountId`, `profileId`, `tag`, `sex`, `appearance`, `xp`, `weapons{xp}` por arma, `arsenal` (`ArsenalChoice`, sanitizada contra o XP de cada progressão: níveis e travas das armas). Os rifles antigos guardam pontos em `rifle` e as facas em `faca` (`weapon_progress` continua com os 5 ids).
+- `profile: GameProfile` — `accountId`, `profileId`, `tag`, `sex`, `appearance`, `pet` (o `PetChoice` da conta: vai em `PlayerInfo.pet` sem o nome, e o modo zumbi passa o pet ao motor), `xp`, `weapons{xp}` por arma, `arsenal` (`ArsenalChoice`, sanitizada contra o XP de cada progressão: níveis e travas das armas). Os rifles antigos guardam pontos em `rifle` e as facas em `faca` (`weapon_progress` continua com os 5 ids).
 - `delta: ProgressDelta` — o que foi ganho desde a última gravação (accountXp, weaponXp por arma, kills, deaths, headshots, groinKills, knifeKills, backstabs, grenadeKills, humiliations, secondsPlayed, score e `zumbi: ZombieDelta`).
 - `profile.totals` e `profile.album` — totais e contadores próprios do álbum como estavam na última gravação. Com o delta, são os números "ao vivo" (`liveSources`, `liveOwn`); `settle` junta o delta depois de cada gravação que deu certo.
 - `stickerTiers` — o acabamento de cada figurinha que o jogador já sabe. Uma vez por segundo `stickerUps` compara e manda `figurinha` para o que subiu.
@@ -92,7 +95,7 @@ O perfil em memória é a fonte de verdade durante a conexão; a gravação apli
 ## No cliente
 
 - `GET /api/me` → `MeResponse` (tag, nível, sexo, provedores, data de exclusão).
-- `GET /api/perfil` → `ProfileResponse` (tag, nome, sexo, aparência, nível/XP, `armas` (`{xp, nivel}` por arma), `arsenal` (a escolha, já conferida contra os níveis), totais (com `totais.zumbi`), **últimas 10 participações**, `nomeLiberaEm`, provedores, `exclusaoEm`).
+- `GET /api/perfil` → `ProfileResponse` (tag, nome, sexo, aparência, `pet`, nível/XP, `armas` (`{xp, nivel}` por arma), `arsenal` (a escolha, já conferida contra os níveis), totais (com `totais.zumbi`), **últimas 10 participações**, `nomeLiberaEm`, provedores, `exclusaoEm`).
 - `client/gameplay/progress.ts` (`Progress`) guarda o XP das armas e a escolha do Arsenal: inicia do perfil, é atualizado por `progresso` do servidor (`armas`, `escolha`) e salva as mudanças da escolha via `PATCH /api/perfil {arsenal}` (`toggle`, `setPrimary`, `setSecondary`, `setKnife`), um salvamento por vez; se um falha, volta à última escolha confirmada e avisa (`onSaveError`). Nada disso vai para `localStorage` (as chaves antigas `oc.name`, `oc.sex`, `oc.profile` são apagadas na home).
 
 ## Ciclo de vida da conta (LGPD)
@@ -103,7 +106,7 @@ O perfil em memória é a fonte de verdade durante a conexão; a gravação apli
 
 ## Código relacionado
 
-- `server/accounts.ts` — `createAccount`, `pickDiscriminator`, `me`, `fullProfile`, `changeName`, `setSex`, `setAppearance`, `setArsenal`, `weapons`, `loadGameProfile`, `openParticipation`, `flushProgress`, `anonymizeExpired`.
+- `server/accounts.ts` — `createAccount`, `pickDiscriminator`, `me`, `fullProfile`, `changeName`, `setSex`, `setAppearance`, `setArsenal`, `setPet`, `weapons`, `loadGameProfile`, `openParticipation`, `flushProgress`, `anonymizeExpired`.
 - `server/progress.ts` — `LiveAccount`, `levelsOf`, `loadoutOf`, `addWeaponXp`, `addAccountXp`, `addTime`, `equip`, `progressMsg`, `mergeDelta`.
 - `shared/progression.ts` — `ArsenalChoice`, `sanitizeChoice`, `legacyChoice`, `levelForXp`, `weaponOfKill`.
 - `shared/account.ts` — regras e tipos de resposta.

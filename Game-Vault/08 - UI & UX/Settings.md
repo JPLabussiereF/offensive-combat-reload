@@ -14,7 +14,7 @@ tags:
   - game
   - ui
   - settings
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Settings
@@ -35,6 +35,7 @@ Desde a PF-11 ([[ADR - Menu de pausa com trilho e abas]]) o bloco é dividido em
 | Campo de visão | `fov` | 55–95° | 75° | Vídeo; todos | FOV vertical. Ver [[Camera]]. |
 | Qualidade gráfica | `quality` | Automática / Baixa / Média / Alta | Automática | Vídeo; todos | Ver [[Performance Rendering]]. |
 | Tela cheia ao jogar | `fullscreen` | Ligado/Desligado | Ligado | Vídeo no computador com Keyboard Lock; Toque no celular (`.fs-only`) | Celular: tela cheia + paisagem. Computador: tela cheia deixa o jogo com o Esc. |
+| Esconder pets dos outros | `hidePets` | Ligado/Desligado | Desligado | Vídeo; todos | Só no PvP: os pets dos outros jogadores não são desenhados (o seu continua). No zumbi não vale. Ver [[Pets]]. |
 | Volume | `volume` | 0–100% | 70% | Áudio; todos | Volume master. Ver [[Audio Overview]]. |
 | Som espacial ("Som") | `spatialAudio` | Automático / Fone (3D) / Caixa de som (estéreo) | Automático | Áudio; todos | Ver [[Spatial Audio]]. |
 | Teclas | `keybinds`, `keyLabels` | — | padrões | Teclas; computador sem controle em uso | Em grupos Movimento, Combate e Outros. Ver [[Input & Controls]]. |

@@ -19,11 +19,13 @@ source_paths:
   - shared/zombieMatch.ts
   - shared/barricades.ts
   - client/zombies/client.ts
+  - shared/pets.ts
+  - client/pets/manager.ts
 tags:
   - game
   - networking
   - protocol
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Remote Calls
@@ -136,8 +138,9 @@ Convenções:
 | `zmoney` | `m: [id, dinheiro][]`, `why` (`assist`/`wave`/`boss`) | ajudas, bônus de onda, prêmio de chefe | sala |
 | `zdown`, `zrevive`, `zup` | `id`, (`until`), (`by`, `money?`) | caiu / reanimando / levantou | sala |
 | `zend` | `won`, `wave`, `secs`, `players: ZSummaryRow[]`, `restartAt` | fim da partida zumbi (resumo) | sala |
+| `zpet` | `id` (o dono), `act` (`hold`/`nudge`/`duck`/`lift`/`yield`/`up`/`nail`/`stone`/`tail`), `z?` (o zumbi), `i?` (a barricada), `at?` (onde caiu o rabo), `until`, `ready` (quando a habilidade volta; 0: agora ou trabalhando), `n?` (as cargas da gata) | o pet de alguém agiu na partida zumbi (PF-29: a Amora segurou ou deu um tranco, a boia da Bruxinha, a gata começou, pausou ou terminou de levantar o dono, a fuinha pregou ou terminou, a pedrada da lontra, o rabo da iguana). O servidor decide (no solo, o motor no navegador); a posição do pet **não trafega**: cada cliente o desenha seguindo o dono. Ver [[Pets]] | sala |
 
-`PlayerInfo` ganhou `fig?: [id, nivel]` e `tit?` (a figurinha do álbum em destaque, com o acabamento de agora, e o título; [[Achievements]]), `ladder?: {step, kills}` (corrida armada) e `zumbi?: {money, kills, downs, revives, state, items}` (zumbi; `items.danificadas` diz quais estão danificadas); `SessionInfo` ganhou `mode`; `KillKind` ganhou `'zombie'` (sangrou caído); `Loadout` ganhou `danificadas?` (por arma: `municao`/`dano`/`ambos`, mantido por `sanitizeLoadout`). Ver [[Gun Game]] e [[Zombie]].
+`PlayerInfo` ganhou `pet?: { id, cor, coleira, pvp, pve }` (PF-29: só em `joined`/`playerJoined`, só se o pet vai junto no modo da sessão pelo interruptor dele, e **nunca o nome**; ver [[Pets]]); o `ZNet` dos zumbis ganhou os bits `ZF.held` (256, segurado pela Amora) e `ZF.duck` (512, na boia da Bruxinha). `PlayerInfo` ganhou também `fig?: [id, nivel]` e `tit?` (a figurinha do álbum em destaque, com o acabamento de agora, e o título; [[Achievements]]), `ladder?: {step, kills}` (corrida armada) e `zumbi?: {money, kills, downs, revives, state, items}` (zumbi; `items.danificadas` diz quais estão danificadas); `SessionInfo` ganhou `mode`; `KillKind` ganhou `'zombie'` (sangrou caído); `Loadout` ganhou `danificadas?` (por arma: `municao`/`dano`/`ambos`, mantido por `sanitizeLoadout`). Ver [[Gun Game]] e [[Zombie]].
 
 `KillKind`: `gun`, `head`, `groin`, `knife`, `grenade`, `fall`, `void`, `explosion`, `dog`. `AwardLabel`: `kill`, `headshot`, `groin`, `knife`, `backstab`, `longShot`, `humiliation`.
 

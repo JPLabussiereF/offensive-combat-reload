@@ -22,11 +22,13 @@ source_paths:
   - shared/progression.ts
   - server/accounts.ts
   - server/tests/arsenal.test.ts
+  - server/migrations/007_pets.sql
+  - server/migrations/007_pets.down.sql
 tags:
   - game
   - data
   - migrations
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Data Migrations
@@ -59,6 +61,7 @@ Os arquivos `.down.sql` são **rollbacks manuais** (não executados pelo código
 | `002_aparencia.sql` | `ALTER TABLE player_profile ADD COLUMN appearance jsonb` |
 | `004_mapas.sql` | Mapas como dados (PF-6): extensão `pg_trgm`; tabelas `map`, `map_version` (imutável por gatilho), `map_asset` e `map_version_asset` ([[Database]]); `auth_event.actor_id`; nova descrição do papel `moderador`; `session_participation.map_id`. Depois de `migrate()`, `seedOfficialMaps` (`server/maps.ts`) cria a versão 1 dos 4 mapas oficiais a partir de `shared/data/mapas/*.json` (ignorando os `*.golden.json`), com a navmesh do Cemitério, se ainda não existirem |
 | `003_melhorias.sql` | Progressão por melhorias e armas secundárias ([[ADR - Progressão por melhorias de arma]]): o CHECK de `weapon_progress.weapon` passa a aceitar `pistola` e `smg`; insere as linhas dessas armas para os perfis existentes; `ALTER TABLE player_profile ADD COLUMN loadout jsonb` (a escolha do Arsenal); **sobe o XP** de rifle, faca e granada para o limiar do nível novo equivalente ao antigo, para ninguém perder o que tinha (rifle e faca 2→2, 3–4→3, 5–6→4, 7→5; granada 2→2, 3→3; ex.: rifle com ≥ 5500 → 7000). A coluna `equipped_level` fica, só para leitura |
+| `007_pets.sql` | Coluna `pet jsonb` em `player_profile` (PF-29: o pet levado, os interruptores PvP/PvE e o nome, a pelagem e a coleira de cada pet; `NULL` = nenhum pet escolhido ainda). Contas antigas não precisam de nada: sem pet. O `.down.sql` apaga a coluna (perde a configuração dos pets). Ver [[Pets]] |
 | `006_destaque.sql` | Colunas `featured_sticker` e `title` em `player_profile` (figurinha em destaque e título do álbum). O `.down.sql` apaga as duas |
 | `005_figurinhas.sql` | Tabela `achievement_progress` (contadores próprios do álbum de figurinhas, uma linha por figurinha ou item de coleção). O `.down.sql` apaga a tabela; as figurinhas derivadas das estatísticas não são afetadas |
 | `004_estatisticas_zumbi.sql` | Tabela `zombie_stats` (totais do modo zumbi por perfil, à parte de `player_stats`). Contas antigas não precisam de nada: a linha nasce na primeira gravação. O `.down.sql` apaga a tabela |
