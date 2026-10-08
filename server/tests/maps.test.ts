@@ -8,6 +8,7 @@ import { MAP_BUDGET, type MapaResumo, type MapData } from '@shared/mapData';
 import type { GameServer } from '../app';
 import { Browser, enterMap, Player, promote, startTestServer, tinyMap } from './helpers';
 import { copyName } from '../mapRoutes';
+import { mapBuilder, seedOfficialMaps } from '../maps';
 import { buildHeadless, compareSnapshots, goldenPath, OFFICIAL, summarize, type MapSnapshot } from '../../tools/snapshot-mapas';
 import { fakeRenderer, loadClient, ROOT, silentSfx } from '../../tools/headless';
 
@@ -330,6 +331,50 @@ describe('mapas oficiais no servidor', () => {
     }
     const nav = await game.deps.db.query("SELECT octet_length(navmesh) AS n FROM map_version WHERE map_id = 'cemiterio' AND version = 1");
     expect(nav.rows[0].n).toBe((await Bun.file(`${ROOT}/shared/data/navmesh/cemiterio.json`).json()).bytes);
+  }, 120_000);
+
+  it('o JSON de um oficial que mudou vira versão nova e atual na subida; o mesmo JSON não cria nada nem desfaz a edição da equipe', async () => {
+    const db = game.deps.db;
+    const state = async () => {
+      const { rows } = await db.query<{ current: number; versions: string; name: string }>(
+        "SELECT current_version AS current, name, (SELECT count(*) FROM map_version WHERE map_id = 'jardim') AS versions FROM map WHERE id = 'jardim'",
+      );
+      return { current: rows[0].current, versions: Number(rows[0].versions), name: rows[0].name };
+    };
+    const file = await Bun.file(`${ROOT}/shared/data/mapas/jardim.json`).json();
+
+    // A staff edit after the seed: the same file at the next start leaves it current and adds nothing.
+    const admin = await signedIn('SemeiaAdm');
+    await promote(admin, 'admin');
+    const atual = await state();
+    const editado = { ...file, nome: 'Jardim editado' };
+    expect((await admin.req('PUT', '/api/mapas/jardim', { dados: editado, baseVersao: atual.current })).status).toBe(200);
+    const depoisDaEdicao = await state();
+    await seedOfficialMaps(db, mapBuilder);
+    expect(await state()).toEqual(depoisDaEdicao);
+
+    // The repository's file changed since its last version (stood for by a seeded version that differs from it):
+    // the next start publishes the file as a new version, current, and the staff edit stays in the history.
+    await db.query(
+      `INSERT INTO map_version (map_id, version, data, format)
+       SELECT map_id, $1, jsonb_set(data, '{nome}', '"Jardim antigo"'), format FROM map_version WHERE map_id = 'jardim' AND version = 1`,
+      [depoisDaEdicao.versions + 1],
+    );
+    await seedOfficialMaps(db, mapBuilder);
+    const publicado = await state();
+    expect(publicado).toEqual({ current: depoisDaEdicao.versions + 2, versions: depoisDaEdicao.versions + 2, name: file.nome });
+    const { rows } = await db.query<{ same: boolean; by: string | null }>('SELECT data = $1::jsonb AS same, created_by AS by FROM map_version WHERE map_id = $2 AND version = $3', [
+      JSON.stringify(file),
+      'jardim',
+      publicado.current,
+    ]);
+    expect(rows[0]).toEqual({ same: true, by: null });
+    const edicao = await db.query<{ nome: string }>("SELECT data->>'nome' AS nome FROM map_version WHERE map_id = 'jardim' AND version = $1", [depoisDaEdicao.current]);
+    expect(edicao.rows[0].nome).toBe('Jardim editado');
+
+    // And once more with nothing changed: nothing new.
+    await seedOfficialMaps(db, mapBuilder);
+    expect(await state()).toEqual(publicado);
   }, 120_000);
 
   it('versões são imutáveis no banco', async () => {
