@@ -60,6 +60,13 @@ export class Hud {
   private deathMsg = $('death-msg');
   private deathShowcase = $('death-showcase');
   private deathTimer = $('death-timer');
+  private spectate = $('spectate');
+  private specName = $('spec-name');
+  private specInfo = $('spec-info');
+  private specHint = $('spec-hint');
+  private specKey = '';
+  /** The arrows of the spectating bar were tapped (phones): -1 the previous teammate, +1 the next. */
+  onSpectateStep: (step: number) => void = () => {};
   private debug = $('debug');
   private banner = $('banner');
   private prompt = $('prompt');
@@ -94,6 +101,9 @@ export class Hud {
     $('score-kills-label').textContent = t('kills');
     $('score-acc-label').textContent = t('accuracy');
     $('health-label').textContent = t('health');
+    $('spec-label').textContent = t('zSpectating');
+    $('spec-prev').addEventListener('click', () => this.onSpectateStep(-1));
+    $('spec-next').addEventListener('click', () => this.onSpectateStep(1));
   }
 
   show(v: boolean) {
@@ -499,6 +509,24 @@ export class Hud {
   /** The death card's second line, said another way (zumbi: back next wave, or down and waiting for help). */
   setDeathText(text: string) {
     this.deathTimer.textContent = text;
+  }
+
+  /**
+   * Watching a teammate (zumbi, out until the break): their name, their health (or down) and the keys that
+   * switch (null: none, a phone, where the arrows are tapped). Null hides the bar; the death card then goes back
+   * to the middle of the screen.
+   */
+  setSpectate(s: { name: string; health: number; downed: boolean; keys: [string, string] | null } | null) {
+    const key = s ? `${s.name}|${Math.round(s.health)}|${s.downed}|${s.keys}` : '';
+    if (key === this.specKey) return;
+    this.specKey = key;
+    this.death.classList.toggle('spectating', s !== null);
+    this.spectate.classList.toggle('hidden', s === null);
+    if (!s) return;
+    this.specName.textContent = s.name;
+    this.specInfo.textContent = s.downed ? t('zSpecDown') : t('zSpecHealth', { hp: Math.max(0, Math.round(s.health)) });
+    this.specHint.textContent = s.keys ? t('zSpecKeys', { prev: s.keys[0], next: s.keys[1] }) : '';
+    this.specHint.classList.toggle('hidden', !s.keys);
   }
 
   setDebug(text: string | null) {

@@ -77,6 +77,7 @@ import { itemOf, startItems, ZOMBIE, zombieGunData, zombieLoadout, type ZItems }
 import { gateAreas } from '@shared/barricades';
 import { tombsOf } from '@shared/tombs';
 import { ZombieClient, type ZombieLink } from './zombies/client';
+import { DOWNED_EYE, pickSpectate, SPECTATE_DELAY, spectateEye } from './zombies/spectate';
 import { LocalZombies } from './zombies/local';
 import { renderCoffinTab, tintFog, zombieAtmosphere } from './zombies/ambience';
 
@@ -1476,6 +1477,10 @@ async function boot() {
       if (!rp) return;
       const from = rp.muzzle(new THREE.Vector3());
       rp.fire();
+      if (m.id === spectating && specVm) {
+        specVm.flash();
+        specVm.kick(rp.gun.coiceVisual ?? 1);
+      }
       // Their gun's own bang; a silencer: no tracer, and only those nearby hear it.
       const gun = rp.gun;
       const end = new THREE.Vector3(...m.e);
@@ -1898,7 +1903,7 @@ async function boot() {
     } else {
       // Zumbi: down (waiting for a revive) we can't move, shoot or throw; reviving someone, we don't shoot.
       const downed = !!zombies?.downed;
-      player.eyeScale = downed ? 0.32 : 1;
+      player.eyeScale = downed ? DOWNED_EYE : 1;
       // Shots have priority over the sprint (dropped the same tick, see `move.sprint`) and over a grenade
       // in hand (the pin goes back in). They never interrupt a reload (no shooting until it ends; the knife
       // and grenades do cancel it), a knife swing (too quick: cancelling it would be an exploit) or a dance
@@ -2069,6 +2074,16 @@ async function boot() {
         });
       }
     }
+    // Zumbi, watching a teammate: D and F (LB and RB on a controller) switch who. Read here, before the presses
+    // of the dead are dropped just below (F is the knife's key). We can't walk while out, so D means nothing else.
+    if (player.dead && spectating !== null) {
+      if (input.consumeKey('KeyD')) specStep--;
+      if (input.consumeKey('KeyF')) specStep++;
+      if (gamepad.device === 'pad') {
+        if (input.consume('grenade')) specStep--;
+        if (input.consume('melee')) specStep++;
+      }
+    }
     // Presses that arrived while dead shouldn't fire later.
     if (player.dead) {
       for (const a of ['fire', 'reload', 'jump', 'melee', 'taunt', 'grenade', 'weapon1', 'weapon2', 'swapWeapon'] as const) input.consume(a);
@@ -2186,6 +2201,19 @@ async function boot() {
       return clock();
     },
   };
+  // Zumbi, out until the break: the teammate we watch through their eyes, with their arms and gun (spectate.ts).
+  let spectating: number | null = null;
+  let specVm: Viewmodel | null = null;
+  /** Whose eyes and arms the view has now (a new one: no smoothing from the last). */
+  let specSeen = -1;
+  let specEye = 0;
+  /** Whose arms the spectating viewmodel wears. */
+  let specArms = -1;
+  let specAds = 0;
+  let specReloadAt = -1;
+  /** Taps on the spectating bar's arrows (phones). */
+  let specStep = 0;
+  hud.onSpectateStep = (d) => (specStep += d);
   const deathCamPos = new THREE.Vector3();
   let deathFloorAt = -1;
   let deathFloorY = 0;
@@ -2245,6 +2273,27 @@ async function boot() {
 
     sprintVis += ((player.move.sprinting ? 1 : 0) - sprintVis) * (1 - Math.exp(-8 * frameDt));
     slideVis += ((player.move.sliding ? 1 : 0) - slideVis) * (1 - Math.exp(-10 * frameDt));
+    // Zumbi, out until the break: after a moment, the view goes to a teammate who's up. The switches (`specStep`)
+    // come from the tick (D/F, LB/RB) and from the bar's arrows (phones).
+    let watched: RemotePlayer | undefined;
+    if (net && zombies?.outOfWave && simTime - player.deathAt > SPECTATE_DELAY) {
+      if (spectating === null) {
+        // Presses from before (D was walking right) aren't a switch.
+        input.consumeKey('KeyD');
+        input.consumeKey('KeyF');
+        specStep = 0;
+      }
+      spectating = pickSpectate([...net.players.values()].filter((p) => p.alive).map((p) => p.id), spectating, specStep);
+      watched = spectating !== null ? net.players.get(spectating) : undefined;
+    } else spectating = null;
+    specStep = 0;
+    for (const p of net?.players.values() ?? []) p.firstPerson = p === watched;
+    hud.setSpectate(
+      watched
+        ? { name: nameOf(watched.id), health: watched.health, downed: watched.downed, keys: IS_MOBILE ? null : gamepad.device === 'pad' ? [gamepad.glyph('lb'), gamepad.glyph('rb')] : ['D', 'F'] }
+        : null,
+    );
+
     const cam = ctx.camera;
     player.eye(alpha, fpPos);
     const myCorpse = myCorpseId !== null ? (net?.corpses.get(myCorpseId) ?? bots?.corpses.get(myCorpseId)) : undefined;
@@ -2299,6 +2348,16 @@ async function boot() {
       }
       fpQuat.setFromEuler(euler);
     }
+    if (watched) {
+      // Through their eyes: where they stand (crouched or down, smoothed) and where they look.
+      const fresh = watched.id !== specSeen;
+      const eye = spectateEye(watched.flags, watched.downed);
+      specEye = fresh ? eye : specEye + (eye - specEye) * (1 - Math.exp(-12 * frameDt));
+      specAds = fresh ? 0 : specAds + ((watched.flags & FLAG.ads ? 1 : 0) - specAds) * (1 - Math.exp(-12 * frameDt));
+      fpPos.copy(watched.position).setY(watched.position.y + specEye);
+      euler.set(watched.pitch, watched.yaw, 0);
+      fpQuat.setFromEuler(euler);
+    }
     shake = Math.max(0, shake - frameDt * 1.6);
 
     // Humiliation: blend into an orbiting third-person camera and show the dancing avatar.
@@ -2319,7 +2378,7 @@ async function boot() {
     sfx.setListener(cam.position, earFwd.set(0, 0, -1).applyQuaternion(cam.quaternion), earUp.set(0, 1, 0).applyQuaternion(cam.quaternion), frameDt);
     avatar.visible = taunt.active && blend > 0.15;
 
-    const zoom = 1 + (weapon.data.ads.zoom - 1) * weapon.ads;
+    const zoom = watched ? 1 + (watched.gun.ads.zoom - 1) * specAds : 1 + (weapon.data.ads.zoom - 1) * weapon.ads;
     const fov = settings.fov * zoom * (1 + 0.05 * sprintVis + 0.08 * slideVis * (1 - weapon.ads));
     if (Math.abs(cam.fov - fov) > 0.01) {
       cam.fov = fov;
@@ -2352,6 +2411,37 @@ async function boot() {
       grenadeThrow: thrower.throwT,
       crouch: player.move.crouchT,
     });
+    // The watched teammate's arms and gun as they hold it (aiming, running, reloading; their shots kick it).
+    const specShown = !!watched && !watched.downed && !(watched.flags & FLAG.dance);
+    if (watched && specShown) {
+      if (!specVm) specVm = new Viewmodel(ctx.vmScene);
+      if (watched.id !== specArms) {
+        specArms = watched.id;
+        specVm.setBody(watched.look, watched.sex);
+      }
+      specVm.setGun(watched.gun);
+      const f = watched.flags;
+      if (f & FLAG.reload) {
+        if (specReloadAt < 0) specReloadAt = renderTime;
+      } else specReloadAt = -1;
+      specVm.update(frameDt, {
+        ads: specAds,
+        sprint: f & FLAG.sprint ? 1 : 0,
+        grounded: !!(f & FLAG.grounded),
+        speed: watched.speed,
+        strafe: 0,
+        mouseDX: 0,
+        mouseDY: 0,
+        reload: specReloadAt < 0 ? null : Math.min(1, (renderTime - specReloadAt) / watched.gun.recarga.tatica),
+        slide: f & FLAG.slide ? 1 : 0,
+        melee: null,
+        grenadeCook: null,
+        grenadeThrow: null,
+        crouch: f & FLAG.crouch ? 1 : 0,
+      });
+    }
+    if (specVm) specVm.root.visible = specShown;
+    specSeen = watched?.id ?? -1;
 
     // Animation LOD: far or off-screen characters pose less often.
     Avatar.setCamera(ctx.camera);
@@ -2443,7 +2533,10 @@ async function boot() {
     hudTimer -= frameDt;
     if (hudTimer <= 0) {
       hudTimer = 1 / 15;
-      hud.setHealth(player.health, player.maxHealth);
+      // Watching a teammate: their health (and the red edges when it's low), not our zero.
+      const watchedNow = spectating !== null ? net?.players.get(spectating) : undefined;
+      if (watchedNow) hud.setHealth(watchedNow.health, bodyStats(watchedNow.look).maxHealth);
+      else hud.setHealth(player.health, player.maxHealth);
       hud.setBoost(!!boostEnds);
       hud.setBuffs(buffs());
       hud.setAmmo(weapon.mag, weapon.reserve, weapon.data.pente, weapon.reloading);

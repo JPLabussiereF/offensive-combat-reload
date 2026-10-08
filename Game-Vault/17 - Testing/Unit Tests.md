@@ -8,6 +8,7 @@ source_paths:
   - server/tests/secondaries.test.ts
   - client/tests/aimAssist.test.ts
   - client/tests/keybinds.test.ts
+  - client/tests/zombieSpectate.test.ts
   - client/tests/spatial.test.ts
   - server/tests/appearance.test.ts
   - server/tsconfig.json
@@ -85,6 +86,10 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 - **Carregar o salvo:** sem nada volta o padrão (cópia); ação nova recebe o padrão; respeita espaço vazio de propósito; descarta lixo; tecla duplicada fica só na primeira.
 - **Teclas do caixão no modo zumbi:** `Z` doa e `X` recusa por padrão, e um save antigo (sem essas ações) as ganha.
 - **Tabela do Input** e **nome das teclas** (QWERTY, AZERTY via mapa do navegador, fallback do Firefox, código desconhecido).
+
+## `client/tests/zombieSpectate.test.ts` → [[Zombie]]
+
+5 casos: ninguém de pé, ninguém para assistir; começa pelo primeiro por id e fica nele sem tecla; F vai ao próximo e D ao anterior, dando a volta (com um só, fica nele); quem assistíamos morreu ou saiu, passa ao seguinte por id sem contar a tecla; a altura dos olhos em pé, agachado e caído (`pickSpectate`, `spectateEye`).
 
 ## `client/tests/arsenalText.test.ts` → [[Inventory UI]]
 
@@ -246,4 +251,4 @@ O hash da navmesh do Cemitério (`server/tests/zombies.test.ts`) é refeito a pa
 ## Código relacionado
 
 - `client/tests/*.test.ts`, `server/tests/appearance.test.ts`, `server/tests/arsenal.test.ts`, `server/tests/progression-modes.test.ts`
-- Módulos testados: `client/gameplay/aimAssist.ts`, `client/core/keybinds.ts`, `client/audio/spatial.ts`, `client/ui/strings.ts`, `client/gameplay/progress.ts`, `client/zombies/local.ts`, `shared/appearance.ts`, `shared/progression.ts`, `shared/arsenal.ts`, `shared/gunGame.ts`, `shared/zombies.ts`, `shared/zombieMatch.ts`
+- Módulos testados: `client/gameplay/aimAssist.ts`, `client/core/keybinds.ts`, `client/audio/spatial.ts`, `client/ui/strings.ts`, `client/gameplay/progress.ts`, `client/zombies/local.ts`, `client/zombies/spectate.ts`, `shared/appearance.ts`, `shared/progression.ts`, `shared/arsenal.ts`, `shared/gunGame.ts`, `shared/zombies.ts`, `shared/zombieMatch.ts`

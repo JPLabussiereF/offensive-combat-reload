@@ -71,12 +71,14 @@ export class RemotePlayer implements Target {
   downed = false;
   private downT = 0;
   private lastPos = new THREE.Vector3();
+  /** We're watching through their eyes (zumbi, out until the break): their body isn't drawn. */
+  firstPerson = false;
 
   constructor(
     readonly id: number,
     public name: string,
     readonly sex: Sex,
-    look: Appearance,
+    readonly look: Appearance,
     world: RAPIER.World,
     private scene: THREE.Scene,
     registry: HitboxRegistry,
@@ -194,7 +196,7 @@ export class RemotePlayer implements Target {
   }
 
   render(dt: number) {
-    this.avatar.visible = this.alive && this.buffer.length > 0;
+    this.avatar.visible = this.alive && this.buffer.length > 0 && !this.firstPerson;
     if (!this.avatar.visible) return;
     this.avatar.root.position.copy(this.position);
     this.avatar.root.rotation.y = this.yaw;
