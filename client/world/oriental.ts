@@ -76,8 +76,10 @@ export interface RoofOpts {
  * Returns the swept-up corner tips (where lanterns hang).
  */
 export function curvedRoof(b: MapBuilder, o: RoofOpts): THREE.Vector3[] {
-  const NS = 8;
-  const NT = 5;
+  // Half the segments with the light object detail (PF-35 L4): 4 along the eave still sweep the corners up, 3
+  // up the slope still curve it (the collider is the hull below, the same in both).
+  const NS = b.seg(8, 4);
+  const NT = b.seg(5, 3);
   const curl = o.curl ?? 0.6;
   const th = o.thickness ?? 0.18;
   const E = corners(o.outer);
@@ -186,7 +188,7 @@ export function curvedRoof(b: MapBuilder, o: RoofOpts): THREE.Vector3[] {
       const pts: THREE.Vector3[] = [];
       for (let j = 0; j <= NT; j++) pts.push(point(k, 0, j / NT).add(new THREE.Vector3(0, 0.07, 0)));
       if (pts[0].distanceTo(pts[NT]) < 0.2) continue;
-      const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 10, 0.11, 5);
+      const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), b.seg(10, 5), 0.11, 5);
       b.addGeometry(tube, paint, ridgeTint);
       tube.dispose();
     }
@@ -682,10 +684,13 @@ export function clumpSurface(x: number, y: number, z: number, rx: number, ry: nu
   return new THREE.Vector3(x + dir.x * rx * f, y + dir.y * ry * f, z + dir.z * rz * f);
 }
 
-/** A clump of leaves: an icosphere with smooth lumps (noise seeded by its position), the leaf texture and baked light. Visual only. */
+/**
+ * A clump of leaves: an icosphere with smooth lumps (noise seeded by its position), the leaf texture and baked light.
+ * Visual only. A big one is subdivided twice, once with the light object detail (PF-35 L1: the same size).
+ */
 export function leafClump(b: MapBuilder, x: number, y: number, z: number, rx: number, ry: number, rz: number, tint: number, o: ClumpOpts = {}) {
   const rough = o.rough ?? 0.16;
-  const geo = new THREE.IcosahedronGeometry(1, o.detail ?? (Math.max(rx, rz) > 0.55 ? 2 : 1));
+  const geo = new THREE.IcosahedronGeometry(1, o.detail ?? (Math.max(rx, rz) > 0.55 ? b.seg(2, 1) : 1));
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
   const v = new THREE.Vector3();
   for (let i = 0; i < pos.count; i++) {
@@ -731,8 +736,12 @@ export function foliageUnder(clumps: Clump[], x: number, z: number): THREE.Vecto
  * the outline reads as leaves and not as one ball. `r` is the horizontal radius, `flat` the height ratio,
  * `y0`..`y1` the whole tree's crown (for the light). Seeded by its position; visual only. Returns its
  * clumps (see foliageUnder).
+ *
+ * With the light object detail (PF-35 L1) the big clump is subdivided once and only every other bump is built,
+ * each as big as two (the same volume of leaves); `allBumps` keeps them all (the Dragon Cherry: its cherries hang
+ * from the clumps, and the fruit must be the same on every client).
  */
-export function foliageCrown(b: MapBuilder, p: THREE.Vector3, r: number, tints: readonly number[], o: { flat?: number; y0?: number; y1?: number; castShadow?: boolean; bumps?: number; blossom?: boolean } = {}): Clump[] {
+export function foliageCrown(b: MapBuilder, p: THREE.Vector3, r: number, tints: readonly number[], o: { flat?: number; y0?: number; y1?: number; castShadow?: boolean; bumps?: number; blossom?: boolean; allBumps?: boolean } = {}): Clump[] {
   const rand = seeded(Math.round(p.x * 131 + p.z * 71 + p.y * 17));
   const flat = o.flat ?? 0.5;
   // Blossom lets the light through: it's never as dark underneath as leaves.
@@ -744,13 +753,18 @@ export function foliageCrown(b: MapBuilder, p: THREE.Vector3, r: number, tints: 
   };
   const tint = (k: number) => tints[k % tints.length];
   // Only the big clump casts a shadow (the small ones would double the shadow pass's triangles for little).
-  clump(p.x, p.y, p.z, r * 1.08, r * flat, r, tint(0), r > 0.95 ? 2 : 1, o.castShadow ?? true);
+  clump(p.x, p.y, p.z, r * 1.08, r * flat, r, tint(0), r > 0.95 ? b.seg(2, 1) : 1, o.castShadow ?? true);
   const n = o.bumps ?? (r < 0.3 ? 0 : Math.max(3, Math.round(r * 3.2)));
+  const every = o.allBumps ? 1 : b.seg(1, 2);
+  const grow = Math.cbrt(every);
   for (let k = 0; k < n; k++) {
     const a = (k / n) * Math.PI * 2 + rand() * 0.8;
     const d = r * (0.62 + rand() * 0.25);
-    const rr = r * (0.4 + rand() * 0.18);
-    clump(p.x + Math.cos(a) * d, p.y + r * flat * (rand() - 0.25) * 0.7, p.z + Math.sin(a) * d, rr, rr * (0.75 + rand() * 0.2), rr, tint(k + 1), 1, false);
+    const rr = r * (0.4 + rand() * 0.18) * grow;
+    const y = p.y + r * flat * (rand() - 0.25) * 0.7;
+    const ry = rr * (0.75 + rand() * 0.2);
+    if (k % every) continue;
+    clump(p.x + Math.cos(a) * d, y, p.z + Math.sin(a) * d, rr, ry, rr, tint(k + 1), 1, false);
   }
   if (!n) return clumps;
   // One on top, so the crown is rounded and not a saucer.

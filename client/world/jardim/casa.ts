@@ -1,12 +1,16 @@
 // Pieces of the Casa Principal used by the catalog (catalog/gardenPieces.ts): the library's bookshelves and the
 // Great Hall's ink landscape. The house itself is laid out piece by piece (conversao/jardimSetores.ts) in
 // shared/data/mapas/jardim.json.
+import * as THREE from 'three';
 import { ORIENTAL as C } from '../oriental';
+import { surfaceMaterial } from '../surfaces';
 import type { Ctx } from './kit';
 
 /** Bookshelf full of colored spines on both faces, `len` long along `along`, 2.2 m tall. */
 export function gardenBookshelf(c: Ctx, x: number, z: number, along: 'x' | 'z', len: number) {
   const { b } = c;
+  // The light object detail (PF-35 L6): a row's books as one dark block with their spines painted on both faces.
+  const light = b.detalhe === 'leve';
   const d = 0.45;
   const [sx, sz] = along === 'x' ? [len, d] : [d, len];
   b.box(x, 1.1, z, sx, 2.2, sz, 'madeira', { tint: C.woodDark });
@@ -14,14 +18,32 @@ export function gardenBookshelf(c: Ctx, x: number, z: number, along: 'x' | 'z', 
   for (let shelf = 0; shelf < 4; shelf++) {
     const y = 0.3 + shelf * 0.5;
     let s = -len / 2 + 0.1;
+    const row: { s: number; w: number; h: number; tint: number }[] = [];
     while (s < len / 2 - 0.15) {
       const w = 0.1 + c.rand() * 0.2;
       const h = 0.3 + c.rand() * 0.12;
       const tint = colors[Math.floor(c.rand() * colors.length)];
       const cx = along === 'x' ? x + s + w / 2 : x;
       const cz = along === 'x' ? z : z + s + w / 2;
-      b.box(cx, y + h / 2, cz, along === 'x' ? w - 0.02 : d + 0.04, h, along === 'x' ? d + 0.04 : w - 0.02, 'pintura', { tint, collide: false, castShadow: false });
+      if (light) row.push({ s, w, h, tint });
+      else b.box(cx, y + h / 2, cz, along === 'x' ? w - 0.02 : d + 0.04, h, along === 'x' ? d + 0.04 : w - 0.02, 'pintura', { tint, collide: false, castShadow: false });
       s += w;
+    }
+    if (!row.length) continue;
+    const s0 = row[0].s;
+    const s1 = s;
+    const top = Math.max(...row.map((k) => k.h));
+    const mid = (s0 + s1) / 2;
+    b.box(along === 'x' ? x + mid : x, y + top / 2, along === 'x' ? z : z + mid, along === 'x' ? s1 - s0 : d + 0.03, top, along === 'x' ? d + 0.03 : s1 - s0, 'pintura', { tint: 0x241a16, collide: false, castShadow: false });
+    const paint = surfaceMaterial('pintura');
+    for (const k of row) {
+      for (const face of [-1, 1]) {
+        const off = face * (d / 2 + 0.02);
+        const g = new THREE.PlaneGeometry(k.w - 0.02, k.h);
+        if (along === 'x') g.rotateY(face < 0 ? Math.PI : 0).translate(x + k.s + k.w / 2, y + k.h / 2, z + off);
+        else g.rotateY(face < 0 ? -Math.PI / 2 : Math.PI / 2).translate(x + off, y + k.h / 2, z + k.s + k.w / 2);
+        b.addGeometry(g, paint, k.tint, false);
+      }
     }
   }
 }

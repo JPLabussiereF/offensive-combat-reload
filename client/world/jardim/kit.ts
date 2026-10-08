@@ -257,7 +257,7 @@ function nameBoards(c: Ctx, axis: 'x' | 'z', fixed: number, g: Gate, w: number, 
   for (const side of [-1, 1]) {
     const [x, z] = onWall(axis, fixed, g.at, side * (t / 2 + 0.06));
     const yaw = axis === 'x' ? (side > 0 ? 0 : Math.PI) : side > 0 ? Math.PI / 2 : -Math.PI / 2;
-    plaque(c.scene, g.name, x, y, z, yaw, Math.min(w - 0.2, 0.75 * g.name.length + 0.4), 0.62);
+    plaque(c.scene, g.name, x, y, z, yaw, Math.min(w - 0.2, 0.75 * g.name.length + 0.4), 0.62, undefined, undefined, c.b);
   }
 }
 
@@ -322,8 +322,43 @@ function boardGeometry(w: number, h: number, d: number, both: boolean) {
   return g;
 }
 
-/** Hanging plaque with big characters (a gate's name board). Readable from its front (+Z after `yaw`). */
-export function plaque(scene: THREE.Scene, text: string, x: number, y: number, z: number, yaw: number, w: number, h: number, bg = '#1f3d6b', fg = '#f2c94c') {
+/**
+ * A sign's board at (x, y, z) turned by `yaw`: its painted face(s) a mesh of `face`, the edges in `edge`. With
+ * the map's builder the edges go to the static batches and only the faces are drawn apart: one draw call a sign
+ * instead of two (PF-35, P13). Without one (the sticker studio), one mesh with both materials.
+ */
+function placeBoard(scene: THREE.Scene, b: MapBuilder | undefined, w: number, h: number, d: number, both: boolean, edge: number, face: THREE.Material, x: number, y: number, z: number, yaw: number, castShadow = false) {
+  if (!b) {
+    const board = new THREE.Mesh(boardGeometry(w, h, d, both), [toon(edge), face]);
+    board.position.set(x, y, z);
+    board.rotation.y = yaw;
+    board.castShadow = castShadow;
+    scene.add(board);
+    return;
+  }
+  const g = boardGeometry(w, h, d, both);
+  const [rest, front] = g.groups;
+  const idx = Array.from(g.index!.array);
+  const edges = g.clone();
+  edges.setIndex(idx.slice(rest.start, rest.start + rest.count));
+  edges.clearGroups();
+  edges.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(1, 1, 1)));
+  b.addGeometry(edges, surfaceMaterial('pintura'), edge, castShadow);
+  edges.dispose();
+  g.setIndex(idx.slice(front.start, front.start + front.count));
+  g.clearGroups();
+  const board = new THREE.Mesh(g, face);
+  board.position.set(x, y, z);
+  board.rotation.y = yaw;
+  board.castShadow = castShadow;
+  scene.add(board);
+}
+
+/**
+ * Hanging plaque with big characters (a gate's name board). Readable from its front (+Z after `yaw`). `b`: the
+ * map's builder (see placeBoard).
+ */
+export function plaque(scene: THREE.Scene, text: string, x: number, y: number, z: number, yaw: number, w: number, h: number, bg = '#1f3d6b', fg = '#f2c94c', b?: MapBuilder) {
   const c = document.createElement('canvas');
   c.width = 512;
   c.height = Math.round((512 * h) / w);
@@ -338,19 +373,14 @@ export function plaque(scene: THREE.Scene, text: string, x: number, y: number, z
   g.textBaseline = 'middle';
   g.font = `900 ${Math.round(Math.min(c.height * 0.62, (c.width * 0.8) / text.length))}px ${CJK}`;
   g.fillText(text, c.width / 2, c.height / 2 + 4);
-  const face = canvasMaterial(c);
-  const edge = toon(0xe7b847);
-  const board = new THREE.Mesh(boardGeometry(w, h, 0.08, false), [edge, face]);
-  board.position.set(x, y, z);
-  board.rotation.y = yaw;
-  scene.add(board);
+  placeBoard(scene, b, w, h, 0.08, false, 0xe7b847, canvasMaterial(c), x, y, z, yaw);
 }
 
 /**
  * Stone-carved inscription in vertical columns, read top to bottom and right to left (as on a stele). The
- * characters are cut dark into a pale panel framed in gold. Faces +Z after `yaw`.
+ * characters are cut dark into a pale panel framed in gold. Faces +Z after `yaw`. `b`: the map's builder (see placeBoard).
  */
-export function inscription(scene: THREE.Scene, columns: string[], x: number, y: number, z: number, yaw: number, w: number, h: number) {
+export function inscription(scene: THREE.Scene, columns: string[], x: number, y: number, z: number, yaw: number, w: number, h: number, b?: MapBuilder) {
   const c = document.createElement('canvas');
   c.width = 256;
   c.height = Math.round((256 * h) / w);
@@ -373,10 +403,7 @@ export function inscription(scene: THREE.Scene, columns: string[], x: number, y:
     const top = (c.height - chars.length * size) / 2;
     chars.forEach((ch, i) => g.fillText(ch, cx, top + size * (i + 0.5)));
   });
-  const board = new THREE.Mesh(boardGeometry(w, h, 0.04, false), [toon(0xb08a3a), canvasMaterial(c)]);
-  board.position.set(x, y, z);
-  board.rotation.y = yaw;
-  scene.add(board);
+  placeBoard(scene, b, w, h, 0.04, false, 0xb08a3a, canvasMaterial(c), x, y, z, yaw);
 }
 
 /** Pun sign on two posts, readable from both sides. */
@@ -401,27 +428,17 @@ export function signBoard(c: Ctx, lines: string[], x: number, z: number, yaw: nu
   lines.forEach((line, i) =>
     fitText(g, line, 128, i === 0 ? 44 : i === 1 ? 84 : 122, 224, (px) => (i < 2 ? `400 ${px}px "Lilita One", system-ui, sans-serif` : `800 ${px}px Nunito, system-ui, sans-serif`), i === 0 ? 40 : i === 1 ? 30 : 18),
   );
-  const wood = toon(0x8a5432);
-  const face = canvasMaterial(cv);
-  const board = new THREE.Mesh(boardGeometry(1.1, 0.7, 0.05, true), [wood, face]);
-  board.position.set(x, height, z);
-  board.rotation.y = yaw;
-  board.castShadow = true;
-  c.scene.add(board);
+  placeBoard(c.scene, c.b, 1.1, 0.7, 0.05, true, 0x8a5432, canvasMaterial(cv), x, height, z, yaw, true);
 }
 
-/** A painting hung on a wall: canvas drawn by `paint` (512 x 512 * h / w). Faces +Z after `yaw`. */
-export function painting(scene: THREE.Scene, x: number, y: number, z: number, yaw: number, w: number, h: number, paint: (g: CanvasRenderingContext2D, cw: number, ch: number) => void) {
+/** A painting hung on a wall: canvas drawn by `paint` (512 x 512 * h / w). Faces +Z after `yaw`. `b`: the map's builder (see placeBoard). */
+export function painting(scene: THREE.Scene, x: number, y: number, z: number, yaw: number, w: number, h: number, paint: (g: CanvasRenderingContext2D, cw: number, ch: number) => void, b?: MapBuilder) {
   const c = document.createElement('canvas');
   c.width = 512;
   c.height = Math.round((512 * h) / w);
   const g = c.getContext('2d')!;
   paint(g, c.width, c.height);
-  const frame = toon(0x5a3420);
-  const board = new THREE.Mesh(boardGeometry(w, h, 0.05, false), [frame, canvasMaterial(c)]);
-  board.position.set(x, y, z);
-  board.rotation.y = yaw;
-  scene.add(board);
+  placeBoard(scene, b, w, h, 0.05, false, 0x5a3420, canvasMaterial(c), x, y, z, yaw);
 }
 
 // --- Bridges, decks, small buildings ----------------------------------------------------------------
@@ -618,11 +635,16 @@ export function hedge(b: MapBuilder, x0: number, z0: number, x1: number, z1: num
   /** Height of the clipped top at a point (the same lumps as the mass). */
   const top = (x: number, _y: number, z: number) => h + 0.07 * lumps(x * 1.6, h * 1.6, z * 1.6, seed);
   const sprigs = Math.max(2, Math.round(L / 0.7));
+  // The light object detail (PF-35 L1): every other sprig, each as big as two (the same volume).
+  const every = b.seg(1, 2);
   for (let i = 0; i < sprigs; i++) {
     const s = ((i + 0.3 + rand() * 0.4) / sprigs) * L;
     const w = rand() < 0.5 ? 0.1 + rand() * 0.15 : Wd - 0.1 - rand() * 0.15;
-    const r = 0.13 + rand() * 0.1;
-    leafClump(b, ...at(s, w, top(...at(s, w, 0)) - 0.05 - rand() * 0.06), r, r * 0.8, r, [0x579a3e, 0x4f9038, 0x5fa344][Math.floor(rand() * 3)], { shade, castShadow: false, detail: 1, rough: 0.25 });
+    const r = (0.13 + rand() * 0.1) * Math.cbrt(every);
+    const y = top(...at(s, w, 0)) - 0.05 - rand() * 0.06;
+    const tint = [0x579a3e, 0x4f9038, 0x5fa344][Math.floor(rand() * 3)];
+    if (i % every) continue;
+    leafClump(b, ...at(s, w, y), r, r * 0.8, r, tint, { shade, castShadow: false, detail: 1, rough: 0.25 });
   }
   if (h <= 1.4) {
     const paint = surfaceMaterial('pintura');
