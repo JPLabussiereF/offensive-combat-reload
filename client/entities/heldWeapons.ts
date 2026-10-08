@@ -71,7 +71,7 @@ function cached(key: string, make: () => THREE.Object3D): THREE.BufferGeometry {
 /** A gun as its upgrades make it, origin at the grip (third-person item space). */
 export function heldGun(g: GunLookKey): THREE.Mesh {
   const geo = cached(`gun|${gunModelKey(g)}`, () => {
-    const parts = gunParts(g);
+    const parts = gunParts(g, true);
     const group = new THREE.Group();
     for (const m of [...parts.meshes, parts.mag]) group.add(m);
     return group;
@@ -88,12 +88,12 @@ export function heldGun(g: GunLookKey): THREE.Mesh {
  */
 export function heldKnife(form: KnifeId): THREE.Mesh {
   const mesh = new THREE.Mesh(
-    cached(`knife|${form}`, () => knifeModel(form)),
+    cached(`knife|${form}`, () => knifeModel(form, true)),
     sharedMaterial(),
   );
   mesh.castShadow = true;
   let glows = glowCache.get(form);
-  if (!glows) glowCache.set(form, (glows = glowParts(knifeModel(form))));
+  if (!glows) glowCache.set(form, (glows = glowParts(knifeModel(form, true))));
   for (const g of glows) mesh.add(new THREE.Mesh(g.geo, g.mat));
   return mesh;
 }

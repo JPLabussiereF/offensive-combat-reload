@@ -61,6 +61,26 @@ const glowMat = (color: number, opacity = 1) =>
   new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity, depthWrite: opacity >= 1, blending: opacity < 1 ? THREE.AdditiveBlending : THREE.NormalBlending });
 
 const box = (w: number, h: number, d: number) => new THREE.BoxGeometry(w, h, d);
+
+/**
+ * Building the far model (PF-35): the guns and knives other players hold, seen from meters away. Round parts
+ * get at most 8 sides, balls 6 × 4, rings 4 × 12, and the pixel letters are left out (about 70% fewer triangles); the
+ * first-person view keeps every detail.
+ */
+let farModel = false;
+const cyl = (rt: number, rb: number, h: number, seg = 32, hs = 1, open = false, t0 = 0, arc = Math.PI * 2) => new THREE.CylinderGeometry(rt, rb, h, farModel ? Math.min(seg, 8) : seg, hs, open, t0, arc);
+const torus = (r: number, tube: number, rs = 12, ts = 48, arc = Math.PI * 2) => new THREE.TorusGeometry(r, tube, farModel ? Math.min(rs, 4) : rs, farModel ? Math.min(ts, 12) : ts, arc);
+const sphere = (r: number, ws = 32, hs = 16) => new THREE.SphereGeometry(r, farModel ? Math.min(ws, 6) : ws, farModel ? Math.min(hs, 4) : hs);
+/** Builds with the far model on. */
+function far<T>(on: boolean, make: () => T): T {
+  const was = farModel;
+  farModel = on;
+  try {
+    return make();
+  } finally {
+    farModel = was;
+  }
+}
 const along = (geo: THREE.BufferGeometry) => geo.rotateX(Math.PI / 2);
 
 /** Adds parts to a gun: lit (baked) and glowing ones. */
@@ -95,10 +115,10 @@ function sight(b: Builder, kind: Sight, c: Palette, z: number, baseY: number, k 
     const y = baseY + 0.029 * k;
     add(box(0.03 * k, 0.014 * k, 0.05 * k), c.dark, 0, baseY + 0.001 * k, z);
     add(box(0.012 * k, 0.012 * k, 0.04 * k), c.dark, 0, baseY + 0.011 * k, z);
-    for (const dz of [-0.025, 0.025]) add(new THREE.TorusGeometry(0.021 * k, 0.0035 * k, 8, 24), c.optic, 0, y, z + dz * k);
+    for (const dz of [-0.025, 0.025]) add(torus(0.021 * k, 0.0035 * k, 8, 24), c.optic, 0, y, z + dz * k);
     for (const x of [-0.021, 0.021]) add(box(0.004 * k, 0.012 * k, 0.05 * k), c.optic, x * k, y, z);
     lit(new THREE.CircleGeometry(0.02 * k, 20).rotateY(Math.PI), glowMat(0xff6060, 0.12), 0, y, z - 0.024 * k);
-    lit(new THREE.SphereGeometry(0.0038, 10, 8), glowMat(0xff1a1a), 0, y, z - 0.023 * k);
+    lit(sphere(0.0038, 10, 8), glowMat(0xff1a1a), 0, y, z - 0.023 * k);
     return y;
   }
   if (kind === 'holo' || kind === 'holoLupa') {
@@ -110,20 +130,20 @@ function sight(b: Builder, kind: Sight, c: Palette, z: number, baseY: number, k 
     const reticle = glowMat(0xffd23f);
     const face = new THREE.Group();
     face.position.set(0, y, z - 0.02);
-    face.add(new THREE.Mesh(new THREE.TorusGeometry(0.0065, 0.0007, 6, 24), reticle));
+    face.add(new THREE.Mesh(torus(0.0065, 0.0007, 6, 24), reticle));
     for (const x of [-0.0024, 0.0024]) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.0008, 6, 4), reticle);
+      const eye = new THREE.Mesh(sphere(0.0008, 6, 4), reticle);
       eye.position.set(x, 0.0018, 0);
       face.add(eye);
     }
-    const smile = new THREE.Mesh(new THREE.TorusGeometry(0.0032, 0.0006, 6, 16, Math.PI), reticle);
+    const smile = new THREE.Mesh(torus(0.0032, 0.0006, 6, 16, Math.PI), reticle);
     smile.rotation.z = Math.PI;
     smile.position.y = -0.0005;
     face.add(smile);
     b.glow.push(face);
     if (kind === 'holoLupa') {
       // Flip magnifier behind the holo: a short tube the eye looks through.
-      add(along(new THREE.CylinderGeometry(0.018, 0.018, 0.05, 16, 1, true)), c.optic, 0, y, z + 0.09);
+      add(along(cyl(0.018, 0.018, 0.05, 16, 1, true)), c.optic, 0, y, z + 0.09);
       add(box(0.012, 0.03, 0.02), c.dark, 0, baseY + 0.009, z + 0.09);
     }
     return y;
@@ -134,11 +154,11 @@ function sight(b: Builder, kind: Sight, c: Palette, z: number, baseY: number, k 
     const power = kind === 'luneta2x' ? 1 : kind === 'luneta4x' ? 1.35 : 1.2;
     const y = baseY + 0.044;
     const len = 0.16 * power;
-    add(along(new THREE.CylinderGeometry(0.016, 0.016, len, 16)), c.optic, 0, y, z);
-    add(along(new THREE.CylinderGeometry(0.024 * power, 0.016, 0.05, 16)), c.optic, 0, y, z - len / 2 - 0.02);
-    add(along(new THREE.CylinderGeometry(0.019, 0.019, 0.04, 16)), c.optic, 0, y, z + len / 2 + 0.01);
+    add(along(cyl(0.016, 0.016, len, 16)), c.optic, 0, y, z);
+    add(along(cyl(0.024 * power, 0.016, 0.05, 16)), c.optic, 0, y, z - len / 2 - 0.02);
+    add(along(cyl(0.019, 0.019, 0.04, 16)), c.optic, 0, y, z + len / 2 + 0.01);
     for (const dz of [-0.045, 0.045]) add(box(0.02, 0.05, 0.016), c.dark, 0, baseY + 0.015, z + dz);
-    add(new THREE.CylinderGeometry(0.008, 0.008, 0.02, 10), c.dark, 0.022, y, z);
+    add(cyl(0.008, 0.008, 0.02, 10), c.dark, 0.022, y, z);
     lit(new THREE.CircleGeometry(0.023 * power, 16).rotateY(Math.PI), glowMat(0x7fb8ff, 0.35), 0, y, z - len / 2 - 0.046);
     return y;
   }
@@ -153,7 +173,7 @@ function rifle(b: Builder, g: GunLookKey): GunParts {
   const c = LOOKS[g.visual] ?? LOOKS.padrao;
   const { add, lit } = b;
   add(box(0.05, 0.07, 0.32), c.metal, 0, 0, 0); // receiver
-  add(along(new THREE.CylinderGeometry(0.011, 0.011, 0.3, 8)), c.dark, 0, 0.012, -0.31); // barrel
+  add(along(cyl(0.011, 0.011, 0.3, 8)), c.dark, 0, 0.012, -0.31); // barrel
   add(box(0.056, 0.06, 0.2), c.furniture, 0, -0.004, -0.22); // handguard
   add(box(0.045, 0.075, 0.2), c.furniture, 0, -0.012, 0.25); // stock
   add(box(0.03, 0.085, 0.042), c.furniture, 0, -0.068, 0.085, 0.35); // pistol grip
@@ -183,9 +203,9 @@ function rifle(b: Builder, g: GunLookKey): GunParts {
     // Flower sticker on the stock.
     for (let k = 0; k < 5; k++) {
       const a = (k / 5) * Math.PI * 2;
-      add(new THREE.SphereGeometry(0.009, 8, 6), 0xffffff, 0.024, -0.01 + Math.sin(a) * 0.012, 0.25 + Math.cos(a) * 0.012);
+      add(sphere(0.009, 8, 6), 0xffffff, 0.024, -0.01 + Math.sin(a) * 0.012, 0.25 + Math.cos(a) * 0.012);
     }
-    add(new THREE.SphereGeometry(0.008, 8, 6), 0xffd23f, 0.026, -0.01, 0.25);
+    add(sphere(0.008, 8, 6), 0xffd23f, 0.026, -0.01, 0.25);
   } else if (g.visual === 'natal') {
     // Blinking-looking string of lights along the handguard and barrel.
     const colors = [0xff3b3b, 0x3bff6a, 0xffe14d, 0x4fa3ff];
@@ -194,7 +214,7 @@ function rifle(b: Builder, g: GunLookKey): GunParts {
       const x = (k % 2 ? 1 : -1) * 0.022;
       const y = k < 5 ? 0.03 : 0.024;
       add(box(0.004, 0.004, 0.036), 0x1a3a1a, x * 0.5, y + 0.002, z + 0.017);
-      lit(new THREE.SphereGeometry(0.0065, 8, 6), glowMat(colors[k % colors.length]), x, y, z);
+      lit(sphere(0.0065, 8, 6), glowMat(colors[k % colors.length]), x, y, z);
     }
   } else if (g.visual === 'chamas') {
     // Flame stickers: +10 speed, everybody knows.
@@ -211,9 +231,9 @@ function rifle(b: Builder, g: GunLookKey): GunParts {
   const muzzle = new THREE.Vector3(0, 0.012, -0.47);
   if (g.silenciador) {
     // A 2-liter soda bottle taped to the barrel.
-    add(along(new THREE.CylinderGeometry(0.026, 0.026, 0.13, 14)), 0x4fae6b, 0, 0.012, -0.53);
-    add(along(new THREE.CylinderGeometry(0.012, 0.026, 0.04, 14)), 0x4fae6b, 0, 0.012, -0.47);
-    add(along(new THREE.CylinderGeometry(0.0265, 0.0265, 0.05, 14)), 0xd8262d, 0, 0.012, -0.53); // label
+    add(along(cyl(0.026, 0.026, 0.13, 14)), 0x4fae6b, 0, 0.012, -0.53);
+    add(along(cyl(0.012, 0.026, 0.04, 14)), 0x4fae6b, 0, 0.012, -0.47);
+    add(along(cyl(0.0265, 0.0265, 0.05, 14)), 0xd8262d, 0, 0.012, -0.53); // label
     muzzle.z = -0.6;
   }
   return { meshes: b.meshes, glow: b.glow, mag, magY: -0.09, sightY, scoped: isScope(g.mira), muzzle, hold: holdOf('rifle') };
@@ -228,7 +248,7 @@ function pistol(b: Builder, g: GunLookKey): GunParts {
   add(box(0.03, 0.026, 0.17), 0x24262b, 0, -0.016, 0.03); // frame
   add(box(0.03, 0.095, 0.045), 0x6b4a2e, 0, -0.068, 0.085, 0.3); // grip (wood)
   add(box(0.006, 0.02, 0.035), 0x24262b, 0, -0.04, 0.035); // trigger guard
-  add(new THREE.TorusGeometry(0.012, 0.0025, 6, 14), 0xc8a24a, 0, -0.128, 0.115); // key ring
+  add(torus(0.012, 0.0025, 6, 14), 0xc8a24a, 0, -0.128, 0.115); // key ring
   add(box(0.004, 0.026, 0.009), 0xd9d9d9, 0, -0.152, 0.115);
   add(box(0.004, 0.02, 0.008), 0xc8a24a, 0.004, -0.148, 0.121, 0, 0.4);
   const mag = new THREE.Mesh(box(0.026, 0.03, 0.036), toon(0x1d1f23));
@@ -238,13 +258,13 @@ function pistol(b: Builder, g: GunLookKey): GunParts {
   if (g.mira === 'ferro') {
     for (const x of [-0.009, 0.009]) add(box(0.006, 0.012, 0.008), 0x1d1f23, x, 0.035, 0.11);
     add(box(0.005, 0.012, 0.006), 0x1d1f23, 0, 0.035, -0.07);
-    lit(new THREE.SphereGeometry(0.0022, 6, 4), glowMat(0x7dff6a), 0, 0.042, -0.072);
+    lit(sphere(0.0022, 6, 4), glowMat(0x7dff6a), 0, 0.042, -0.072);
   } else sightY = sight(b, g.mira, LOOKS.padrao, 0.04, 0.029, 0.65);
   const muzzle = new THREE.Vector3(0, 0.012, -0.085);
   if (g.silenciador) {
     // A potato on the muzzle, as seen in the movies.
-    add(new THREE.SphereGeometry(0.034, 10, 8).scale(1, 0.85, 1.35), 0xa8793f, 0, 0.012, -0.12);
-    for (const [x, y, z] of [[0.02, 0.03, -0.11], [-0.025, 0.0, -0.14], [0.01, -0.02, -0.15]]) add(new THREE.SphereGeometry(0.004, 5, 4), 0x6e4a22, x, y, z);
+    add(sphere(0.034, 10, 8).scale(1, 0.85, 1.35), 0xa8793f, 0, 0.012, -0.12);
+    for (const [x, y, z] of [[0.02, 0.03, -0.11], [-0.025, 0.0, -0.14], [0.01, -0.02, -0.15]]) add(sphere(0.004, 5, 4), 0x6e4a22, x, y, z);
     muzzle.z = -0.165;
   }
   return { meshes: b.meshes, glow: b.glow, mag, magY: -0.112, sightY, adsZ: -0.46, scoped: false, muzzle, hold: holdOf('pistola') };
@@ -257,12 +277,12 @@ function smg(b: Builder, g: GunLookKey): GunParts {
   const red = 0xd8262d;
   add(box(0.048, 0.062, 0.25), body, 0, 0, -0.01); // receiver
   add(box(0.05, 0.01, 0.25), red, 0, 0.03, -0.01); // red top stripe
-  add(along(new THREE.CylinderGeometry(0.013, 0.013, 0.12, 10)), 0x2a2d33, 0, 0.012, -0.19); // barrel
-  add(along(new THREE.CylinderGeometry(0.02, 0.02, 0.05, 12)), 0xb8bcc4, 0, 0.012, -0.15); // barrel shroud
+  add(along(cyl(0.013, 0.013, 0.12, 10)), 0x2a2d33, 0, 0.012, -0.19); // barrel
+  add(along(cyl(0.02, 0.02, 0.05, 12)), 0xb8bcc4, 0, 0.012, -0.15); // barrel shroud
   add(box(0.024, 0.07, 0.026), 0x2a2d33, 0, -0.06, -0.13, -0.1); // foregrip
   add(box(0.03, 0.085, 0.042), 0x2a2d33, 0, -0.068, 0.085, 0.35); // pistol grip
   // Speed dial on the side (1 to 5).
-  add(new THREE.CylinderGeometry(0.014, 0.014, 0.008, 14).rotateZ(Math.PI / 2), 0x2a2d33, 0.028, -0.005, 0.05);
+  add(cyl(0.014, 0.014, 0.008, 14).rotateZ(Math.PI / 2), 0x2a2d33, 0.028, -0.005, 0.05);
   add(box(0.004, 0.004, 0.012), red, 0.033, 0.0, 0.045);
   // Wire stock.
   for (const y of [0.012, -0.03]) add(box(0.008, 0.008, 0.2), 0x8a8f99, 0, y, 0.21);
@@ -271,8 +291,8 @@ function smg(b: Builder, g: GunLookKey): GunParts {
   let mag: THREE.Mesh;
   if (drum) {
     // Popcorn-maker drum: red and white stripes.
-    mag = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.045, 18).rotateZ(Math.PI / 2), toon(0xf4efe6));
-    for (const dx of [-0.016, 0.016]) mag.add(new THREE.Mesh(new THREE.CylinderGeometry(0.0555, 0.0555, 0.008, 18).rotateZ(Math.PI / 2).translate(dx, 0, 0), toon(red)));
+    mag = new THREE.Mesh(cyl(0.055, 0.055, 0.045, 18).rotateZ(Math.PI / 2), toon(0xf4efe6));
+    for (const dx of [-0.016, 0.016]) mag.add(new THREE.Mesh(cyl(0.0555, 0.0555, 0.008, 18).rotateZ(Math.PI / 2).translate(dx, 0, 0), toon(red)));
     mag.position.set(0, -0.095, -0.04);
   } else {
     mag = new THREE.Mesh(box(0.03, 0.15, 0.04), toon(0x2a2d33));
@@ -306,6 +326,8 @@ const PIXEL_FONT: Record<string, string[]> = {
  * `z` toward the back (+Z), the top of the letters at `y`.
  */
 function pixelText(b: Builder, text: string, color: number, x: number, y: number, z: number, px: number) {
+  // A letter is a pixel or two from another player's view: the far model has the sticker without its words.
+  if (farModel) return;
   [...text].forEach((ch, i) => {
     const rows = PIXEL_FONT[ch];
     if (!rows) return;
@@ -320,8 +342,8 @@ const pistolGrip = (b: Builder, color: number) => b.add(box(0.03, 0.095, 0.045),
 
 /** The potato silencer (the pistol's Batata upgrade) on a muzzle at `z`, `y`; returns where the shot comes out. */
 function potato(b: Builder, y: number, z: number): number {
-  b.add(new THREE.SphereGeometry(0.034, 10, 8).scale(1, 0.85, 1.35), 0xa8793f, 0, y, z - 0.035);
-  for (const [x, dy, dz] of [[0.02, 0.018, -0.025], [-0.025, -0.012, -0.055], [0.01, -0.032, -0.065]]) b.add(new THREE.SphereGeometry(0.004, 5, 4), 0x6e4a22, x, y + dy, z + dz);
+  b.add(sphere(0.034, 10, 8).scale(1, 0.85, 1.35), 0xa8793f, 0, y, z - 0.035);
+  for (const [x, dy, dz] of [[0.02, 0.018, -0.025], [-0.025, -0.012, -0.055], [0.01, -0.032, -0.065]]) b.add(sphere(0.004, 5, 4), 0x6e4a22, x, y + dy, z + dz);
   return z - 0.08;
 }
 
@@ -341,7 +363,7 @@ function stapler(b: Builder, g: GunLookKey): GunParts {
   add(box(0.04, 0.006, 0.05), grey, 0, -0.033, -0.095); // anvil under the mouth
   add(box(0.038, 0.032, 0.225), black, 0, 0.012, -0.002); // top arm
   add(box(0.034, 0.008, 0.2), 0x2c2f34, 0, 0.031, 0.0); // rounded top
-  add(new THREE.CylinderGeometry(0.012, 0.012, 0.046, 12).rotateZ(Math.PI / 2), grey, 0, 0.0, 0.11); // hinge
+  add(cyl(0.012, 0.012, 0.046, 12).rotateZ(Math.PI / 2), grey, 0, 0.0, 0.11); // hinge
   add(box(0.02, 0.012, 0.012), 0xc9ccd1, 0, 0.0, -0.115); // the mouth's steel lip
   pistolGrip(b, black);
   add(box(0.006, 0.02, 0.035), black, 0, -0.04, 0.035); // trigger guard
@@ -368,18 +390,18 @@ function revolverModel(b: Builder, g: GunLookKey): GunParts {
   const dark = 0x2a2c31;
   add(box(0.03, 0.04, 0.09), steel, 0, 0.004, 0.06); // frame
   add(box(0.028, 0.014, 0.05), steel, 0, 0.026, 0.07); // top strap
-  add(along(new THREE.CylinderGeometry(0.009, 0.01, 0.26, 12)), dark, 0, 0.018, -0.12); // long barrel
+  add(along(cyl(0.009, 0.01, 0.26, 12)), dark, 0, 0.018, -0.12); // long barrel
   add(box(0.012, 0.012, 0.25), steel, 0, 0.008, -0.12); // ejector rod under it
   add(box(0.008, 0.016, 0.02), dark, 0, 0.03, 0.115, -0.5); // hammer
   add(box(0.006, 0.022, 0.032), dark, 0, -0.03, 0.05); // trigger guard
   add(box(0.032, 0.1, 0.044), 0x7a4a24, 0, -0.07, 0.1, 0.42); // wooden grip
   add(box(0.033, 0.02, 0.03), 0x5c3519, 0, -0.115, 0.125, 0.42); // grip butt
   // The cylinder (the "magazine": it swings down on a reload).
-  const mag = new THREE.Mesh(along(new THREE.CylinderGeometry(0.024, 0.024, 0.048, 12)), toon(steel));
+  const mag = new THREE.Mesh(along(cyl(0.024, 0.024, 0.048, 12)), toon(steel));
   mag.position.set(0, 0.004, 0.03);
   for (let k = 0; k < 6; k++) {
     const a = (k / 6) * Math.PI * 2;
-    const flute = new THREE.Mesh(along(new THREE.CylinderGeometry(0.005, 0.005, 0.05, 6)), toon(dark));
+    const flute = new THREE.Mesh(along(cyl(0.005, 0.005, 0.05, 6)), toon(dark));
     flute.position.set(Math.cos(a) * 0.022, Math.sin(a) * 0.022, 0);
     mag.add(flute);
   }
@@ -395,7 +417,7 @@ function revolverModel(b: Builder, g: GunLookKey): GunParts {
   for (let r = 0; r < 3; r++) {
     for (let c = 0; c < 3; c++) add(box(0.03 - r * 0.008, 0.012, 0.012), (r + c) % 2 ? 0xffffff : 0xd8262d, 0, -0.008 - r * 0.012, -0.06 - c * 0.012);
   }
-  add(new THREE.SphereGeometry(0.008, 8, 6), 0xd8262d, 0, 0.004, -0.06); // the knot
+  add(sphere(0.008, 8, 6), 0xd8262d, 0, 0.004, -0.06); // the knot
   let sightY = 0.04;
   if (g.mira === 'ferro') {
     add(box(0.004, 0.012, 0.008), dark, 0, 0.03, -0.245); // front blade
@@ -412,12 +434,12 @@ function drill(b: Builder, g: GunLookKey): GunParts {
   const { add } = b;
   const yellow = 0xf2c230;
   const black = 0x1e1f22;
-  add(along(new THREE.CylinderGeometry(0.027, 0.025, 0.15, 16)), yellow, 0, 0.005, 0.02); // motor housing
-  add(along(new THREE.CylinderGeometry(0.026, 0.026, 0.024, 16)), 0x3a3b3f, 0, 0.005, 0.105); // vented back cap
+  add(along(cyl(0.027, 0.025, 0.15, 16)), yellow, 0, 0.005, 0.02); // motor housing
+  add(along(cyl(0.026, 0.026, 0.024, 16)), 0x3a3b3f, 0, 0.005, 0.105); // vented back cap
   for (let k = 0; k < 4; k++) add(box(0.054, 0.004, 0.003), black, 0, 0.005 - 0.012 + k * 0.008, 0.106);
-  add(along(new THREE.CylinderGeometry(0.024, 0.028, 0.03, 14)), black, 0, 0.005, -0.07); // clutch ring
-  add(along(new THREE.CylinderGeometry(0.014, 0.02, 0.04, 12)), 0x3a3b3f, 0, 0.005, -0.105); // chuck
-  add(along(new THREE.CylinderGeometry(0.0035, 0.004, 0.11, 8)), 0xc9ccd1, 0, 0.005, -0.18); // the bit
+  add(along(cyl(0.024, 0.028, 0.03, 14)), black, 0, 0.005, -0.07); // clutch ring
+  add(along(cyl(0.014, 0.02, 0.04, 12)), 0x3a3b3f, 0, 0.005, -0.105); // chuck
+  add(along(cyl(0.0035, 0.004, 0.11, 8)), 0xc9ccd1, 0, 0.005, -0.18); // the bit
   add(box(0.004, 0.004, 0.09), 0x9aa0a8, 0, 0.005, -0.18, 0, 0.785); // its spiral (a twist of steel)
   add(box(0.03, 0.1, 0.044), black, 0, -0.07, 0.08, 0.2); // handle
   add(box(0.031, 0.06, 0.02), yellow, 0, -0.06, 0.1, 0.2); // rubber back of the handle
@@ -440,7 +462,7 @@ function garruchaModel(b: Builder, g: GunLookKey): GunParts {
   const wood = 0x8a5a2b;
   const leather = 0x6b3e1e;
   const gold = 0xe0b53a;
-  for (const x of [-0.0125, 0.0125]) add(along(new THREE.CylinderGeometry(0.01, 0.01, 0.22, 12)), steel, x, 0.016, -0.08); // barrels
+  for (const x of [-0.0125, 0.0125]) add(along(cyl(0.01, 0.01, 0.22, 12)), steel, x, 0.016, -0.08); // barrels
   for (const x of [-0.0125, 0.0125]) add(new THREE.CircleGeometry(0.0065, 10).rotateY(Math.PI), 0x111111, x, 0.016, -0.1905); // their two dark mouths
   add(box(0.012, 0.006, 0.2), steel, 0, 0.026, -0.075); // rib between them
   add(box(0.04, 0.03, 0.06), steel, 0, 0.008, 0.055); // breech
@@ -451,7 +473,7 @@ function garruchaModel(b: Builder, g: GunLookKey): GunParts {
   add(box(0.032, 0.04, 0.045), leather, 0, -0.02, 0.085, 0.25);
   add(box(0.032, 0.045, 0.045), leather, 0, -0.06, 0.098, 0.55);
   add(box(0.032, 0.04, 0.044), leather, 0, -0.095, 0.122, 0.95);
-  add(new THREE.SphereGeometry(0.02, 10, 8), wood, 0, -0.112, 0.145);
+  add(sphere(0.02, 10, 8), wood, 0, -0.112, 0.145);
   // The leather's tooling: gold stars and a half moon on the side; brass studs on the breech.
   const star = new THREE.Shape();
   for (let k = 0; k < 10; k++) {
@@ -461,8 +483,8 @@ function garruchaModel(b: Builder, g: GunLookKey): GunParts {
     else star.lineTo(Math.cos(a) * r, Math.sin(a) * r);
   }
   for (const [y, z] of [[-0.03, 0.082], [-0.09, 0.118]]) add(new THREE.ExtrudeGeometry(star, { depth: 0.0015, bevelEnabled: false }).rotateY(-Math.PI / 2), gold, -0.017, y, z);
-  add(new THREE.TorusGeometry(0.009, 0.0022, 6, 14, Math.PI).rotateY(Math.PI / 2), gold, -0.017, -0.062, 0.1, 0, 0.6);
-  for (const z of [0.035, 0.075]) add(new THREE.SphereGeometry(0.003, 6, 4), gold, -0.02, 0.008, z);
+  add(torus(0.009, 0.0022, 6, 14, Math.PI).rotateY(Math.PI / 2), gold, -0.017, -0.062, 0.1, 0, 0.6);
+  for (const z of [0.035, 0.075]) add(sphere(0.003, 6, 4), gold, -0.02, 0.008, z);
   // The red kerchief tied around the grip, its tails hanging.
   add(box(0.036, 0.014, 0.05), 0xc8102e, 0, -0.045, 0.092, 0.4);
   add(box(0.004, 0.035, 0.014), 0xc8102e, -0.02, -0.07, 0.07, 0.2, 0.15);
@@ -472,7 +494,7 @@ function garruchaModel(b: Builder, g: GunLookKey): GunParts {
   mag.position.set(0, 0.016, 0.03);
   let sightY = 0.04;
   if (g.mira === 'ferro') {
-    add(new THREE.SphereGeometry(0.003, 6, 4), gold, 0, 0.032, -0.185); // bead
+    add(sphere(0.003, 6, 4), gold, 0, 0.032, -0.185); // bead
     add(box(0.014, 0.006, 0.006), steel, 0, 0.034, 0.07); // rear notch
     sightY = 0.035;
   } else sightY = sight(b, g.mira, LOOKS.padrao, 0.04, 0.029, 0.65);
@@ -523,16 +545,23 @@ export const GUN_MODELS: Partial<Record<GunId, (b: Builder, g: GunLookKey) => Gu
   pistolao: handCannon,
 };
 
-/** The model of a gun as its upgrades make it (sight, paint job, magazine, silencer). */
-export function gunParts(g: GunLookKey): GunParts {
-  return (GUN_MODELS[g.arma] ?? rifle)(builder(), g);
+/**
+ * The model of a gun as its upgrades make it (sight, paint job, magazine, silencer); `farModel`: the lighter one
+ * other players see in a character's hands (third person, PF-35).
+ */
+export function gunParts(g: GunLookKey, farModel = false): GunParts {
+  return far(farModel, () => (GUN_MODELS[g.arma] ?? rifle)(builder(), g));
 }
 
 /** Cache key of a gun's model: everything gunParts looks at. */
 export const gunModelKey = (g: GunLookKey) => `${g.arma}|${g.mira}|${g.visual}|${g.silenciador ? 1 : 0}|${g.pente}`;
 
-/** What the knife hand swings (each knife), pointing down -Z from the fist at the origin. */
-export function knifeModel(form: KnifeId): THREE.Group {
+/** What the knife hand swings (each knife), pointing down -Z from the fist at the origin; `farModel`: the third person's, lighter. */
+export function knifeModel(form: KnifeId, farModel = false): THREE.Group {
+  return far(farModel, () => knife(form));
+}
+
+function knife(form: KnifeId): THREE.Group {
   const g = new THREE.Group();
   const add = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number) => {
     const m = new THREE.Mesh(geo, mat);
@@ -549,7 +578,7 @@ export function knifeModel(form: KnifeId): THREE.Group {
     // Grandma's wooden spoon.
     const wood = toon(0xc69c6d);
     add(new THREE.BoxGeometry(0.018, 0.012, 0.3), wood, 0, 0, -0.1);
-    add(new THREE.SphereGeometry(0.036, 12, 8).scale(1, 0.35, 1.45), wood, 0, 0.004, -0.29);
+    add(sphere(0.036, 12, 8).scale(1, 0.35, 1.45), wood, 0, 0.004, -0.29);
   } else if (form === 'baguete') {
     // Yesterday's baguette, with its cuts.
     const crust = toon(0xd9a04e);
@@ -562,33 +591,33 @@ export function knifeModel(form: KnifeId): THREE.Group {
     // Frozen fish held by the tail, frost on the scales.
     const fish = toon(0x8fb3c9);
     add(new THREE.ConeGeometry(0.035, 0.05, 4).rotateX(Math.PI / 2).scale(0.25, 1.2, 1), fish, 0, 0, -0.01);
-    add(new THREE.SphereGeometry(0.045, 12, 10).scale(0.45, 1, 2.8), fish, 0, 0, -0.17);
-    add(new THREE.SphereGeometry(0.006, 6, 4), toon(0x111111), 0.018, 0.012, -0.28);
+    add(sphere(0.045, 12, 10).scale(0.45, 1, 2.8), fish, 0, 0, -0.17);
+    add(sphere(0.006, 6, 4), toon(0x111111), 0.018, 0.012, -0.28);
     add(new THREE.ConeGeometry(0.01, 0.03, 4), toon(0x6f93a9), 0, 0.045, -0.15);
-    for (let k = 0; k < 7; k++) add(new THREE.SphereGeometry(0.006, 5, 4), toon(0xffffff), (k % 2 ? 1 : -1) * 0.02, -0.02 + (k % 3) * 0.02, -0.07 - k * 0.028);
+    for (let k = 0; k < 7; k++) add(sphere(0.006, 5, 4), toon(0xffffff), (k % 2 ? 1 : -1) * 0.02, -0.02 + (k % 3) * 0.02, -0.07 - k * 0.028);
   } else if (form === 'macarrao') {
     // A green pool noodle, 60 cm of foam.
-    add(along(new THREE.CylinderGeometry(0.036, 0.036, 0.6, 14)), toon(0x39d353), 0, 0, -0.29);
+    add(along(cyl(0.036, 0.036, 0.6, 14)), toon(0x39d353), 0, 0, -0.29);
     add(new THREE.CircleGeometry(0.014, 12).rotateY(Math.PI), toon(0x1c7a2a), 0, 0, -0.591);
   } else if (form === 'frango') {
     // Yellow rubber chicken held by the feet: long floppy body, skinny neck, red comb, open beak.
     const yellow = toon(0xffd83a);
     const orange = toon(0xff8a1f);
-    add(along(new THREE.CylinderGeometry(0.006, 0.006, 0.05)), orange, -0.008, 0, -0.02);
-    add(along(new THREE.CylinderGeometry(0.006, 0.006, 0.05)), orange, 0.008, 0, -0.02);
-    add(new THREE.SphereGeometry(0.042, 12, 10).scale(1, 0.9, 1.8), yellow, 0, 0, -0.12);
-    for (const x of [-0.04, 0.04]) add(new THREE.SphereGeometry(0.022, 8, 6).scale(0.4, 0.8, 1.4), yellow, x, 0.005, -0.12);
+    add(along(cyl(0.006, 0.006, 0.05)), orange, -0.008, 0, -0.02);
+    add(along(cyl(0.006, 0.006, 0.05)), orange, 0.008, 0, -0.02);
+    add(sphere(0.042, 12, 10).scale(1, 0.9, 1.8), yellow, 0, 0, -0.12);
+    for (const x of [-0.04, 0.04]) add(sphere(0.022, 8, 6).scale(0.4, 0.8, 1.4), yellow, x, 0.005, -0.12);
     add(along(new THREE.CapsuleGeometry(0.014, 0.1, 4, 8)), yellow, 0, 0.005, -0.25);
-    add(new THREE.SphereGeometry(0.026, 10, 8), yellow, 0, 0.012, -0.32);
-    for (let k = 0; k < 3; k++) add(new THREE.SphereGeometry(0.009, 6, 4), toon(0xe0263b), 0, 0.036 + (k === 1 ? 0.006 : 0), -0.31 - k * 0.012);
+    add(sphere(0.026, 10, 8), yellow, 0, 0.012, -0.32);
+    for (let k = 0; k < 3; k++) add(sphere(0.009, 6, 4), toon(0xe0263b), 0, 0.036 + (k === 1 ? 0.006 : 0), -0.31 - k * 0.012);
     add(new THREE.ConeGeometry(0.012, 0.03, 6).rotateX(-Math.PI / 2), orange, 0, 0.008, -0.35);
-    for (const x of [-0.012, 0.012]) add(new THREE.SphereGeometry(0.004, 6, 4), toon(0x111111), x, 0.02, -0.335);
+    for (const x of [-0.012, 0.012]) add(sphere(0.004, 6, 4), toon(0x111111), x, 0.02, -0.335);
   } else {
     // Knock-off lightsaber: silver hilt, hot pink blade with a soft glow.
-    add(along(new THREE.CylinderGeometry(0.015, 0.015, 0.13, 12)), toon(0xc9ccd1), 0, 0, 0.0);
-    for (const z of [0.02, -0.01, -0.04]) add(along(new THREE.CylinderGeometry(0.0165, 0.0165, 0.012, 12)), toon(0x1c1c20), 0, 0, z);
-    add(along(new THREE.CylinderGeometry(0.011, 0.009, 0.55, 12)), glowMat(0xffe6fb), 0, 0, -0.34);
-    add(along(new THREE.CylinderGeometry(0.024, 0.02, 0.57, 12)), glowMat(0xff3df0, 0.35), 0, 0, -0.34);
+    add(along(cyl(0.015, 0.015, 0.13, 12)), toon(0xc9ccd1), 0, 0, 0.0);
+    for (const z of [0.02, -0.01, -0.04]) add(along(cyl(0.0165, 0.0165, 0.012, 12)), toon(0x1c1c20), 0, 0, z);
+    add(along(cyl(0.011, 0.009, 0.55, 12)), glowMat(0xffe6fb), 0, 0, -0.34);
+    add(along(cyl(0.024, 0.02, 0.57, 12)), glowMat(0xff3df0, 0.35), 0, 0, -0.34);
   }
   return g;
 }
@@ -596,11 +625,11 @@ export function knifeModel(form: KnifeId): THREE.Group {
 /** Land mine: olive disc with a pressure plate and a red LED (returned so it can blink). */
 export function mineModel(): { group: THREE.Group; led: THREE.Mesh } {
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.06, 20), toon(0x4a5a32));
+  const body = new THREE.Mesh(cyl(0.16, 0.18, 0.06, 20), toon(0x4a5a32));
   body.position.y = 0.03;
-  const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.02, 16), toon(0x6f7d52));
+  const plate = new THREE.Mesh(cyl(0.08, 0.08, 0.02, 16), toon(0x6f7d52));
   plate.position.y = 0.07;
-  const led = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff2020 }));
+  const led = new THREE.Mesh(sphere(0.014, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff2020 }));
   led.position.set(0.11, 0.065, 0);
   g.add(body, plate, led);
   g.traverse((o) => (o.castShadow = true));
