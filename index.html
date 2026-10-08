@@ -170,6 +170,9 @@
             <div class="gp-surf gp-dark" data-station="admin" data-pad-scroll></div>
             <div id="gp-tags"></div>
             <div id="gp-card" class="gp-card" data-pad-scroll></div>
+            <!-- 07 · PETS (PF-29): a tag under each hook of the collar rack, and the card of the pet on the doormat. -->
+            <div id="gp-pettags"></div>
+            <div id="gp-petcard" class="gp-card gp-petcard" data-pad-scroll></div>
           </div>
           <div class="gp-scrim"></div>
           <div class="gp-shade"></div>
@@ -212,6 +215,7 @@
             <button type="button" role="tab" data-tab="album" data-t="tabAlbum"></button>
             <button type="button" role="tab" data-tab="profile" data-t="tabProfile"></button>
             <button type="button" role="tab" data-tab="settings" data-t="tabSettings"></button>
+            <button type="button" role="tab" data-tab="pets" data-t="tabPets"></button>
             <!-- Only for admins and moderators (shown from /api/me's roles). -->
             <button type="button" role="tab" data-tab="management" data-t="tabManagement" class="hidden"></button>
           </nav>
@@ -306,6 +310,8 @@
             <div id="tab-profile" class="home-pane hidden"></div>
             <!-- The menu's controls and settings (#menu-settings) are lent to this tab while the home is open. -->
             <div id="tab-settings" class="home-pane hidden"></div>
+            <!-- Pets (PF-29, client/ui/pets.ts PetsTab): the list with their faces and the card; in the Galpão, 07 · PETS. -->
+            <div id="tab-pets" class="home-pane hidden"></div>
             <div id="tab-auth" class="home-pane hidden"></div>
           </section>
         </div>
