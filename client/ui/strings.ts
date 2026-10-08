@@ -1,4 +1,9 @@
-// Every user-facing string lives here (section 5: pt-BR and en at minimum).
+// Every user-facing string lives here (section 5): pt-BR and en in this file, Spanish and German in their own
+// (strings.es.ts, strings.de.ts), typed by these keys so the typecheck flags a missing one (PF-30).
+import { isLang, LANG_LOCALE, textIn, type Lang, type Text } from '@shared/langs';
+import * as DE from './strings.de';
+import * as ES from './strings.es';
+
 const ptBR = {
   title: 'OFFENSIVE COMBAT',
   subtitle: 'Protótipo de tiro · Fase 1',
@@ -946,6 +951,19 @@ const ptBR = {
   pmDescFov: 'Maior vê mais dos lados',
   pmDescQuality: 'Automática ajusta sozinha para manter o FPS',
   pmDescFullscreen: 'Em tela cheia, Esc abre e fecha o menu na hora',
+  // The language (PF-30): the row in the settings' Video tab, the landing's button, the page title and the
+  // game server's refusals by code (shared/protocol.ts WsErrorCode).
+  language: 'Idioma',
+  pmDescLanguage: 'Textos, menus e o e-mail de senha. Fora da partida, a tela recarrega na hora',
+  langLater: 'Idioma salvo: vale ao voltar ao início',
+  docTitle: 'Offensive Combat — Protótipo',
+  wsErr_sem_ola: 'Conexão sem apresentação. Tente de novo.',
+  wsErr_sessao_lotada: 'Sessão lotada.',
+  wsErr_sessao_inexistente: 'Essa sessão não existe mais.',
+  wsErr_mapa_indisponivel: 'Esse mapa não está disponível.',
+  wsErr_modo_fora_do_mapa: 'Esse modo não é jogado nesse mapa.',
+  wsErr_sem_mapa: 'Nenhum mapa disponível para esse modo.',
+  wsErr_entrada_falhou: 'Não deu para entrar agora.',
   pmDescVolume: 'Volume geral do jogo',
   pmDescSpatial: 'Automático: 3D no PC, estéreo no celular',
   pmOn: 'Ligado',
@@ -1953,6 +1971,17 @@ const en: Record<keyof typeof ptBR, string> = {
   pmDescFov: 'Wider sees more to the sides',
   pmDescQuality: 'Automatic adjusts itself to keep the FPS',
   pmDescFullscreen: 'In fullscreen, Esc opens and closes the menu instantly',
+  language: 'Language',
+  pmDescLanguage: 'Texts, menus and the password e-mail. Outside a match, the screen reloads right away',
+  langLater: 'Language saved: it applies when you go back to the start',
+  docTitle: 'Offensive Combat — Prototype',
+  wsErr_sem_ola: 'The connection skipped its hello. Try again.',
+  wsErr_sessao_lotada: 'Session full.',
+  wsErr_sessao_inexistente: 'That session no longer exists.',
+  wsErr_mapa_indisponivel: "That map isn't available.",
+  wsErr_modo_fora_do_mapa: "That mode isn't played on that map.",
+  wsErr_sem_mapa: 'No map available for that mode.',
+  wsErr_entrada_falhou: "Couldn't get in right now.",
   pmDescVolume: "The game's overall volume",
   pmDescSpatial: 'Automatic: 3D on a computer, stereo on a phone',
   pmOn: 'On',
@@ -2031,7 +2060,7 @@ const en: Record<keyof typeof ptBR, string> = {
   gpRangeTargets: 'Still dummies',
 };
 
-export const TIPS = {
+export const TIPS: Record<Lang, string[]> = {
   'pt-BR': [
     'Dica: atirar no inimigo costuma funcionar melhor que atirar na parede.',
     'Dica: o boneco não revida. Ainda.',
@@ -2050,15 +2079,23 @@ export const TIPS = {
     "Tip: the ice cream truck doesn't sell ice cream. It does play music.",
     'Tip: the flamingos are innocent.',
   ],
+  es: ES.tips,
+  de: DE.tips,
 };
 
 /** One-tap chat lines (phones: no keyboard needed mid-fight). */
-export const QUICK_CHAT = {
+export const QUICK_CHAT: Record<Lang, string[]> = {
   'pt-BR': ['GG', 'Boa!', 'Kkkkk', 'Cuidado!', 'Bora x1?', 'Valeu!'],
   en: ['GG', 'Nice!', 'LOL', 'Watch out!', '1v1 me?', 'Thanks!'],
+  es: ES.quickChat,
+  de: DE.quickChat,
 };
 
-export const DEATH_MESSAGES = {
+/** What kills a player with no one to blame (the death screen picks one line). */
+export type DeathCause = 'fall' | 'void' | 'explosion' | 'dog' | 'zombie' | 'thorns' | 'sacrilege' | 'crows';
+export type DeathLines = Record<DeathCause, string[]>;
+
+export const DEATH_MESSAGES: Record<Lang, DeathLines> = {
   'pt-BR': {
     fall: ['Você venceu a gravidade. Brincadeira, ela venceu.', 'Da próxima vez, tente cair de pé.', 'A calçada mandou lembranças.'],
     void: ['Você saiu do mapa. O mapa não sentiu sua falta.', 'Explorador corajoso. Explorador morto.'],
@@ -2079,14 +2116,41 @@ export const DEATH_MESSAGES = {
     sacrilege: ['You climbed the altar. The altar minded.', 'Sacrilege: the chapel charges dearly.', 'The totem is for lighting, not for standing on.'],
     crows: ['The crows found you first.', 'A tree is no hiding place. The crows said so.', 'Pecked to the end.'],
   },
+  es: ES.deathMessages,
+  de: DE.deathMessages,
 };
 
-export type Lang = 'pt-BR' | 'en';
+export type { Lang };
 export type StringKey = keyof typeof ptBR;
 
-// Bun (the tests) has a navigator without a language.
-let lang: Lang = (globalThis.navigator as { language?: string } | undefined)?.language?.toLowerCase().startsWith('pt') ? 'pt-BR' : 'en';
-const dicts: Record<Lang, Record<StringKey, string>> = { 'pt-BR': ptBR, en };
+/**
+ * The language of the browser's list (navigator.languages, in the player's order): the first one the game has
+ * (pt-PT and pt-BR → pt-BR, es-MX → es, de-AT → de, en-GB → en); none of them → English.
+ */
+export function detectLang(languages: readonly string[] | undefined): Lang {
+  for (const l of languages ?? []) {
+    const base = l.toLowerCase().split(/[-_]/)[0];
+    if (base === 'pt') return 'pt-BR';
+    if (base === 'en' || base === 'es' || base === 'de') return base;
+  }
+  return 'en';
+}
+
+/** The language to show: the one saved on this device when it's valid, else the system's (detectLang). */
+export const resolveLang = (saved: unknown, system: Lang): Lang => (isLang(saved) ? saved : system);
+
+/** The browser's languages (Bun, in the tests, has a navigator without any). */
+function systemLanguages(): string[] {
+  const nav = globalThis.navigator as { languages?: readonly string[]; language?: string } | undefined;
+  if (nav?.languages?.length) return [...nav.languages];
+  return nav?.language ? [nav.language] : [];
+}
+
+let lang: Lang = detectLang(systemLanguages());
+const dicts: Record<Lang, Record<StringKey, string>> = { 'pt-BR': ptBR, en, es: ES.es, de: DE.de };
+
+/** The language the browser asks for (no choice saved). */
+export const systemLang = (): Lang => detectLang(systemLanguages());
 
 export function getLang(): Lang {
   return lang;
@@ -2095,6 +2159,12 @@ export function getLang(): Lang {
 export function setLang(l: Lang) {
   lang = l;
 }
+
+/** The locale for numbers and dates in the chosen language (1.234,5 in pt-BR and de; 1,234.5 in en and es-419). */
+export const locale = (): string => LANG_LOCALE[lang];
+
+/** A data file's text (album, catalogs: { pt, en, es, de }) in the chosen language. */
+export const textOf = (x: Text): string => textIn(x, lang);
 
 export function t(key: StringKey, params: Record<string, string | number> = {}): string {
   return dicts[lang][key].replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ''));
