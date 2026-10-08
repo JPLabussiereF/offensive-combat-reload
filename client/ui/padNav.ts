@@ -5,44 +5,15 @@
 // An open dialog (aria-modal) keeps the focus inside it. A screen marked data-pad-explicit (the pause menu) names its
 // back button on each level (data-pad-back), so ◯/B never guesses by the text there ("Sair da sessão" is no "back").
 // Sub-tabs (data-pad-subtabs, the settings') switch with L1/R1 only where no other tab bar is on screen.
-// Custom sliders (role="slider", the color picker's: client/ui/colorPicker.ts) get the keys their keyboard uses: a
-// one-way slider moves with the D-pad along it and ✕ confirms (Enter); a two-way one (data-slider-2d, the color square)
-// takes ✕ to enter an adjust mode where the D-pad moves its cursor, ✕ again confirms (Enter) and ◯ undoes (Esc).
+// Custom sliders (role="slider", the color picker's) get the keys their keyboard uses (client/ui/padNavRules.ts).
 
 import type { GamepadInput } from '../core/gamepad';
+import { FOCUSABLE, sliderBack, sliderKey, sliderPress, type Dir, type PadSlider } from './padNavRules';
 
-export const FOCUSABLE = 'button, a[href], input, select, textarea, [role="slider"], [tabindex]:not([tabindex="-1"]), .cz-card';
 /** Buttons that go back (◯/B), by attribute or by their text. */
 const BACK_TEXT = /^(voltar|cancelar|fechar|sair|back|cancel|close)\b/i;
 const REPEAT_DELAY = 0.38;
 const REPEAT_EVERY = 0.11;
-
-export type Dir = 'up' | 'down' | 'left' | 'right';
-
-const ARROW: Record<Dir, string> = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' };
-
-/** A custom slider as the controller sees it. */
-export interface PadSlider {
-  /** Two-way (the color square): adjusted only in adjust mode. */
-  twoD: boolean;
-  vertical: boolean;
-}
-
-/** The arrow key a D-pad direction sends to a slider, or null when it moves the focus instead. */
-export function sliderKey(s: PadSlider, adjusting: boolean, dir: Dir): string | null {
-  if (s.twoD) return adjusting ? ARROW[dir] : null;
-  const along = s.vertical ? dir === 'up' || dir === 'down' : dir === 'left' || dir === 'right';
-  return along ? ARROW[dir] : null;
-}
-
-/** ✕ on a slider: a two-way one enters adjust mode (or leaves it, confirming); a one-way one confirms. */
-export function sliderPress(s: PadSlider, adjusting: boolean): { key: 'Enter' | null; adjusting: boolean } {
-  if (s.twoD && !adjusting) return { key: null, adjusting: true };
-  return { key: 'Enter', adjusting: false };
-}
-
-/** ◯ while adjusting a slider undoes (Esc) and leaves adjust mode; otherwise it goes back as always (null). */
-export const sliderBack = (adjusting: boolean): 'Escape' | null => (adjusting ? 'Escape' : null);
 
 const sliderOf = (el: Element | null): PadSlider | null =>
   el?.getAttribute('role') === 'slider' ? { twoD: el.hasAttribute('data-slider-2d'), vertical: el.getAttribute('aria-orientation') === 'vertical' } : null;

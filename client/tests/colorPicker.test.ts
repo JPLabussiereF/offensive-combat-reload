@@ -3,8 +3,8 @@
 // brightness) and the house palette in groups. The controller on its sliders: client/ui/padNav.ts.
 import { describe, expect, it } from 'bun:test';
 import { chroma, hexToHsv, hexToRgb, MAX_CHROMA, MIN_VALUE } from '@shared/color';
-import { houseGroups, limitSv, matchingColors, parseRecent, pushRecent, RECENT_MAX, SHADE } from '../ui/colorPicker';
-import { FOCUSABLE, sliderBack, sliderKey, sliderPress } from '../ui/padNav';
+import { houseGroups, limitSv, matchingColors, parseRecent, pushRecent, RECENT_MAX, SHADE } from '../ui/colorPickerRules';
+import { FOCUSABLE, sliderBack, sliderKey, sliderPress } from '../ui/padNavRules';
 
 describe('seletor de cor: Recentes e Combina', () => {
   it('Recentes: a última primeiro, no máximo 10, sem repetir', () => {
