@@ -4,6 +4,10 @@ type: architecture
 status: documented
 area: code-architecture
 source_paths:
+  - client/ui/galpao/galpaoRules.ts
+  - client/ui/galpao/arsenalBoard.ts
+  - client/ui/galpao/scene.ts
+  - client/ui/galpao/galpao.ts
   - index.html
   - client/main.ts
   - client/zombies/client.ts
@@ -28,7 +32,7 @@ tags:
   - client
   - threejs
   - rapier
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Client Architecture
@@ -67,7 +71,7 @@ sequenceDiagram
 Detalhes:
 
 - **Carregamento**: `createPhysics()` (`client/world/physics.ts`) inicializa o WASM do Rapier e cria um `World` com gravidade −22 e `timestep` 1/60. `createRenderContext` cria renderer, cena, câmera, sol e a cena separada do viewmodel.
-- **Home**: `showHome()` (`client/ui/home.ts`) resolve com um `HomeChoice` que é uma união discriminada por `mode`: `'offline'` (treino), `'bots'` (`count`, `skill`) ou `'online'` (`conn`, `joined`). Ver [[Menus]] e [[Flow - Join Online Match]].
+- **Home**: `showHome({ software })` (`client/ui/home.ts`) resolve com um `HomeChoice` que é uma união discriminada por `mode`: `'offline'` (treino), `'bots'` (`count`, `skill`) ou `'online'` (`conn`, `joined`). Ver [[Menus]] e [[Flow - Join Online Match]].
 - **Mapa**: `loadOfficialMap(choice.map)` carrega o JSON oficial (`shared/data/mapas/<id>.json`, que vai no pacote do cliente; o `cemiterio` só no modo zumbi) e `buildMapFromData` o monta peça por peça (`client/world/mapLoader.ts`, [[ADR - Mapas como dados com catálogo de peças]]); com `?mapa=/maps/x.glb`, `buildGltfMap`. Os coletáveis e os dados de zumbi vêm de `objetos` e `zumbi` do mapa. Todos devolvem a interface `GameMap` (`client/world/gameMap.ts`): spawns, bonecos, `killY`, `props` (um `PropBus`), `update()`, `dog`, coletáveis, peixes, ratos, poção, recompensas e atmosfera. Ver [[World Structure]].
 - **Criação de sistemas**: tudo é instanciado como `const` local dentro de `boot()` (ex.: `dummies`, `net`, `effects`, `viewmodel`, `progress`, `mines`, `player`, `avatar`, `melee`, `thrower`, `grenades`, `taunt`, `hud`, `scoreboard`, `input`, `chat`, `bots`).
 - **Retenção de mensagens**: a home chama `conn.hold()` logo depois do `'joined'`; o `boot()` só chama `conn.release()` quando todos os handlers existem, para não perder abates/corpos enviados durante a montagem do mapa (`client/net/connection.ts`).
@@ -136,6 +140,7 @@ Em `import.meta.env.DEV`, `window.__oc` expõe jogador, arma, rede, física, map
 - `client/main.ts` (`boot`, `step`, `stepInner`, `render`)
 - `client/core/loop.ts` (`startLoop`)
 - `client/ui/home.ts` (`showHome`, `HomeChoice`, `closeReason`)
+- `client/ui/galpao/` (a tela inicial logada em 3D: `GalpaoHome` em `galpao.ts`, a cena com câmera e superfícies DOM em `scene.ts`, o Arsenal do painel perfurado em `arsenalBoard.ts`, regras puras em `galpaoRules.ts`; ver [[ADR - Tela inicial em galpão 3D]])
 - `client/net/connection.ts` (`Connection.hold/release`)
 - `client/world/gameMap.ts` (`GameMap`), `client/world/mapLoader.ts` (`loadOfficialMap`, `buildMapFromData`)
 - `client/gameplay/targets.ts` (`Target`, `Humiliable`, `HitboxRegistry`)

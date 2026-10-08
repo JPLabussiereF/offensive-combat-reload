@@ -4,6 +4,7 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - client/ui/galpao/galpao.ts
   - index.html
   - client/styles.css
   - client/main.ts
@@ -20,7 +21,7 @@ tags:
   - game
   - ui
   - ux
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # UI Overview
@@ -37,7 +38,7 @@ Visual: estilo "sticker" (painéis com contorno grosso e sombra dura deslocada),
 | --- | --- | --- |
 | `#game` | canvas do renderizador | [[Rendering Overview]] |
 | `#loading` | `Screens` (`client/ui/menu.ts`) | [[Menus]] — carregamento com dicas |
-| `#home` (`#home-in`: abas `#tab-play`, `#tab-maps`, `#tab-arsenal`, `#tab-album`, `#tab-profile`, `#tab-settings` e, para a equipe, `#tab-management`; `#home-out`: landing com `#home-auth`) | `showHome` (`client/ui/home.ts`), `maps.ts`, `management.ts`, `arsenalCanvas.ts`, `album.ts`, `auth.ts`, `profile.ts`, `customize.ts` | [[Menus]], [[Matchmaking UI]], [[Flow - First Access]], [[Moderation]], [[Achievements]] |
+| `#home` (`#home-in`: o galpão 3D `#galpao` com as estações e, sem ele, as abas `#tab-play`, `#tab-maps`, `#tab-arsenal`, `#tab-album`, `#tab-profile`, `#tab-settings` e, para a equipe, `#tab-management`; `#home-out`: landing com `#home-auth`) | `showHome` (`client/ui/home.ts`), `GalpaoHome` (`client/ui/galpao/`), `maps.ts`, `management.ts`, `arsenalCanvas.ts`, `album.ts`, `auth.ts`, `profile.ts`, `customize.ts` | [[Menus]], [[Matchmaking UI]], [[Flow - First Access]], [[Moderation]], [[Achievements]], [[ADR - Tela inicial em galpão 3D]] |
 | `#menu` (trilho `.pm-rail`, painel `#pm-panel`, janela de saída `#pm-confirm`, configurações `#menu-settings`) | `Screens` (`client/ui/menu.ts`), regras em `client/ui/pauseMenu.ts` | [[Menus]] (cartão de início e pausa), [[Settings]], [[Input & Controls]] |
 | `#hud` | `Hud` (`client/ui/hud.ts`) | [[HUD]] |
 | `#scoreboard` (dentro do HUD) | `Scoreboard` | [[Scoreboard]] |
@@ -78,7 +79,7 @@ A saída do menu ("Sair da sessão", "Sair da partida", "Sair da corrida", "Sair
 - **Atualização barata:** o HUD guarda o último valor mostrado e só toca no DOM quando muda; números (vida, munição, placar) são atualizados a 15 Hz (`hudTimer = 1/15` em `main.ts`).
 - **Textos sempre por `t(chave)`:** todo texto visível vem de `client/ui/strings.ts` em **pt-BR** e **en**. O idioma é escolhido pelo `navigator.language` (começa com "pt" → pt-BR, senão en). Não há seletor de idioma na interface (existe `setLang`, mas nada o chama). O editor de personagem tem seus próprios rótulos bilíngues em `customize.ts`.
 - **Segurança de texto:** nomes de jogadores e mensagens de chat são escritos com `textContent` ou escapados (`esc`) antes de `innerHTML`.
-- **Navegação por controle:** fora da partida, `PadNav` (`client/ui/padNav.ts`) move o foco para o controle visível mais próximo na direção do D-pad/analógico; ✕/A aciona, ◯/B volta (botões cujo texto começa com "voltar", "cancelar", "fechar"...), L1/R1 trocam abas, analógico direito rola (no canvas do Arsenal da tela inicial, move o canvas).
+- **Navegação por controle:** fora da partida, `PadNav` (`client/ui/padNav.ts`) move o foco para o controle visível mais próximo na direção do D-pad/analógico; ✕/A aciona, ◯/B volta (botões cujo texto começa com "voltar", "cancelar", "fechar"...), L1/R1 trocam abas, analógico direito rola (no canvas do Arsenal da tela inicial clássica, move o canvas). No galpão, o foco anda pelo menu e pelas superfícies e ◯/B aperta o ‹ GALPÃO.
 - **Celular:** classe `mobile` no `<html>` (`client/core/device.ts`) troca layouts via CSS (`.desktop-only`, `.mobile-only`); a partida pede o celular deitado (aviso "Gire o celular para jogar").
 
 ## Notas desta área

@@ -9,6 +9,10 @@
 // community map someone is playing); offline (bots, the range), the official maps shipped with the client
 // (client/world/mapLoader.ts OFFICIAL_INFO). The Mapas tab (client/ui/maps.ts) lists every map, plays it online
 // and opens the editor; the Gerenciamento tab (client/ui/management.ts) is the staff's.
+//
+// Signed in, the tabs are shown inside the Galpão (client/ui/galpao): a 3D warehouse whose stations hold them, with
+// its own menu. It only presents them: this module still owns every tab, and the header with tabs and the
+// character card (the classic home) stay for a CPU renderer, a browser without WebGL, or `oc.galpao` = 'off'.
 import type { MeResponse, ProfileResponse } from '@shared/account';
 import { defaultAppearance, type Appearance } from '@shared/appearance';
 import type { MapaResumo } from '@shared/mapData';
@@ -32,6 +36,8 @@ import { renderPortrait, showCustomizer, Stage } from './customize';
 import { showProfile } from './profile';
 import { showAlbum } from './album';
 import { t, type StringKey } from './strings';
+import { GalpaoHome } from './galpao/galpao';
+import { galpaoWanted } from './galpao/galpaoRules';
 
 export type BotSkillName = 'facil' | 'normal' | 'dificil';
 
@@ -57,6 +63,8 @@ const TABS: Tab[] = ['play', 'maps', 'arsenal', 'album', 'profile', 'settings', 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const BOTS_KEY = 'oc.bots';
+/** 'off' keeps the classic tabbed home even where the 3D warehouse would run. */
+const GALPAO_KEY = 'oc.galpao';
 /** Keys of the pre-account era: name, body and progression now live in the account (Resposta P5). */
 const OLD_KEYS = ['oc.name', 'oc.sex', 'oc.profile'];
 
@@ -165,9 +173,12 @@ function renderLandingMap(id: OfficialMapId) {
   ).join('');
 }
 
-export function showHome(): Promise<HomeChoice> {
+/** `software`: the browser draws WebGL on the CPU (client/render/quality.ts): the classic home, not the warehouse. */
+export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice> {
+  let galpaoPref: string | null = null;
   try {
     for (const k of OLD_KEYS) localStorage.removeItem(k);
+    galpaoPref = localStorage.getItem(GALPAO_KEY);
   } catch {
     /* storage unavailable */
   }
@@ -256,6 +267,13 @@ export function showHome(): Promise<HomeChoice> {
   /** The Mapas and Gerenciamento tabs, wired once the online part below exists (they play and open the editor). */
   let openMaps = () => {};
   let openManagement = () => {};
+  /** The 3D warehouse holding the tabs, once it is up (null: the classic home, or still building). */
+  let galpao: GalpaoHome | null = null;
+  /** Whether this browser gets the warehouse; false for good once it failed to start. */
+  let useGalpao = galpaoWanted(!!opts.software, galpaoPref);
+  let galpaoStarting = false;
+  /** Where a form's Back and Cancel lead: the warehouse's overview, or the Play tab on the classic home. */
+  const toStart = () => (galpao ? galpao.goHome() : showTab('play'));
   const showTab = (next: Tab) => {
     // Gerenciamento is the staff's (the server checks every request again).
     if (next === 'management' && !(me && isEquipe(me))) next = 'play';
@@ -270,7 +288,8 @@ export function showHome(): Promise<HomeChoice> {
     if (next === 'profile') openProfile();
     else if (next === 'maps') openMaps();
     else if (next === 'management') openManagement();
-    else if (next === 'album') void showAlbum($('tab-album'), { setStatus, onBack: () => showTab('play') });
+    else if (next === 'album') void showAlbum($('tab-album'), { setStatus, onBack: toStart });
+    galpao?.follow(next);
   };
 
   const renderEquipped = () => {
@@ -282,15 +301,21 @@ export function showHome(): Promise<HomeChoice> {
     $('char-equipped').textContent = t('equippedLine', { icons });
   };
 
-  /** The real character: on the card's stage (created on first use) and as the header chip's portrait. */
+  /**
+   * The real character: on the card's stage (created on first use; the warehouse has no card, and no WebGL context
+   * is spent on it there) and as the header chip's portrait.
+   */
   let stage: Stage | null = null;
   let shownLook = '';
   const showCharacter = (look: Appearance, s: Sex) => {
     const key = `${s}|${JSON.stringify(look)}`;
     if (key === shownLook) return;
     shownLook = key;
-    stage ??= new Stage($<HTMLCanvasElement>('char-canvas'), { wheelZoom: false });
-    stage.show(look, s);
+    galpao?.setLook(look, s);
+    if (!useGalpao) {
+      stage ??= new Stage($<HTMLCanvasElement>('char-canvas'), { wheelZoom: false });
+      stage.show(look, s);
+    }
     void renderPortrait(look, s).then((url) => {
       if (shownLook === key) $<HTMLImageElement>('acct-avatar').src = url;
     });
@@ -305,7 +330,9 @@ export function showHome(): Promise<HomeChoice> {
     const staff = !!me && isEquipe(me);
     home.querySelector<HTMLElement>('.home-tabs [data-tab="management"]')!.classList.toggle('hidden', !staff);
     if (!staff && tab === 'management') showTab('play');
-    if (!me) return;
+    galpao?.setStaff(staff);
+    if (!me) return void stopGalpao();
+    if (useGalpao) void startGalpao();
     $('acct-tag').textContent = $('char-tag').textContent = me.tag;
     $('acct-level').textContent = t('levelShort', { level: me.nivel });
     showCharacter(profile?.aparencia ?? defaultAppearance(sex), sex);
@@ -324,6 +351,7 @@ export function showHome(): Promise<HomeChoice> {
     progress = profile ? new Progress(profile) : null;
     canvas ??= new ArsenalCanvas($('home-arsenal'));
     canvas.attach(progress);
+    galpao?.setArsenalProgress(progress);
     if (progress) {
       // A change the server didn't save is already undone on screen; say so.
       progress.onSaveError(() => setStatus(t('arsenalSaveFailed'), true));
@@ -347,12 +375,12 @@ export function showHome(): Promise<HomeChoice> {
       setStatus('');
       if (me) {
         home.scrollTop = 0;
-        showTab('play');
+        toStart();
       } else showLandingAuth('register');
     },
     onCancel: () => {
       setStatus('');
-      if (me) showTab('play');
+      if (me) toStart();
       else showLandingAuth('register');
     },
   };
@@ -382,8 +410,51 @@ export function showHome(): Promise<HomeChoice> {
       discord,
       setStatus,
       onAccountChanged: () => void accountChanged(),
-      onBack: () => showTab('play'),
+      onBack: toStart,
     });
+  };
+
+  // --- Galpão ---------------------------------------------------------------------------------------------
+  /** What the warehouse's quick join does and says; set once the Play tab exists (below). */
+  let playHooks = { quickPlay: () => {}, quickLine: () => '' };
+  const setGalpao = (g: GalpaoHome | null) => {
+    galpao = g;
+    home.classList.toggle('galpao-mode', !!g);
+    $('home-in').classList.toggle('galpao-on', !!g);
+  };
+  const startGalpao = async () => {
+    if (galpao || galpaoStarting || !me) return;
+    galpaoStarting = true;
+    // The classic home stays out of sight under the splash.
+    $('home-in').classList.add('galpao-on');
+    home.classList.add('galpao-mode');
+    const g = await GalpaoHome.start({
+      staff: isEquipe(me),
+      playerTag: me.tag,
+      progress,
+      look: profile?.aparencia ?? defaultAppearance(sex),
+      sex,
+      hooks: { showTab: (next) => showTab(next), quickPlay: () => playHooks.quickPlay(), quickLine: () => playHooks.quickLine() },
+    });
+    galpaoStarting = false;
+    if (!g) {
+      // No warehouse here: the classic home, with its character card.
+      setGalpao(null);
+      useGalpao = false;
+      shownLook = '';
+      return renderAccount();
+    }
+    if (!me) {
+      g.dispose();
+      return setGalpao(null);
+    }
+    setGalpao(g);
+    // A tab opened while it was building (a link from an e-mail, choosing a name) gets its station.
+    if (tab !== 'play') g.follow(tab);
+  };
+  const stopGalpao = () => {
+    galpao?.dispose();
+    setGalpao(null);
   };
 
   for (const b of homeTabs()) b.onclick = () => showTab(b.dataset.tab as Tab);
@@ -397,7 +468,7 @@ export function showHome(): Promise<HomeChoice> {
       look: profile.aparencia,
       sex: profile.sexo,
       setStatus,
-      onClose: () => void loadAccount().then(() => showTab('play')),
+      onClose: () => void loadAccount().then(toStart),
     });
   };
   $('land-signin').onclick = () => openAuth('login');
@@ -487,10 +558,26 @@ export function showHome(): Promise<HomeChoice> {
     let pageSize = PAGE;
     const leave = (choice: HomeChoice) => {
       clearInterval(poll);
-      settingsHome.parent.insertBefore(settingsPanel, settingsHome.next);
-      stage?.dispose();
-      home.classList.add('hidden');
-      resolve(choice);
+      const go = () => {
+        settingsHome.parent.insertBefore(settingsPanel, settingsHome.next);
+        stage?.dispose();
+        stopGalpao();
+        home.classList.add('hidden');
+        resolve(choice);
+      };
+      // In the warehouse a match starts with the roll-up door opening (not the editor: it isn't a match).
+      if (galpao && choice.mode !== 'editor') void galpao.launch(...launchText(choice)).then(go);
+      else go();
+    };
+    /** The launch's title and line: the session, or the match type (the range) and the map. */
+    const launchText = (c: HomeChoice): [string, string] => {
+      const map = cardFor(c.map)?.nome ?? (isOfficialMap(c.map) ? mapName(c.map) : c.map);
+      if (c.mode === 'online') {
+        const s = c.joined.session;
+        return [s.name, t('gpLaunchOnline', { map: s.mapaNome, mode: gameModeName(s.mode), n: s.players, max: s.max })];
+      }
+      if (c.mode === 'bots') return [gameModeName(c.game), c.game === 'zumbi' ? t('gpLaunchHorde', { map }) : t('gpLaunchBots', { n: c.count, map })];
+      return [t('modeRange'), t('gpLaunchRange', { map })];
     };
 
     // --- Play tab ---------------------------------------------------------------------------------------
@@ -540,6 +627,13 @@ export function showHome(): Promise<HomeChoice> {
       $('home-bots').textContent = solo ? t('zSolo') : t('versusBots', { n: prefs.count });
       $('home-quick-box').classList.toggle('hidden', !online);
       $('home-lobby').classList.toggle('hidden', !online);
+      // The warehouse's table: a line on the mode and the orange button that starts it.
+      $('home-play-hint').textContent = t(online ? 'gpPlayHintOnline' : range ? 'gpPlayHintRange' : 'gpPlayHintBots');
+      const cta = $('home-play-cta');
+      const ctaMap = mapName(range ? (openMap(prefs.map) ? prefs.map : PVP_MAPS[0]) : mapFor(prefs.game, prefs.map));
+      cta.querySelector('b')!.textContent = online ? t('playOnline') : range ? t('modeRange').toUpperCase() : solo ? t('zSolo') : t('versusBots', { n: prefs.count });
+      cta.querySelector('span')!.textContent = online ? t('quickJoinHint') : t('gpCtaLine', { mode: range ? t('gpRangeTargets') : gameModeName(prefs.game), map: ctaMap });
+      galpao?.refreshQuick();
       renderLobby();
       renderGuest();
     };
@@ -729,14 +823,31 @@ export function showHome(): Promise<HomeChoice> {
     };
     // Quick join: plays the map of the fullest session (not full) of the filtered maps, or one of those maps when
     // nobody is playing them (the server opens a session).
-    $('home-quick').onclick = async () => {
+    /** The maps the quick join picks from: the ticked ones (a one-map mode's only map). */
+    const quickMaps = () => {
+      const all = onlineMaps(prefs.game).map((c) => c.id);
+      return all.length === 1 ? all : all.filter((m) => !prefs.fora.includes(m));
+    };
+    const quickJoin = async () => {
       if (busy) return;
       if (!(await connect())) return;
-      const all = onlineMaps(prefs.game).map((c) => c.id);
-      const maps = all.length === 1 ? all : all.filter((m) => !prefs.fora.includes(m));
+      const maps = quickMaps();
       if (!maps.length) return setStatus(t('pickAMap'), true);
       const best = sessions.filter((s) => maps.includes(s.map) && s.mode === prefs.game && s.players < s.max).sort((a, b) => b.players - a.players)[0];
       void join({ t: 'play', map: best?.map ?? maps[Math.floor(Math.random() * maps.length)], mode: prefs.game });
+    };
+    $('home-quick').onclick = () => void quickJoin();
+    $('home-play-cta').onclick = () => {
+      if (prefs.mode === 'online') void quickJoin();
+      else if (prefs.mode === 'bots') void startBots();
+      else void startOffline(prefs.map);
+    };
+    playHooks = {
+      quickPlay: () => void quickJoin(),
+      quickLine: () => {
+        const names = quickMaps().map((id) => cardFor(id)?.nome ?? id);
+        return t('gpQuickLine', { mode: gameModeName(prefs.game), maps: names.length ? names.join(', ') : t('gpNoMapMarked') });
+      },
     };
     const create = () =>
       join({ t: 'create', name: createInput.value, map: cardFor(newMapSel.value) ? newMapSel.value : DEFAULT_MAP, mode: isGameModeId(newModeSel.value) ? newModeSel.value : prefs.game });

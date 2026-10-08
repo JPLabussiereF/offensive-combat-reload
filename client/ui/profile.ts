@@ -124,8 +124,10 @@ export async function showProfile(root: HTMLElement, o: Options) {
   const refresh = () => showProfile(root, o);
 
   $('pf-back')!.onclick = () => o.onBack();
+  // A saved look reloads the account: the home's character (the warehouse's table, the chip's portrait) changes
+  // with it, and the home shows this tab again.
   $('pf-customize')!.onclick = () =>
-    showCustomizer(root, { look: p.aparencia, sex: p.sexo, setStatus: o.setStatus, onClose: () => void showProfile(root, o) });
+    showCustomizer(root, { look: p.aparencia, sex: p.sexo, setStatus: o.setStatus, onClose: (saved) => (saved ? o.onAccountChanged() : void showProfile(root, o)) });
   root.querySelectorAll<HTMLButtonElement>('.sex-btn').forEach((b) => {
     b.onclick = () => {
       if (b.getAttribute('aria-checked') === 'true') return;

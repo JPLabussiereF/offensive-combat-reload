@@ -22,7 +22,7 @@ tags:
   - ui
   - input
   - controls
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Input & Controls
@@ -100,7 +100,7 @@ Ver [[Touch Controls]].
 
 ## Detecção de dispositivo
 
-`client/core/device.ts` decide uma vez no início se é celular/tablet (`IS_MOBILE`): toque como entrada principal sem ponteiro fino, ou user agent de celular/tablet, ou iPadOS. `?mobile=1` / `?mobile=0` força. Também detecta iOS, suporte a tela cheia, PWA instalado (`STANDALONE`) e Keyboard Lock (`CAN_KEEP_ESCAPE`).
+`client/core/device.ts` decide uma vez no início se é celular/tablet (`IS_MOBILE`) pelo **aparelho**, não pelo tamanho da tela: user agent de celular/tablet, iPadOS, `userAgentData.mobile`, ou tela de toque como ponteiro principal (`maxTouchPoints > 0` e `pointer: coarse`). Um ponteiro fino secundário não desliga o modo celular: tablet com caneta (S Pen) informa `any-pointer: fine` e tablet Android pede a versão desktop do site por padrão (user agent de Linux). Notebook com tela de toque fica no modo computador (o ponteiro principal é o mouse/touchpad, `pointer: fine`). `?mobile=1` / `?mobile=0` força. A home em galpão usa o mesmo `IS_MOBILE`. Também detecta iOS, suporte a tela cheia, PWA instalado (`STANDALONE`) e Keyboard Lock (`CAN_KEEP_ESCAPE`).
 
 ## Editor de mapas
 

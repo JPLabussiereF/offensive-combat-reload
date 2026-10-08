@@ -4,6 +4,8 @@ type: system
 status: documented
 area: ui
 source_paths:
+  - client/ui/galpao/scene.ts
+  - client/ui/galpao/arsenalBoard.ts
   - shared/modes.ts
   - client/ui/ladder.ts
   - client/ui/arsenal.ts
@@ -24,14 +26,22 @@ tags:
   - game
   - ui
   - inventory
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Inventory UI
 
-Não há mochila nem roda de armas: o jogador carrega sempre **uma primária, uma secundária, uma faca e granadas** ([[Inventory]]). A "tela de inventário" é o **Arsenal**, onde se vê o que cada arma tem e o que falta liberar, se equipa o rifle, a secundária e a faca e se liga ou desliga qualquer melhoria liberada. Ele tem duas apresentações com os mesmos dados (`arsenalTree`) e o mesmo salvamento (`Progress`): o **canvas** na aba Arsenal da tela inicial (a progressão inteira) e o **cartão por espaço** na aba Arsenal do menu de pausa (o que está em uso; editável só no campo de tiro). A árvore em linhas saiu do jogo na PF-11 ([[ADR - Menu de pausa com trilho e abas]]). Em partida, o [[HUD]] mostra as duas armas e a troca é por tecla ([[Weapons]]).
+Não há mochila nem roda de armas: o jogador carrega sempre **uma primária, uma secundária, uma faca e granadas** ([[Inventory]]). A "tela de inventário" é o **Arsenal**, onde se vê o que cada arma tem e o que falta liberar, se equipa o rifle, a secundária e a faca e se liga ou desliga qualquer melhoria liberada. Ele tem duas apresentações com os mesmos dados (`arsenalTree`) e o mesmo salvamento (`Progress`): o **painel perfurado** do galpão na tela inicial (a progressão inteira; [[ADR - Tela inicial em galpão 3D]]), o **canvas** na aba Arsenal da tela inicial clássica (sem galpão) e o **cartão por espaço** na aba Arsenal do menu de pausa (o que está em uso; editável só no campo de tiro). A árvore em linhas saiu do jogo na PF-11 ([[ADR - Menu de pausa com trilho e abas]]). Em partida, o [[HUD]] mostra as duas armas e a troca é por tecla ([[Weapons]]).
 
-## Arsenal da tela inicial (canvas)
+## Arsenal do galpão (painel perfurado)
+
+Na tela inicial em 3D ([[ADR - Tela inicial em galpão 3D]]) a estação 03 é um painel perfurado na parede com as armas modeladas penduradas, uma seção por espaço (Primária, Secundária, Faca, Granada) na ordem do catálogo (`PRIMARIES`, `SECONDARIES`, `KNIVES`) e a **mina** ao lado da granada, como peça da melhoria `granada.mina`. Arrastar move a câmera, a roda e a pinça dão zoom (`scene.ts`).
+
+- **Etiqueta** sob cada arma (`client/ui/galpao/arsenalBoard.ts`): bolinha verde (equipada), vermelha (bloqueada) ou cinza, o nível (`NV3`) ou `BLOQ.`, e uma barra até o próximo nível ou, bloqueada, até liberar. De longe é só a pílula; de perto (zoom), com o mouse em cima ou na arma aberta, mostra o nome. A da mina diz ON, OFF ou BLOQ.
+- **Ficha** ao lado da arma clicada: "Primária · Nível 4/9", nome, ✓ Equipada / **Equipar** / Bloqueada (com "Trancada: libera com…"), "Usa os pontos e as melhorias de {progressão}" nas armas que dividem progressão, barra e "Faltam X pontos para o nível N", descrição, a passiva da faca, barras de atributos e "Pente N / reserva M", e **todas as melhorias** da progressão (nível, ícone, nome, nota — faltam N pts, opcional, substituída por, liga sozinha — e o interruptor Ligada/Desligada). Clicar na mina abre a ficha da granada.
+- Mesmo modelo e salvamento do canvas: `weaponNode`/`upgradeNodes` e `Progress.toggle`, `setPrimary`, `setSecondary`, `setKnife` (falha desfaz e avisa na linha de status).
+
+## Arsenal da tela inicial clássica (canvas)
 
 A aba **Arsenal** da tela inicial (`#home-arsenal`) é um canvas que se arrasta e tem zoom, montado pela classe `ArsenalCanvas` (`client/ui/arsenalCanvas.ts`) sobre a geometria pura de `client/ui/arsenalCanvasLayout.ts`, com as medidas e as cores do design "Arsenal Canvas". Decisão em [[ADR - Arsenal da tela inicial em canvas]].
 

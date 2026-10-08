@@ -4,6 +4,7 @@ type: system
 status: documented
 area: rendering
 source_paths:
+  - client/ui/galpao/scene.ts
   - client/render/shadows.ts
   - client/render/renderer.ts
   - client/render/quality.ts
@@ -20,7 +21,7 @@ tags:
   - game
   - rendering
   - threejs
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Rendering Overview
@@ -103,6 +104,10 @@ Cada mapa pode devolver um `atmosphere` (`GameMap.atmosphere`), aplicado por `ap
 - Luzes pontuais reais (pool fixo de 6 a 10, mais a luz do disparo e a da explosão).
 
 Detalhes em [[Performance Rendering]] e [[GPU]].
+
+## Tela inicial 3D (Galpão)
+
+Fora da partida, a tela inicial logada tem **um renderizador próprio** (`createGalpao` em `client/ui/galpao/scene.ts`), separado do do jogo e descartado ao sair da home ([[ADR - Tela inicial em galpão 3D]]). Ao contrário do jogo, usa materiais PBR (`MeshStandardMaterial`) com mapa de ambiente (PMREM), sombras PCF, feixes de luz e poeira com shader próprio, e **pós-processamento**: a cena vai para um alvo HalfFloat (MSAA 4× no computador) e passa por brilho → blur em duas escalas (bloom) → tonemapping ACES, viradas de cor, vinheta, grão, aberração cromática e os fades de branco/preto. As texturas (chão, chapa ondulada, madeira, cortiça, placas) são pintadas em canvas na carga. Os painéis das estações são DOM presos aos objetos por homografia (`matrix3d`), não texturas. No toque e em janelas estreitas a cena é a leve (texturas de 512, sem MSAA, DPR até 1,25).
 
 ## Código relacionado
 
