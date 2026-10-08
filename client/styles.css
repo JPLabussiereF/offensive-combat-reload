@@ -3552,6 +3552,31 @@ input[type='range'] {
 .home-panel #session-list {
   max-height: none;
 }
+/* Two rows of cards at least: a one-map type (zumbi) doesn't pull the orange button up. */
+.home-panel .map-grid {
+  min-height: 138px;
+  align-content: start;
+}
+/* Cards of one height: the name in up to two lines, the line under it in one. */
+.home-panel .map-tile {
+  height: 64px;
+}
+.home-panel .map-text {
+  flex: 1 1 auto;
+}
+.home-panel .map-text b {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.05;
+}
+.home-panel .map-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .home-panel .play-foot {
   position: sticky;
   bottom: calc(10px + env(safe-area-inset-bottom, 0px));
@@ -3585,6 +3610,7 @@ input[type='range'] {
     gap: 14px;
   }
   .home-panel .play-foot {
+    margin-top: auto;
     bottom: 18px;
   }
 }
@@ -7281,6 +7307,7 @@ html:not(.mobile) #tab-arsenal .hint-touch {
     grid-template-areas: 'where type' 'desc desc' 'maps maps' 'foot foot';
     gap: 6px 8px;
     padding: 8px;
+    background: rgba(236, 230, 215, 0.92);
   }
   #galpao .play-head,
   #galpao .play-main,
@@ -7370,6 +7397,7 @@ html:not(.mobile) #tab-arsenal .hint-touch {
     display: block;
     grid-area: 1 / 1 / 4 / 3;
     z-index: 1;
+    background: #ece6d7;
     min-height: 0;
     overflow-y: auto;
     padding: 6px 8px;
