@@ -22,20 +22,20 @@ interface MapNumbers {
 /** Measured (triangles; chamadas = the worst camera's draw calls plus the shadow's). */
 const MEDIDO: Record<OfficialMap, Record<Detalhe, MapNumbers>> = {
   rua: {
-    normal: { pior: 68_326, mediana: 32_768, sombra: 40_144, chamadas: 163, fantasmas: 0 },
-    leve: { pior: 68_326, mediana: 32_768, sombra: 40_144, chamadas: 163, fantasmas: 0 },
+    normal: { pior: 48_374, mediana: 21_470, sombra: 30_368, chamadas: 163, fantasmas: 0 },
+    leve: { pior: 48_374, mediana: 21_470, sombra: 30_368, chamadas: 163, fantasmas: 0 },
   },
   jardim: {
-    normal: { pior: 480_000, mediana: 363_984, sombra: 180_224, chamadas: 302, fantasmas: 0 },
-    leve: { pior: 480_000, mediana: 363_984, sombra: 180_224, chamadas: 302, fantasmas: 0 },
+    normal: { pior: 394_166, mediana: 281_214, sombra: 180_224, chamadas: 302, fantasmas: 0 },
+    leve: { pior: 394_166, mediana: 281_214, sombra: 180_224, chamadas: 302, fantasmas: 0 },
   },
   halloween: {
-    normal: { pior: 377_201, mediana: 213_730, sombra: 257_002, chamadas: 263, fantasmas: 0 },
-    leve: { pior: 377_201, mediana: 213_730, sombra: 257_002, chamadas: 263, fantasmas: 0 },
+    normal: { pior: 322_821, mediana: 188_296, sombra: 228_310, chamadas: 263, fantasmas: 0 },
+    leve: { pior: 322_821, mediana: 188_296, sombra: 228_310, chamadas: 263, fantasmas: 0 },
   },
   cemiterio: {
-    normal: { pior: 82_178, mediana: 51_603, sombra: 51_344, chamadas: 82, fantasmas: 0 },
-    leve: { pior: 82_178, mediana: 51_603, sombra: 51_344, chamadas: 82, fantasmas: 0 },
+    normal: { pior: 75_642, mediana: 47_872, sombra: 51_344, chamadas: 82, fantasmas: 0 },
+    leve: { pior: 75_642, mediana: 47_872, sombra: 51_344, chamadas: 82, fantasmas: 0 },
   },
 };
 

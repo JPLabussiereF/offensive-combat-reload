@@ -76,6 +76,41 @@ export async function medirMapa(slug: OfficialMap, detalhe: Detalhe): Promise<Ma
   };
 }
 
+/** What each kind of piece costs in a map: how many there are, the heaviest one's triangles and all of them together. */
+export interface PecaMedida {
+  tipo: string;
+  quantas: number;
+  maior: number;
+  total: number;
+}
+
+/**
+ * The cost piece by piece: the map built as the editor builds it (each piece in its own group, with its own
+ * batches and collections), every piece's triangles (an instanced mesh's times its count). Heaviest first.
+ */
+export async function medirPecas(slug: OfficialMap, detalhe: Detalhe): Promise<PecaMedida[]> {
+  const { buildMapFromData, loadOfficialMap } = await loadClient('client/world/mapLoader.ts');
+  const data = (await loadOfficialMap(slug)) as MapData;
+  const built = await buildHeadless((physics, scene) => buildMapFromData(data, { physics, scene, renderer: fakeRenderer, sfx: silentSfx, modo: 'editor', detalhe }));
+  const byType = new Map<string, PecaMedida>();
+  for (const [id, piece] of built.map.pieces as Map<string, { group: THREE.Object3D }>) {
+    const tipo = data.pecas.find((p) => p.id === id)!.tipo;
+    let n = 0;
+    piece.group.traverseVisible((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || o.userData.ajuda) return;
+      const inst = o as THREE.InstancedMesh;
+      n += triangles(m.geometry) * (inst.isInstancedMesh ? inst.count : 1);
+    });
+    const row = byType.get(tipo) ?? { tipo, quantas: 0, maior: 0, total: 0 };
+    row.quantas++;
+    row.maior = Math.max(row.maior, Math.round(n));
+    row.total += Math.round(n);
+    byType.set(tipo, row);
+  }
+  return [...byType.values()].sort((a, b) => b.total - a.total);
+}
+
 // --- Characters ---------------------------------------------------------------------------------------------
 
 export interface PersonagensMedidos {
@@ -282,6 +317,17 @@ if (import.meta.main) {
   const jsonAt = args.includes('--json') ? args[args.indexOf('--json') + 1] : join(ROOT, 'build', 'orcamento.json');
   const onlyMaps = args.includes('--so-mapas');
   const only = args.filter((a, i) => !a.startsWith('--') && args[i - 1] !== '--json');
+  if (args.includes('--pecas')) {
+    // The heaviest kinds of piece of each map (bun tools/orcamento.ts --pecas jardim).
+    for (const slug of OFFICIAL) {
+      if (only.length && !only.includes(slug)) continue;
+      for (const d of DETALHES) {
+        console.log(`\n${slug} (${d}): tipo, quantas, a maior, total`);
+        for (const p of (await medirPecas(slug, d)).slice(0, 40)) console.log(`  ${p.tipo.padEnd(20)} ${String(p.quantas).padStart(4)} ${String(p.maior).padStart(8)} ${String(p.total).padStart(9)}`);
+      }
+    }
+    process.exit(0);
+  }
   const o: Orcamento = { quando: new Date().toISOString(), mapas: [] };
   for (const slug of OFFICIAL) {
     if (only.length && !only.includes(slug)) continue;

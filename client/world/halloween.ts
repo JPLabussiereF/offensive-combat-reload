@@ -513,13 +513,29 @@ export function blocker(b: MapBuilder, center: THREE.Vector3, half: THREE.Vector
 }
 
 /**
+ * A fence bar: a box without its top and bottom faces (8 triangles, PF-35), hidden anyway: the spear tip sits
+ * on top and the ground, the rail or the wall's coping below.
+ */
+export function fenceBar(w: number, h: number, d: number): THREE.BufferGeometry {
+  const g = new THREE.BoxGeometry(w, h, d);
+  // BoxGeometry's faces in order: +X, -X, +Y, -Y, +Z, -Z, 6 indices each.
+  const idx = Array.from(g.index!.array);
+  g.setIndex([...idx.slice(0, 12), ...idx.slice(24)]);
+  g.clearGroups();
+  return g;
+}
+
+/** A fence bar's spear tip: a four-sided cone without its base (sitting on the bar, unseen), 4 triangles. */
+export const fenceTip = () => new THREE.ConeGeometry(0.045, 0.16, 4, 1, true);
+
+/**
  * Wrought-iron fence along X (at z = fixed) or Z (at x = fixed), with spear-tipped bars and posts with
  * ball caps. Players can't pass; bullets fly between the bars. `gaps` are [from, to] along the fence.
  */
 export function ironFence(b: MapBuilder, axis: 'x' | 'z', fixed: number, a: number, end: number, gaps: [number, number][] = [], h = 1.9) {
   const metal = surfaceMaterial('metal');
-  const bar = new THREE.BoxGeometry(0.035, h - 0.1, 0.035);
-  const tip = new THREE.ConeGeometry(0.045, 0.16, 4);
+  const bar = fenceBar(0.035, h - 0.1, 0.035);
+  const tip = fenceTip();
   const at = (s: number, y: number, depth = 0): [number, number, number] => (axis === 'x' ? [s, y, fixed + depth] : [fixed + depth, y, s]);
   for (const [s0, s1] of solidIntervals(a, end, gaps)) {
     const len = s1 - s0;
@@ -591,7 +607,8 @@ export function hedge(b: MapBuilder, axis: 'x' | 'z', fixed: number, a: number, 
 
 /** Ribbed, flattened pumpkin body and its stem, radius `r`, resting on y=0. */
 function pumpkinParts(r: number): [body: THREE.BufferGeometry, stem: THREE.BufferGeometry] {
-  const geo = new THREE.SphereGeometry(1, 18, 12);
+  // 16 × 8 (PF-35): two segments per rib keep the 8 ribs (the cosine below peaks on every other vertex).
+  const geo = new THREE.SphereGeometry(1, 16, 8);
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
   const v = new THREE.Vector3();
   for (let i = 0; i < pos.count; i++) {
@@ -1974,9 +1991,9 @@ export function bumperCarGeometry(color: THREE.ColorRepresentation, accent: THRE
   return mergeColoredParts([
     { geo: new RoundedBoxGeometry(1.7, 0.22, 1.2, 2, 0.08), color: 0x2a2a30, pos: [0, 0.13, 0] },
     { geo: new THREE.TorusGeometry(1, 0.13, 8, 28), color: 0x18181c, pos: [0, 0.2, 0], rot: [Math.PI / 2, 0, 0], scale: [0.86, 0.6, 1] },
-    { geo: new RoundedBoxGeometry(1.5, 0.42, 1.06, 3, 0.16), color, pos: [0, 0.48, 0] },
-    { geo: new RoundedBoxGeometry(0.5, 0.36, 0.98, 3, 0.14), color, pos: [0.5, 0.78, 0] },
-    { geo: new RoundedBoxGeometry(0.22, 0.78, 1.0, 3, 0.1), color, pos: [-0.62, 0.98, 0] },
+    { geo: new RoundedBoxGeometry(1.5, 0.42, 1.06, 1, 0.16), color, pos: [0, 0.48, 0] },
+    { geo: new RoundedBoxGeometry(0.5, 0.36, 0.98, 1, 0.14), color, pos: [0.5, 0.78, 0] },
+    { geo: new RoundedBoxGeometry(0.22, 0.78, 1.0, 1, 0.1), color, pos: [-0.62, 0.98, 0] },
     { geo: new RoundedBoxGeometry(0.42, 0.14, 0.8, 2, 0.06), color: 0x3a2a3a, pos: [-0.3, 0.74, 0] },
     { geo: new RoundedBoxGeometry(0.12, 0.5, 0.78, 2, 0.05), color: 0x3a2a3a, pos: [-0.47, 0.99, 0] },
     { geo: new THREE.BoxGeometry(1.52, 0.06, 1.08), color: accent, pos: [0, 0.6, 0] },

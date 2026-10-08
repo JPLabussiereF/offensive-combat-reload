@@ -6,7 +6,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { SpatialSfx } from '../../audio/spatial';
 import type { MapBuilder } from '../mapBuilder';
 import { surfaceMaterial } from '../surfaces';
-import { blocker, SPOOKY as C } from '../halloween';
+import { blocker, fenceBar, fenceTip, SPOOKY as C } from '../halloween';
 import { seeded, solidIntervals } from '../oriental';
 import { at, P, V, type Adapter } from './types';
 
@@ -98,8 +98,8 @@ function churchyardWall(b: MapBuilder, axis: 'x' | 'z', fixed: number, s0: numbe
   const cope = axis === 'x' ? [len, 0.08, T + 0.12] : [T + 0.12, 0.08, len];
   b.box(...at(mid, BASE_H + 0.04), cope[0], cope[1], cope[2], 'pedra', { tint: 0x7d786f, collide: false });
   const metal = surfaceMaterial('metal');
-  const bar = new THREE.BoxGeometry(0.035, TOP - BASE_H - 0.12, 0.035);
-  const tip = new THREE.ConeGeometry(0.045, 0.16, 4);
+  const bar = fenceBar(0.035, TOP - BASE_H - 0.12, 0.035);
+  const tip = fenceTip();
   const geos: THREE.BufferGeometry[] = [];
   for (let s = s0 + 0.1; s < s1 - 0.05; s += 0.17) {
     geos.push(bar.clone().translate(...at(s, (BASE_H + TOP - 0.12) / 2 + 0.04)));
