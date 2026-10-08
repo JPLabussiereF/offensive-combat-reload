@@ -5582,7 +5582,7 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   stroke-width: 1.2;
 }
 .cz-wall-num {
-  font: 800 9px var(--body);
+  font: 800 10px var(--body);
   fill: var(--ink);
   text-anchor: end;
 }
@@ -5599,14 +5599,14 @@ html:not(.mobile) #tab-arsenal .hint-touch {
 }
 .cz-fig-label {
   text-anchor: middle;
-  font: 900 10px var(--body);
+  font: 900 12px var(--body);
   fill: var(--ink);
 }
 .cz-plate {
   fill: var(--ink);
 }
 .cz-plate-text {
-  font: 900 8.5px var(--body);
+  font: 900 10px var(--body);
   fill: var(--paper);
   text-anchor: middle;
 }

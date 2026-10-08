@@ -69,7 +69,7 @@ export function lineupHtml(which: 'height' | 'build', chosen: Height | Build, he
         <line x1="${RULER}" x2="${f(cx)}" y1="${f(topY)}" y2="${f(topY)}" class="cz-wall-mark"/>
         ${figure(cx, m, wf)}
         <text x="${f(cx)}" y="${f(topY - 5)}" class="cz-fig-label">${esc(label)}</text>
-        ${on ? `<rect x="${f(cx - 46)}" y="${H - 26}" width="92" height="20" rx="3" class="cz-plate"/><text x="${f(cx)}" y="${H - 12}" class="cz-plate-text">${esc(`${text.name(v).toUpperCase()} · ${metersText(m, text.lang)}`)}</text>` : ''}
+        ${on ? `<rect x="${f(cx - 56)}" y="${H - 27}" width="112" height="21" rx="3" class="cz-plate"/><text x="${f(cx)}" y="${H - 12.5}" class="cz-plate-text">${esc(`${text.name(v).toUpperCase()} · ${metersText(m, text.lang)}`)}</text>` : ''}
       </g>`;
   });
   const buttons = values
