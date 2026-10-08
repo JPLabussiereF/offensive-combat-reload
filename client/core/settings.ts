@@ -1,5 +1,5 @@
 import type { Quality } from '../render/quality';
-import type { ObjectDetail } from '../world/mapBuilder';
+import { pickDetail, type ObjectDetail } from './objectDetail';
 import { IS_MOBILE } from './device';
 import { mergeKeybinds, type Keybinds } from './keybinds';
 
@@ -58,10 +58,10 @@ export function setSoftwareRenderer(on: boolean) {
 }
 
 /** Leve on phones and tablets and with software rendering, Normal elsewhere. */
-export const defaultDetail = (): ObjectDetail => (IS_MOBILE || software ? 'leve' : 'normal');
+export const defaultDetail = (): ObjectDetail => pickDetail(undefined, IS_MOBILE, software);
 
 /** The object detail in effect: the player's choice, else the device's default. */
-export const objectDetail = (s: Settings): ObjectDetail => s.detalhe ?? defaultDetail();
+export const objectDetail = (s: Settings): ObjectDetail => pickDetail(s.detalhe, IS_MOBILE, software);
 
 const KEY = 'oc.settings.v1';
 const DEFAULTS: Settings = {

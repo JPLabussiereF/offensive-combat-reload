@@ -13,15 +13,12 @@ import { WORLD_GROUPS, type OccluderKind, type Physics, type SurfaceInfo, type S
 import type { RoomVolume, Vec } from '../audio/spatial';
 import { SURFACES, surfaceMaterial, type SurfaceKey } from './surfaces';
 import { affineRows } from './pose';
+import type { ObjectDetail } from '../core/objectDetail';
 
 const CELL = 40;
 
-/**
- * How much detail the map is built with (PF-35): 'leve' builds foliage, dead trees, sky lanterns, roofs, sculpted
- * props and shelves simpler (the player's "Detalhe dos objetos", client/core/settings.ts). Only what is drawn
- * changes: the colliders are always the full ones. The server and the map editor always build 'normal'.
- */
-export type ObjectDetail = 'normal' | 'leve';
+/** How much detail the map is built with (PF-35: the player's "Detalhe dos objetos", client/core/objectDetail.ts). */
+export type { ObjectDetail };
 
 export interface PieceOpts {
   /** Hue multiplied over the surface texture. Default white. */
