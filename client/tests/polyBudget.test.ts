@@ -22,16 +22,16 @@ interface MapNumbers {
 /** Measured (triangles; chamadas = the worst camera's draw calls plus the shadow's). */
 const MEDIDO: Record<OfficialMap, Record<Detalhe, MapNumbers>> = {
   rua: {
-    normal: { pior: 75_526, mediana: 39_968, sombra: 40_144, chamadas: 164, fantasmas: 7_200 },
-    leve: { pior: 75_526, mediana: 39_968, sombra: 40_144, chamadas: 164, fantasmas: 7_200 },
+    normal: { pior: 68_326, mediana: 32_768, sombra: 40_144, chamadas: 163, fantasmas: 0 },
+    leve: { pior: 68_326, mediana: 32_768, sombra: 40_144, chamadas: 163, fantasmas: 0 },
   },
   jardim: {
-    normal: { pior: 524_204, mediana: 408_188, sombra: 180_224, chamadas: 310, fantasmas: 44_204 },
-    leve: { pior: 524_204, mediana: 408_188, sombra: 180_224, chamadas: 310, fantasmas: 44_204 },
+    normal: { pior: 480_000, mediana: 363_984, sombra: 180_224, chamadas: 302, fantasmas: 0 },
+    leve: { pior: 480_000, mediana: 363_984, sombra: 180_224, chamadas: 302, fantasmas: 0 },
   },
   halloween: {
-    normal: { pior: 385_601, mediana: 222_130, sombra: 257_002, chamadas: 265, fantasmas: 8_400 },
-    leve: { pior: 385_601, mediana: 222_130, sombra: 257_002, chamadas: 265, fantasmas: 8_400 },
+    normal: { pior: 377_201, mediana: 213_730, sombra: 257_002, chamadas: 263, fantasmas: 0 },
+    leve: { pior: 377_201, mediana: 213_730, sombra: 257_002, chamadas: 263, fantasmas: 0 },
   },
   cemiterio: {
     normal: { pior: 82_178, mediana: 51_603, sombra: 51_344, chamadas: 82, fantasmas: 0 },
@@ -45,7 +45,7 @@ const PERSONAGEM = { p90: [5_072, 3_612, 2_409], razao1: 0.769, razao2: 0.523 };
 const ARMA_3P = 2_786;
 const VIEWMODEL = 3_414;
 /** Combat effects: drawn at rest, and with every pool full. */
-const EFEITOS = { repouso: 6_528, pico: 11_776 };
+const EFEITOS = { repouso: 0, pico: 11_776 };
 
 const within = (measured: number, expected: number) => measured <= Math.ceil(expected * FOLGA);
 

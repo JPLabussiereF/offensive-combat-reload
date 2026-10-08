@@ -15,6 +15,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { GROUP, groups, type PotionKind } from '@shared/constants';
 import { mergeColoredParts, toon, toonGradient, type ColoredPart } from '../render/materials';
+import { PackedInstances } from '../render/packedInstances';
 import { MapBuilder, worldUVs } from './mapBuilder';
 import { surfaceMaterial, type SurfaceKey } from './surfaces';
 import { solidIntervals } from './oriental';
@@ -79,9 +80,10 @@ export class Glow {
 
 const MAX_PUFFS = 260;
 
-/** Soft rising puffs (flames, steam, smoke, the ghost's poof): one instanced mesh. */
+/** Soft rising puffs (flames, steam, smoke, the ghost's poof): one instanced mesh, only the live ones drawn. */
 export class Puffs {
   private mesh: THREE.InstancedMesh;
+  private packed: PackedInstances;
   private pos = new Float32Array(MAX_PUFFS * 3);
   private vel = new Float32Array(MAX_PUFFS * 3);
   private life = new Float32Array(MAX_PUFFS);
@@ -96,11 +98,7 @@ export class Puffs {
   constructor(scene: THREE.Scene) {
     this.mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false }), MAX_PUFFS);
     this.mesh.frustumCulled = false;
-    this.m.makeScale(0, 0, 0);
-    for (let i = 0; i < MAX_PUFFS; i++) {
-      this.mesh.setMatrixAt(i, this.m);
-      this.mesh.setColorAt(i, this.c.set(0xffffff));
-    }
+    this.packed = new PackedInstances(this.mesh);
     scene.add(this.mesh);
   }
 
@@ -111,39 +109,36 @@ export class Puffs {
     this.vel.set([vx, vy, vz], i * 3);
     this.life[i] = this.span[i] = life;
     this.size.set([s0, s1], i * 2);
-    this.mesh.setColorAt(i, this.c.set(color));
-    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+    this.packed.setColor(i, this.c.set(color));
   }
 
   update(dt: number) {
-    let any = false;
     const drag = Math.exp(-1.6 * dt);
     for (let i = 0; i < MAX_PUFFS; i++) {
       if (this.life[i] <= 0) continue;
-      any = true;
       const k = i * 3;
       this.life[i] -= dt;
       this.vel[k] *= drag;
       this.vel[k + 2] *= drag;
       this.vel[k + 1] = this.vel[k + 1] * drag + 0.8 * dt;
       for (const a of [0, 1, 2]) this.pos[k + a] += this.vel[k + a] * dt;
-      if (this.life[i] <= 0) this.m.makeScale(0, 0, 0);
+      if (this.life[i] <= 0) this.packed.hide(i);
       else {
         const age = 1 - this.life[i] / this.span[i];
         const sz = (this.size[i * 2] + (this.size[i * 2 + 1] - this.size[i * 2]) * age) * Math.min(1, (1 - age) * 4);
-        this.m.compose(this.v.set(this.pos[k], this.pos[k + 1], this.pos[k + 2]), NO_ROT, this.s.set(sz, sz, sz));
+        this.packed.set(i, this.m.compose(this.v.set(this.pos[k], this.pos[k + 1], this.pos[k + 2]), NO_ROT, this.s.set(sz, sz, sz)));
       }
-      this.mesh.setMatrixAt(i, this.m);
     }
-    if (any) this.mesh.instanceMatrix.needsUpdate = true;
+    this.packed.flush();
   }
 }
 
 const MAX_DEBRIS = 160;
 
-/** Chunks thrown by smashed props (pumpkin bits): fall, bounce once or twice, shrink away. */
+/** Chunks thrown by smashed props (pumpkin bits): fall, bounce once or twice, shrink away. Only the live ones drawn. */
 export class Debris {
   private mesh: THREE.InstancedMesh;
+  private packed: PackedInstances;
   private pos = new Float32Array(MAX_DEBRIS * 3);
   private vel = new Float32Array(MAX_DEBRIS * 3);
   private rot = new Float32Array(MAX_DEBRIS);
@@ -161,11 +156,7 @@ export class Debris {
   constructor(scene: THREE.Scene) {
     this.mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: toonGradient() }), MAX_DEBRIS);
     this.mesh.frustumCulled = false;
-    this.m.makeScale(0, 0, 0);
-    for (let i = 0; i < MAX_DEBRIS; i++) {
-      this.mesh.setMatrixAt(i, this.m);
-      this.mesh.setColorAt(i, this.c.set(0xffffff));
-    }
+    this.packed = new PackedInstances(this.mesh);
     scene.add(this.mesh);
   }
 
@@ -181,16 +172,13 @@ export class Debris {
       this.life[i] = 2.2 + Math.random();
       this.sz[i] = size * (0.5 + Math.random() * 0.7);
       this.floor[i] = floor;
-      this.mesh.setColorAt(i, this.c.set(color).multiplyScalar(0.8 + Math.random() * 0.3));
+      this.packed.setColor(i, this.c.set(color).multiplyScalar(0.8 + Math.random() * 0.3));
     }
-    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
   }
 
   update(dt: number) {
-    let any = false;
     for (let i = 0; i < MAX_DEBRIS; i++) {
       if (this.life[i] <= 0) continue;
-      any = true;
       const k = i * 3;
       this.life[i] -= dt;
       this.vel[k + 1] -= 14 * dt;
@@ -201,15 +189,14 @@ export class Debris {
         this.vel[k] *= 0.6;
         this.vel[k + 2] *= 0.6;
       } else this.rot[i] += dt * 8;
-      if (this.life[i] <= 0) this.m.makeScale(0, 0, 0);
+      if (this.life[i] <= 0) this.packed.hide(i);
       else {
         const sz = this.sz[i] * Math.min(1, this.life[i] * 2);
         this.q.setFromEuler(this.e.set(this.rot[i], this.rot[i] * 0.7, 0));
-        this.m.compose(this.v.set(this.pos[k], this.pos[k + 1], this.pos[k + 2]), this.q, this.s.set(sz, sz * 0.6, sz));
+        this.packed.set(i, this.m.compose(this.v.set(this.pos[k], this.pos[k + 1], this.pos[k + 2]), this.q, this.s.set(sz, sz * 0.6, sz)));
       }
-      this.mesh.setMatrixAt(i, this.m);
     }
-    if (any) this.mesh.instanceMatrix.needsUpdate = true;
+    this.packed.flush();
   }
 }
 

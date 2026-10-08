@@ -32,6 +32,7 @@ export type Side = 'n' | 's' | 'e' | 'w';
 
 // The pieces' seeded PRNG lives in shared (the zombie match rebuilds the dead trees' trunks with it).
 import { seeded, type Seeded } from '@shared/seeded';
+import { PackedInstances } from '../render/packedInstances';
 export { seeded, type Seeded };
 
 const corners = (r: Rect): [number, number][] => [
@@ -1214,9 +1215,10 @@ export class Bell {
 const MAX_FLAMES = 160;
 const FLAME_LIFE = 0.75;
 
-/** The fountain dragon's fire breath: puffs going from yellow to dark red, rising as they slow down. */
+/** The fountain dragon's fire breath: puffs going from yellow to dark red, rising as they slow down (only the live ones drawn). */
 export class FireBreath {
   private mesh: THREE.InstancedMesh;
+  private packed: PackedInstances;
   private pos = new Float32Array(MAX_FLAMES * 3);
   private vel = new Float32Array(MAX_FLAMES * 3);
   private life = new Float32Array(MAX_FLAMES);
@@ -1239,11 +1241,7 @@ export class FireBreath {
       MAX_FLAMES,
     );
     this.mesh.frustumCulled = false;
-    this.m.makeScale(0, 0, 0);
-    for (let i = 0; i < MAX_FLAMES; i++) {
-      this.mesh.setMatrixAt(i, this.m);
-      this.mesh.setColorAt(i, this.c.set(0xffaa33));
-    }
+    this.packed = new PackedInstances(this.mesh);
     scene.add(this.mesh);
   }
 
@@ -1271,30 +1269,23 @@ export class FireBreath {
         this.life[i] = FLAME_LIFE;
       }
     }
-    let any = false;
     const drag = Math.exp(-2.2 * dt);
     for (let i = 0; i < MAX_FLAMES; i++) {
       if (this.life[i] <= 0) continue;
-      any = true;
       const k = i * 3;
       this.life[i] -= dt;
       for (const a of [0, 1, 2]) this.vel[k + a] *= drag;
       this.vel[k + 1] += 1.2 * dt;
       for (const a of [0, 1, 2]) this.pos[k + a] += this.vel[k + a] * dt;
       if (this.life[i] <= 0) {
-        this.m.makeScale(0, 0, 0);
+        this.packed.hide(i);
       } else {
         const age = 1 - this.life[i] / FLAME_LIFE;
         const size = 0.1 + Math.sin(age * Math.PI) * 0.38;
-        this.m.compose(this.v.set(this.pos[k], this.pos[k + 1], this.pos[k + 2]), this.q, this.s.set(size, size, size));
-        this.c.setRGB(1, 0.88 - age * 0.7, 0.22 - age * 0.2);
-        this.mesh.setColorAt(i, this.c);
+        this.packed.set(i, this.m.compose(this.v.set(this.pos[k], this.pos[k + 1], this.pos[k + 2]), this.q, this.s.set(size, size, size)));
+        this.packed.setColor(i, this.c.setRGB(1, 0.88 - age * 0.7, 0.22 - age * 0.2));
       }
-      this.mesh.setMatrixAt(i, this.m);
     }
-    if (any) {
-      this.mesh.instanceMatrix.needsUpdate = true;
-      if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
-    }
+    this.packed.flush();
   }
 }

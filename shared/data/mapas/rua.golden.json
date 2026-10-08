@@ -367,7 +367,7 @@
     {"tipo":"Mesh","nome":"static:MAT_vidro","material":"MeshToonMaterial,MAT_vidro,ffffff,000000,tex,vc,-,0,dw,1","sombra":false,"n":12,"hash":"87f15eaf53312f8f"}
   ],
   "cena": [
-    {"tipo":"Mesh","nome":"","material":"MeshBasicMaterial,,bfeaff,-,-,-,t0.85,0,-,1","sombra":false,"n":7200,"hash":"a615ccd4532a618b"},
+    {"tipo":"Mesh","nome":"","material":"MeshBasicMaterial,,bfeaff,-,-,-,t0.85,0,-,1","sombra":false,"n":0,"hash":"409638ee2bde459"},
     {"tipo":"Mesh","nome":"","material":"MeshBasicMaterial,,d6f3ff,-,-,-,t0.55,2,-,1","sombra":false,"n":20,"hash":"1c0ffca855a53791"},
     {"tipo":"Mesh","nome":"","material":"MeshBasicMaterial,,d6f3ff,-,-,-,t0.55,2,-,1","sombra":false,"n":20,"hash":"1cc2cc7ea8697846"},
     {"tipo":"Mesh","nome":"","material":"MeshBasicMaterial,,d6f3ff,-,-,-,t0.55,2,-,1","sombra":false,"n":20,"hash":"20566b4d34a29537"},
