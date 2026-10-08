@@ -29,7 +29,7 @@ updated: 2026-10-08
 
 # ADR - Pets companheiros com habilidade no zumbi
 
-> Origem: PF-29 (plano aprovado na versão 2 da página "PF-29 PLANO", com o parecer de UI/UX e câmera da PF-36 e as respostas P23 a P26 do dev). A versão anterior do plano (pets só com o pacote de apoio, mordida com dano, seção no Personalizar, nome visível para todos) foi **substituída** por esta.
+> Origem: PF-29 (plano aprovado na versão 2 da página "PF-29 PLANO", com o parecer de UI/UX e câmera da PF-36 e as respostas P23 a P27 do dev). A versão anterior do plano (pets só com o pacote de apoio, mordida com dano, seção no Personalizar, nome visível para todos) foi **substituída** por esta.
 
 ## Contexto
 
@@ -58,6 +58,7 @@ Dar identidade e um motivo para ter um pet sem vender vantagem agora, sem atrapa
 7. **Tudo em código**, como a Amora do mapa, no máximo 2 mil triângulos por pet e versão leve; a Amora pet sai do **mesmo construtor** da Amora do mapa, que não muda.
 8. **Assinatura comum das habilidades** (pata na cor da coleira por até 1,5 s, som curto abaixo dos avisos, um latido/miado a cada 2 s, ícone piscando só para o dono), sem cores ou formas reservadas aos avisos do modo.
 9. **Galpão: estação 07 · PETS na porta da frente** com quintal de verdade ("os pets moram lá fora"; um por vez entra), escolher não é equipar ("Levar este"), troca curta e interrompível; o Gerenciamento passa a 08. Ver [[ADR - Tela inicial em galpão 3D]] (revisão).
+10. **Nenhum pet atravessa o muro** (P27): a Amora, que corre até o zumbi e morde, só escolhe um sem o muro no meio (ou por um vão aberto), com o mesmo teste do golpe do zumbi (`wallBetween`); a Bruxinha voa e sobe a 2,4 m para lançar o feitiço por cima da grade; a pedra da lontra passa por cima do muro.
 
 ## Motivo
 

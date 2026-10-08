@@ -75,7 +75,7 @@ Cada pet age **sozinho**, sem tecla, quando a habilidade está pronta e há o qu
 
 | Pet | Habilidade | Quando | Efeito | Recarga |
 |---|---|---|---|---|
-| Amora | **Segura, Amora!** | um zumbi a até 7 m do dono | late, morde a canela do mais perto e o **segura 3 s** (não anda nem começa golpe; o que já começou termina). No Segurança e nos chefes, só um **tranco** de 0,6 s | 18 s |
+| Amora | **Segura, Amora!** | um zumbi a até 7 m do dono, **sem o muro no meio** (ou por um vão aberto) | late, morde a canela do mais perto e o **segura 3 s** (não anda nem começa golpe; o que já começou termina). No Segurança e nos chefes, só um **tranco** de 0,6 s | 18 s |
 | Bruxinha | **Feitiço do Pato** | um zumbi a até 10 m (variante antes de comum; **chefes imunes**) | prende o zumbi numa **boia de patinho por 4 s**: parado, cancela o que preparava e **continua levando tiro** (a boia fica na barriga, acima da virilha: o tiro no pássaro vale como sempre) | 25 s |
 | Gata | **Sétima Vida** | o dono cai | 2 s depois começa a levantá-lo; em **6 s** ele volta com 50% da vida (um colega leva 3 s). **2 vezes por partida.** Se um colega começa a reanimar, a gata **cede a vez** (pausa) e continua se ele soltar; ela **nunca entra nas reanimações** (`reviving`/`revives`): o colega continua vendo o aviso de reanimar | cargas |
 | Fuinha | **Mão na Massa** | uma barricada já erguida e danificada a até 6 m do dono | prega **1 tábua a cada 2,5 s** (o jogador: 0,8 s), até 2 por vez, na mais danificada; nunca ergue barricada (isso é pago); espera o vão ficar livre como o jogador | 15 s |
@@ -90,7 +90,7 @@ Cada pet age **sozinho**, sem tecla, quando a habilidade está pronta e há o qu
 Assinatura comum, sem cores ou formas reservadas aos avisos do modo (nada de anéis ou faixas no chão, disco ou feixe verde, cruz vermelha, caveira em disco vermelho, estrelas):
 
 - **Pata na cor da coleira** sobre o alvo por até 1,5 s.
-- O pet **corre até o alvo** e faz o gesto: a Amora morde a canela com o corpo para fora do zumbi (o zumbi olha para baixo e se debate); a Bruxinha voa perto e lança o feitiço (a boia amarela com cabeça de pato aparece na barriga; só a boia balança, a cabeça do zumbi fica parada; um **quá** baixo na captura e a cada ~1,5 s); a lontra fica de pé e joga a pedra, que voa em arco até a cabeça, e uma **espiral** gira sobre o zumbi tonto (o Tio murcha com um **"pfff"** escrito e ar saindo); a fuinha vai até a barricada e martela (**martelada aguda**, três por gesto); a iguana larga um **rabo colorido** que se remexe no chão (o dela volta a crescer); a gata empurra o dono caído.
+- O pet **corre até o alvo** e faz o gesto: a Amora morde a canela com o corpo para fora do zumbi (o zumbi olha para baixo e se debate); a Bruxinha voa perto e **sobe a 2,4 m** para lançar o feitiço (por cima da grade, se o zumbi estiver do lado de fora) (a boia amarela com cabeça de pato aparece na barriga; só a boia balança, a cabeça do zumbi fica parada; um **quá** baixo na captura e a cada ~1,5 s); a lontra fica de pé e joga a pedra, que voa em arco até a cabeça, e uma **espiral** gira sobre o zumbi tonto (o Tio murcha com um **"pfff"** escrito e ar saindo); a fuinha vai até a barricada e martela (**martelada aguda**, três por gesto); a iguana larga um **rabo colorido** que se remexe no chão (o dela volta a crescer); a gata empurra o dono caído.
 - **Som curto, abaixo dos avisos do modo**, no máximo **um latido ou miado a cada 2 s** por cliente.
 - **Para o dono:** o ícone do pet no HUD pisca com um texto curto ("Segurou!", "Pato!", "Pedrada!", "Tábua!", "Rabo!", "Levantando…", "De pé!") e, caído com a gata, a tela diz **"A gata está te levantando · Ns"** (com nome: "{nome} está te levantando · Ns"). Os colegas veem uma **pata sobre a cruz vermelha** de quem a gata está levantando. Ver [[HUD]].
 
@@ -145,7 +145,7 @@ Nada da posição do pet trafega: cada jogo desenha cada pet a partir da posiç�
 
 ## Testes
 
-- `server/tests/pets.test.ts`: catálogo e `sanitizePet`; quem vê o quê e em que modo; cada habilidade no motor com relógio falso (incluindo a Sétima Vida cedendo ao colega e fora das reanimações, e o solo com a gata); PATCH, `PlayerInfo.pet` por modo e interruptor (nunca o nome) e a Amora agindo numa partida zumbi no servidor de verdade.
+- `server/tests/pets.test.ts`: catálogo e `sanitizePet`; quem vê o quê e em que modo; cada habilidade no motor com relógio falso (incluindo a Amora sem atravessar o muro, a Sétima Vida cedendo ao colega e fora das reanimações, e o solo com a gata); PATCH, `PlayerInfo.pet` por modo e interruptor (nunca o nome) e a Amora agindo numa partida zumbi no servidor de verdade.
 - `client/tests/pets.test.ts`: triângulos de cada pet e pelagem (e da versão leve), a Amora pelo construtor do mapa, os gestos, a coleira curta do PvP e o caminho e o cone do zumbi.
 - `client/tests/galpaoRules.test.ts`: ordem das estações, `petSpot` e `flightDuration`.
 
