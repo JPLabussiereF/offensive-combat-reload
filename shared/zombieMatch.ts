@@ -18,7 +18,7 @@
 // main filter, which holds it in front of them until the last board falls.
 import { Crowd, NavMeshQuery, type CrowdAgent, type NavMesh } from 'recast-navigation';
 import type { Loadout } from './arsenal';
-import type { BoxInfo, ServerMsg, Vec3, ZBarricade, ZombiePlayer, ZombieSync, ZPhase, ZSummaryRow } from './protocol';
+import type { BoxInfo, ServerMsg, Vec3, ZBarricade, ZHazard, ZombiePlayer, ZombieSync, ZPhase, ZSummaryRow } from './protocol';
 import {
   atGap,
   boardDamage,
@@ -37,6 +37,8 @@ import {
   thornsAt,
 } from './barricades';
 import { tombUnder } from './tombs';
+import { treeUnder } from './trees';
+import { onAltar } from './altar';
 import {
   isBoss,
   itemOf,
@@ -74,8 +76,8 @@ export interface ZombieHost {
   rng(): number;
   /** An event for every player. */
   emit(msg: ServerMsg): void;
-  /** A zombie (or the thorns, `kind`) hurts a standing player; if that takes them to 0, the host calls `lethal`. */
-  hurt(id: number, amount: number, from: Vec3, kind?: 'thorns'): void;
+  /** A zombie (or the yard: the thorns, the altar, the crows, `kind`) hurts a standing player; if that takes them to 0, the host calls `lethal`. */
+  hurt(id: number, amount: number, from: Vec3, kind?: ZHazard): void;
   /** Account XP (online only). */
   giveXp(id: number, xp: number): void;
   /** Other weapons in a player's hands. */
@@ -149,6 +151,15 @@ interface Part {
   tombNext: number;
   /** The last time a ghost hit this player (at most one hit every fantasmas.golpeIntervaloSegundos). */
   ghostHitAt: number;
+  /** On the altar since then (0: not on it). */
+  altarSince: number;
+  /** Profaned at the altar until then (0: not): the horde goes after them first. */
+  profanedUntil: number;
+  /** Up a tree since then (0: not up one). */
+  treeSince: number;
+  /** The crows peck them until then (0: no crows), and when they peck next. */
+  crowsUntil: number;
+  crowsNext: number;
 }
 
 /** A ghost from the haunted graves: flies after `target` through anything until `until`. */
@@ -313,12 +324,19 @@ export class ZombieMatch {
       tombSince: 0,
       tombNext: 0,
       ghostHitAt: 0,
+      altarSince: 0,
+      profanedUntil: 0,
+      treeSince: 0,
+      crowsUntil: 0,
+      crowsNext: 0,
     });
     if (this.phase === 'waiting') this.countdown();
   }
 
   leave(id: number) {
     this.stopWork(id);
+    const gone = this.parts.get(id);
+    if (gone) this.clearPerch(gone);
     this.parts.delete(id);
     for (const p of this.parts.values()) if (p.reviving?.target === id) p.reviving = null;
     // Our own roll goes with us; a weapon we donated stays for the others.
@@ -352,6 +370,8 @@ export class ZombieMatch {
       down: [...this.parts.values()].filter((p) => p.state === 'down').map((p) => [p.id, p.downUntil]),
       bars: this.bars.map((b) => ({ ...b })),
       totem: this.totem.on,
+      marks: [...this.parts.values()].filter((p) => p.profanedUntil).map((p) => [p.id, p.profanedUntil]),
+      crows: [...this.parts.values()].filter((p) => p.crowsUntil).map((p) => p.id),
     };
   }
 
@@ -797,6 +817,7 @@ export class ZombieMatch {
       if (!won && p.state === 'down') this.host.stat?.(p.id, { e: 'death' });
       this.host.stat?.(p.id, { e: 'end', won, wave: this.wave, dead: p.state === 'dead' });
     }
+    for (const p of this.parts.values()) this.clearPerch(p);
     this.phase = 'over';
     this.until = now + ZOMBIE.fimSegundos * 1000;
     this.clearZombies(true);
@@ -810,7 +831,7 @@ export class ZombieMatch {
   /** A new match for whoever is there: fresh money and weapons, no barricades, everyone back at once. */
   private restart() {
     for (const p of this.parts.values()) {
-      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0, bleedUntil: 0, bleedNext: 0, thornNext: 0, waiting: false, xpCarry: 0, tombSince: 0, tombNext: 0, ghostHitAt: 0 });
+      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0, bleedUntil: 0, bleedNext: 0, thornNext: 0, waiting: false, xpCarry: 0, tombSince: 0, tombNext: 0, ghostHitAt: 0, altarSince: 0, profanedUntil: 0, treeSince: 0, crowsUntil: 0, crowsNext: 0 });
       this.host.setLoadout(p.id, zombieLoadout(p.items));
     }
     this.resetBarricades(true);
@@ -1009,6 +1030,7 @@ export class ZombieMatch {
     this.tickRevives(now);
     this.tickThorns(now);
     this.tickGhosts(dt, now);
+    this.tickPerches(now);
     this.tickWork(now);
     this.tickZombies(dt, now);
     this.tickProjectiles(now);
@@ -1078,6 +1100,76 @@ export class ZombieMatch {
       this.ghosts.set(id, { id, target: p.id, pos, until: now + F.duracaoSegundos * 1000, nextHit: now, phase: a });
     }
     this.host.emit({ t: 'zghost', fx: 'rise', n, at: [p.feet[0], p.feet[1] + F.ceuAltura, p.feet[2]], target: p.id });
+  }
+
+  /**
+   * The chapel's altar and the trees: high ground the horde can't reach. A while up there (esperaSegundos) and
+   * the place punishes. The altar throws the player off, hurts them and marks them for the horde (profane); a
+   * tree's crows peck them every corvos.intervaloSegundos while they stay, and corvos.depoisSegundos after.
+   */
+  private tickPerches(now: number) {
+    const S = ZOMBIE.sacrilegio;
+    const C = ZOMBIE.corvos;
+    const altar = this.map.altar;
+    const trees = this.map.arvores ?? [];
+    for (const p of this.parts.values()) {
+      const up = p.state === 'up' && p.alive;
+      if (up && p.grounded && altar && onAltar(altar, p.feet)) {
+        if (!p.altarSince) p.altarSince = now;
+        else if (now - p.altarSince >= S.esperaSegundos * 1000) {
+          p.altarSince = 0;
+          this.profane(p, now);
+        }
+      } else p.altarSince = 0;
+      if (p.profanedUntil && (!up || now >= p.profanedUntil)) {
+        p.profanedUntil = 0;
+        this.host.emit({ t: 'zprofane', id: p.id, until: 0 });
+      }
+      const onTree = up && p.grounded && trees.length > 0 && !!treeUnder(trees, p.feet);
+      if (!onTree) p.treeSince = 0;
+      else if (!p.treeSince) p.treeSince = now;
+      // Up there long enough: the crows come (or stay), and keep at it a while after the player comes down.
+      if (onTree && now - p.treeSince >= C.esperaSegundos * 1000) {
+        if (!p.crowsUntil) {
+          p.crowsNext = now;
+          this.host.emit({ t: 'zcrows', id: p.id, on: true });
+        }
+        p.crowsUntil = now + C.depoisSegundos * 1000;
+      }
+      if (!p.crowsUntil) continue;
+      if (!up || now >= p.crowsUntil) {
+        p.crowsUntil = 0;
+        this.host.emit({ t: 'zcrows', id: p.id, on: false });
+      } else if (now >= p.crowsNext) {
+        p.crowsNext = now + C.intervaloSegundos * 1000;
+        this.host.hurt(p.id, C.dano, [p.feet[0], p.feet[1] + 2, p.feet[2]], 'crows');
+      }
+    }
+  }
+
+  /** The sacrilege: thrown off the altar (away from its middle), hurt, and every zombie goes after them for a while. */
+  private profane(p: Part, now: number) {
+    const S = ZOMBIE.sacrilegio;
+    const a = this.map.altar!;
+    let dx = p.feet[0] - a.c[0];
+    let dz = p.feet[2] - a.c[2];
+    const len = Math.hypot(dx, dz);
+    // Right over the middle: out toward the nave (the altar's front, +Z in its own frame).
+    if (len < 0.05) [dx, dz] = [Math.sin(a.yaw), Math.cos(a.yaw)];
+    else [dx, dz] = [dx / len, dz / len];
+    p.profanedUntil = now + S.profanadoSegundos * 1000;
+    // Every zombie picks its target again now: the profaned one first.
+    for (const z of this.zombies.values()) z.retargetAt = 0;
+    this.host.emit({ t: 'zhitfx', id: p.id, fx: 'sacrilege', v: [r2(dx * S.empurrao), 5, r2(dz * S.empurrao)] });
+    this.host.emit({ t: 'zprofane', id: p.id, until: p.profanedUntil });
+    this.host.hurt(p.id, S.dano, [a.c[0], a.c[1] + a.h[1] + 0.5, a.c[2]], 'sacrilege');
+  }
+
+  /** Off the altar's mark and the crows (leaving, the match over): everyone is told they're gone. */
+  private clearPerch(p: Part) {
+    if (p.profanedUntil) this.host.emit({ t: 'zprofane', id: p.id, until: 0 });
+    if (p.crowsUntil) this.host.emit({ t: 'zcrows', id: p.id, on: false });
+    p.altarSince = p.profanedUntil = p.treeSince = p.crowsUntil = 0;
   }
 
   /** Ghosts within `radius` of `at` are scared away (a grenade's blast, a knife swing). */
@@ -1198,11 +1290,15 @@ export class ZombieMatch {
     }
   }
 
-  /** Nearest standing player (height counts double: a floor away is far). */
+  /**
+   * Nearest standing player (height counts double: a floor away is far). Someone profaned at the altar comes
+   * first: while there is one, only the profaned are targets.
+   */
   private nearest(z: Zombie, standing: Part[]): Part | null {
     let best: Part | null = null;
     let bestD = Infinity;
-    for (const p of standing) {
+    const marked = standing.filter((p) => p.profanedUntil > this.now);
+    for (const p of marked.length ? marked : standing) {
       const d = Math.hypot(p.feet[0] - z.pos[0], (p.feet[1] - z.pos[1]) * 2, p.feet[2] - z.pos[2]);
       if (d < bestD) {
         bestD = d;

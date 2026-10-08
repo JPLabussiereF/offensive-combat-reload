@@ -19,6 +19,9 @@ import { officialRuntime } from '../maps';
 import type { ServerMsg, Vec3 } from '@shared/protocol';
 import { gateFlag, insideWall, thornsAt, WALK_FLAG } from '@shared/barricades';
 import { TOMB_BOXES, tombUnder, type Tomb } from '@shared/tombs';
+import { treesOf, treeUnder, type Trunk } from '@shared/trees';
+import { onAltar } from '@shared/altar';
+import cemiterio from '@shared/data/mapas/cemiterio.json';
 import {
   BOX_ITEMS,
   flawChance,
@@ -917,6 +920,146 @@ describe('recusar (X) e doar (Z) a arma do caixão', () => {
     expect(f.match.sync().box).toMatchObject({ state: 'offer', by: 2 });
     f.match.leave(2);
     expect(f.of('zbox').at(-1)).toMatchObject({ state: 'idle' });
+  });
+});
+
+describe('altar (sacrilégio) e árvores (corvos)', () => {
+  const altar = () => MAP().altar!;
+  const altarTop = (): Vec3 => [altar().c[0] + 0.5, altar().c[1] + altar().h[1], altar().c[2]];
+  const trunkTop = (t: Trunk): Vec3 => [t.c[0], t.c[1] + t.h[1], t.c[2]];
+
+  it('o mapa traz o altar (a pedra embaixo do totem) e os troncos das árvores que colidem', () => {
+    const a = altar();
+    expect(a.c[1] + a.h[1]).toBeCloseTo(MAP().totem![1], 5);
+    expect(onAltar(a, altarTop())).toBe(true);
+    // In front of it, on the chapel's floor (0.6 m), or beside it: no.
+    expect(onAltar(a, [a.c[0], 0.6, a.c[2] + 1.2])).toBe(false);
+    expect(onAltar(a, [a.c[0] + a.h[0] + 0.6, a.c[1] + a.h[1], a.c[2]])).toBe(false);
+    const pieces = cemiterio.pecas as Parameters<typeof treesOf>[0];
+    const colliding = pieces.filter((p) => p.tipo === 'arvoreMorta' && p.params?.colide !== false);
+    expect(colliding.length).toBeGreaterThan(0);
+    expect(MAP().arvores).toEqual(treesOf(pieces));
+    expect(MAP().arvores!).toHaveLength(colliding.length);
+    for (const t of MAP().arvores!) {
+      expect(t.c[1] + t.h[1]).toBeGreaterThan(2);
+      expect(treeUnder(MAP().arvores!, trunkTop(t))).toBe(t);
+      // At its foot, or leaning on it halfway up: no.
+      expect(treeUnder(MAP().arvores!, [t.c[0] + t.h[0] + 0.4, 0, t.c[2]])).toBeNull();
+      expect(treeUnder(MAP().arvores!, [t.c[0] + t.h[0] + 0.2, 1.2, t.c[2]])).toBeNull();
+    }
+  });
+
+  /** A match on a fake clock (no wave), player 1 at `feet` (and player 2 far away), recording the yard's hurts. */
+  function perched(feet: { at: Vec3; grounded: boolean }) {
+    ZOMBIE.inicioSegundos = 1000;
+    const h = { t: 0, events: [] as ServerMsg[], hurts: [] as [number, number, string | undefined][] };
+    const host: ZombieHost = {
+      now: () => h.t,
+      rng: seeded(5),
+      emit: (m) => h.events.push(m),
+      hurt: (id, amount, _from, kind) => h.hurts.push([id, amount, kind]),
+      giveXp: () => {},
+      setLoadout: () => {},
+      bleedOut: () => {},
+      revive: () => {},
+      allowRespawn: () => {},
+      newMatch: () => {},
+    };
+    const match = new ZombieMatch(host, navMesh, MAP());
+    match.join(1, 'P1');
+    match.join(2, 'P2');
+    const tick = (seconds: number) => {
+      for (let i = 0; i < seconds * 20; i++) {
+        h.t += 50;
+        match.tick(0.05, [
+          { id: 1, feet: feet.at, grounded: feet.grounded, alive: true },
+          { id: 2, feet: [0, 0.1, 6], grounded: true, alive: true },
+        ]);
+      }
+    };
+    return { h, match, tick };
+  }
+  const S = () => ZOMBIE.sacrilegio;
+  const C = () => ZOMBIE.corvos;
+  const of = <T extends ServerMsg['t']>(h: { events: ServerMsg[] }, t: T) => h.events.filter((e) => e.t === t) as Extract<ServerMsg, { t: T }>[];
+
+  it('sacrilégio: 3 s seguidos no altar jogam para fora, tiram 25 e marcam para a horda por 20 s; pular por cima não conta', () => {
+    const feet = { at: altarTop(), grounded: false };
+    const { h, match, tick } = perched(feet);
+    tick(1);
+    feet.grounded = true;
+    tick(S().esperaSegundos - 0.5);
+    // Stepping off restarts the count.
+    feet.at = [0, 0.6, -14];
+    tick(0.2);
+    feet.at = altarTop();
+    tick(S().esperaSegundos - 0.5);
+    expect(of(h, 'zprofane')).toHaveLength(0);
+    expect(h.hurts).toHaveLength(0);
+    tick(0.6);
+    const mark = of(h, 'zprofane')[0];
+    expect(mark.id).toBe(1);
+    expect(mark.until - h.t).toBeGreaterThan(S().profanadoSegundos * 1000 - 700);
+    // Thrown off, away from the altar's middle (it stood 0.5 m to +X of it), and up a little.
+    const push = of(h, 'zhitfx').find((e) => e.fx === 'sacrilege')!;
+    expect(push.id).toBe(1);
+    expect(push.v![0]).toBeCloseTo(S().empurrao, 1);
+    expect(push.v![1]).toBeGreaterThan(0);
+    expect(h.hurts).toEqual([[1, S().dano, 'sacrilege']]);
+    expect(match.sync().marks).toEqual([[1, mark.until]]);
+    // Off the altar the mark lasts its time, then it's gone (for everyone).
+    feet.at = [0, 0.6, -14];
+    tick(S().profanadoSegundos + 0.2);
+    expect(of(h, 'zprofane').at(-1)).toEqual({ t: 'zprofane', id: 1, until: 0 });
+    expect(match.sync().marks).toEqual([]);
+    expect(h.hurts).toHaveLength(1);
+  });
+
+  it('os zumbis vão atrás de quem está profanado, mesmo com alguém mais perto', () => {
+    const feet = { at: [0, 0.6, -14] as Vec3, grounded: true };
+    const { match, tick } = perched(feet);
+    tick(0.1);
+    const parts = (match as unknown as { parts: Map<number, { profanedUntil: number; state: string }> }).parts;
+    const standing = [...parts.values()];
+    const nearest = (match as unknown as { nearest(z: { pos: Vec3 }, standing: unknown[]): { id: number } | null }).nearest.bind(match);
+    // A zombie right by player 2: player 2, until player 1 is profaned.
+    const z = { pos: [0.5, 0.1, 6] as Vec3 };
+    expect(nearest(z, standing)?.id).toBe(2);
+    parts.get(1)!.profanedUntil = (match as unknown as { now: number }).now + 5000;
+    expect(nearest(z, standing)?.id).toBe(1);
+  });
+
+  it('corvos: 3 s seguidos numa árvore; bicam 5 por segundo enquanto lá e por mais 5 s depois de descer', () => {
+    const tree = MAP().arvores![0];
+    const feet = { at: trunkTop(tree), grounded: true };
+    const { h, match, tick } = perched(feet);
+    tick(C().esperaSegundos - 0.5);
+    expect(of(h, 'zcrows')).toHaveLength(0);
+    tick(0.6);
+    expect(of(h, 'zcrows')).toEqual([{ t: 'zcrows', id: 1, on: true }]);
+    expect(match.sync().crows).toEqual([1]);
+    tick(2);
+    const up = h.hurts.length;
+    expect(up).toBe(3);
+    // Down from the tree: they keep pecking for corvos.depoisSegundos, then leave.
+    feet.at = [tree.c[0] + 3, 0, tree.c[2]];
+    const down = h.t;
+    tick(C().depoisSegundos - 0.3);
+    expect(of(h, 'zcrows')).toHaveLength(1);
+    tick(0.6);
+    const off = of(h, 'zcrows').at(-1)!;
+    expect(off).toEqual({ t: 'zcrows', id: 1, on: false });
+    const after = h.hurts.length - up;
+    expect(after).toBeGreaterThanOrEqual(C().depoisSegundos - 1);
+    expect(after).toBeLessThanOrEqual(C().depoisSegundos);
+    expect(h.hurts.every(([id, amount, kind]) => id === 1 && amount === C().dano && kind === 'crows')).toBe(true);
+    expect(h.t - down).toBeLessThan((C().depoisSegundos + 0.4) * 1000);
+    expect(match.sync().crows).toEqual([]);
+    // Back up a tree and leaving the match: everyone is told the crows are gone.
+    feet.at = trunkTop(tree);
+    tick(C().esperaSegundos + 0.2);
+    match.leave(1);
+    expect(of(h, 'zcrows').at(-1)).toEqual({ t: 'zcrows', id: 1, on: false });
   });
 });
 

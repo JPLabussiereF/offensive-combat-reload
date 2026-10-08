@@ -53,6 +53,7 @@ Interface sobreposta durante a partida (`#hud` em `index.html`, classe `Hud` em 
 | **Pop-ups de pontos** (`#popups`) | sob o retículo | "+N Motivo" empilhados (1,6 s) e um total acumulado que some 2 s após o último. | [[Scoring]] |
 | **Kill feed** (`#killfeed`) | superior direito | Ver [[Notifications]]. | — |
 | **Tela de morte** (`#death`) | centro | Mensagem + a **figurinha em destaque e o título de quem te matou** (`#death-showcase`, `hud.setDeathShowcase`; [[Achievements]]) + "Renascendo em N…". Ver [[Flow - Death and Respawn]]. No zumbi também serve para **caído** ("CAÍDO!" + "Um amigo pode te reanimar · sangra em Ns" ou "{nome} está te reanimando!", com batimento cardíaco e a câmera rente ao chão) e para quem morreu numa onda ("Você volta no intervalo"). `hud.setDeathText`. | [[Respawn]], [[Zombie]] |
+| **Penas dos corvos** (`#crows`) | bordas da tela | Zumbi: penas pretas balançando enquanto os corvos te bicam (você ficou 3 s numa árvore). `hud.setCrows`. Ver [[Zombie]]. | — |
 | **Assistindo** (`#spectate`) | embaixo, no centro | Zumbi online, fora da onda: "ASSISTINDO", o nome do colega, a vida dele (ou "Caído: precisa de ajuda!") e "[D] anterior · [F] próximo" (LB/RB no controle; no celular, as setas ◀ ▶ são tocáveis). Enquanto aparece, a tela de morte perde o vermelho e sobe para o topo (`#death.spectating`), e a barra de vida mostra a do colega. `hud.setSpectate`. Ver [[Zombie]]. | — |
 | **Placar** (`#scoreboard`) | centro | Segurando Tab. Ver [[Scoreboard]]. | — |
 | **Chat** (`#chat`) | esquerda | Ver [[Chat]]. | — |

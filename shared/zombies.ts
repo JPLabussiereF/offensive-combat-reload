@@ -13,6 +13,8 @@
 import data from './data/zumbi.json';
 import cemiterio from './data/mapas/cemiterio.json';
 import { tombsOf, type Tomb } from './tombs';
+import { treesOf, type Trunk } from './trees';
+import { altarOf, type Altar } from './altar';
 import { isGun, isKnife, PRIMARIES, progOf, upgradeOf, type GunId, type KnifeId, type ProgWeapon, type WeaponId } from './progression';
 import { damageAtDistance, LETHAL_DAMAGE, type HitRegion, type WeaponData } from './weapons';
 import { WEAPON_FLAWS, type GunStats, type Loadout, type WeaponFlaw } from './arsenal';
@@ -117,13 +119,22 @@ export interface ZombieMapData {
   totem?: Vec3;
   /** The map's tombstones (from its pieces): whoever stands on one is chased by ghosts (ZOMBIE.fantasmas). */
   lapides?: Tomb[];
+  /** The trunks of its dead trees (from its pieces): whoever stays on one is pecked by crows (ZOMBIE.corvos). */
+  arvores?: Trunk[];
+  /** The altar the totem stands on (from its pieces): whoever stays on it commits the sacrilege (ZOMBIE.sacrilegio). */
+  altar?: Altar | null;
+}
+
+/** A zumbi map's layout as the match plays it: its data's `zumbi`, plus what comes from its pieces (tombstones, trees, the altar). */
+export function zombieMapOf<T extends { totem?: number[] }>(zumbi: T, pieces: Parameters<typeof tombsOf>[0] & Parameters<typeof treesOf>[0] & Parameters<typeof altarOf>[0]) {
+  return { ...zumbi, lapides: tombsOf(pieces), arvores: treesOf(pieces), altar: altarOf(pieces, zumbi.totem as Vec3 | undefined) };
 }
 
 /**
  * Every number of the mode. A plain object loaded from the JSON (and the zumbi maps' layouts from their data):
  * the server tests shorten its times and prices to play a whole match in seconds.
  */
-export const ZOMBIE = { ...data, mapas: { cemiterio: { ...cemiterio.zumbi, lapides: tombsOf(cemiterio.pecas) } } } as unknown as {
+export const ZOMBIE = { ...data, mapas: { cemiterio: zombieMapOf(cemiterio.zumbi, cemiterio.pecas) } } as unknown as {
   inicioSegundos: number;
   intervaloSegundos: number;
   intervaloChefeSegundos: number;
@@ -196,6 +207,10 @@ export const ZOMBIE = { ...data, mapas: { cemiterio: { ...cemiterio.zumbi, lapid
     sustoGranada: number;
     maximo: number;
   };
+  /** The chapel's altar: a while up there and its owner is thrown off, hurt and marked for the whole horde. */
+  sacrilegio: { esperaSegundos: number; dano: number; empurrao: number; profanadoSegundos: number };
+  /** The trees: a while up one and the crows peck, while there and a little after coming down. */
+  corvos: { esperaSegundos: number; dano: number; intervaloSegundos: number; depoisSegundos: number };
   /** The wall's bars and the hedge hurt whoever climbs them, and leave them bleeding. */
   espinhos: {
     dano: number;

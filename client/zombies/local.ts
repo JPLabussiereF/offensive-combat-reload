@@ -8,7 +8,7 @@ import type { NavMesh } from 'recast-navigation';
 import { gunStats, grenadeStats, type Loadout } from '@shared/arsenal';
 import { isGun, progOf } from '@shared/progression';
 import { explosionDamage, type HitRegion } from '@shared/weapons';
-import type { ClientMsg, ServerMsg, Vec3 } from '@shared/protocol';
+import type { ClientMsg, ServerMsg, Vec3, ZHazard } from '@shared/protocol';
 import { grenadeDamageToZombie, gunDamageToZombie, isBoss, knifeDamageToZombie, weaponMul, ZOMBIE, zombieLoadout, type ZombieMapData } from '@shared/zombies';
 import { ZombieMatch } from '@shared/zombieMatch';
 import type { ZombieLink } from './link';
@@ -17,7 +17,7 @@ export interface LocalZombieOptions {
   me: number;
   name: string;
   /** A zombie (or the thorns) hurt us. */
-  hurt(amount: number, from: Vec3, kind?: 'thorns'): void;
+  hurt(amount: number, from: Vec3, kind?: ZHazard): void;
   /** Other weapons in our hands (the coffin's, the starting ones). */
   setLoadout(lo: Loadout): void;
   /** A new run starts: back at a spawn point. */

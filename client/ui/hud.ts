@@ -56,6 +56,7 @@ export class Hud {
   private feed = $('killfeed');
   private popups = $('popups');
   private vignette = $('vignette');
+  private crowsEl = $('crows');
   private death = $('death');
   private deathMsg = $('death-msg');
   private deathShowcase = $('death-showcase');
@@ -102,6 +103,9 @@ export class Hud {
     $('score-acc-label').textContent = t('accuracy');
     $('health-label').textContent = t('health');
     $('spec-label').textContent = t('zSpectating');
+    // Black feathers drifting over the edges of the screen (shown while the crows peck us).
+    const feather = '<svg viewBox="0 0 40 120"><path d="M20 0C34 25 37 70 22 110L20 120 18 110C3 70 6 25 20 0Z" fill="#120e16"/><path d="M20 6V116" stroke="#3a3242" stroke-width="1.6"/></svg>';
+    this.crowsEl.innerHTML = Array.from({ length: 9 }, (_, i) => `<span class="feather f${i}">${feather}</span>`).join('');
     $('spec-prev').addEventListener('click', () => this.onSpectateStep(-1));
     $('spec-next').addEventListener('click', () => this.onSpectateStep(1));
   }
@@ -149,6 +153,11 @@ export class Hud {
     this.healthFill.style.width = `${Math.min(100, (v / max) * 100)}%`;
     this.healthBox.classList.toggle('low', v < 25);
     this.vignette.style.setProperty('--low', String(Math.max(0, (30 - v) / 30)));
+  }
+
+  /** The crows are pecking us: feathers drift over the screen. */
+  setCrows(on: boolean) {
+    this.crowsEl.classList.toggle('hidden', !on);
   }
 
   /** The cherry's extra health: the bar turns pink while it lasts (its timer is among the buffs). */

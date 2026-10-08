@@ -500,6 +500,28 @@ describe('modo zumbi no servidor', () => {
     await sleep(100);
   });
 
+  it('altar e árvores no servidor: 3 s no altar do mapa dão o sacrilégio; 3 s numa árvore chamam os corvos', async () => {
+    quick();
+    ZOMBIE.inicioSegundos = 30;
+    const a = await joinWith(await lobby(await account('Sacristao')), 'nova');
+    const b = await joinWith(await lobby(await account('Lenhador')), a.joined.session.id);
+    try {
+      // The altar and a tree of the map's own pieces (the server reads them from the map, as for an editor-made map).
+      const altar = ZOMBIE.mapas.cemiterio!.altar!;
+      const tree = ZOMBIE.mapas.cemiterio!.arvores![0];
+      await stand(a, [altar.c[0], altar.c[1] + altar.h[1], altar.c[2]]);
+      await stand(b, [tree.c[0], tree.c[1] + tree.h[1], tree.c[2]]);
+      const mark = await b.p.next('zprofane', (m) => m.id === a.id && m.until > 0, (ZOMBIE.sacrilegio.esperaSegundos + 3) * 1000);
+      expect(mark.until).toBeGreaterThan(0);
+      expect(await a.p.next('damage', (m) => m.target === a.id, 2000)).toMatchObject({ amount: ZOMBIE.sacrilegio.dano });
+      expect(await a.p.next('zcrows', (m) => m.id === b.id, (ZOMBIE.corvos.esperaSegundos + 3) * 1000)).toMatchObject({ on: true });
+    } finally {
+      a.p.close();
+      b.p.close();
+      await sleep(100);
+    }
+  }, 30_000);
+
   it('só se joga no Cemitério da Capela, e o cemitério só no modo zumbi', async () => {
     const b = new Browser(game);
     await b.register('Coveiro');

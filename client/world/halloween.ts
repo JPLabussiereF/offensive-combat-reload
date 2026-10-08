@@ -7,6 +7,7 @@
 // Static pieces go through the MapBuilder batches; only animated props are separate meshes. Every gag is
 // registered on the PropBus, so online everyone in the session sees the same thing.
 import { TOMB_BOXES, type TombKind } from '@shared/tombs';
+import { treeShape, trunkOf } from '@shared/trees';
 import * as THREE from 'three';
 import { fitText } from './canvasText';
 import RAPIER from '@dimforge/rapier3d-compat';
@@ -369,10 +370,9 @@ export function deadTree(b: MapBuilder, x: number, z: number, scale: number, ran
   const y = o.y ?? 0;
   const paint = surfaceMaterial('pintura');
   const tint = o.tint ?? SPOOKY.woodDark;
-  const lean = rand() * Math.PI * 2;
-  const lx = Math.cos(lean);
-  const lz = Math.sin(lean);
-  const h = (3.4 + rand() * 1.2) * s;
+  // Lean and height: the shared shape, so the zombie match knows the trunk too (shared/trees.ts).
+  const shape = treeShape(rand, s);
+  const { lean, lx, lz, h } = shape;
   const pts = [0, 0.3, 0.6, 0.85, 1].map((t) => V(x + lx * Math.sin(t * 2.4) * 0.55 * s + (rand() - 0.5) * 0.15 * s, y + t * h, z + lz * Math.sin(t * 2.4) * 0.55 * s + (rand() - 0.5) * 0.15 * s));
   const trunk = new THREE.CatmullRomCurve3(pts);
   const trunkGeo = taperedTube(trunk, 12, 7, 0.34 * s, 0.06 * s);
@@ -407,7 +407,10 @@ export function deadTree(b: MapBuilder, x: number, z: number, scale: number, ran
     b.addGeometry(tg, paint, tint);
     tg.dispose();
   }
-  if (o.collide !== false) b.cuboidCollider(V(x + lx * 0.2 * s, y + h * 0.32, z + lz * 0.2 * s), V(0.3 * s, h * 0.32, 0.3 * s), NO_ROT, 'wood', undefined, 'trunk');
+  if (o.collide !== false) {
+    const t = trunkOf(x, y, z, s, shape);
+    b.cuboidCollider(V(...t.c), V(...t.h), NO_ROT, 'wood', undefined, 'trunk');
+  }
 }
 
 export type { TombKind };

@@ -73,9 +73,8 @@ import { FINAL_STEP, killsForStep, ladderLoadout, type LadderPos } from '@shared
 import { ladderTabSub, renderLadderTab, stepName } from './ui/ladder';
 import { Scoreboard } from './ui/scoreboard';
 import { DEATH_MESSAGES, getLang, pick, t, type StringKey } from './ui/strings';
-import { itemOf, startItems, ZOMBIE, zombieGunData, zombieLoadout, type ZItems } from '@shared/zombies';
+import { itemOf, startItems, ZOMBIE, zombieGunData, zombieLoadout, zombieMapOf, type ZItems } from '@shared/zombies';
 import { gateAreas } from '@shared/barricades';
-import { tombsOf } from '@shared/tombs';
 import { ZombieClient, type ZombieLink } from './zombies/client';
 import { DOWNED_EYE, pickSpectate, SPECTATE_DELAY, spectateEye } from './zombies/spectate';
 import { LocalZombies } from './zombies/local';
@@ -88,7 +87,7 @@ const UP = new THREE.Vector3(0, 1, 0);
 const WORLD_ONLY = groups(GROUP.BULLET, GROUP.WORLD);
 
 const vec3 = (v: THREE.Vector3): Vec3 => [+v.x.toFixed(3), +v.y.toFixed(3), +v.z.toFixed(3)];
-const KIND_ICON: Record<KillKind, FeedIcon> = { gun: null, head: 'head', groin: 'bird', knife: 'knife', grenade: 'grenade', fall: null, void: null, explosion: 'grenade', dog: 'dog', zombie: 'zombie', thorns: null };
+const KIND_ICON: Record<KillKind, FeedIcon> = { gun: null, head: 'head', groin: 'bird', knife: 'knife', grenade: 'grenade', fall: null, void: null, explosion: 'grenade', dog: 'dog', zombie: 'zombie', thorns: null, sacrilege: null, crows: null };
 /** Dose Dupla: seconds between the two grenades of one throw. */
 const DOUBLE_THROW_GAP = 0.3;
 /** How each timed potion shows on the buff panel (the debuffs in colder colors). */
@@ -330,7 +329,7 @@ async function boot() {
   // mesh the server bakes: the wall's gaps as polygons of their own, for its barricades (shared/barricades.ts).
   // (a glTF preview, ?mapa=, has no data: the cemetery's layout stands in)
   // The haunted graves: the map's own tombstones go along with its zombie data (as the server does).
-  const zombieNavMap = zombieMode ? (mapData?.zumbi ? { ...mapData.zumbi, lapides: tombsOf(mapData.pecas) } : ZOMBIE.mapas.cemiterio) : undefined;
+  const zombieNavMap = zombieMode ? (mapData?.zumbi ? zombieMapOf(mapData.zumbi, mapData.pecas) : ZOMBIE.mapas.cemiterio) : undefined;
   const nav = botMode ? await NavMap.build(physics, map.dog ? [map.dog.zone.clone().expandByScalar(0.3)] : [], zombieNavMap ? gateAreas(zombieNavMap) : []) : null;
   const playerPos = new THREE.Vector3();
   const playerTarget: Combatant & { yaw: number } = {
@@ -652,6 +651,10 @@ async function boot() {
     // The thorns on the wall's bars and the hedge: losing health every second for a while.
     const bleed = zombies?.bleedLeft() ?? 0;
     if (bleed > 0) list.push({ id: 'bleed', icon: '🩸', label: t('buffBleeding'), color: '#e0453a', left: bleed, total: ZOMBIE.espinhos.sangraSegundos });
+    // The altar's sacrilege: every zombie hunts us for a while. The trees' crows: pecking while they're on us.
+    const profaned = zombies?.profanedLeft() ?? 0;
+    if (profaned > 0) list.push({ id: 'profaned', icon: '☠️', label: t('buffProfaned'), color: '#d0263a', left: profaned, total: ZOMBIE.sacrilegio.profanadoSegundos });
+    if (zombies?.crowsOnMe) list.push({ id: 'crows', icon: '🌳', label: t('buffCrows'), color: '#8a7f9a', until: t('buffCrowsUntil', { s: ZOMBIE.corvos.depoisSegundos }) });
     // The chapel's totem: no break between waves, more money and XP, until the match ends.
     if (zombies?.totemOn) list.push({ id: 'vigil', icon: '🕯️', label: t('buffVigil'), color: '#ff7a1a', until: t('buffUntilMatchEnd') });
     if (duckAmmo) list.push({ id: 'duck', icon: '🦆', label: t('buffDuck'), color: '#ffe066' });
@@ -1570,7 +1573,7 @@ async function boot() {
         hud.setDeathShowcase(stickerBadge(killerInfo?.fig), titleText(killerInfo?.tit));
         const msg = killer
           ? t('killedByWith', { name: killer, weapon: weaponName })
-          : pick(DEATH_MESSAGES[getLang()][m.kind === 'void' ? 'void' : m.kind === 'fall' ? 'fall' : m.kind === 'dog' ? 'dog' : m.kind === 'zombie' ? 'zombie' : m.kind === 'thorns' ? 'thorns' : 'explosion']);
+          : pick(DEATH_MESSAGES[getLang()][m.kind === 'void' ? 'void' : m.kind === 'fall' ? 'fall' : m.kind === 'dog' ? 'dog' : m.kind === 'zombie' ? 'zombie' : m.kind === 'thorns' || m.kind === 'sacrilege' || m.kind === 'crows' ? m.kind : 'explosion']);
         hud.showDeath(msg);
       }
     });

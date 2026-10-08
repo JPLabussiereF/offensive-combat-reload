@@ -159,13 +159,17 @@ export interface ZombieSync {
   bars: ZBarricade[];
   /** The chapel's totem is on (the no-break vigil, for the rest of the match). */
   totem?: boolean;
+  /** Players profaned at the altar, and until when (server time): the horde goes after them. */
+  marks?: [id: number, until: number][];
+  /** Players the crows are pecking. */
+  crows?: number[];
 }
 
 /**
  * A boss move or a zombie effect, for the telegraphs everyone sees (the server applies the damage at t1).
  * 'rise': a zombie is about to come out of the ground at `at` (it appears at t1).
  */
-export type ZFx = 'slam' | 'summon' | 'scream' | 'blink' | 'charge' | 'pound' | 'spit' | 'boom' | 'intro' | 'rise';
+export type ZFx = 'slam' | 'summon' | 'scream' | 'blink' | 'charge' | 'pound' | 'spit' | 'boom' | 'intro' | 'rise' | 'sacrilege';
 
 /** One line of the end-of-match summary. */
 export interface ZSummaryRow {
@@ -180,7 +184,9 @@ export interface ZSummaryRow {
 }
 
 /** `zombie`: bled out after going down in the zumbi mode. */
-export type KillKind = 'gun' | 'head' | 'groin' | 'knife' | 'grenade' | 'fall' | 'void' | 'explosion' | 'dog' | 'zombie' | 'thorns';
+export type KillKind = 'gun' | 'head' | 'groin' | 'knife' | 'grenade' | 'fall' | 'void' | 'explosion' | 'dog' | 'zombie' | 'thorns' | 'sacrilege' | 'crows';
+/** Zumbi: what in the yard hurts besides the zombies (the thorns, the altar, the crows). */
+export type ZHazard = 'thorns' | 'sacrilege' | 'crows';
 export type AwardLabel = 'kill' | 'headshot' | 'groin' | 'knife' | 'backstab' | 'longShot' | 'humiliation';
 export interface Award {
   label: AwardLabel;
@@ -341,6 +347,10 @@ export type ServerMsg =
   | { t: 'zfx'; fx: ZFx; id?: number; at: Vec3; to?: Vec3; r?: number; t0: number; t1: number; hit?: number[] }
   /** Zumbi: something a zombie move did to a player: a push (`v`, m/s) and/or a slow (`slow`: speed factor until `until`). */
   | { t: 'zhitfx'; id: number; fx: ZFx; v?: Vec3; slow?: number; until?: number }
+  /** Zumbi: `id` profaned the altar, marked for the horde until then (0: the mark is gone). */
+  | { t: 'zprofane'; id: number; until: number }
+  /** Zumbi: the crows started (or stopped) pecking `id`, up a tree. */
+  | { t: 'zcrows'; id: number; on: boolean }
   /** Zumbi: the Mystery Coffin changed; `money`: the buyer's after paying. */
   | ({ t: 'zbox'; money?: number } & BoxInfo)
   /**
