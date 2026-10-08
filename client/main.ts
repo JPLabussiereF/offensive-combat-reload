@@ -979,6 +979,8 @@ async function boot() {
       // the coffin holds fewer rounds (its damage penalty is the server's, on every hit).
       if (g) guns[s].setData(zombieMode ? zombieGunData(g, lo.danificadas?.[progOf(g.arma)]) : g);
       guns[s].reloadMul = body.reloadMul;
+      // Both guns' models built now: a switch only shows the other one (PF-34).
+      if (g) viewmodel.prepare(guns[s].data);
     }
     const knife = loadoutKnife(lo);
     melee.setData(knife);
@@ -1047,6 +1049,9 @@ async function boot() {
       hud.notice(t('arsenalSaveFailed'));
     });
   applyLoadout(startLoadout);
+  // The first switch, stab and throw shouldn't stutter (PF-34): the guns, the knife and the grenade are shown for
+  // an instant and their shaders compiled now, then hidden again as they were.
+  viewmodel.warmup(() => ctx.renderer.compile(ctx.vmScene, ctx.vmCamera));
   // Zumbi: the bigger reserve from the start.
   if (zombieMode) for (const g of Object.values(guns)) g.refill();
   const scopeEl = document.getElementById('scope')!;
@@ -2421,6 +2426,13 @@ async function boot() {
       if (watched.id !== specArms) {
         specArms = watched.id;
         specVm.setBody(watched.look, watched.sex);
+        // Their two guns built and every shader compiled as the view comes to them, so their switches don't
+        // stutter here (PF-34; then everything is hidden again as it was).
+        for (const s of ['primaria', 'secundaria'] as const) {
+          const g = slotStats(watched.loadout, s);
+          if (g) specVm.prepare(g);
+        }
+        specVm.warmup(() => ctx.renderer.compile(ctx.vmScene, ctx.vmCamera));
       }
       specVm.setGun(watched.gun);
       const f = watched.flags;
