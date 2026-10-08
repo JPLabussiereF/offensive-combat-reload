@@ -84,6 +84,7 @@ Convenções:
 | `chat` | `text` | por mensagem | `sanitizeChat`; silêncio da conta; 4 de rajada + 1 a cada 1,5 s | broadcast `chat` para **todos, inclusive o autor**, ou `chatRefused` |
 | `zhit` | `z` (id do zumbi), `region`, `dist`, `w`, `keep?` | por acerto num zumbi ([[Zombie]]) | zumbi existe e não sumiu, atirador vivo e não caído, `w` disparável (como `hit`), **mesmo contador de cadência** de `hit`, distância do olho até o peito do zumbi **na posição do servidor** ≤ alcance e dentro de `LAG_SLACK` + 10% + o tamanho do zumbi | dano do servidor (`gunDamageToZombie` × raridade); morte → `zdie` (+ `zmoney`, XP) |
 | `zstab` | `z` | por facada num zumbi | intervalo da faca como `stab`; distância horizontal ≤ `alcanceInvestida + 1,5 m + 0,4 × tamanho` | 120 × raridade da faca |
+| `totem` | — | `E` no totem da capela | de pé, a ≤ alcance + 1 m do totem; apagado e dinheiro ≥ $500 | `ztotem` `{ on: true, by, money }` para a sala |
 | `box` | — | `E` no Caixão Misterioso | de pé, a ≤ alcance + 1 m do caixão (lugar fixo); caixão parado e dinheiro ≥ preço (girar), ou oferta para este jogador (pegar) | `zbox` (girando; oferta com `item` e `flaw`); pegar → `playerLoadout` (com `danificadas` se a arma veio danificada) |
 | `barricade` | `i` (brecha), `on` | segurando/soltando `E` numa brecha do muro | `i` inteiro e existente; de pé; a ≤ 2,4 m do centro da brecha (de qualquer lado); algo a fazer (erguer ou repregar); dinheiro ≥ $300 para erguer; o trabalho para se ele se afasta, cai ou solta; a tábua que fecha a brecha espera o vão ficar livre | `zbarwork` (começou/parou); pronto → `zbar` (`build` com o dinheiro dele, ou `nail` com o prêmio) |
 | `revive` | `id`, `on` | segurando/soltando `E` sobre um colega caído | reanimador de pé, alvo caído, a ≤ 3,5 m; cancelado se ele se afasta | `zrevive`; completo (3 s) → `zup` |
@@ -121,6 +122,7 @@ Convenções:
 | `zdie` | `id`, `by`, `how`, `award?`, `money?` | zumbi morreu | sala |
 | `zfx` | `fx` (`slam`/`summon`/`scream`/`blink`/`charge`/`pound`/`spit`/`boom`/`intro`/`rise`), `id?`, `at`, `to?`, `r?`, `t0`, `t1` | golpe telegrafado ou efeito (o dano cai em `t1`); `rise`: um zumbi vai sair do chão em `at` em `t1` (0,9 s depois; um por surgimento) | sala |
 | `zhitfx` | `id`, `fx`, `v?` (empurrão), `slow?`, `until?` | um golpe empurrou ou deixou alguém lento | sala (o cliente do jogador aplica) |
+| `ztotem` | `on`, `by` (null: apagou numa partida nova), `money?` (de quem pagou) | o totem da capela acendeu (ou apagou na partida nova) | sala |
 | `zbleed` | `id`, `until` (0: parou) | alguém subiu nos espinhos da grade ou da sebe e sangra até `until` | sala (o cliente do jogador mostra "Sangrando") |
 | `zbox` | `state` (`idle`/`rolling`/`offer`), `by`, `item`, `flaw` (`municao`/`dano`/`ambos` ou null), `until`, `money?` | o caixão mudou (o defeito só aparece na oferta) | sala |
 | `zbar` | `i`, `fx` (`build`/`nail`/`hit`/`break`/`reset`), `built`, `boards`, `hp`, `by?`, `award?`, `money?` | uma barricada mudou: erguida, tábua pregada, golpe da horda (~1 por golpe), arrombada, ou desfeita numa partida nova | sala |

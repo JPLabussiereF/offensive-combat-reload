@@ -74,7 +74,7 @@ O mapa **exclusivo do [[Zombie|modo zumbi]]**: um cemitério murado e compacto e
 
 ## Layout
 
-- **A capela** (âncora, centro-norte): sobre um **pedestal de 0,6 m** (x −5..5, z −17,5..−7,4), paredes de pedra de 4,4 m, telhado de duas águas com um **campanário** sobre a fachada, vitrais pintados (cores escuras, lidas como vidro aceso por dentro), rosácea sobre a porta. Portas: **sul** (2 m, para o terraço) e **oeste/leste** (1,6 m, com escadinhas até o chão). Dentro: altar com velas e bancos curtos (cobertura agachada) com corredores largos no meio e junto às paredes.
+- **A capela** (âncora, centro-norte): sobre um **pedestal de 0,6 m** (x −5..5, z −17,5..−7,4), paredes de pedra de 4,4 m, telhado de duas águas com um **campanário** sobre a fachada, vitrais pintados (cores escuras, lidas como vidro aceso por dentro), rosácea sobre a porta. Portas: **sul** (2 m, para o terraço) e **oeste/leste** (1,6 m, com escadinhas até o chão). Dentro: altar com **duas velas e o totem** da Vigília Sem Trégua no meio (ver [[Zombie]]) e bancos curtos (cobertura agachada) com corredores largos no meio e junto às paredes.
 - **O terraço** (frente da capela, z −10,2..−7,4): parapeito de 0,55 m (cobertura agachada), aberto só na escada central de 4 m que desce para a Alameda. É o ponto alto (0,6 m) que olha o portão.
 - **A Alameda**: avenida de pedra de 3,6 m de largura do terraço até o Portão Principal (z −6,7 → 18,3), com **4 lampiões** (x ±2,6; z −2,5 e 9,2) e dois obeliscos perto do portão. Dos dois lados, covas baixas.
 - **A Travessa**: caminho de pedra de 2 m (z 4..6) de uma brecha lateral à outra, cruzando a Alameda.
@@ -128,6 +128,7 @@ Os do [[Zombie|modo zumbi]]: sobreviver às ondas. Pontos de interesse: o caixã
 ## Objetos interativos
 
 - **Caixão Misterioso** (fixo, `E`).
+- **Totem** no altar da capela (`E`, $500): acende a Vigília Sem Trégua, sem intervalo até o fim da partida ([[Zombie]]). Era o lugar de duas das quatro velas do altar.
 - **Barricadas** nas cinco brechas (`E` segurado).
 - **Lampiões** da Alameda (`poste:0..3`): apagam com tiro, como na Vila Assombrada ([[Map Gags]]).
 

@@ -106,6 +106,9 @@ export class LocalZombies implements ZombieLink {
       case 'box':
         m.useBox(me);
         return;
+      case 'totem':
+        m.useTotem(me);
+        return;
       case 'barricade':
         m.barricadeWork(me, msg.i, msg.on);
         return;

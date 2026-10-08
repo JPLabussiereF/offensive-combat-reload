@@ -27,6 +27,8 @@ export interface Buff {
   color: string;
   left?: number;
   total?: number;
+  /** Untimed: what it lasts until (default: until death). */
+  until?: string;
 }
 
 export class Hud {
@@ -167,7 +169,7 @@ export class Hud {
     buffs.forEach((b, i) => {
       const r = this.buffRows[i];
       if (!b.total || b.left === undefined) {
-        if (r.last !== -1) r.secs.textContent = t('buffUntilDeath');
+        if (r.last !== -1) r.secs.textContent = b.until ?? t('buffUntilDeath');
         r.last = -1;
         return;
       }

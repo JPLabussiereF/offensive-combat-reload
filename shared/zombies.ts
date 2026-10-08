@@ -112,6 +112,8 @@ export interface ZombieMapData {
   barricadas: BarricadeSpot[];
   /** The hedge around the grave field, its center line (x0, z0, x1, z1): thorny, like the wall's bars. */
   sebe?: [number, number, number, number];
+  /** The chapel's totem, on the altar (x, y, z): E there turns on the no-break vigil (ZOMBIE.totem). */
+  totem?: Vec3;
 }
 
 /**
@@ -160,6 +162,11 @@ export const ZOMBIE = { ...data, mapas: { cemiterio: cemiterio.zumbi } } as unkn
     /** What one blow takes from the boards: each kind's swipe, a boss's, a bloater's burst ('explosao'). */
     dano: Record<ZType | 'chefe' | 'explosao', number>;
   };
+  /**
+   * The chapel's totem: paying `custo` there turns on the Vigília Sem Trégua for the rest of the match (it can't
+   * be turned off): the break between waves lasts `intervaloSegundos`, and every money and XP gain is multiplied.
+   */
+  totem: { custo: number; alcance: number; intervaloSegundos: number; dinheiro: number; xp: number };
   /** The wall's bars and the hedge hurt whoever climbs them, and leave them bleeding. */
   espinhos: {
     dano: number;

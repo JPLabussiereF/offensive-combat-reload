@@ -155,6 +155,8 @@ export interface ZombieSync {
   down: [id: number, until: number][];
   /** Every barricade, in the map's order. */
   bars: ZBarricade[];
+  /** The chapel's totem is on (the no-break vigil, for the rest of the match). */
+  totem?: boolean;
 }
 
 /**
@@ -255,6 +257,8 @@ export type ClientMsg =
   | { t: 'zstab'; z: number }
   /** Zumbi: E at the Mystery Coffin: pays and spins it, or takes the weapon it's offering us. */
   | { t: 'box' }
+  /** Zumbi: E at the chapel's totem: pays and turns on the no-break vigil for the rest of the match. */
+  | { t: 'totem' }
   /** Zumbi: holding E over a teammate who's down (`on` false: let go). */
   | { t: 'revive'; id: number; on: boolean }
   /** Zumbi: holding E at gap `i` of the wall: building its barricade (paid) or nailing boards back (`on` false: let go). */
@@ -341,6 +345,8 @@ export type ServerMsg =
   | { t: 'zbarwork'; i: number; by: number; until: number }
   /** Zumbi: players' money changed (assists, the wave bonus, a boss's reward). */
   | { t: 'zmoney'; m: [id: number, money: number][]; why: 'assist' | 'wave' | 'boss' }
+  /** The chapel's totem: `by` turned on the no-break vigil (`money`: theirs after paying); off at a new match (`by` null). */
+  | { t: 'ztotem'; on: boolean; by: number | null; money?: number }
   /** A player climbed the thorns (the wall's bars, the hedge) and bleeds until `until` (server ms; 0: stopped). */
   | { t: 'zbleed'; id: number; until: number }
   /** Zumbi: a player went down; they bleed out at `until` unless someone revives them. */
