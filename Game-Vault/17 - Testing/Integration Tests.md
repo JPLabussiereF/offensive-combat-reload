@@ -82,6 +82,7 @@ Como o servidor confia em `X-Forwarded-For` só vindo de endereço privado, e os
 - `mapa_invalido` (tipo de peça desconhecido, modelo de fora do jogo, modelo nunca enviado) e `orcamento_excedido` (uma esfera de 1 milhão de triângulos, com os números e o limite).
 - GLB: envio guardado uma vez pelo SHA-256, download com `model/gltf-binary` e `nosniff`, mapa que o usa salvo (`map_version_asset`); recusa acima de 10 MB (`arquivo_grande_demais`), lixo, URI externa, Draco e o tipo errado (`glb_invalido`).
 - Os 4 oficiais semeados: montados headless a partir do que `GET /api/mapas/:id/versoes/1` entrega (o JSON passou pelo `jsonb`) e comparados ao golden (tolerância 1e-6); a navmesh do Cemitério guardada com o tamanho do arquivo pré-gerado; `map_version` recusa `UPDATE`.
+- Oficial com o JSON mudado (`seedOfficialMaps` chamado de novo): com o mesmo arquivo, uma edição da equipe no Jardim continua atual e nada é criado; com a última versão do repositório diferente do arquivo, a subida grava o arquivo como versão nova e atual (`created_by` nulo, mesmo `jsonb`), a edição da equipe fica no histórico, e mais uma subida não cria nada ([[ADR - Mapas oficiais do repositório publicados na subida]]).
 
 ### `management.test.ts` — Gerenciamento (PF-6)
 

@@ -3,8 +3,8 @@
 // needs of it (MapRuntime: the data, its zumbi layout and navmesh) is cached for good by `map@version`.
 //
 // Saving goes through the map builder thread (server/mapWorker.ts): the map is built headless, its draw cost
-// measured against MAP_BUDGET and, for a zumbi map, its navmesh baked. seedOfficialMaps writes version 1 of the
-// official maps from shared/data/mapas/*.json the first time the server meets a database.
+// measured against MAP_BUDGET and, for a zumbi map, its navmesh baked. seedOfficialMaps writes the official maps
+// from shared/data/mapas/*.json: version 1 the first time the server meets a database, a new version when a file changes.
 import { join } from 'node:path';
 import { MAP_FORMAT, validateMapData, type MapData } from '@shared/mapData';
 import { OFFICIAL_MAPS, type MapId } from '@shared/maps';
@@ -110,35 +110,71 @@ export async function officialRuntime(id: string): Promise<MapRuntime> {
 }
 
 /**
- * Version 1 of every official map (shared/data/mapas/*.json; the *.golden.json files are the conversion's
- * snapshots, not maps) the database doesn't have yet, with the baked navmesh of the zumbi ones. Runs after
- * migrate(); a map already there (seeded before, or changed since through the editor) is left alone.
+ * The official maps (shared/data/mapas/*.json; the *.golden.json files are the conversion's snapshots, not maps)
+ * in the database, with the baked navmesh of the zumbi ones. Runs after migrate(): version 1 of a map the database
+ * doesn't have yet, and a new version of one whose file changed since the last version taken from it (the ones
+ * with no `created_by`; the staff's saves carry their account). The repository wins: its version becomes the
+ * current one, and a staff edit stays in the history, restorable. Matches in progress keep their version.
  */
 export async function seedOfficialMaps(db: Db, builder: MapBuilderPool) {
   const files = (await Array.fromAsync(new Bun.Glob('*.json').scan(join(DATA, 'mapas')))).filter((f) => !f.endsWith('.golden.json')).sort();
   for (const file of files) {
     const id = file.replace(/\.json$/, '');
-    if (await mapRow(db, id)) continue;
+    const row = await mapRow(db, id);
+    if (row?.deleted_at) continue;
     const rt = await officialRuntime(id);
+    const json = JSON.stringify(rt.data);
+    if (row && (await sameAsSeeded(db, id, json))) continue;
     const check = validateMapData(rt.data);
     if (!check.ok) throw new Error(`mapa oficial ${id} inválido: ${check.erros.slice(0, 3).join('; ')}`);
     if (rt.exclusivo === 'zumbi' && !rt.navmesh) throw new Error(`mapa oficial ${id} sem a malha de navegação (rode bun run navmesh)`);
     const built = await builder.build(rt.data, false);
     if (!built.ok) throw new Error(`mapa oficial ${id} não monta: ${built.erro}`);
-    await transaction(db, async (c) => {
-      const ins = await c.query(
-        `INSERT INTO map (id, kind, name, current_version, exclusive_mode) VALUES ($1, 'official', $2, 1, $3) ON CONFLICT (id) DO NOTHING`,
-        [id, rt.nome, rt.exclusivo],
-      );
-      // Another server seeded it meanwhile.
-      if (!ins.rowCount) return;
-      await c.query(
-        `INSERT INTO map_version (map_id, version, data, format, draw_calls, triangles, colliders, navmesh) VALUES ($1, 1, $2, $3, $4, $5, $6, $7)`,
-        [id, JSON.stringify(rt.data), MAP_FORMAT, built.drawCalls, built.triangulos, built.colliders, rt.navmesh ? Buffer.from(rt.navmesh) : null],
-      );
+    const insertVersion = (c: Queryable, version: number) =>
+      c.query(`INSERT INTO map_version (map_id, version, data, format, draw_calls, triangles, colliders, navmesh) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, [
+        id,
+        version,
+        json,
+        MAP_FORMAT,
+        built.drawCalls,
+        built.triangulos,
+        built.colliders,
+        rt.navmesh ? Buffer.from(rt.navmesh) : null,
+      ]);
+    if (!row) {
+      const created = await transaction(db, async (c) => {
+        const ins = await c.query(
+          `INSERT INTO map (id, kind, name, current_version, exclusive_mode) VALUES ($1, 'official', $2, 1, $3) ON CONFLICT (id) DO NOTHING`,
+          [id, rt.nome, rt.exclusivo],
+        );
+        // Another server seeded it meanwhile.
+        if (!ins.rowCount) return false;
+        await insertVersion(c, 1);
+        return true;
+      });
+      if (created) console.log(`[mapas] mapa oficial ${id} criado (versão 1)`);
+      continue;
+    }
+    const version = await transaction(db, async (c) => {
+      const { rows } = await c.query<{ next: number }>('SELECT (SELECT max(version) + 1 FROM map_version WHERE map_id = $1) AS next FROM map WHERE id = $1 FOR UPDATE', [id]);
+      // Another server took the same file meanwhile (the row lock makes the second one wait for the first).
+      if (await sameAsSeeded(c, id, json)) return null;
+      const next = rows[0].next;
+      await insertVersion(c, next);
+      await c.query('UPDATE map SET current_version = $2, name = $3, exclusive_mode = $4, updated_at = now() WHERE id = $1', [id, next, rt.nome, rt.exclusivo]);
+      return next;
     });
-    console.log(`[mapas] mapa oficial ${id} criado (versão 1)`);
+    if (version !== null) console.log(`[mapas] mapa oficial ${id} atualizado do repositório (versão ${version})`);
   }
+}
+
+/** Whether the last version taken from the repository (no `created_by`) holds exactly this data (compared as jsonb). */
+async function sameAsSeeded(db: Queryable, id: string, json: string): Promise<boolean> {
+  const { rows } = await db.query<{ same: boolean }>(
+    'SELECT data = $2::jsonb AS same FROM map_version WHERE map_id = $1 AND created_by IS NULL ORDER BY version DESC LIMIT 1',
+    [id, json],
+  );
+  return rows[0]?.same ?? false;
 }
 
 // --- The map builder thread -------------------------------------------------------------------------------

@@ -82,6 +82,7 @@ Todas as FKs para `account`/`player_profile` usam `ON DELETE CASCADE` (na práti
 | Anonimização | account, password_credential, auth_identity, session, player_profile, display_name_history, auth_event | sim, por conta |
 | Auditoria (`audit`) | auth_event | não aguardada; falha só vai para o log |
 | Primeira subida num banco | map, map_version (versão 1 dos 4 oficiais, `seedOfficialMaps`) | sim, por mapa |
+| Subida com o JSON de um oficial mudado | map_version (versão nova, `created_by` nulo) e map (`current_version`, `name`, `exclusive_mode`) | sim, por mapa ([[ADR - Mapas oficiais do repositório publicados na subida]]) |
 | Salvar um mapa | map_version (+ map_version_asset), map (`current_version`, nome, modo; `FOR UPDATE`) | sim |
 
 ## Jobs (`server/jobs.ts`)
