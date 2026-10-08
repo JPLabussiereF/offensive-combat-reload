@@ -8,11 +8,15 @@ WORKDIR /app
 COPY package.json bun.lock bunfig.toml ./
 RUN bun install --frozen-lockfile
 COPY . .
+# The release tag (the deploy program passes it with --build-arg): the client's build id (vite.config.ts) when given.
+ARG APP_VERSION
 RUN bun run build
 
 FROM oven/bun:1.4-alpine AS server
 WORKDIR /app
-ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787
+# The release tag this image runs: GET /api/saude answers it, so the deploy program can check the swap.
+ARG APP_VERSION=dev
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787 APP_VERSION=$APP_VERSION
 COPY package.json bun.lock bunfig.toml ./
 RUN bun install --frozen-lockfile --production && bun pm cache rm
 COPY --from=build /app/build ./build

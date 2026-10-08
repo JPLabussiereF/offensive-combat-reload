@@ -1,0 +1,5 @@
+# Específicos da máquina — não versionar.
+tunel.ini
+cloudflared.yml
+logs/
+*.exe

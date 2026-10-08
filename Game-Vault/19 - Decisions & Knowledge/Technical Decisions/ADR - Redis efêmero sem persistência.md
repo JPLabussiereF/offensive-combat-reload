@@ -4,6 +4,7 @@ type: decision
 status: documented
 area: data
 source_paths:
+  - server/deploy.ts
   - docker-compose.yml
   - server/redis.ts
   - server/api.ts
@@ -12,7 +13,7 @@ tags:
   - decision
   - data
   - redis
-updated: 2026-10-05
+updated: 2026-10-08
 ---
 
 # ADR - Redis efêmero sem persistência
@@ -36,6 +37,7 @@ Todos os dados têm TTL curto (30 s a 24 h) ou são mensagens instantâneas.
 ## Consequências
 - Reiniciar o Redis invalida tickets e links de redefinição pendentes e zera limites/bloqueios (janela pequena para força bruta).
 - Nenhum backup necessário para o Redis.
+- **Revisão (2026-10-08):** o deploy remoto (`server/deploy.ts`) guarda aqui a fila, os pedidos (TTL de 30 dias) e o estado do deploy. Um reinício do `redis` os perde: o histórico de pedidos não é durável e o programa de deploy precisa reescrever `deploy:estado`. A decisão de não persistir foi mantida. Ver [[Cache]].
 
 ## Código afetado
 `docker-compose.yml`, `server/redis.ts`. Ver [[Cache]].

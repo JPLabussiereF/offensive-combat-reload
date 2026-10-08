@@ -1,0 +1,84 @@
+name: deploy
+
+# Deploy remoto da produção/homologação local (Actions → deploy → Run workflow).
+# A API (server/deploy.ts) só ENFILEIRA o pedido; quem atualiza ou volta é o
+# OffensiveTunel.exe, que lê a fila a cada ~15 s. Este job pede e acompanha até
+# o fim (concluido, falhou ou revertido = a versão nova não respondeu o
+# /api/saude e voltou sozinha). Ver deploy/local/README.md, "Deploy remoto".
+#
+# ⚠️ Segredo `DEPLOY_KEY`: a chave gerada na bandeja ("Gerar chave de deploy…").
+# Vale para produção e homologação.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: "Ambiente"
+        type: choice
+        options: [hml, prd]
+        default: hml
+      acao:
+        description: "atualizar (para a versão pedida ou a mais nova) ou voltar (para a pedida ou a anterior)"
+        type: choice
+        options: [atualizar, voltar]
+        default: atualizar
+      versao:
+        description: "Tag (alpha-0.1.1 / alpha-0.2.0.rc.003). Vazio = a mais nova (atualizar) ou a anterior (voltar)"
+        type: string
+        required: false
+      entrada:
+        description: "API que recebe o pedido. Com a produção quebrada, peça o voltar dela pela hml"
+        type: choice
+        options: [prd, hml]
+        default: prd
+
+permissions: {}
+
+concurrency:
+  group: deploy-${{ inputs.ambiente }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      # Entradas só por variável de ambiente, nunca interpoladas no script.
+      DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+      AMBIENTE: ${{ inputs.ambiente }}
+      ACAO: ${{ inputs.acao }}
+      VERSAO: ${{ inputs.versao }}
+      ENTRADA: ${{ inputs.entrada }}
+    steps:
+      - name: Pedir e acompanhar
+        run: |
+          set -euo pipefail
+          if [ -z "$DEPLOY_KEY" ]; then echo "::error::falta o segredo DEPLOY_KEY"; exit 1; fi
+          if [ "$ENTRADA" = hml ]; then base=https://offensive-combat-hml.trybest.com.br/api/deploy
+          else base=https://offensive-combat.trybest.com.br/api/deploy; fi
+
+          corpo=$(jq -nc --arg a "$AMBIENTE" --arg c "$ACAO" --arg v "$VERSAO" \
+            '{ambiente: $a, acao: $c, versao: (if $v == "" then null else $v end)}')
+          resp=$(curl -sS --fail-with-body -X POST "$base" \
+            -H "X-Deploy-Key: $DEPLOY_KEY" -H 'Content-Type: application/json' -d "$corpo")
+          id=$(jq -r .id <<<"$resp")
+          echo "pedido $id: $ACAO $AMBIENTE ${VERSAO:-(automática)}"
+
+          # 240 × 15 s = 60 min. Durante a troca o jogo fica fora alguns
+          # segundos: erro de rede só espera a próxima volta.
+          for _ in $(seq 1 240); do
+            sleep 15
+            p=$(curl -sS --fail-with-body "$base/$id" -H "X-Deploy-Key: $DEPLOY_KEY") || continue
+            status=$(jq -r .status <<<"$p")
+            echo "$(date +%T) $status $(jq -r '.mensagem // ""' <<<"$p")"
+            case "$status" in
+              concluido)
+                echo "### $(jq -r .mensagem <<<"$p")" >> "$GITHUB_STEP_SUMMARY"
+                exit 0 ;;
+              falhou|revertido)
+                echo "::error::$status: $(jq -r .mensagem <<<"$p")"
+                exit 1 ;;
+            esac
+          done
+          echo "::error::o pedido $id não terminou em 60 min (o PC do jogo está ligado?)"
+          exit 1
