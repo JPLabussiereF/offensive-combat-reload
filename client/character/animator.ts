@@ -737,7 +737,10 @@ export class CharacterAnimator {
     const t = this.time;
     const k = s.special?.t ?? 0;
     const twist = -this.legYaw;
-    let hunch = (s.run ? 0.42 : 0.24) + lean * 0.3;
+    // `hunch` and `headX` count forward as positive (a stoop, the head dropping); the bones turn the other way
+    // (positive x tilts them back, as the aim pitch looks up), so they're flipped below. The legs' `lean` is in
+    // the bones' sense (running: negative, forward).
+    let hunch = (s.run ? 0.42 : 0.24) - lean * 0.3;
     let headX = -0.2 + Math.sin(t * 1.3) * 0.08;
     let headZ = 0.22 + Math.sin(t * 0.9) * 0.1;
     if (move === 'charge') hunch = 0.65;
@@ -752,14 +755,15 @@ export class CharacterAnimator {
       hunch -= 0.45 * back;
       headX -= 0.5 * back;
     }
-    this.turn('spine', hunch * 0.55, twist * 0.5 + Math.sin(t * 0.8) * 0.05, Math.sin(t * 1.1) * 0.04);
-    this.turn('chest', hunch * 0.45, twist * 0.5, 0);
-    this.turn('head', headX, Math.sin(t * 0.7) * 0.15, headZ);
+    this.turn('spine', -hunch * 0.55, twist * 0.5 + Math.sin(t * 0.8) * 0.05, Math.sin(t * 1.1) * 0.04);
+    this.turn('chest', -hunch * 0.45, twist * 0.5, 0);
+    this.turn('head', -headX, Math.sin(t * 0.7) * 0.15, headZ);
     // Arms: reaching ahead by default, swaying; flailing when running.
     const sway = (o: number) => Math.sin(t * 2.2 + o) * 0.08;
     const run = s.run ? Math.sin(this.phase * Math.PI * 2) * 0.7 * this.gait : 0;
-    let left: [number, number, number, number] = [1.35 + sway(0) + run, 0, -0.12, 0.25];
-    let right: [number, number, number, number] = [1.25 + sway(1) - run, 0, 0.12, 0.3];
+    // Stooped, the shoulders tip forward with the chest: the arms rise as much to keep reaching straight ahead.
+    let left: [number, number, number, number] = [1.35 + hunch + sway(0) + run, 0, -0.12, 0.25];
+    let right: [number, number, number, number] = [1.25 + hunch + sway(1) - run, 0, 0.12, 0.3];
     if (s.attack !== null) {
       // Up over the head through the windup, then down hard as it lands.
       const a = s.attack;
