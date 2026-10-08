@@ -64,12 +64,28 @@ const box = (w: number, h: number, d: number) => new THREE.BoxGeometry(w, h, d);
 
 /**
  * Building the far model (PF-35): the guns and knives other players hold, seen from meters away. Round parts
- * get at most 8 sides, balls 6 × 4, rings 4 × 12, and the pixel letters are left out (about 70% fewer triangles); the
+ * get at most 8 sides, balls 6 × 4, rings 4 × 12; the pixel letters, the parts under 1.5 cm and the thin rings are
+ * left out (a pixel or two from there: a sight's rims, a potato's eyes, studs), so every gun fits 800 triangles. The
  * first-person view keeps every detail.
  */
 let farModel = false;
+/** Under this (m, its largest side) a part isn't in the far model; nor a ring of a thinner tube. */
+const FAR_MIN = 0.015;
+const FAR_MIN_TUBE = 0.005;
+/** The far model leaves this part out (see FAR_MIN). */
+function tooSmall(geo: THREE.BufferGeometry): boolean {
+  if (!farModel) return false;
+  if (geo.userData.thinRing) return true;
+  if (!geo.boundingBox) geo.computeBoundingBox();
+  const s = geo.boundingBox!.getSize(new THREE.Vector3());
+  return Math.max(s.x, s.y, s.z) < FAR_MIN;
+}
 const cyl = (rt: number, rb: number, h: number, seg = 32, hs = 1, open = false, t0 = 0, arc = Math.PI * 2) => new THREE.CylinderGeometry(rt, rb, h, farModel ? Math.min(seg, 8) : seg, hs, open, t0, arc);
-const torus = (r: number, tube: number, rs = 12, ts = 48, arc = Math.PI * 2) => new THREE.TorusGeometry(r, tube, farModel ? Math.min(rs, 4) : rs, farModel ? Math.min(ts, 12) : ts, arc);
+const torus = (r: number, tube: number, rs = 12, ts = 48, arc = Math.PI * 2) => {
+  const g = new THREE.TorusGeometry(r, tube, farModel ? Math.min(rs, 4) : rs, farModel ? Math.min(ts, 12) : ts, arc);
+  if (tube < FAR_MIN_TUBE) g.userData.thinRing = true;
+  return g;
+};
 const sphere = (r: number, ws = 32, hs = 16) => new THREE.SphereGeometry(r, farModel ? Math.min(ws, 6) : ws, farModel ? Math.min(hs, 4) : hs);
 /** Builds with the far model on. */
 function far<T>(on: boolean, make: () => T): T {
@@ -91,13 +107,13 @@ function builder() {
     const m = new THREE.Mesh(geo, toon(color));
     m.position.set(x, y, z);
     m.rotation.set(rx, 0, rz);
-    meshes.push(m);
+    if (!tooSmall(geo)) meshes.push(m);
     return m;
   };
   const lit = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number) => {
     const m = new THREE.Mesh(geo, mat);
     m.position.set(x, y, z);
-    glow.push(m);
+    if (!tooSmall(geo)) glow.push(m);
     return m;
   };
   return { meshes, glow, add, lit };
@@ -566,7 +582,7 @@ function knife(form: KnifeId): THREE.Group {
   const add = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number) => {
     const m = new THREE.Mesh(geo, mat);
     m.position.set(x, y, z);
-    g.add(m);
+    if (!tooSmall(geo)) g.add(m);
     return m;
   };
   if (form === 'faca') {

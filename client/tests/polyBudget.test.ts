@@ -42,7 +42,7 @@ const MEDIDO: Record<OfficialMap, Record<Detalhe, MapNumbers>> = {
 /** Characters: triangles of LOD0 / LOD1 / LOD2 at the 90th percentile of the looks, and each look's LOD1/LOD0 and LOD2/LOD0 at the 90th. */
 const PERSONAGEM = { p90: [5_072, 3_612, 2_409], razao1: 0.769, razao2: 0.523 };
 /** The heaviest gun in third person, and the heaviest first-person view (arms and gun). */
-const ARMA_3P = 882;
+const ARMA_3P = 580;
 const VIEWMODEL = 3_414;
 /** Combat effects: drawn at rest, and with every pool full. */
 const EFEITOS = { repouso: 0, pico: 11_776 };
