@@ -18,13 +18,15 @@ source_paths:
   - docs/DEPLOY.md
   - shared/data/progression.json
   - client/core/keybinds.ts
+  - shared/langs.ts
+  - client/core/settings.ts
   - shared/data/zumbi.json
   - tools/bake-navmesh.ts
 tags:
   - referencia
   - configuracao
   - env
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Configuration Reference
@@ -87,7 +89,8 @@ No compose, o serviço `jogo` recebe `DATABASE_URL` e `REDIS_URL` montados inter
 | `shared/data/zumbi.json` | Todos os números do modo zumbi: tempos, ondas, tipos de zumbi, chefes, dinheiro, XP, o caixão (preço, raridades, armas, `danificada`: chances e penalidades), as barricadas (`barricadas`: tábuas, vida, preço, tempos, prêmio e teto, dano por tipo); os dados de zumbi de cada mapa (o muro `dentro`, os pontos de surgimento, o lugar do caixão, os chefes e as brechas) ficam no campo `zumbi` do JSON do mapa (`shared/data/mapas/cemiterio.json`) — ver [[Zombie]] |
 | `shared/data/mapas/<id>.json` | Os mapas oficiais como dados (`MapData`, `shared/mapData.ts`): ambiente (céu, célula de lote, sombra, `killY`, sons), peças do catálogo (`shared/mapCatalog.ts`), arquivos, spawns, bonecos, objetos que o servidor acompanha e, no Cemitério, os dados de zumbi. Os `*.golden.json` ao lado são o retrato de cada mapa feito do código original antes da conversão (teste de fidelidade) — ver [[World Structure]] |
 | `shared/data/navmesh/<mapa>.json` | Navmesh **gerada** (não editar) para os zumbis do servidor: `bun run navmesh` (`tools/bake-navmesh.ts`) a refaz a partir do código do mapa; um teste falha se estiver desatualizada — ver [[Navigation]] |
-| `localStorage` do navegador | Preferências do jogador (inclusive as teclas de troca de arma `weapon1`/`weapon2`/`swapWeapon`) — ver [[Settings]]. A escolha do Arsenal **não** fica aqui: vai para a conta (`player_profile.loadout`, [[Player Data]]) |
+| `shared/langs.ts` | Os idiomas do jogo (PF-30): `LANGS` (`pt-BR`, `en`, `es`, `de`), o nome de cada um nele mesmo (`LANG_NAMES`) e o locale de números, datas e `<html lang>` (`LANG_LOCALE`: espanhol = `es-419`). Os textos ficam em `client/ui/strings*.ts`, `client/editor/strings*.ts`, `client/ui/customizeLabels.ts` e nos dados (`Text` `{ pt, en, es, de }`) — ver [[ADR - Seletor de idioma por aparelho]] |
+| `localStorage` do navegador | Preferências do jogador (inclusive as teclas de troca de arma `weapon1`/`weapon2`/`swapWeapon` e o idioma `idioma` em `oc.settings.v1`; sem idioma salvo vale o do navegador) — ver [[Settings]]. A escolha do Arsenal **não** fica aqui: vai para a conta (`player_profile.loadout`, [[Player Data]]) |
 
 O cliente não lê variáveis `VITE_*`; usa apenas `import.meta.env.DEV`.
 

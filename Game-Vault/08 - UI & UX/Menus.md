@@ -23,6 +23,8 @@ source_paths:
   - client/ui/management.ts
   - client/ui/managementRules.ts
   - client/ui/customize.ts
+  - client/ui/customizeLabels.ts
+  - shared/langs.ts
   - client/ui/arsenal.ts
   - client/ui/padNav.ts
   - client/ui/arsenalCanvas.ts
@@ -102,7 +104,7 @@ Desde 08/10/2026 ([[ADR - Tela inicial em galpão 3D]], design "Galpão Home"), 
 
 ### 2.2 Deslogado: landing (`#home-out`)
 
-1. **Cabeçalho fixo** com âncoras (O jogo, Mapas, Modos, Criar conta) que rolam a página sem deixar `#fragmento` no endereço (os fragmentos são reservados aos retornos do e-mail e do Discord) e o botão **ENTRAR**.
+1. **Cabeçalho fixo** com âncoras (O jogo, Mapas, Modos, Criar conta) que rolam a página sem deixar `#fragmento` no endereço (os fragmentos são reservados aos retornos do e-mail e do Discord), o **botão de idioma** (🌐 e a sigla do idioma atual: PT, EN, ES, DE) e o botão **ENTRAR**. O botão de idioma abre uma lista com Português (Brasil), English, Español e Deutsch (cada um no próprio idioma); escolher outro salva no aparelho e recarrega a página nele (PF-30, [[ADR - Seletor de idioma por aparelho]]), antes de qualquer cadastro.
 2. **Destaque:** logo, chamada, **COMEÇAR A JOGAR** e **CRIAR CONTA**, e o aviso "Sem conta: treino e bots estão liberados".
 3. **Como é o jogo:** três pilares (mira por região do corpo, Opressão vale 150 contra 100 do abate, armas que evoluem). Ver [[Scoring]] e [[Progression]].
 4. **Mapas:** vitrine de um mapa (nome e piada) e a lista dos três mapas abertos com clima e tamanho (o cemitério do modo zumbi não entra). Ver [[Maps Index]].
@@ -177,7 +179,7 @@ Os jogadores são os da sessão (`net.info`, o próprio incluído) e o máximo �
 - **Arsenal** (mata-mata e campo de tiro; `ArsenalPanel` em `client/ui/arsenal.ts`): os quatro espaços **em uso** à esquerda (ícone, espaço, nome, nível; a mina e a dose dupla trocam o nome e o ícone da granada) e o cartão do espaço escolhido: ícone, "Principal · Nível 4/9", nome, "✓ Equipada", barra e "Faltam X pontos para o nível N", descrição, barras de atributos e "Pente N / reserva M" (armas de fogo), **Melhorias liberadas** (Ligada/Desligada; fichas de ganho e troca, "Opcional: tem troca", "Substituída por …") e "🔒 Mais N melhorias a liberar. Próxima: X, faltam N pts de {progressão}" (some quando todas estão liberadas). Dica: "O que você levou para esta partida." / "O campo de tiro deixa trocar tudo, valendo na hora." Rodapé: "Travado durante a partida…" / "No campo de tiro o Arsenal é editável…" e, **sem conta**, "Crie uma conta para suas armas evoluírem" (a lista vazia diz "Nenhuma melhoria liberada ainda"). Detalhes em [[Inventory UI]].
 - **Escada** (corrida armada; `renderLadderTab` em `client/ui/ladder.ts`): título "Escada da corrida armada", dica "Todos usam as mesmas armas, com os mesmos atributos."; os degraus da escada numa linha (o do jogador maior e amarelo com "Você · N/3", os passados verdes com ✓, o último rosa), cada um com nome e "pente · cadência rpm" ou "abate final"; os cartões **Agora · degrau N** (bolinhas dos abates, "faltam N abates para subir"; no último degrau, "para vencer") e **Próxima · degrau N+1** ("30 balas · 700 rpm · tiro abafado"; no último degrau vira **Abate final**: "Um abate com o Sabre de Luz vence a rodada"); as três regras com os números de `GUN_GAME`; e **Na frente**: o primeiro na ordem do placar ("{nome} · degrau N ({arma})" ou "Você está na frente"; some sem outro jogador e enquanto o primeiro está **empatado** com o segundo — mesmo degrau e mesmos abates no degrau —, como no começo de cada rodada). Entre rodadas aparece no topo o vencedor e "Nova rodada em N…", como no HUD. Ver [[Gun Game]].
 - **Caixão** (zumbi; `renderCoffinTab` em `client/zombies/ambience.ts`): título "Caixão Misterioso", dica "$950 por arma, sorteada no servidor. A raridade multiplica o dano contra zumbis." (no solo, sem "sorteada no servidor"); à esquerda **Você carrega** (espaço, nome, raridade na cor dela; a danificada mostra "Danificada: −40% de pente e −50% de reserva"), à direita **Chances · $950** por raridade (nome, barra, %, "×1,4 de dano", "25% vem danificada", as armas). Rodapé: "A arma nova substitui a do mesmo tipo… Danificada não tem conserto: só outra rodada." Preço, pesos e multiplicadores vêm de `shared/data/zumbi.json`. Ver [[Zombie]].
-- **Configurações**: as subabas de [[Settings]] (Mira, Vídeo, Áudio, **Teclas** ou **Controle** com controle em uso, **Toque** só no celular). Dica "Tudo vale na hora."
+- **Configurações**: as subabas de [[Settings]] (Mira, Vídeo, Áudio, **Teclas** ou **Controle** com controle em uso, **Toque** só no celular). Dica "Tudo vale na hora." A exceção é a linha **Idioma** (subaba Vídeo): durante a partida a escolha fica salva e a linha avisa "Idioma salvo: vale ao voltar ao início" (a partida não cai); na tela inicial e no galpão a página recarrega na hora.
 
 ### 3.4 Níveis, Esc e controle
 

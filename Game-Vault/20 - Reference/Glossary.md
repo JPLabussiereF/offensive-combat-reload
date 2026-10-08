@@ -53,6 +53,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Frases rápidas | `QUICK_CHAT` | Mensagens de chat de um toque no celular | [[Chat]] |
 | Granada de pato | poção `pato` | Visual e som de pato de borracha nas granadas, sem efeito de jogo | [[Buffs & Debuffs]] |
 | Humanidade | `humanity`, `RAT.extraHealth` | +50 de vida máxima até morrer, por derrubar o rato gigante | [[Buffs & Debuffs]] |
+| Idioma | `Settings.idioma`, `LANGS` (`pt-BR`, `en`, `es`, `de`) | O idioma do jogo, escolhido por aparelho nas Configurações (subaba Vídeo) ou no botão da landing; sem escolha, o do navegador. Espanhol = latino-americano neutro (es-419) | [[Settings]], [[ADR - Seletor de idioma por aparelho]] |
 | Investida | `lunge` | Avanço da faca até o alvo próximo | [[Melee]] |
 | Kill feed | `hud.killfeed` | Linhas "Matador [arma] ícone Vítima" | [[HUD]] |
 | Mata-mata (livre) | `'mata-mata'` (`GameModeId`), `DeathmatchMode` | Modo todos contra todos com o Arsenal da conta, escolhido antes e travado durante a partida | [[Free For All]] · [[Versus Bots]] |
