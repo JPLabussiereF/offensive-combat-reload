@@ -7,7 +7,7 @@ import type { ProfileResponse, ZombieTotals } from '@shared/account';
 import { MAX_LEVELS, PROG_WEAPONS } from '@shared/progression';
 
 const zero = Object.fromEntries(SOURCES.map((s) => [s, 0])) as Sources;
-const counter: Sticker = { id: 'x', pagina: 'matar', icone: '·', tipo: 'contador', fonte: 'abates', metas: [10, 50, 200, 1000], nome: { pt: 'x', en: 'x' }, como: { pt: '{meta}', en: '{meta}' } };
+const counter: Sticker = { id: 'x', pagina: 'matar', icone: '·', tipo: 'contador', fonte: 'abates', metas: [10, 50, 200, 1000], nome: { pt: 'x', en: 'x', es: 'x', de: 'x' }, como: { pt: '{meta}', en: '{meta}', es: '{meta}', de: '{meta}' } };
 const record: Sticker = { ...counter, id: 'y', tipo: 'recorde', fonte: 'nivel', metas: [5, 15, 30, 50] };
 
 describe('dados do álbum', () => {

@@ -1,361 +1,361 @@
 {
   "paginas": [
-    { "id": "carreira", "icone": "🏠", "cor": "#2f9bff", "nome": { "pt": "Carreira", "en": "Career" }, "titulo": { "pt": "Morador Ilustre", "en": "Distinguished Resident" } },
-    { "id": "matar", "icone": "🎯", "cor": "#ff4a3d", "nome": { "pt": "Jeitos de matar", "en": "Ways to kill" }, "titulo": { "pt": "Ameaça do Bairro", "en": "Neighborhood Menace" } },
-    { "id": "opressao", "icone": "💃", "cor": "#b04aff", "nome": { "pt": "Opressão", "en": "Humiliation" }, "titulo": { "pt": "Opressor-Mor", "en": "Grand Oppressor" } },
-    { "id": "sequencias", "icone": "🔥", "cor": "#ff7a1a", "nome": { "pt": "Sequências", "en": "Streaks" }, "titulo": { "pt": "Imparável", "en": "Unstoppable" } },
-    { "id": "proezas", "icone": "🃏", "cor": "#5b6cff", "nome": { "pt": "Proezas", "en": "Feats" }, "titulo": { "pt": "Lenda Urbana", "en": "Urban Legend" } },
-    { "id": "cardapio", "icone": "🍪", "cor": "#e0567a", "nome": { "pt": "Cardápio", "en": "Menu" }, "titulo": { "pt": "Chef da Vizinhança", "en": "Neighborhood Chef" } },
-    { "id": "corrida", "icone": "🏁", "cor": "#1fb5a8", "nome": { "pt": "Corrida Armada", "en": "Gun Game" }, "titulo": { "pt": "Piloto de Fuga", "en": "Getaway Driver" } },
-    { "id": "zumbi", "icone": "🧟", "cor": "#3fae4a", "nome": { "pt": "Zumbi", "en": "Zombies" }, "titulo": { "pt": "Caça-Zumbis", "en": "Zombie Hunter" } },
-    { "id": "mapas", "icone": "🗺️", "cor": "#8a6cff", "nome": { "pt": "Mapas", "en": "Maps" }, "titulo": { "pt": "Guia Turístico", "en": "Tour Guide" } },
-    { "id": "vexames", "icone": "🤡", "cor": "#ffb13d", "nome": { "pt": "Vexames", "en": "Fails" }, "titulo": { "pt": "Pé-Frio", "en": "Jinx" } }
+    { "id": "carreira", "icone": "🏠", "cor": "#2f9bff", "nome": { "pt": "Carreira", "en": "Career", "es": "Trayectoria", "de": "Karriere" }, "titulo": { "pt": "Morador Ilustre", "en": "Distinguished Resident", "es": "Vecino ilustre", "de": "Ehrenbürger" } },
+    { "id": "matar", "icone": "🎯", "cor": "#ff4a3d", "nome": { "pt": "Jeitos de matar", "en": "Ways to kill", "es": "Formas de matar", "de": "Arten zu töten" }, "titulo": { "pt": "Ameaça do Bairro", "en": "Neighborhood Menace", "es": "Amenaza del barrio", "de": "Schrecken des Viertels" } },
+    { "id": "opressao", "icone": "💃", "cor": "#b04aff", "nome": { "pt": "Opressão", "en": "Humiliation", "es": "Humillación", "de": "Demütigung" }, "titulo": { "pt": "Opressor-Mor", "en": "Grand Oppressor", "es": "Humillador supremo", "de": "Meister der Demütigung" } },
+    { "id": "sequencias", "icone": "🔥", "cor": "#ff7a1a", "nome": { "pt": "Sequências", "en": "Streaks", "es": "Rachas", "de": "Serien" }, "titulo": { "pt": "Imparável", "en": "Unstoppable", "es": "Imparable", "de": "Unaufhaltsam" } },
+    { "id": "proezas", "icone": "🃏", "cor": "#5b6cff", "nome": { "pt": "Proezas", "en": "Feats", "es": "Proezas", "de": "Heldentaten" }, "titulo": { "pt": "Lenda Urbana", "en": "Urban Legend", "es": "Leyenda urbana", "de": "Urbane Legende" } },
+    { "id": "cardapio", "icone": "🍪", "cor": "#e0567a", "nome": { "pt": "Cardápio", "en": "Menu", "es": "Menú", "de": "Speisekarte" }, "titulo": { "pt": "Chef da Vizinhança", "en": "Neighborhood Chef", "es": "Chef del vecindario", "de": "Sternekoch der Nachbarschaft" } },
+    { "id": "corrida", "icone": "🏁", "cor": "#1fb5a8", "nome": { "pt": "Corrida Armada", "en": "Gun Game", "es": "Carrera armada", "de": "Waffenrennen" }, "titulo": { "pt": "Piloto de Fuga", "en": "Getaway Driver", "es": "Piloto de fuga", "de": "Fluchtwagenfahrer" } },
+    { "id": "zumbi", "icone": "🧟", "cor": "#3fae4a", "nome": { "pt": "Zumbi", "en": "Zombies", "es": "Zombis", "de": "Zombies" }, "titulo": { "pt": "Caça-Zumbis", "en": "Zombie Hunter", "es": "Cazazombis", "de": "Zombiejäger" } },
+    { "id": "mapas", "icone": "🗺️", "cor": "#8a6cff", "nome": { "pt": "Mapas", "en": "Maps", "es": "Mapas", "de": "Karten" }, "titulo": { "pt": "Guia Turístico", "en": "Tour Guide", "es": "Guía turístico", "de": "Fremdenführer" } },
+    { "id": "vexames", "icone": "🤡", "cor": "#ffb13d", "nome": { "pt": "Vexames", "en": "Fails", "es": "Fiascos", "de": "Peinlichkeiten" }, "titulo": { "pt": "Pé-Frio", "en": "Jinx", "es": "Imán de mala suerte", "de": "Pechvogel" } }
   ],
   "figurinhas": [
     {
       "id": "endereco-fixo", "pagina": "carreira", "icone": "🏠", "tipo": "recorde", "fonte": "nivel", "metas": [5, 15, 30, 50],
-      "nome": { "pt": "Endereço Fixo", "en": "Fixed Address" },
-      "como": { "pt": "Chegue ao nível {meta} da conta", "en": "Reach account level {meta}" }
+      "nome": { "pt": "Endereço Fixo", "en": "Fixed Address", "es": "Domicilio fijo", "de": "Fester Wohnsitz" },
+      "como": { "pt": "Chegue ao nível {meta} da conta", "en": "Reach account level {meta}", "es": "Alcanza el nivel de cuenta {meta}", "de": "Erreiche Kontolevel {meta}" }
     },
     {
       "id": "bate-ponto", "pagina": "carreira", "icone": "⏰", "tipo": "contador", "fonte": "segundos", "formato": "horas", "metas": [3600, 36000, 180000, 720000],
-      "nome": { "pt": "Bate-Ponto", "en": "Clocking In" },
-      "como": { "pt": "Jogue {meta} online", "en": "Play {meta} online" }
+      "nome": { "pt": "Bate-Ponto", "en": "Clocking In", "es": "Marcando tarjeta", "de": "Stempeluhr" },
+      "como": { "pt": "Jogue {meta} online", "en": "Play {meta} online", "es": "Juega {meta} en línea", "de": "Spiel {meta} online" }
     },
     {
       "id": "morador-assiduo", "pagina": "carreira", "icone": "🚪", "tipo": "contador", "fonte": "entradas", "metas": [10, 50, 200, 1000],
-      "nome": { "pt": "Morador Assíduo", "en": "Regular Neighbor" },
-      "como": { "pt": "Entre em {meta} salas online", "en": "Join {meta} online sessions" }
+      "nome": { "pt": "Morador Assíduo", "en": "Regular Neighbor", "es": "Vecino de toda la vida", "de": "Stammgast" },
+      "como": { "pt": "Entre em {meta} salas online", "en": "Join {meta} online sessions", "es": "Entra a {meta} salas en línea", "de": "Tritt {meta} Online-Sessions bei" }
     },
     {
       "id": "oficina-do-seu-ze", "pagina": "carreira", "icone": "🔧", "tipo": "recorde", "fonte": "armasNoMaximo", "metas": [1, 2, 3, 5],
-      "nome": { "pt": "Oficina do Seu Zé", "en": "Zé's Workshop" },
-      "como": { "pt": "Libere todas as melhorias de {meta} {arma|armas}", "en": "Unlock every upgrade of {meta} {weapon|weapons}" }
+      "nome": { "pt": "Oficina do Seu Zé", "en": "Zé's Workshop", "es": "El taller de Don Zé", "de": "Zés Werkstatt" },
+      "como": { "pt": "Libere todas as melhorias de {meta} {arma|armas}", "en": "Unlock every upgrade of {meta} {weapon|weapons}", "es": "Desbloquea todas las mejoras de {meta} {arma|armas}", "de": "Schalte alle Upgrades von {meta} {Waffe|Waffen} frei" }
     },
     {
       "id": "vizinho-perigoso", "pagina": "matar", "icone": "💥", "tipo": "contador", "fonte": "abates", "metas": [50, 250, 1000, 5000],
-      "nome": { "pt": "Vizinho Perigoso", "en": "Dangerous Neighbor" },
-      "como": { "pt": "Faça {meta} abates", "en": "Get {meta} kills" }
+      "nome": { "pt": "Vizinho Perigoso", "en": "Dangerous Neighbor", "es": "Vecino peligroso", "de": "Gefährlicher Nachbar" },
+      "como": { "pt": "Faça {meta} abates", "en": "Get {meta} kills", "es": "Consigue {meta} bajas", "de": "Erziele {meta} Abschüsse" }
     },
     {
       "id": "na-testa", "pagina": "matar", "icone": "🎯", "tipo": "contador", "fonte": "cabeca", "metas": [25, 150, 600, 2500],
-      "nome": { "pt": "Na Testa", "en": "Right Between the Eyes" },
-      "como": { "pt": "Mate {meta} com tiro na cabeça", "en": "Get {meta} headshot kills" }
+      "nome": { "pt": "Na Testa", "en": "Right Between the Eyes", "es": "En toda la frente", "de": "Voll auf die Zwölf" },
+      "como": { "pt": "Mate {meta} com tiro na cabeça", "en": "Get {meta} headshot kills", "es": "Consigue {meta} bajas con tiro a la cabeza", "de": "Erziele {meta} Abschüsse per Kopfschuss" }
     },
     {
       "id": "no-passaro", "pagina": "matar", "icone": "🐦", "tipo": "contador", "fonte": "passaro", "metas": [5, 30, 120, 500],
-      "nome": { "pt": "No Pássaro!", "en": "Right in the Birdie!" },
-      "como": { "pt": "Mate {meta} no pássaro", "en": "Get {meta} kills below the belt" }
+      "nome": { "pt": "No Pássaro!", "en": "Right in the Birdie!", "es": "¡Al pajarito!", "de": "In die Kronjuwelen!" },
+      "como": { "pt": "Mate {meta} no pássaro", "en": "Get {meta} kills below the belt", "es": "Consigue {meta} bajas al pajarito", "de": "Erziele {meta} Abschüsse in die Kronjuwelen" }
     },
     {
       "id": "facada", "pagina": "matar", "icone": "🔪", "tipo": "contador", "fonte": "facadas", "metas": [10, 50, 200, 800],
-      "nome": { "pt": "Facada", "en": "Stabby" },
-      "como": { "pt": "Mate {meta} na faca", "en": "Get {meta} knife kills" }
+      "nome": { "pt": "Facada", "en": "Stabby", "es": "Corte fino", "de": "Stichhaltig" },
+      "como": { "pt": "Mate {meta} na faca", "en": "Get {meta} knife kills", "es": "Consigue {meta} bajas con el cuchillo", "de": "Erziele {meta} Abschüsse mit dem Messer" }
     },
     {
       "id": "pelas-costas", "pagina": "matar", "icone": "🗡️", "tipo": "contador", "fonte": "pelasCostas", "metas": [5, 25, 100, 400],
-      "nome": { "pt": "Pelas Costas", "en": "Backstabber" },
-      "como": { "pt": "Mate {meta} pelas costas na faca", "en": "Get {meta} backstab kills" }
+      "nome": { "pt": "Pelas Costas", "en": "Backstabber", "es": "Traicionero", "de": "Hinterrücks" },
+      "como": { "pt": "Mate {meta} pelas costas na faca", "en": "Get {meta} backstab kills", "es": "Consigue {meta} bajas por la espalda con el cuchillo", "de": "Erziele {meta} Messerabschüsse von hinten" }
     },
     {
       "id": "lancador", "pagina": "matar", "icone": "💣", "tipo": "contador", "fonte": "granadas", "metas": [10, 50, 200, 800],
-      "nome": { "pt": "Lançador", "en": "Pitcher" },
-      "como": { "pt": "Mate {meta} com granada", "en": "Get {meta} grenade kills" }
+      "nome": { "pt": "Lançador", "en": "Pitcher", "es": "Lanzador", "de": "Granatenwerfer" },
+      "como": { "pt": "Mate {meta} com granada", "en": "Get {meta} grenade kills", "es": "Consigue {meta} bajas con granada", "de": "Erziele {meta} Abschüsse mit Granaten" }
     },
     {
       "id": "opressor", "pagina": "opressao", "icone": "💃", "tipo": "contador", "fonte": "opressoes", "metas": [3, 20, 80, 300],
-      "nome": { "pt": "Opressor", "en": "Oppressor" },
-      "como": { "pt": "Oprima {meta} corpos com a dancinha", "en": "Humiliate {meta} bodies with the dance" }
+      "nome": { "pt": "Opressor", "en": "Oppressor", "es": "El Humillador", "de": "Der Demütiger" },
+      "como": { "pt": "Oprima {meta} corpos com a dancinha", "en": "Humiliate {meta} bodies with the dance", "es": "Humilla {meta} cuerpos con el bailecito", "de": "Demütige {meta} Leichen mit dem Tänzchen" }
     },
     {
       "id": "oprimido", "pagina": "opressao", "icone": "😩", "tipo": "contador", "fonte": "propria", "metas": [3, 20, 80, 300],
-      "nome": { "pt": "Oprimido", "en": "Humiliated" },
-      "como": { "pt": "Seja oprimido {meta} vezes", "en": "Get humiliated {meta} times" }
+      "nome": { "pt": "Oprimido", "en": "Humiliated", "es": "Humillado", "de": "Gedemütigt" },
+      "como": { "pt": "Seja oprimido {meta} vezes", "en": "Get humiliated {meta} times", "es": "Sufre {meta} humillaciones", "de": "Lass dich {meta} Mal demütigen" }
     },
     {
       "id": "troco", "pagina": "opressao", "icone": "🔁", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 20, 80],
-      "nome": { "pt": "Troco", "en": "Payback" },
-      "como": { "pt": "Oprima quem te oprimiu por último ({meta} {vez|vezes})", "en": "Humiliate whoever last humiliated you ({meta} {time|times})" }
+      "nome": { "pt": "Troco", "en": "Payback", "es": "Desquite", "de": "Retourkutsche" },
+      "como": { "pt": "Oprima quem te oprimiu por último ({meta} {vez|vezes})", "en": "Humiliate whoever last humiliated you ({meta} {time|times})", "es": "Humilla al último que te humilló ({meta} {vez|veces})", "de": "Demütige den, der dich zuletzt gedemütigt hat ({meta} {Mal|Mal})" }
     },
     {
       "id": "oportunista", "pagina": "opressao", "icone": "🦅", "tipo": "contador", "fonte": "propria", "metas": [1, 10, 25, 50],
-      "nome": { "pt": "Oportunista", "en": "Opportunist" },
-      "como": { "pt": "Oprima {meta} {corpo|corpos} que outro jogador derrubou", "en": "Humiliate {meta} {body|bodies} someone else dropped" }
+      "nome": { "pt": "Oportunista", "en": "Opportunist", "es": "Oportunista", "de": "Trittbrettfahrer" },
+      "como": { "pt": "Oprima {meta} {corpo|corpos} que outro jogador derrubou", "en": "Humiliate {meta} {body|bodies} someone else dropped", "es": "Humilla {meta} {cuerpo|cuerpos} que otro jugador derribó", "de": "Demütige {meta} {Leiche|Leichen}, die ein anderer Spieler erledigt hat" }
     },
     {
       "id": "chutando-cachorro-morto", "pagina": "opressao", "icone": "🦴", "tipo": "contador", "fonte": "propria", "metas": [1, 3, 5, 10],
-      "nome": { "pt": "Chutando Cachorro Morto", "en": "Kicking Them While They're Down" },
-      "como": { "pt": "Oprima {meta} {corpo|corpos} de quem morreu sozinho (queda, Amora, a própria granada)", "en": "Humiliate {meta} {body|bodies} of players who died on their own (fall, Amora, their own grenade)" }
+      "nome": { "pt": "Chutando Cachorro Morto", "en": "Kicking Them While They're Down", "es": "Leña del árbol caído", "de": "Nachtreten" },
+      "como": { "pt": "Oprima {meta} {corpo|corpos} de quem morreu sozinho (queda, Amora, a própria granada)", "en": "Humiliate {meta} {body|bodies} of players who died on their own (fall, Amora, their own grenade)", "es": "Humilla {meta} {cuerpo|cuerpos} de jugadores que murieron solos (caída, Amora, su propia granada)", "de": "Demütige {meta} {Leiche|Leichen} von Spielern, die ohne fremde Hilfe gestorben sind (Sturz, Amora, eigene Granate)" }
     },
     {
       "id": "no-ultimo-segundo", "pagina": "opressao", "icone": "⏱️", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 10, 20],
-      "nome": { "pt": "No Último Segundo", "en": "Just in Time" },
-      "como": { "pt": "Comece a dancinha com menos de 1 s de corpo e complete ({meta} {vez|vezes})", "en": "Start the dance with under 1 s left on the body and finish it ({meta} {time|times})" }
+      "nome": { "pt": "No Último Segundo", "en": "Just in Time", "es": "En el último segundo", "de": "In letzter Sekunde" },
+      "como": { "pt": "Comece a dancinha com menos de 1 s de corpo e complete ({meta} {vez|vezes})", "en": "Start the dance with under 1 s left on the body and finish it ({meta} {time|times})", "es": "Empieza el bailecito cuando falte menos de 1 s para que el cuerpo desaparezca y termínalo ({meta} {vez|veces})", "de": "Starte das Tänzchen, wenn die Leiche in weniger als 1 s verschwindet, und tanz es zu Ende ({meta} {Mal|Mal})" }
     },
     {
       "id": "davi-contra-golias", "pagina": "opressao", "icone": "🪨", "tipo": "contador", "fonte": "propria", "metas": [1, 2, 3],
-      "nome": { "pt": "Davi contra Golias", "en": "David and Goliath" },
-      "como": { "pt": "Oprima {meta} {jogador|jogadores} com 10 abates ou mais à sua frente na partida", "en": "Humiliate {meta} {player|players} 10 or more kills ahead of you in the match" }
+      "nome": { "pt": "Davi contra Golias", "en": "David and Goliath", "es": "David contra Goliat", "de": "David gegen Goliath" },
+      "como": { "pt": "Oprima {meta} {jogador|jogadores} com 10 abates ou mais à sua frente na partida", "en": "Humiliate {meta} {player|players} 10 or more kills ahead of you in the match", "es": "Humilla a {meta} {jugador|jugadores} con 10 bajas o más de ventaja sobre ti en la partida", "de": "Demütige {meta} {Spieler|Spieler} mit 10 oder mehr Abschüssen Vorsprung auf dich im Match" }
     },
     {
       "id": "pe-de-valsa", "pagina": "opressao", "icone": "🕺", "tipo": "recorde", "fonte": "propria", "metas": [1, 3, 5, 10],
       "itens": [
-        { "id": "rua", "nome": { "pt": "Rua dos Vizinhos", "en": "Neighbors' Street" } },
-        { "id": "jardim", "nome": { "pt": "Jardim do Dragão", "en": "Dragon Garden" } },
-        { "id": "halloween", "nome": { "pt": "Vila Assombrada", "en": "Haunted Town" } }
+        { "id": "rua", "nome": { "pt": "Rua dos Vizinhos", "en": "Neighbors' Street", "es": "Calle de los Vecinos", "de": "Nachbarstraße" } },
+        { "id": "jardim", "nome": { "pt": "Jardim do Dragão", "en": "Dragon Garden", "es": "Jardín del Dragón", "de": "Drachengarten" } },
+        { "id": "halloween", "nome": { "pt": "Vila Assombrada", "en": "Haunted Town", "es": "Pueblo Embrujado", "de": "Spukdorf" } }
       ],
-      "nome": { "pt": "Pé de Valsa", "en": "Dancing Feet" },
-      "como": { "pt": "Oprima {meta} {vez|vezes} em cada mapa versus", "en": "Humiliate {meta} {time|times} on every versus map" }
+      "nome": { "pt": "Pé de Valsa", "en": "Dancing Feet", "es": "Rey de la pista", "de": "Tanzbär" },
+      "como": { "pt": "Oprima {meta} {vez|vezes} em cada mapa versus", "en": "Humiliate {meta} {time|times} on every versus map", "es": "Haz {meta} {humillación|humillaciones} en cada mapa versus", "de": "Schaffe {meta} {Demütigung|Demütigungen} auf jeder Versus-Karte" }
     },
     {
       "id": "estraga-prazer", "pagina": "opressao", "icone": "🚫", "tipo": "contador", "fonte": "propria", "metas": [1, 10, 25, 50],
-      "nome": { "pt": "Estraga-Prazer", "en": "Party Pooper" },
-      "como": { "pt": "Mate {meta} {jogador|jogadores} no meio da dancinha", "en": "Kill {meta} {player|players} mid-dance" }
+      "nome": { "pt": "Estraga-Prazer", "en": "Party Pooper", "es": "Aguafiestas", "de": "Spaßbremse" },
+      "como": { "pt": "Mate {meta} {jogador|jogadores} no meio da dancinha", "en": "Kill {meta} {player|players} mid-dance", "es": "Mata a {meta} {jugador|jugadores} en pleno bailecito", "de": "Erledige {meta} {Spieler|Spieler} mitten im Tänzchen" }
     },
     {
       "id": "embalado", "pagina": "sequencias", "icone": "🔥", "tipo": "recorde", "fonte": "propria", "metas": [3, 5, 10, 15],
-      "nome": { "pt": "Embalado", "en": "On a Roll" },
-      "como": { "pt": "Faça {meta} abates sem morrer", "en": "Get {meta} kills without dying" }
+      "nome": { "pt": "Embalado", "en": "On a Roll", "es": "A toda máquina", "de": "Läuft bei dir!" },
+      "como": { "pt": "Faça {meta} abates sem morrer", "en": "Get {meta} kills without dying", "es": "Consigue {meta} bajas sin morir", "de": "Erziele {meta} Abschüsse, ohne zu sterben" }
     },
     {
       "id": "combo", "pagina": "sequencias", "icone": "⚡", "tipo": "recorde", "fonte": "propria", "metas": [2, 3, 4, 5],
-      "nome": { "pt": "Combo", "en": "Combo" },
-      "como": { "pt": "Faça {meta} abates seguidos, com até 4 s entre um e outro", "en": "Get {meta} kills in a row, at most 4 s apart" }
+      "nome": { "pt": "Combo", "en": "Combo", "es": "Combo", "de": "Combo" },
+      "como": { "pt": "Faça {meta} abates seguidos, com até 4 s entre um e outro", "en": "Get {meta} kills in a row, at most 4 s apart", "es": "Consigue {meta} bajas seguidas, con 4 s o menos entre una y otra", "de": "Erziele {meta} Abschüsse in Folge, mit höchstens 4 s dazwischen" }
     },
     {
       "id": "vinganca", "pagina": "sequencias", "icone": "😤", "tipo": "contador", "fonte": "propria", "metas": [5, 25, 100, 400],
-      "nome": { "pt": "Vingança", "en": "Revenge" },
-      "como": { "pt": "Mate quem te matou por último ({meta} vezes)", "en": "Kill whoever last killed you ({meta} times)" }
+      "nome": { "pt": "Vingança", "en": "Revenge", "es": "Venganza", "de": "Rache" },
+      "como": { "pt": "Mate quem te matou por último ({meta} vezes)", "en": "Kill whoever last killed you ({meta} times)", "es": "Mata al último que te mató ({meta} veces)", "de": "Erledige den, der dich zuletzt erledigt hat ({meta} Mal)" }
     },
     {
       "id": "estraga-sequencia", "pagina": "sequencias", "icone": "🧯", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 10, 15],
-      "nome": { "pt": "Estraga-Sequência", "en": "Streak Breaker" },
-      "como": { "pt": "Mate {meta} {jogador|jogadores} com 5 abates ou mais sem morrer", "en": "Kill {meta} {player|players} on a 5+ kill streak" }
+      "nome": { "pt": "Estraga-Sequência", "en": "Streak Breaker", "es": "Cortarrachas", "de": "Serienkiller" },
+      "como": { "pt": "Mate {meta} {jogador|jogadores} com 5 abates ou mais sem morrer", "en": "Kill {meta} {player|players} on a 5+ kill streak", "es": "Mata a {meta} {jugador|jugadores} con una racha de 5 bajas o más", "de": "Erledige {meta} {Spieler|Spieler} mit einer Serie von 5 oder mehr Abschüssen" }
     },
     {
       "id": "abraco-de-urso", "pagina": "proezas", "icone": "🐻", "tipo": "contador", "fonte": "propria", "metas": [1, 3, 5], "oculta": true,
-      "nome": { "pt": "Abraço de Urso", "en": "Bear Hug" },
-      "como": { "pt": "Mate alguém com uma granada que explodiu na sua mão ({meta} {vez|vezes})", "en": "Kill someone with a grenade that went off in your hand ({meta} {time|times})" },
-      "dica": { "pt": "Às vezes a granada nem precisa sair da mão.", "en": "Sometimes the grenade never needs to leave your hand." }
+      "nome": { "pt": "Abraço de Urso", "en": "Bear Hug", "es": "Abrazo de oso", "de": "Bärenumarmung" },
+      "como": { "pt": "Mate alguém com uma granada que explodiu na sua mão ({meta} {vez|vezes})", "en": "Kill someone with a grenade that went off in your hand ({meta} {time|times})", "es": "Mata a alguien con una granada que te explotó en la mano ({meta} {vez|veces})", "de": "Erledige jemanden mit einer Granate, die dir in der Hand explodiert ({meta} {Mal|Mal})" },
+      "dica": { "pt": "Às vezes a granada nem precisa sair da mão.", "en": "Sometimes the grenade never needs to leave your hand.", "es": "A veces la granada ni siquiera necesita salir de tu mano.", "de": "Manchmal muss die Granate deine Hand gar nicht erst verlassen." }
     },
     {
       "id": "kamikaze", "pagina": "proezas", "icone": "🎆", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 10], "oculta": true,
-      "nome": { "pt": "Kamikaze", "en": "Kamikaze" },
-      "como": { "pt": "Morra com a própria granada levando alguém junto ({meta} {vez|vezes})", "en": "Die to your own grenade taking someone with you ({meta} {time|times})" },
-      "dica": { "pt": "Ir embora sozinho é para os fracos.", "en": "Leaving alone is for the weak." }
+      "nome": { "pt": "Kamikaze", "en": "Kamikaze", "es": "Kamikaze", "de": "Kamikaze" },
+      "como": { "pt": "Morra com a própria granada levando alguém junto ({meta} {vez|vezes})", "en": "Die to your own grenade taking someone with you ({meta} {time|times})", "es": "Muere con tu propia granada llevándote a alguien contigo ({meta} {vez|veces})", "de": "Stirb durch deine eigene Granate und nimm jemanden mit ({meta} {Mal|Mal})" },
+      "dica": { "pt": "Ir embora sozinho é para os fracos.", "en": "Leaving alone is for the weak.", "es": "Irse solo es de débiles.", "de": "Allein abtreten ist was für Schwächlinge." }
     },
     {
       "id": "strike", "pagina": "proezas", "icone": "🎳", "tipo": "recorde", "fonte": "propria", "metas": [2, 3, 4],
-      "nome": { "pt": "Strike!", "en": "Strike!" },
-      "como": { "pt": "Mate {meta} jogadores com uma granada só", "en": "Kill {meta} players with a single grenade" }
+      "nome": { "pt": "Strike!", "en": "Strike!", "es": "¡Strike!", "de": "Alle Neune!" },
+      "como": { "pt": "Mate {meta} jogadores com uma granada só", "en": "Kill {meta} players with a single grenade", "es": "Mata a {meta} jugadores con una sola granada", "de": "Erledige {meta} Spieler mit einer einzigen Granate" }
     },
     {
       "id": "empurraozinho", "pagina": "proezas", "icone": "👋", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 10, 20],
-      "nome": { "pt": "Empurrãozinho", "en": "A Little Push" },
-      "como": { "pt": "Acerte alguém que morre de queda, no vazio ou para a Amora em até 5 s ({meta} {vez|vezes})", "en": "Hit someone who dies from a fall, the void or Amora within 5 s ({meta} {time|times})" }
+      "nome": { "pt": "Empurrãozinho", "en": "A Little Push", "es": "Un empujoncito", "de": "Kleiner Schubs" },
+      "como": { "pt": "Acerte alguém que morre de queda, no vazio ou para a Amora em até 5 s ({meta} {vez|vezes})", "en": "Hit someone who dies from a fall, the void or Amora within 5 s ({meta} {time|times})", "es": "Hiere a alguien que muera por caída, en el vacío o por Amora en los 5 s siguientes ({meta} {vez|veces})", "de": "Triff jemanden, der innerhalb von 5 s abstürzt, ins Leere fällt oder von Amora erwischt wird ({meta} {Mal|Mal})" }
     },
     {
       "id": "com-um-pe-na-cova", "pagina": "proezas", "icone": "🩹", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 15, 30],
-      "nome": { "pt": "Com um Pé na Cova", "en": "One Foot in the Grave" },
-      "como": { "pt": "Mate com 10 de vida ou menos ({meta} {vez|vezes})", "en": "Kill with 10 health or less ({meta} {time|times})" }
+      "nome": { "pt": "Com um Pé na Cova", "en": "One Foot in the Grave", "es": "Con un pie en la tumba", "de": "Mit einem Bein im Grab" },
+      "como": { "pt": "Mate com 10 de vida ou menos ({meta} {vez|vezes})", "en": "Kill with 10 health or less ({meta} {time|times})", "es": "Mata con 10 de vida o menos ({meta} {vez|veces})", "de": "Erledige jemanden mit 10 Lebenspunkten oder weniger ({meta} {Mal|Mal})" }
     },
     {
       "id": "scooby-dooby-doo", "pagina": "cardapio", "icone": "🦴", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 10, 20],
-      "nome": { "pt": "Scooby-Dooby-Doo!", "en": "Scooby-Dooby-Doo!" },
-      "como": { "pt": "Coma o Biscoito Scooby com 30 de vida ou menos e mate em até 10 s ({meta} {vez|vezes})", "en": "Eat the Scooby Snack at 30 health or less and kill within 10 s ({meta} {time|times})" }
+      "nome": { "pt": "Scooby-Dooby-Doo!", "en": "Scooby-Dooby-Doo!", "es": "Scooby-Dooby-Doo!", "de": "Scooby-Dooby-Doo!" },
+      "como": { "pt": "Coma o Biscoito Scooby com 30 de vida ou menos e mate em até 10 s ({meta} {vez|vezes})", "en": "Eat the Scooby Snack at 30 health or less and kill within 10 s ({meta} {time|times})", "es": "Cómete la Galleta Scooby con 30 de vida o menos y mata en los 10 s siguientes ({meta} {vez|veces})", "de": "Iss den Scooby-Keks mit 30 Lebenspunkten oder weniger und erledige innerhalb von 10 s jemanden ({meta} {Mal|Mal})" }
     },
     {
       "id": "humanidade-restaurada", "pagina": "cardapio", "icone": "🕯️", "tipo": "contador", "fonte": "propria", "metas": [5, 25, 100, 200],
-      "nome": { "pt": "Humanidade Restaurada", "en": "Humanity Restored" },
-      "como": { "pt": "Faça {meta} abates com a humanidade do rato gigante", "en": "Get {meta} kills carrying the giant rat's humanity" }
+      "nome": { "pt": "Humanidade Restaurada", "en": "Humanity Restored", "es": "Humanidad restaurada", "de": "Menschlichkeit wiederhergestellt" },
+      "como": { "pt": "Faça {meta} abates com a humanidade do rato gigante", "en": "Get {meta} kills carrying the giant rat's humanity", "es": "Consigue {meta} bajas con la humanidad de la rata gigante", "de": "Erziele {meta} Abschüsse mit der Menschlichkeit der Riesenratte" }
     },
     {
       "id": "cereja-do-bolo", "pagina": "cardapio", "icone": "🍒", "tipo": "contador", "fonte": "propria", "metas": [5, 15, 30, 50],
-      "nome": { "pt": "Cereja do Bolo", "en": "Cherry on Top" },
-      "como": { "pt": "Faça {meta} abates com a vida extra da cereja", "en": "Get {meta} kills with the cherry's extra health" }
+      "nome": { "pt": "Cereja do Bolo", "en": "Cherry on Top", "es": "La cereza del pastel", "de": "Kirsche auf der Torte" },
+      "como": { "pt": "Faça {meta} abates com a vida extra da cereja", "en": "Get {meta} kills with the cherry's extra health", "es": "Consigue {meta} bajas con la vida extra de la cereza", "de": "Erziele {meta} Abschüsse mit den Bonus-Lebenspunkten der Kirsche" }
     },
     {
       "id": "saude-hic", "pagina": "cardapio", "icone": "🍺", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 15, 30],
-      "nome": { "pt": "Saúde! Hic!", "en": "Cheers! Hic!" },
-      "como": { "pt": "Faça {meta} {abate|abates} bêbado com a poção da bruxa", "en": "Get {meta} {kill|kills} drunk on the witch's potion" }
+      "nome": { "pt": "Saúde! Hic!", "en": "Cheers! Hic!", "es": "¡Salud! ¡Hic!", "de": "Prost! Hicks!" },
+      "como": { "pt": "Faça {meta} {abate|abates} bêbado com a poção da bruxa", "en": "Get {meta} {kill|kills} drunk on the witch's potion", "es": "Consigue {meta} {baja|bajas} borracho por la poción de la bruja", "de": "Erziele {meta} {Abschuss|Abschüsse}, während du vom Hexentrank betrunken bist" }
     },
     {
       "id": "provador-da-bruxa", "pagina": "cardapio", "icone": "🧪", "tipo": "recorde", "fonte": "propria", "metas": [1, 2, 3, 5],
       "itens": [
-        { "id": "pato", "nome": { "pt": "Pato", "en": "Duck" } },
-        { "id": "veloz", "nome": { "pt": "Pressa", "en": "Haste" } },
-        { "id": "lerdo", "nome": { "pt": "Lerdeza", "en": "Sluggish" } },
-        { "id": "critico", "nome": { "pt": "Crítico", "en": "Critical" } },
-        { "id": "bebado", "nome": { "pt": "Bêbado", "en": "Drunk" } }
+        { "id": "pato", "nome": { "pt": "Pato", "en": "Duck", "es": "Pato", "de": "Ente" } },
+        { "id": "veloz", "nome": { "pt": "Pressa", "en": "Haste", "es": "Prisa", "de": "Eile" } },
+        { "id": "lerdo", "nome": { "pt": "Lerdeza", "en": "Sluggish", "es": "Lentitud", "de": "Trägheit" } },
+        { "id": "critico", "nome": { "pt": "Crítico", "en": "Critical", "es": "Crítico", "de": "Kritisch" } },
+        { "id": "bebado", "nome": { "pt": "Bêbado", "en": "Drunk", "es": "Borracho", "de": "Betrunken" } }
       ],
-      "nome": { "pt": "Provador da Bruxa", "en": "Witch's Taster" },
-      "como": { "pt": "Beba cada uma das 5 poções {meta} {vez|vezes}", "en": "Drink each of the 5 potions {meta} {time|times}" }
+      "nome": { "pt": "Provador da Bruxa", "en": "Witch's Taster", "es": "Catador de la bruja", "de": "Vorkoster der Hexe" },
+      "como": { "pt": "Beba cada uma das 5 poções {meta} {vez|vezes}", "en": "Drink each of the 5 potions {meta} {time|times}", "es": "Bebe cada una de las 5 pociones {meta} {vez|veces}", "de": "Trink jeden der 5 Tränke {meta} {Mal|Mal}" }
     },
     {
       "id": "pescador", "pagina": "cardapio", "icone": "🎣", "tipo": "contador", "fonte": "propria", "metas": [10, 50, 100, 200],
-      "nome": { "pt": "Pescador", "en": "Angler" },
-      "como": { "pt": "Acerte {meta} carpas do Jardim do Dragão (tiro ou faca)", "en": "Hit {meta} koi in the Dragon Garden (shot or knife)" }
+      "nome": { "pt": "Pescador", "en": "Angler", "es": "Pescador", "de": "Petrijünger" },
+      "como": { "pt": "Acerte {meta} carpas do Jardim do Dragão (tiro ou faca)", "en": "Hit {meta} koi in the Dragon Garden (shot or knife)", "es": "Acierta a {meta} carpas koi del Jardín del Dragón (con disparo o cuchillo)", "de": "Triff {meta} Kois im Drachengarten (Schuss oder Messer)" }
     },
     {
       "id": "peixe-de-ouro", "pagina": "cardapio", "icone": "🐠", "tipo": "contador", "fonte": "propria", "metas": [1, 2, 3, 5],
-      "nome": { "pt": "Peixe de Ouro", "en": "Golden Catch" },
-      "como": { "pt": "Acerte {meta} {carpa dourada|carpas douradas} (tiro ou faca)", "en": "Hit {meta} golden koi (shot or knife)" }
+      "nome": { "pt": "Peixe de Ouro", "en": "Golden Catch", "es": "Pesca de oro", "de": "Goldfisch" },
+      "como": { "pt": "Acerte {meta} {carpa dourada|carpas douradas} (tiro ou faca)", "en": "Hit {meta} golden koi (shot or knife)", "es": "Acierta a {meta} {carpa koi dorada|carpas koi doradas} (con disparo o cuchillo)", "de": "Triff {meta} {goldenen Koi|goldene Kois} (Schuss oder Messer)" }
     },
     {
       "id": "corredor", "pagina": "corrida", "icone": "🏁", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 20, 50],
-      "nome": { "pt": "Corredor", "en": "Racer" },
-      "como": { "pt": "Vença {meta} {rodada|rodadas} da corrida armada", "en": "Win {meta} gun game {round|rounds}" }
+      "nome": { "pt": "Corredor", "en": "Racer", "es": "Corredor", "de": "Rennfahrer" },
+      "como": { "pt": "Vença {meta} {rodada|rodadas} da corrida armada", "en": "Win {meta} gun game {round|rounds}", "es": "Gana {meta} {ronda|rondas} de carrera armada", "de": "Gewinne {meta} {Runde|Runden} im Waffenrennen" }
     },
     {
       "id": "volta-olimpica", "pagina": "corrida", "icone": "🥇", "tipo": "recorde", "fonte": "propria", "metas": [1],
-      "nome": { "pt": "Volta Olímpica", "en": "Victory Lap" },
-      "como": { "pt": "Vença uma rodada sem morrer", "en": "Win a round without dying" }
+      "nome": { "pt": "Volta Olímpica", "en": "Victory Lap", "es": "Vuelta olímpica", "de": "Ehrenrunde" },
+      "como": { "pt": "Vença uma rodada sem morrer", "en": "Win a round without dying", "es": "Gana una ronda sin morir", "de": "Gewinne eine Runde, ohne zu sterben" }
     },
     {
       "id": "esfaqueador", "pagina": "corrida", "icone": "🔪", "tipo": "contador", "fonte": "propria", "metas": [5, 25, 100, 400],
-      "nome": { "pt": "Esfaqueador", "en": "Demoter" },
-      "como": { "pt": "Tire {meta} abates de outros jogadores na faca", "en": "Take {meta} kills away from other players with the knife" }
+      "nome": { "pt": "Esfaqueador", "en": "Demoter", "es": "Recorte de personal", "de": "Stellenabbau" },
+      "como": { "pt": "Tire {meta} abates de outros jogadores na faca", "en": "Take {meta} kills away from other players with the knife", "es": "Quítales {meta} bajas a otros jugadores con el cuchillo", "de": "Nimm anderen Spielern mit dem Messer {meta} Abschüsse weg" }
     },
     {
       "id": "sobrevivente", "pagina": "zumbi", "icone": "🏆", "tipo": "contador", "fonte": "zumbiVitorias", "metas": [1, 5, 20, 50],
-      "nome": { "pt": "Sobrevivente", "en": "Survivor" },
-      "como": { "pt": "Vença {meta} {partida|partidas} de zumbi", "en": "Win {meta} zombie {match|matches}" }
+      "nome": { "pt": "Sobrevivente", "en": "Survivor", "es": "Sobreviviente", "de": "Überlebender" },
+      "como": { "pt": "Vença {meta} {partida|partidas} de zumbi", "en": "Win {meta} zombie {match|matches}", "es": "Gana {meta} {partida|partidas} de zombis", "de": "Gewinne {meta} {Zombie-Match|Zombie-Matches}" }
     },
     {
       "id": "ate-onde-der", "pagina": "zumbi", "icone": "🌊", "tipo": "recorde", "fonte": "zumbiMelhorOnda", "metas": [4, 8, 10, 12],
-      "nome": { "pt": "Até Onde Der", "en": "As Far as It Goes" },
-      "como": { "pt": "Chegue à onda {meta}", "en": "Reach wave {meta}" }
+      "nome": { "pt": "Até Onde Der", "en": "As Far as It Goes", "es": "Hasta donde aguante", "de": "So weit es geht" },
+      "como": { "pt": "Chegue à onda {meta}", "en": "Reach wave {meta}", "es": "Llega a la oleada {meta}", "de": "Erreiche Welle {meta}" }
     },
     {
       "id": "faxina", "pagina": "zumbi", "icone": "🧹", "tipo": "contador", "fonte": "zumbiAbates", "metas": [100, 500, 2000, 10000],
-      "nome": { "pt": "Faxina", "en": "Clean Sweep" },
-      "como": { "pt": "Abata {meta} zumbis", "en": "Kill {meta} zombies" }
+      "nome": { "pt": "Faxina", "en": "Clean Sweep", "es": "Limpieza a fondo", "de": "Großputz" },
+      "como": { "pt": "Abata {meta} zumbis", "en": "Kill {meta} zombies", "es": "Elimina a {meta} zombis", "de": "Erledige {meta} Zombies" }
     },
     {
       "id": "caca-chefes", "pagina": "zumbi", "icone": "👑", "tipo": "recorde", "fonte": "zumbiCadaChefe", "metas": [1],
-      "nome": { "pt": "Caça-Chefes", "en": "Boss Hunter" },
-      "como": { "pt": "Dê o golpe final no Coveiro, na Noiva e no Prefeito", "en": "Land the final blow on the Gravedigger, the Bride and the Mayor" }
+      "nome": { "pt": "Caça-Chefes", "en": "Boss Hunter", "es": "Cazajefes", "de": "Bossjäger" },
+      "como": { "pt": "Dê o golpe final no Coveiro, na Noiva e no Prefeito", "en": "Land the final blow on the Gravedigger, the Bride and the Mayor", "es": "Dale el golpe final al Sepulturero, a la Novia y al Alcalde", "de": "Versetze dem Totengräber, der Braut und dem Bürgermeister den Todesstoß" }
     },
     {
       "id": "anjo-da-guarda", "pagina": "zumbi", "icone": "😇", "tipo": "contador", "fonte": "zumbiReanimacoes", "metas": [10, 50, 200, 1000],
-      "nome": { "pt": "Anjo da Guarda", "en": "Guardian Angel" },
-      "como": { "pt": "Reanime {meta} colegas", "en": "Revive {meta} teammates" }
+      "nome": { "pt": "Anjo da Guarda", "en": "Guardian Angel", "es": "Ángel de la guarda", "de": "Schutzengel" },
+      "como": { "pt": "Reanime {meta} colegas", "en": "Revive {meta} teammates", "es": "Revive a {meta} compañeros", "de": "Belebe {meta} Mitspieler wieder" }
     },
     {
       "id": "apostador", "pagina": "zumbi", "icone": "⚰️", "tipo": "contador", "fonte": "zumbiCaixao", "metas": [5, 25, 100, 400],
-      "nome": { "pt": "Apostador", "en": "High Roller" },
-      "como": { "pt": "Gire o caixão {meta} vezes", "en": "Spin the coffin {meta} times" }
+      "nome": { "pt": "Apostador", "en": "High Roller", "es": "Gran apostador", "de": "Zocker" },
+      "como": { "pt": "Gire o caixão {meta} vezes", "en": "Spin the coffin {meta} times", "es": "Gira el ataúd {meta} veces", "de": "Dreh den Sarg {meta} Mal" }
     },
     {
       "id": "voto-nulo", "pagina": "zumbi", "icone": "🗳️", "tipo": "recorde", "fonte": "propria", "metas": [1], "oculta": true,
-      "nome": { "pt": "Voto Nulo", "en": "Spoiled Ballot" },
-      "como": { "pt": "Dê o golpe final no Prefeito com um tiro no pássaro", "en": "Land the final blow on the Mayor below the belt" },
-      "dica": { "pt": "O Prefeito quer seu voto. Mire onde dói.", "en": "The Mayor wants your vote. Aim where it hurts." }
+      "nome": { "pt": "Voto Nulo", "en": "Spoiled Ballot", "es": "Voto nulo", "de": "Ungültige Stimme" },
+      "como": { "pt": "Dê o golpe final no Prefeito com um tiro no pássaro", "en": "Land the final blow on the Mayor below the belt", "es": "Dale el golpe final al Alcalde con un tiro al pajarito", "de": "Versetze dem Bürgermeister den Todesstoß mit einem Schuss in die Kronjuwelen" },
+      "dica": { "pt": "O Prefeito quer seu voto. Mire onde dói.", "en": "The Mayor wants your vote. Aim where it hurts.", "es": "El Alcalde quiere tu voto. Apunta donde duele.", "de": "Der Bürgermeister will deine Stimme. Ziel dahin, wo es wehtut." }
     },
     {
       "id": "divorcio", "pagina": "zumbi", "icone": "💔", "tipo": "recorde", "fonte": "propria", "metas": [1], "oculta": true,
-      "nome": { "pt": "Divórcio", "en": "Divorce" },
-      "como": { "pt": "Dê o golpe final na Noiva com a faca", "en": "Land the final blow on the Bride with the knife" },
-      "dica": { "pt": "A Noiva já foi deixada no altar. Termine o serviço de perto.", "en": "The Bride was already left at the altar. Finish it up close." }
+      "nome": { "pt": "Divórcio", "en": "Divorce", "es": "Divorcio", "de": "Scheidung" },
+      "como": { "pt": "Dê o golpe final na Noiva com a faca", "en": "Land the final blow on the Bride with the knife", "es": "Dale el golpe final a la Novia con el cuchillo", "de": "Versetze der Braut mit dem Messer den Todesstoß" },
+      "dica": { "pt": "A Noiva já foi deixada no altar. Termine o serviço de perto.", "en": "The Bride was already left at the altar. Finish it up close.", "es": "A la Novia ya la dejaron plantada en el altar. Termina el trabajo de cerca.", "de": "Die Braut wurde schon am Altar sitzen gelassen. Bring es aus nächster Nähe zu Ende." }
     },
     {
       "id": "churrasco-coletivo", "pagina": "zumbi", "icone": "🍖", "tipo": "recorde", "fonte": "propria", "metas": [3, 5, 8],
-      "nome": { "pt": "Churrasco Coletivo", "en": "Barbecue for Everyone" },
-      "como": { "pt": "Faça um Tio do Churrasco levar {meta} zumbis junto na explosão", "en": "Make a Barbecue Uncle take {meta} zombies with him when he bursts" }
+      "nome": { "pt": "Churrasco Coletivo", "en": "Barbecue for Everyone", "es": "Parrillada para todos", "de": "Grillfest für alle" },
+      "como": { "pt": "Faça um Tio do Churrasco levar {meta} zumbis junto na explosão", "en": "Make a Barbecue Uncle take {meta} zombies with him when he bursts", "es": "Haz que un Tío de la Parrillada se lleve a {meta} zombis consigo al explotar", "de": "Sorg dafür, dass ein Grillonkel beim Platzen {meta} Zombies mitnimmt" }
     },
     {
       "id": "vitoria-do-alem", "pagina": "zumbi", "icone": "👻", "tipo": "recorde", "fonte": "propria", "metas": [1], "oculta": true,
-      "nome": { "pt": "Vitória do Além", "en": "Victory from Beyond" },
-      "como": { "pt": "Vença uma partida de zumbi estando morto", "en": "Win a zombie match while dead" },
-      "dica": { "pt": "Nem todo sobrevivente está vivo no fim.", "en": "Not every survivor is alive at the end." }
+      "nome": { "pt": "Vitória do Além", "en": "Victory from Beyond", "es": "Victoria del más allá", "de": "Sieg aus dem Jenseits" },
+      "como": { "pt": "Vença uma partida de zumbi estando morto", "en": "Win a zombie match while dead", "es": "Gana una partida de zombis estando muerto", "de": "Gewinne ein Zombie-Match, während du tot bist" },
+      "dica": { "pt": "Nem todo sobrevivente está vivo no fim.", "en": "Not every survivor is alive at the end.", "es": "No todo sobreviviente sigue vivo al final.", "de": "Nicht jeder Überlebende ist am Ende noch am Leben." }
     },
     {
       "id": "marceneiro", "pagina": "zumbi", "icone": "🔨", "tipo": "contador", "fonte": "propria", "metas": [10, 50, 200, 500],
-      "nome": { "pt": "Marceneiro", "en": "Carpenter" },
-      "como": { "pt": "Erga ou pregue {meta} tábuas nas barricadas", "en": "Build or nail {meta} boards on the barricades" }
+      "nome": { "pt": "Marceneiro", "en": "Carpenter", "es": "Carpintero", "de": "Schreiner" },
+      "como": { "pt": "Erga ou pregue {meta} tábuas nas barricadas", "en": "Build or nail {meta} boards on the barricades", "es": "Levanta o clava {meta} tablas en las barricadas", "de": "Bau oder nagle {meta} Bretter an die Barrikaden" }
     },
     {
       "id": "sorveteiro-fantasma", "pagina": "mapas", "icone": "🍦", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 10],
-      "nome": { "pt": "Sorveteiro Fantasma", "en": "Phantom Ice Cream Man" },
-      "como": { "pt": "Faça o caminhão de sorvete da Rua dos Vizinhos tocar {meta} {vez|vezes}", "en": "Make the ice cream truck on Neighbors' Street play {meta} {time|times}" }
+      "nome": { "pt": "Sorveteiro Fantasma", "en": "Phantom Ice Cream Man", "es": "Heladero fantasma", "de": "Geister-Eismann" },
+      "como": { "pt": "Faça o caminhão de sorvete da Rua dos Vizinhos tocar {meta} {vez|vezes}", "en": "Make the ice cream truck on Neighbors' Street play {meta} {time|times}", "es": "Haz sonar el camión de helados de la Calle de los Vecinos {meta} {vez|veces}", "de": "Bring den Eiswagen in der Nachbarstraße {meta} {Mal|Mal} zum Dudeln" }
     },
     {
       "id": "proibido-acordar", "pagina": "mapas", "icone": "🐉", "tipo": "recorde", "fonte": "propria", "metas": [1], "oculta": true,
-      "nome": { "pt": "Proibido Acordar", "en": "Do Not Wake" },
-      "como": { "pt": "Acorde o dragão do lago do Jardim do Dragão", "en": "Wake the dragon in the Dragon Garden lake" },
-      "dica": { "pt": "Uma placa do Jardim do Dragão proíbe uma coisa. Faça.", "en": "A sign in the Dragon Garden forbids something. Do it." }
+      "nome": { "pt": "Proibido Acordar", "en": "Do Not Wake", "es": "Prohibido despertar", "de": "Nicht wecken" },
+      "como": { "pt": "Acorde o dragão do lago do Jardim do Dragão", "en": "Wake the dragon in the Dragon Garden lake", "es": "Despierta al dragón del lago del Jardín del Dragón", "de": "Weck den Drachen im See des Drachengartens" },
+      "dica": { "pt": "Uma placa do Jardim do Dragão proíbe uma coisa. Faça.", "en": "A sign in the Dragon Garden forbids something. Do it.", "es": "Un letrero del Jardín del Dragón prohíbe algo. Hazlo.", "de": "Ein Schild im Drachengarten verbietet etwas. Tu es." }
     },
     {
       "id": "maestro", "pagina": "mapas", "icone": "🎼", "tipo": "recorde", "fonte": "propria", "metas": [1],
-      "nome": { "pt": "Maestro", "en": "Maestro" },
-      "como": { "pt": "Toque Dó-Ré-Mi-Fá-Sol no carrilhão do mercado do Jardim, em ordem, em até 6 s", "en": "Play Do-Re-Mi-Fa-Sol on the market chime in the Dragon Garden, in order, within 6 s" }
+      "nome": { "pt": "Maestro", "en": "Maestro", "es": "Maestro", "de": "Kapellmeister" },
+      "como": { "pt": "Toque Dó-Ré-Mi-Fá-Sol no carrilhão do mercado do Jardim, em ordem, em até 6 s", "en": "Play Do-Re-Mi-Fa-Sol on the market chime in the Dragon Garden, in order, within 6 s", "es": "Toca Do-Re-Mi-Fa-Sol en el carillón del mercado del Jardín del Dragón, en orden, en 6 s o menos", "de": "Spiel C-D-E-F-G am Glockenspiel des Markts im Drachengarten, der Reihe nach, in höchstens 6 s" }
     },
     {
       "id": "banda-marcial", "pagina": "mapas", "icone": "🥁", "tipo": "recorde", "fonte": "propria", "metas": [1],
-      "nome": { "pt": "Banda Marcial", "en": "Marching Band" },
-      "como": { "pt": "Toque os 4 tambores e o gongo do Jardim do Dragão em até 30 s", "en": "Hit the 4 drums and the gong in the Dragon Garden within 30 s" }
+      "nome": { "pt": "Banda Marcial", "en": "Marching Band", "es": "Banda marcial", "de": "Spielmannszug" },
+      "como": { "pt": "Toque os 4 tambores e o gongo do Jardim do Dragão em até 30 s", "en": "Hit the 4 drums and the gong in the Dragon Garden within 30 s", "es": "Toca los 4 tambores y el gong del Jardín del Dragón en 30 s o menos", "de": "Schlag die 4 Trommeln und den Gong im Drachengarten in höchstens 30 s" }
     },
     {
       "id": "eu-ja-ouvi", "pagina": "mapas", "icone": "🔔", "tipo": "recorde", "fonte": "propria", "metas": [1], "oculta": true,
-      "nome": { "pt": "EU JÁ OUVI.", "en": "I HEARD YOU." },
-      "como": { "pt": "Toque o sino da capela da Vila Assombrada 5 vezes em 8 s", "en": "Ring the Haunted Town chapel bell 5 times within 8 s" },
-      "dica": { "pt": "O sino da capela tem pouca paciência.", "en": "The chapel bell is short on patience." }
+      "nome": { "pt": "EU JÁ OUVI.", "en": "I HEARD YOU.", "es": "YA TE OÍ.", "de": "ICH HAB'S GEHÖRT." },
+      "como": { "pt": "Toque o sino da capela da Vila Assombrada 5 vezes em 8 s", "en": "Ring the Haunted Town chapel bell 5 times within 8 s", "es": "Toca la campana de la capilla del Pueblo Embrujado 5 veces en 8 s", "de": "Läute die Kapellenglocke im Spukdorf 5 Mal in 8 s" },
+      "dica": { "pt": "O sino da capela tem pouca paciência.", "en": "The chapel bell is short on patience.", "es": "La campana de la capilla tiene poca paciencia.", "de": "Die Kapellenglocke hat wenig Geduld." }
     },
     {
       "id": "chega", "pagina": "mapas", "icone": "📯", "tipo": "recorde", "fonte": "propria", "metas": [1],
-      "nome": { "pt": "CHEGA.", "en": "ENOUGH." },
-      "como": { "pt": "Buzine o carro da Estrada Maldita 6 vezes em 6 s", "en": "Honk the car on the Cursed Road 6 times within 6 s" }
+      "nome": { "pt": "CHEGA.", "en": "ENOUGH.", "es": "YA BASTA.", "de": "ES REICHT." },
+      "como": { "pt": "Buzine o carro da Estrada Maldita 6 vezes em 6 s", "en": "Honk the car on the Cursed Road 6 times within 6 s", "es": "Toca el claxon del auto de la Carretera Maldita 6 veces en 6 s", "de": "Lass das Auto an der Verfluchten Straße 6 Mal in 6 s hupen" }
     },
     {
       "id": "mudou-pro-mausoleu", "pagina": "mapas", "icone": "👻", "tipo": "contador", "fonte": "propria", "metas": [4, 8, 12],
-      "nome": { "pt": "Mudou pro Mausoléu", "en": "Moved to the Mausoleum" },
-      "como": { "pt": "Acorde o fantasma da cova {meta} vezes", "en": "Wake the grave ghost {meta} times" }
+      "nome": { "pt": "Mudou pro Mausoléu", "en": "Moved to the Mausoleum", "es": "Se mudó al mausoleo", "de": "Umzug ins Mausoleum" },
+      "como": { "pt": "Acorde o fantasma da cova {meta} vezes", "en": "Wake the grave ghost {meta} times", "es": "Despierta al fantasma de la tumba {meta} veces", "de": "Weck das Grabgespenst {meta} Mal" }
     },
     {
       "id": "patinhos-em-fila", "pagina": "mapas", "icone": "🦆", "tipo": "contador", "fonte": "propria", "metas": [5, 15, 50],
-      "nome": { "pt": "Patinhos em Fila", "en": "Ducks in a Row" },
-      "como": { "pt": "Mexa o caldeirão da bruxa {meta} vezes (a cada 5, um pato)", "en": "Stir the witch's cauldron {meta} times (every 5th, a duck)" }
+      "nome": { "pt": "Patinhos em Fila", "en": "Ducks in a Row", "es": "Patitos en fila india", "de": "Alle meine Entchen" },
+      "como": { "pt": "Mexa o caldeirão da bruxa {meta} vezes (a cada 5, um pato)", "en": "Stir the witch's cauldron {meta} times (every 5th, a duck)", "es": "Revuelve el caldero de la bruja {meta} veces (cada 5, un pato)", "de": "Rühr {meta} Mal im Hexenkessel (jedes 5. Mal: eine Ente)" }
     },
     {
       "id": "mosca-no-alvo", "pagina": "mapas", "icone": "🎪", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 20],
-      "nome": { "pt": "Mosca no Alvo", "en": "Bullseye" },
-      "como": { "pt": "Derrube os 7 alvos do parque antes do primeiro voltar ({meta} {vez|vezes})", "en": "Knock down all 7 park targets before the first stands back up ({meta} {time|times})" }
+      "nome": { "pt": "Mosca no Alvo", "en": "Bullseye", "es": "Justo en el blanco", "de": "Ins Schwarze" },
+      "como": { "pt": "Derrube os 7 alvos do parque antes do primeiro voltar ({meta} {vez|vezes})", "en": "Knock down all 7 park targets before the first stands back up ({meta} {time|times})", "es": "Derriba los 7 blancos del parque antes de que el primero se levante ({meta} {vez|veces})", "de": "Schieß alle 7 Ziele im Park um, bevor das erste wieder hochklappt ({meta} {Mal|Mal})" }
     },
     {
       "id": "saco-de-pancada", "pagina": "vexames", "icone": "🥊", "tipo": "contador", "fonte": "mortes", "metas": [50, 250, 1000, 5000],
-      "nome": { "pt": "Saco de Pancada", "en": "Punching Bag" },
-      "como": { "pt": "Morra {meta} vezes no versus", "en": "Die {meta} times in versus" }
+      "nome": { "pt": "Saco de Pancada", "en": "Punching Bag", "es": "Piñata", "de": "Prügelknabe" },
+      "como": { "pt": "Morra {meta} vezes no versus", "en": "Die {meta} times in versus", "es": "Muere {meta} veces en versus", "de": "Stirb {meta} Mal im Versus" }
     },
     {
       "id": "beijando-o-chao", "pagina": "vexames", "icone": "😵", "tipo": "contador", "fonte": "zumbiQuedas", "metas": [10, 50, 200, 1000],
-      "nome": { "pt": "Beijando o Chão", "en": "Kissing the Floor" },
-      "como": { "pt": "Caia {meta} vezes no zumbi", "en": "Go down {meta} times in zombies" }
+      "nome": { "pt": "Beijando o Chão", "en": "Kissing the Floor", "es": "Besando el piso", "de": "Bodenkuss" },
+      "como": { "pt": "Caia {meta} vezes no zumbi", "en": "Go down {meta} times in zombies", "es": "Cae abatido {meta} veces en zombis", "de": "Geh im Zombie-Modus {meta} Mal zu Boden" }
     },
     {
       "id": "gravidade", "pagina": "vexames", "icone": "🪂", "tipo": "contador", "fonte": "propria", "metas": [1, 3, 5, 10],
-      "nome": { "pt": "Gravidade 1 × 0 Você", "en": "Gravity 1, You 0" },
-      "como": { "pt": "Morra de queda {meta} {vez|vezes}", "en": "Die from a fall {meta} {time|times}" }
+      "nome": { "pt": "Gravidade 1 × 0 Você", "en": "Gravity 1, You 0", "es": "Gravedad 1, tú 0", "de": "Schwerkraft 1, du 0" },
+      "como": { "pt": "Morra de queda {meta} {vez|vezes}", "en": "Die from a fall {meta} {time|times}", "es": "Muere por una caída {meta} {vez|veces}", "de": "Stirb {meta} {Mal|Mal} durch einen Sturz" }
     },
     {
       "id": "fora-do-mapa", "pagina": "vexames", "icone": "🕳️", "tipo": "recorde", "fonte": "propria", "metas": [1],
-      "nome": { "pt": "Fora do Mapa", "en": "Off the Map" },
-      "como": { "pt": "Caia para fora do mapa", "en": "Fall out of the map" }
+      "nome": { "pt": "Fora do Mapa", "en": "Off the Map", "es": "Fuera del mapa", "de": "Über den Kartenrand" },
+      "como": { "pt": "Caia para fora do mapa", "en": "Fall out of the map", "es": "Cae fuera del mapa", "de": "Fall aus der Karte" }
     },
     {
       "id": "amora-mandou-lembrancas", "pagina": "vexames", "icone": "🐕", "tipo": "contador", "fonte": "propria", "metas": [1, 3, 5, 10],
-      "nome": { "pt": "Amora Mandou Lembranças", "en": "Amora Says Hi" },
-      "como": { "pt": "Seja mordido pela Amora {meta} {vez|vezes}", "en": "Get bitten by Amora {meta} {time|times}" }
+      "nome": { "pt": "Amora Mandou Lembranças", "en": "Amora Says Hi", "es": "Amora te manda saludos", "de": "Schöne Grüße von Amora" },
+      "como": { "pt": "Seja mordido pela Amora {meta} {vez|vezes}", "en": "Get bitten by Amora {meta} {time|times}", "es": "Deja que Amora te muerda {meta} {vez|veces}", "de": "Lass dich {meta} {Mal|Mal} von Amora beißen" }
     },
     {
       "id": "tiro-no-pe", "pagina": "vexames", "icone": "🦶", "tipo": "contador", "fonte": "propria", "metas": [1, 5, 20, 50],
-      "nome": { "pt": "Tiro no Pé", "en": "Own Goal" },
-      "como": { "pt": "Morra com a própria granada {meta} {vez|vezes}", "en": "Die to your own grenade {meta} {time|times}" }
+      "nome": { "pt": "Tiro no Pé", "en": "Own Goal", "es": "Autogol", "de": "Eigentor" },
+      "como": { "pt": "Morra com a própria granada {meta} {vez|vezes}", "en": "Die to your own grenade {meta} {time|times}", "es": "Muere con tu propia granada {meta} {vez|veces}", "de": "Stirb {meta} {Mal|Mal} durch deine eigene Granate" }
     },
     {
       "id": "rip-lag", "pagina": "vexames", "icone": "📶", "tipo": "recorde", "fonte": "propria", "metas": [1], "oculta": true,
-      "nome": { "pt": "R.I.P. LAG", "en": "R.I.P. LAG" },
-      "como": { "pt": "Morra com o ping acima de 250 ms", "en": "Die with your ping above 250 ms" },
-      "dica": { "pt": "Está escrito numa lápide da Vila Assombrada.", "en": "It is written on a tombstone in the Haunted Town." }
+      "nome": { "pt": "R.I.P. LAG", "en": "R.I.P. LAG", "es": "R.I.P. LAG", "de": "R.I.P. LAG" },
+      "como": { "pt": "Morra com o ping acima de 250 ms", "en": "Die with your ping above 250 ms", "es": "Muere con el ping por encima de 250 ms", "de": "Stirb mit einem Ping über 250 ms" },
+      "dica": { "pt": "Está escrito numa lápide da Vila Assombrada.", "en": "It is written on a tombstone in the Haunted Town.", "es": "Está escrito en una lápida del Pueblo Embrujado.", "de": "Es steht auf einem Grabstein im Spukdorf." }
     }
   ]
 }
