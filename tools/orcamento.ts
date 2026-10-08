@@ -236,12 +236,13 @@ export interface EfeitosMedidos {
   pico: number;
 }
 
-export async function medirEfeitos(): Promise<EfeitosMedidos> {
+/** The combat effects with the object detail `detalhe` (the light one has plainer fireballs and smoke). */
+export async function medirEfeitos(detalhe: Detalhe = 'normal'): Promise<EfeitosMedidos> {
   const restore = installCanvasStandIn();
   try {
     const { Effects } = await loadClient('client/render/effects.ts');
     const scene = new THREE.Scene();
-    const fx = new Effects(scene);
+    const fx = new Effects(scene, detalhe);
     const drawn = () => {
       let n = 0;
       scene.traverseVisible((o) => {
@@ -269,6 +270,21 @@ export async function medirEfeitos(): Promise<EfeitosMedidos> {
   }
 }
 
+// --- The whole frame ----------------------------------------------------------------------------------------
+
+/**
+ * A whole frame's triangles in a map (P8 of PF-35): the worst camera, 9 other characters (LOD0 at the 90th
+ * percentile), 10 guns in third person (the heaviest), the heaviest first-person view and the effects at their
+ * peak; with the normal detail also the sun's shadow and the characters' shadows (the light detail's devices
+ * start without shadows).
+ */
+export function quadroInteiro(m: MapaMedido, p: PersonagensMedidos, a: ArmasMedidas, fx: EfeitosMedidos): number {
+  const shadow = m.detalhe === 'normal';
+  const gun = Math.max(...a.terceiraPessoa.map((g) => g.triangulos));
+  const vm = Math.max(...a.viewmodel.map((v) => v.triangulos));
+  return m.piorCamera.triangulos + (shadow ? m.sombra.triangulos : 0) + 9 * p.lod[0].p90 * (shadow ? 2 : 1) + 10 * gun + vm + fx.pico;
+}
+
 // --- The report ---------------------------------------------------------------------------------------------
 
 export interface Orcamento {
@@ -276,7 +292,9 @@ export interface Orcamento {
   mapas: MapaMedido[];
   personagens?: PersonagensMedidos;
   armas?: ArmasMedidas;
-  efeitos?: EfeitosMedidos;
+  efeitos?: Record<Detalhe, EfeitosMedidos>;
+  /** Each map's whole frame at each detail (quadroInteiro). */
+  quadro?: { mapa: string; detalhe: Detalhe; triangulos: number }[];
 }
 
 const k = (n: number) => `${(n / 1000).toFixed(1)}k`;
@@ -308,7 +326,8 @@ export function tabela(o: Orcamento): string {
     for (const g of a.terceiraPessoa) lines.push(`${g.arma.padEnd(11)} ${`${g.triangulos} / ${g.base}`.padEnd(24)} ${a.viewmodel.find((v) => v.arma === g.arma)?.triangulos ?? '-'}`);
     lines.push(`facas: ${a.facas.map((f) => `${f.faca} ${f.triangulos}`).join(', ')}; granada ${a.granada}`);
   }
-  if (o.efeitos) lines.push('', `efeitos: repouso ${o.efeitos.repouso}, pico ${o.efeitos.pico}`);
+  if (o.efeitos) lines.push('', `efeitos: repouso ${o.efeitos.normal.repouso} / ${o.efeitos.leve.repouso}, pico ${o.efeitos.normal.pico} / ${o.efeitos.leve.pico} (normal / leve)`);
+  if (o.quadro) lines.push('', `quadro inteiro: ${o.quadro.map((q) => `${q.mapa} ${q.detalhe} ${k(q.triangulos)}`).join(', ')}`);
   return lines.join('\n');
 }
 
@@ -340,7 +359,8 @@ if (import.meta.main) {
   if (!onlyMaps) {
     o.personagens = await medirPersonagens();
     o.armas = await medirArmas();
-    o.efeitos = await medirEfeitos();
+    o.efeitos = { normal: await medirEfeitos('normal'), leve: await medirEfeitos('leve') };
+    o.quadro = o.mapas.map((m) => ({ mapa: m.mapa, detalhe: m.detalhe, triangulos: quadroInteiro(m, o.personagens!, o.armas!, o.efeitos![m.detalhe]) }));
   }
   mkdirSync(dirname(jsonAt), { recursive: true });
   await Bun.write(jsonAt, JSON.stringify(o, null, 2));
