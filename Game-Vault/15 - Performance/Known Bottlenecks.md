@@ -15,6 +15,7 @@ source_paths:
   - client/render/viewmodel.ts
   - client/render/viewmodelArms.ts
   - client/main.ts
+  - client/render/effects.ts
 tags:
   - performance
   - gargalos
@@ -37,6 +38,7 @@ Gargalos e limitações de desempenho evidenciados no código ou na documentaç�
 | 8 | **Ordenação de todas as fontes de luz** a cada 0,2 s | `client/world/halloween.ts` (`LightPool.update`) | O(n log n) por escolha; n = velas/lampiões do mapa | Frequência reduzida (5×/s). |
 | 9 | **Gravação de progresso em lote a cada 60 s** | `server/app.ts` (`FLUSH_EVERY_MS`) | Queda abrupta do processo (sem SIGTERM) perde até 60 s de progresso | Gravação também ao sair e no SIGTERM. Ver [[ADR - Progresso gravado em lotes por delta]]. |
 | 10 | ~~**Shader dos braços recompilado a cada troca de arma**~~ (resolvido na PF-34) | `client/render/viewmodel.ts`, `client/render/viewmodelArms.ts` | Engasgo ao trocar muitas vezes entre o rifle e uma secundária de pistola (rodinha do mouse) | Material único dos braços, mão de apoio nas duas poses, aquecimento no começo da partida e limite de 150 ms na rodinha. Detalhes abaixo. |
+| 11 | **Primeira explosão de granada da partida compila shaders na cena do mundo** | Medição da PF-34 (Chrome headless, RTX 3070 Ti): cerca de 0,5 s depois de soltar a primeira granada surgem 3 programas WebGL novos, usados pelas nuvens de fumaça (`MeshToonMaterial` transparente) e pelas bolas de fogo e anéis da onda de choque (`MeshBasicMaterial` transparente) da explosão (`Effects.explosion`, `client/render/effects.ts`), e um quadro de ~55 ms (antes da PF-34, ~69 ms) | Um tranco único por partida, na primeira explosão | Nenhuma. Fora do escopo da PF-34 (decisão do dev, P3): o aquecimento dela cobre só o viewmodel (trocar, esfaquear e arremessar), não os efeitos do mundo. Issue própria a abrir no Jira. |
 
 ## PF-34: troca de arma recompilava o shader dos braços (resolvido)
 
@@ -52,7 +54,7 @@ Gargalos e limitações de desempenho evidenciados no código ou na documentaç�
 | Tempo de quadro p95 / máximo, trocando (ms) | 7,1 / 14,0 | 7,1 / 8,8 | 7,0 / 7,1 | 7,1 / 7,3 |
 | Tempo de quadro p95 / máximo, parado (ms) | 7,0 / 7,1 | 7,0 / 7,1 | 7,0 / 7,1 | 7,1 / 7,4 |
 
-Primeira vez na partida: a primeira troca criava 2 programas (pior quadro 13,8 ms) e agora 0 (7,2 ms); a primeira facada já não criava nenhum; o arremesso da primeira granada não cria mais programa no viewmodel.
+Primeira vez na partida: a primeira troca criava 2 programas (pior quadro 13,8 ms) e agora 0 (7,2 ms); a primeira facada já não criava nenhum; o arremesso da primeira granada não cria mais programa no viewmodel. A explosão dessa granada ainda compila os efeitos na cena do mundo (#11, fora do escopo).
 
 > [!info]
 > Inferência: numa GPU mais fraca cada compilação custa mais do que nesta máquina, então o engasgo relatado tende a ser maior que os 14 ms medidos aqui. Não foi medido em outra GPU.
@@ -64,6 +66,7 @@ Primeira vez na partida: a primeira troca criava 2 programas (pior quadro 13,8 m
 
 - `client/render/quality.ts`, `client/character/body.ts`, `client/world/halloween.ts`
 - `client/render/viewmodel.ts`, `client/render/viewmodelArms.ts`, `client/main.ts` (PF-34)
+- `client/render/effects.ts` (primeira explosão, #11)
 - `server/session.ts`, `server/app.ts`
 - `vite.config.ts`, `docs/DEPLOY.md`, `README.md`
 
