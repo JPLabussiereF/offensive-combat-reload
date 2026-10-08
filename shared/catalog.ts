@@ -157,39 +157,39 @@ golaCanoa|Blusa de gola canoa|Off-shoulder top|Blusa cuello barco|Off-Shoulder-T
 ciganinha|Blusa ciganinha|Ruffle top|Blusa de volantes|Rüschentop|tronco|PS|c
 poncho|Poncho de lã|Wool poncho|Poncho de lana|Wollponcho|tronco|PSD|n
 ciclista|Blusa de ciclista|Cycling jersey|Jersey de ciclismo|Radtrikot|tronco|PSD|c
-agasalho|Agasalho de treino|Track jacket|Chaqueta deportiva|Trainingsjacke|tronco|PS|l
+agasalho|Agasalho de treino|Track jacket|Chamarra deportiva|Trainingsjacke|tronco|PS|l
 goleiro|Blusa de goleiro|Goalkeeper jersey|Camiseta de portero|Torwarttrikot|tronco|PS|l
 tunica|Túnica|Tunic|Túnica|Tunika|tronco|PS|l
 remendos|Suéter com remendos|Patched sweater|Suéter con parches|Flickenpulli|tronco|PS|l
 balaclavaMoletom|Balaclava + moletom|Balaclava hoodie|Pasamontañas + sudadera|Sturmhaube + Hoodie|tronco,cabeca,rosto|PS|l`,
   jaqueta: `
-jaquetaJeans|Jaqueta jeans|Denim jacket|Chaqueta de mezclilla|Jeansjacke|sobreposicao|PS|l
+jaquetaJeans|Jaqueta jeans|Denim jacket|Chamarra de mezclilla|Jeansjacke|sobreposicao|PS|l
 coleteJeans|Colete jeans sem mangas|Denim vest|Chaleco de mezclilla|Jeansweste|sobreposicao|PD|n
-couroMoto|Jaqueta de couro motociclista|Biker leather jacket|Chaqueta biker de cuero|Biker-Lederjacke|sobreposicao|PD|l
-jaquetaAviador|Jaqueta de couro aviador|Leather flight jacket|Chaqueta de cuero de aviador|Leder-Fliegerjacke|sobreposicao|PS|l
-bomber|Bomber|Bomber jacket|Chaqueta bomber|Bomberjacke|sobreposicao|PSD|l
+couroMoto|Jaqueta de couro motociclista|Biker leather jacket|Chamarra biker de cuero|Biker-Lederjacke|sobreposicao|PD|l
+jaquetaAviador|Jaqueta de couro aviador|Leather flight jacket|Chamarra de cuero de aviador|Leder-Fliegerjacke|sobreposicao|PS|l
+bomber|Bomber|Bomber jacket|Chamarra bomber|Bomberjacke|sobreposicao|PSD|l
 cortaVento|Corta-vento|Windbreaker|Rompevientos|Windjacke|sobreposicao|PS|l
 pufferCurta|Puffer curta|Short puffer|Puffer corta|Kurze Pufferjacke|sobreposicao|PS|l
 pufferLonga|Puffer longa|Long puffer|Puffer larga|Puffermantel|sobreposicao|PS|l
 coletePuffer|Colete puffer|Puffer vest|Chaleco puffer|Pufferweste|sobreposicao|PS|n
 parka|Parka militar|Military parka|Parka militar|Militärparka|sobreposicao|PS|l
-m65|Jaqueta de campo M65|M65 field jacket|Chaqueta de campo M65|M65-Feldjacke|sobreposicao|PS|l
+m65|Jaqueta de campo M65|M65 field jacket|Chamarra de campo M65|M65-Feldjacke|sobreposicao|PS|l
 softshell|Jaqueta tática softshell|Tactical softshell|Softshell táctica|Taktische Softshell|sobreposicao|PSD|l
-jaquetaCamuflada|Jaqueta de camuflagem|Camo jacket|Chaqueta camuflada|Tarnjacke|sobreposicao|PD|l
+jaquetaCamuflada|Jaqueta de camuflagem|Camo jacket|Chamarra camuflada|Tarnjacke|sobreposicao|PD|l
 blazer|Blazer|Blazer|Blazer|Blazer|sobreposicao|PS|l
 paleto|Paletó de terno|Suit jacket|Saco de traje|Sakko|sobreposicao|PSD|l
 trench|Trench coat|Trench coat|Gabardina|Trenchcoat|sobreposicao|PS|l
 sobretudo|Sobretudo de lã|Wool overcoat|Abrigo de lana|Wollmantel|sobreposicao|P|l
 shearling|Casaco de pastor (shearling)|Shearling coat|Abrigo de borrego|Lammfellmantel|sobreposicao|PS|l
-brim|Jaqueta de brim de trabalho|Work canvas jacket|Chaqueta de lona de trabajo|Canvas-Arbeitsjacke|sobreposicao|PS|l
-varsity|Jaqueta varsity|Varsity jacket|Chaqueta universitaria|Collegejacke|sobreposicao|PSD|l
-jaquetaCorrida|Jaqueta de corrida|Running jacket|Chaqueta para correr|Laufjacke|sobreposicao|PSD|l
-jaquetaChuva|Jaqueta de chuva|Rain jacket|Chaqueta impermeable|Regenjacke|sobreposicao|PS|l
+brim|Jaqueta de brim de trabalho|Work canvas jacket|Chamarra de lona de trabajo|Canvas-Arbeitsjacke|sobreposicao|PS|l
+varsity|Jaqueta varsity|Varsity jacket|Chamarra universitaria|Collegejacke|sobreposicao|PSD|l
+jaquetaCorrida|Jaqueta de corrida|Running jacket|Chamarra para correr|Laufjacke|sobreposicao|PSD|l
+jaquetaChuva|Jaqueta de chuva|Rain jacket|Chamarra impermeable|Regenjacke|sobreposicao|PS|l
 capaPoncho|Capa de chuva poncho|Rain poncho|Poncho impermeable|Regenponcho|sobreposicao|P|n
-jaquetaEsqui|Jaqueta de esqui|Ski jacket|Chaqueta de esquí|Skijacke|sobreposicao|PSD|l
+jaquetaEsqui|Jaqueta de esqui|Ski jacket|Chamarra de esquí|Skijacke|sobreposicao|PSD|l
 macacaoVoo|Macacão de voo (parte de cima)|Flight suit top|Overol de vuelo (parte superior)|Fliegeroverall (oben)|sobreposicao|PSD|l
 guardaPo|Guarda-pó|Duster coat|Guardapolvo|Staubmantel|sobreposicao|P|l
-chef|Jaqueta de chef|Chef jacket|Chaqueta de chef|Kochjacke|sobreposicao|PD|l
+chef|Jaqueta de chef|Chef jacket|Chamarra de chef|Kochjacke|sobreposicao|PD|l
 jaleco|Jaleco|Lab coat|Bata de laboratorio|Laborkittel|sobreposicao|PD|l
 coletePesca|Colete de pesca|Fishing vest|Chaleco de pesca|Anglerweste|sobreposicao|PS|n
 capaCapuz|Capa com capuz|Hooded cape|Capa con capucha|Kapuzenumhang|sobreposicao,cabeca|PS|n`,

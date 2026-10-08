@@ -124,14 +124,14 @@ export const CUSTOMIZE_LABELS: Record<string, [string, string, string, string]> 
   // Groups of the catalog.
   camiseta: ['Camisetas e regatas', 'Tees & tanks', 'Camisetas (con y sin mangas)', 'T-Shirts & Tanktops'],
   blusa: ['Blusas e moletons', 'Sweaters & hoodies', 'Suéteres y sudaderas', 'Pullover & Hoodies'],
-  jaqueta: ['Jaquetas e casacos (por cima)', 'Jackets & coats (over)', 'Chaquetas y abrigos (encima)', 'Jacken & Mäntel (darüber)'],
+  jaqueta: ['Jaquetas e casacos (por cima)', 'Jackets & coats (over)', 'Chamarras y abrigos (encima)', 'Jacken & Mäntel (darüber)'],
   calca: ['Calças', 'Pants', 'Pantalones', 'Hosen'],
   short: ['Shorts e bermudas', 'Shorts', 'Shorts y bermudas', 'Shorts & Bermudas'],
   saia: ['Saias', 'Skirts', 'Faldas', 'Röcke'],
   calcado: ['Calçados', 'Shoes', 'Calzado', 'Schuhe'],
   // Slots.
   tronco: ['Parte de cima', 'Top', 'Parte de arriba', 'Oberteil'],
-  sobreposicao: ['Jaqueta', 'Jacket', 'Chaqueta', 'Jacke'],
+  sobreposicao: ['Jaqueta', 'Jacket', 'Chamarra', 'Jacke'],
   baixo: ['Parte de baixo', 'Bottoms', 'Parte de abajo', 'Unterteil'],
   cabeca: ['Cabeça', 'Head', 'Cabeza', 'Kopf'],
   rosto: ['Rosto', 'Face', 'Rostro', 'Gesicht'],
