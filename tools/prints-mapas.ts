@@ -13,7 +13,7 @@
 // Options: --saida <dir> (default build/prints), --porta <n> (default 5291), --chrome <path>, --fps <ms> (measures
 // each point's frame rate for that long; the numbers go to <saida>/<map>/bench_<rotulo>-<detalhe>.json).
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import * as THREE from 'three';
 import type { MapData } from '@shared/mapData';
 import { fakeRenderer, loadClient, ROOT, silentSfx } from './headless';
@@ -140,8 +140,17 @@ async function writePoints(only: string[]) {
 
 // --- The browser ------------------------------------------------------------------------------------------
 
+/**
+ * A Vite of its own for the prints: the project's config without hot reload nor file watching (an edit while the
+ * prints run must not reload the page under them).
+ */
 async function startVite(port: number): Promise<() => void> {
-  const proc = Bun.spawn(['bun', join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js'), '--port', String(port), '--strictPort', '--host', '127.0.0.1'], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' });
+  const config = join(ROOT, 'build', 'vite.prints.config.mjs');
+  mkdirSync(dirname(config), { recursive: true });
+  await Bun.write(config, `import base from '../vite.config.ts';
+export default { ...base, server: { ...base.server, hmr: false, watch: null } };
+`);
+  const proc = Bun.spawn(['bun', join(ROOT, 'node_modules', 'vite', 'bin', 'vite.js'), '--config', config, '--port', String(port), '--strictPort', '--host', '127.0.0.1'], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' });
   const url = `http://127.0.0.1:${port}/`;
   for (let i = 0; i < 120; i++) {
     try {

@@ -129,6 +129,14 @@ function pass(list: Drawable[], frustum: THREE.Frustum, shadow: boolean): Budget
   return { drawCalls, triangulos };
 }
 
+/** What `camera` draws of `scene` in one pass (no shadows), as three.js counts it: the home's warehouse is held to this (PF-35, P14). */
+export function cameraPass(scene: THREE.Object3D, camera: THREE.Camera): BudgetSample {
+  camera.updateMatrixWorld(true);
+  const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+  const s = pass(drawables(scene), frustum, false);
+  return { drawCalls: s.drawCalls, triangulos: Math.round(s.triangulos) };
+}
+
 /** The sun's shadow camera as the renderer sets it up (client/render/renderer.ts and main.ts). */
 function shadowFrustum(sun: Vec3, extent?: number): THREE.Frustum {
   const cam = extent ? new THREE.OrthographicCamera(-extent, extent, extent, -extent, 5, 150) : new THREE.OrthographicCamera(-48, 48, 40, -40, 5, 120);

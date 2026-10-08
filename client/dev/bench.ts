@@ -18,6 +18,7 @@ import { createGalpao } from '../ui/galpao/scene';
 import { labels as galpaoLabels } from '../ui/galpao/galpao';
 import { BOARD } from '../ui/galpao/arsenalBoard';
 import { STATION_ORDER } from '../ui/galpao/galpaoRules';
+import { cameraPass } from '../world/budget';
 
 export interface BenchPoint {
   nome: string;
@@ -180,13 +181,14 @@ async function galpaoBench() {
   const canvas = document.createElement('canvas');
   document.getElementById('game')!.appendChild(canvas);
   const g = await createGalpao({ canvas, mobile, labels: galpaoLabels(), playerTag: 'BENCH #0001', arsenal: BOARD });
-  const info = (window as unknown as { __ocGalpao: { chamadas: number; triangulos: number; quadros: number } }).__ocGalpao;
+  const info = (window as unknown as { __ocGalpao: { chamadas: number; triangulos: number; quadros: number; scene: THREE.Scene; cam: THREE.Camera } }).__ocGalpao;
   const frames = (n: number) => new Promise<void>((done) => {
     const start = info.quadros;
     const wait = () => (info.quadros - start >= n ? done() : requestAnimationFrame(wait));
     requestAnimationFrame(wait);
   });
-  const out: { estacao: string; chamadas: number; triangulos: number }[] = [];
+  /** Per station: the camera's pass (the budget, P14) and the whole frame (every pass, for information). */
+  const out: { estacao: string; camera: { chamadas: number; triangulos: number }; quadro: { chamadas: number; triangulos: number } }[] = [];
   for (const station of ['home', ...STATION_ORDER] as const) {
     g.goTo(station, true);
     await frames(20);
@@ -197,7 +199,8 @@ async function galpaoBench() {
       calls = Math.max(calls, info.chamadas);
       tris = Math.max(tris, info.triangulos);
     }
-    out.push({ estacao: station, chamadas: calls, triangulos: tris });
+    const c = cameraPass(info.scene, info.cam);
+    out.push({ estacao: station, camera: { chamadas: c.drawCalls, triangulos: c.triangulos }, quadro: { chamadas: calls, triangulos: tris } });
   }
   g.goTo('home', true);
   console.table(out);
