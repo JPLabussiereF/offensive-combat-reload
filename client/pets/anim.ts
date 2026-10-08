@@ -242,8 +242,9 @@ export class PetAnimator {
             stones.visible = true;
             stones.children.forEach((c, i) => {
               c.visible = true;
+              // In front of her chest (the trunk stands up: its -Y faces forward, its -Z points up), arcing up.
               const ph = (t * 2.2 + i / 3) % 1;
-              c.position.set(Math.cos(ph * Math.PI * 2) * 0.05, 0.1 + Math.abs(Math.sin(ph * Math.PI)) * 0.12, -0.12);
+              c.position.set(Math.cos(ph * Math.PI * 2) * 0.05, -0.13, -0.2 - Math.abs(Math.sin(ph * Math.PI)) * 0.14);
             });
           }
           b.legs[0].rotation.x += Math.sin(t * 14) * 0.25;

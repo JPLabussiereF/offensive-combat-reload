@@ -17,6 +17,8 @@ const cyl = (r0: number, r1: number, h: number, s = 6) => new THREE.CylinderGeom
 const cone = (r: number, h: number, s = 5) => new THREE.ConeGeometry(r, h, s);
 const box = (x: number, y: number, z: number) => new THREE.BoxGeometry(x, y, z);
 const shift = (parts: Part[], d: P3): Part[] => parts.map((p) => ({ ...p, pos: [p.pos[0] + d[0], p.pos[1] + d[1], p.pos[2] + d[2]] }));
+/** A part `k` times bigger around its pivot (its place and its size). */
+const scaled = (p: Part, k: number): Part => ({ ...p, pos: [p.pos[0] * k, p.pos[1] * k, p.pos[2] * k], scale: [(p.scale?.[0] ?? 1) * k, (p.scale?.[1] ?? 1) * k, (p.scale?.[2] ?? 1) * k] });
 /** Along Z (a capsule or cylinder lying down, for trunks and tails). */
 const LIE: P3 = [Math.PI / 2, 0, 0];
 
@@ -186,22 +188,25 @@ function bruxinha(cor: string, light: boolean): { parts: Record<string, Part[]>;
   // Stringy grey hair from under the brim.
   for (let k = 0; k < (L ? 0 : 7); k++) {
     const a = Math.PI * 0.35 + (k / 6) * Math.PI * 1.3;
-    head.push({ geo: box(0.02, 0.12, 0.012), color: k % 2 ? 0x8a8680 : 0x6a6660, pos: [Math.sin(a) * 0.1, -0.05, Math.cos(a) * 0.1], rot: [0, a, 0] });
+    // (she faces -Z: the strands go round the sides and the back, +Z)
+    head.push({ geo: box(0.02, 0.12, 0.012), color: k % 2 ? 0x8a8680 : 0x6a6660, pos: [Math.sin(a) * 0.1, -0.05, -Math.cos(a) * 0.1], rot: [0, -a, 0] });
   }
   const arm = (s: number): Part[] => [
     { geo: cone(0.04, 0.12, L ? 4 : 6), color: r.robe, pos: [s * 0.03, -0.04, -0.03], rot: [-1.0, 0, s * 0.3] },
     ...fine(L, { geo: sph(0.022, 6, 5), color: skin, pos: [s * 0.05, -0.08, -0.08] }),
   ];
-  const ring: Part[] = [{ geo: ringGeo(0.06, 0.012, L), color: 0xffffff, pos: [0, -0.1, 0], rot: [Math.PI / 2, 0, 0] }];
+  const ring: Part[] = [{ geo: ringGeo(0.06, 0.012, L), color: 0xffffff, pos: [0, -0.13, 0], rot: [Math.PI / 2, 0, 0] }];
+  // Chibi: the whole head (face, hair, hat) 25% bigger than her map self's proportions, over a small body.
+  const big = head.map((p) => scaled(p, 1.25));
   // The collar's pendant on her neck (bright, always).
-  head.push(...fine(L, { geo: sph(0.014, 5, 4), color: PENDANT, pos: [0, -0.115, -0.06] }));
-  return { parts: { body, head, armL: arm(1), armR: arm(-1) }, ring };
+  big.push(...fine(L, { geo: sph(0.014, 5, 4), color: PENDANT, pos: [0, -0.14, -0.06] }));
+  return { parts: { body, head: big, armL: arm(1), armR: arm(-1) }, ring };
 }
 
 function bruxinhaBuild(cor: string): PetBuild {
   const bones: BoneSpec[] = [
     { name: 'body', parent: null, at: [0, 0.18, 0] },
-    { name: 'head', parent: 'body', at: [0, 0.2, -0.01] },
+    { name: 'head', parent: 'body', at: [0, 0.23, -0.01] },
     { name: 'armL', parent: 'body', at: [0.1, 0.1, 0] },
     { name: 'armR', parent: 'body', at: [-0.1, 0.1, 0] },
   ];
@@ -231,7 +236,7 @@ function bruxinhaBuild(cor: string): PetBuild {
         ]),
       },
     },
-    height: 0.63,
+    height: 0.72,
     length: 0.55,
   };
 }
@@ -244,7 +249,8 @@ function gato(c: Coat, L: boolean): { parts: Record<string, Part[]>; ring: Part[
     { geo: cap(0.085, 0.2, L ? 1 : 3, seg), color: c.base, pos: [0, 0, 0.02], rot: LIE, scale: [1, 0.95, 1] },
     { geo: ico(0.075, L ? 0 : 1), color: c.belly, pos: [0, -0.02, -0.12], scale: [1, 1.05, 0.9] },
   ];
-  if (c.stripes && !L) for (let k = 0; k < 4; k++) body.push({ geo: box(0.17, 0.02, 0.03), color: c.dark, pos: [0, 0.075, -0.08 + k * 0.07], rot: [0, 0, 0] });
+  // Tabby stripes: dark flattened patches lying on the back.
+  if (c.stripes && !L) for (let k = 0; k < 4; k++) body.push({ geo: sph(0.07, 8, 4), color: c.dark, pos: [0, 0.062, -0.09 + k * 0.07], scale: [1.1, 0.3, 0.26] });
   const head: Part[] = [
     { geo: ico(0.085, L ? 0 : 1), color: c.base, pos: [0, 0, 0], scale: [1.05, 0.95, 1] },
     { geo: sph(0.045, seg, L ? 3 : 5), color: c.belly, pos: [0, -0.03, -0.065], scale: [1.2, 0.8, 0.9] },
@@ -333,8 +339,8 @@ function fuinhaBuild(cor: string): PetBuild {
       hammer: {
         bone: 'fr',
         object: prop([
-          { geo: box(0.012, 0.12, 0.012), color: 0x8a5a2a, pos: [0, -0.1, -0.04] },
-          { geo: box(0.05, 0.022, 0.022), color: 0x5a6068, pos: [0, -0.04, -0.04] },
+          { geo: box(0.016, 0.17, 0.016), color: 0x8a5a2a, pos: [0, -0.12, -0.05] },
+          { geo: box(0.075, 0.035, 0.035), color: 0x5a6068, pos: [0, -0.04, -0.05] },
         ]),
       },
     },
@@ -382,13 +388,14 @@ function lontraBuild(cor: string): PetBuild {
   const bones = quadBones({ body: [0, 0.16, 0], head: [0, 0.06, -0.28], tail: [0, 0.0, 0.24], tail2: [0, 0, 0.16], legs: [[-0.055, -0.04, -0.15], [0.055, -0.04, -0.15], [-0.06, -0.04, 0.16], [0.06, -0.04, 0.16]] });
   const full = lontra(c, false);
   const lite = lontra(c, true);
-  const stone = (x: number, y: number) => ({ geo: ico(0.022, 0), color: 0x8a8a86, pos: [x, y, -0.1] as P3 });
+  // In front of her chest when she stands up (the trunk's -Y faces forward then, its -Z points up).
+  const stone = (x: number, up: number) => ({ geo: ico(0.022, 0), color: 0x8a8a86, pos: [x, -0.13, -0.2 - up] as P3 });
   return {
     bones,
     parts: full.parts,
     light: lite.parts,
     collar: { bone: 'head', parts: full.ring, light: lite.ring },
-    props: { stones: { bone: 'body', object: prop([stone(-0.04, 0.1), stone(0, 0.16), stone(0.04, 0.1)]) } },
+    props: { stones: { bone: 'body', object: prop([stone(-0.04, 0), stone(0, 0.06), stone(0.04, 0)]) } },
     height: 0.3,
     length: 0.85,
   };

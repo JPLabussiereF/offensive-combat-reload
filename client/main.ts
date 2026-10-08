@@ -2690,7 +2690,7 @@ async function boot() {
     Object.assign(window, {
       __oc: {
         player, guns, melee, taunt, thrower, grenades, input, dummies, net, conn, me, ctx, physics, quality, map, effects, bots, nav, RAPIER,
-        mines, progress, zombies, localZombies, sfx,
+        mines, progress, zombies, localZombies, sfx, pets,
         get weapon() {
           return weapon;
         },
