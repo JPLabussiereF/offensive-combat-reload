@@ -2667,7 +2667,9 @@ async function boot() {
 
 /** The map editor's game (its Game tab), if this page is one: it's told when the game can't start. */
 const editorGame = editorPlay();
-boot().catch((err) => {
+/** Dev only: `?bench=<map>` draws an official map alone from fixed points (client/dev/bench.ts, PF-35). */
+const benchMap = import.meta.env.DEV ? new URLSearchParams(location.search).get('bench') : null;
+(benchMap ? import('./dev/bench').then((b) => b.runBench(benchMap)) : boot()).catch((err) => {
   console.error(err);
   editorGame?.failed(err);
   const tip = document.getElementById('loading-tip');
