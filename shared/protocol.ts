@@ -259,6 +259,8 @@ export type ClientMsg =
   | { t: 'box' }
   /** Zumbi: E at the chapel's totem: pays and turns on the no-break vigil for the rest of the match. */
   | { t: 'totem' }
+  /** Zumbi: our knife swung (anything in reach or not): ghosts close by are scared away. */
+  | { t: 'zscare' }
   /** Zumbi: holding E over a teammate who's down (`on` false: let go). */
   | { t: 'revive'; id: number; on: boolean }
   /** Zumbi: holding E at gap `i` of the wall: building its barricade (paid) or nailing boards back (`on` false: let go). */
@@ -324,7 +326,7 @@ export type ServerMsg =
   | { t: 'chatRefused'; reason: 'muted' | 'slow' }
   | { t: 'pong'; c: number; s: number }
   /** Zumbi: every zombie, 20 times a second; `left` of the wave; the boss's id, health and max health while there's one. */
-  | { t: 'zsnap'; time: number; z: ZNet[]; left: number; boss?: [id: number, hp: number, max: number] }
+  | { t: 'zsnap'; time: number; z: ZNet[]; left: number; boss?: [id: number, hp: number, max: number]; g?: [id: number, x: number, y: number, z: number][] }
   /** Zumbi: the match moved on (a countdown, a wave, a break, the end); `boss` on a boss wave. */
   | { t: 'zwave'; phase: ZPhase; wave: number; until: number; total: number; boss?: BossId }
   /** Zumbi: a zombie died (`by` null: not by a player); the killer's `award` and new `money`. */
@@ -349,6 +351,8 @@ export type ServerMsg =
   | { t: 'ztotem'; on: boolean; by: number | null; money?: number }
   /** A player climbed the thorns (the wall's bars, the hedge) and bleeds until `until` (server ms; 0: stopped). */
   | { t: 'zbleed'; id: number; until: number }
+  /** Ghosts: `n` rose at a tombstone (`at`) after `target`, who climbed it; or `n` were scared away at `at`. */
+  | { t: 'zghost'; fx: 'rise' | 'scare'; n: number; at: Vec3; target?: number }
   /** Zumbi: a player went down; they bleed out at `until` unless someone revives them. */
   | { t: 'zdown'; id: number; until: number }
   /** Zumbi: `by` is reviving `id` (done at `until`; 0: they let go). */

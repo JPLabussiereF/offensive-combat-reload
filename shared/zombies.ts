@@ -12,6 +12,7 @@
 // the horde rises, the gaps, the coffin) lives in the map's own data (shared/data/mapas/<map>.json, "zumbi").
 import data from './data/zumbi.json';
 import cemiterio from './data/mapas/cemiterio.json';
+import { tombsOf, type Tomb } from './tombs';
 import { isGun, isKnife, PRIMARIES, progOf, upgradeOf, type GunId, type KnifeId, type ProgWeapon, type WeaponId } from './progression';
 import { damageAtDistance, LETHAL_DAMAGE, type HitRegion, type WeaponData } from './weapons';
 import { WEAPON_FLAWS, type GunStats, type Loadout, type WeaponFlaw } from './arsenal';
@@ -114,13 +115,15 @@ export interface ZombieMapData {
   sebe?: [number, number, number, number];
   /** The chapel's totem, on the altar (x, y, z): E there turns on the no-break vigil (ZOMBIE.totem). */
   totem?: Vec3;
+  /** The map's tombstones (from its pieces): whoever stands on one is chased by ghosts (ZOMBIE.fantasmas). */
+  lapides?: Tomb[];
 }
 
 /**
  * Every number of the mode. A plain object loaded from the JSON (and the zumbi maps' layouts from their data):
  * the server tests shorten its times and prices to play a whole match in seconds.
  */
-export const ZOMBIE = { ...data, mapas: { cemiterio: cemiterio.zumbi } } as unknown as {
+export const ZOMBIE = { ...data, mapas: { cemiterio: { ...cemiterio.zumbi, lapides: tombsOf(cemiterio.pecas) } } } as unknown as {
   inicioSegundos: number;
   intervaloSegundos: number;
   intervaloChefeSegundos: number;
@@ -167,6 +170,30 @@ export const ZOMBIE = { ...data, mapas: { cemiterio: cemiterio.zumbi } } as unkn
    * be turned off): the break between waves lasts `intervaloSegundos`, and every money and XP gain is multiplied.
    */
   totem: { custo: number; alcance: number; intervaloSegundos: number; dinheiro: number; xp: number };
+  /**
+   * The haunted graves: `esperaSegundos` in a row on a tombstone call `porVez` ghosts, and `porVez` more every
+   * `intervaloSegundos` up there. They come down from the sky (`ceuAltura` above the player, up to `ceuRaio` away,
+   * diving at `mergulho` until close). They fly after that player through walls for `duracaoSegundos`, hit for `dano`
+   * (each again after `recargaSegundos`, the player at most once every `golpeIntervaloSegundos`) and never die: a knife
+   * swing scares those within `sustoFaca` m, a grenade those within `sustoGranada` m of the blast.
+   */
+  fantasmas: {
+    esperaSegundos: number;
+    ceuAltura: number;
+    ceuRaio: number;
+    mergulho: number;
+    porVez: number;
+    intervaloSegundos: number;
+    duracaoSegundos: number;
+    velocidade: number;
+    dano: number;
+    alcance: number;
+    recargaSegundos: number;
+    golpeIntervaloSegundos: number;
+    sustoFaca: number;
+    sustoGranada: number;
+    maximo: number;
+  };
   /** The wall's bars and the hedge hurt whoever climbs them, and leave them bleeding. */
   espinhos: {
     dano: number;

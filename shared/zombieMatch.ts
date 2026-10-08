@@ -36,6 +36,7 @@ import {
   smashesThrough,
   thornsAt,
 } from './barricades';
+import { tombUnder } from './tombs';
 import {
   isBoss,
   itemOf,
@@ -143,6 +144,22 @@ interface Part {
   waiting: boolean;
   /** The vigil's extra XP below 1 point, carried to the next gain (a 3 XP kill with +10% must not round the bonus away). */
   xpCarry: number;
+  /** On a tombstone since then (0: not on one), and when the next ghosts come. */
+  tombSince: number;
+  tombNext: number;
+  /** The last time a ghost hit this player (at most one hit every fantasmas.golpeIntervaloSegundos). */
+  ghostHitAt: number;
+}
+
+/** A ghost from the haunted graves: flies after `target` through anything until `until`. */
+interface Ghost {
+  id: number;
+  target: number;
+  pos: Vec3;
+  until: number;
+  nextHit: number;
+  /** Where around the target it circles (each ghost its own side and bob). */
+  phase: number;
 }
 
 type Act = 'swipe' | 'fuse' | 'spit' | 'slam' | 'summon' | 'scream' | 'blink' | 'chargeWindup' | 'charge' | 'pound' | 'smash';
@@ -230,6 +247,9 @@ export class ZombieMatch {
   /** The coffin, and the roll it's spinning toward (decided when paid, shown when it stops). */
   /** The chapel's totem: the Vigília Sem Trégua, on for the rest of the match once someone paid for it. */
   readonly totem = { on: false, by: null as number | null };
+  /** The ghosts of the haunted graves (whoever stands on a tombstone calls them). */
+  readonly ghosts = new Map<number, Ghost>();
+  private ghostSeq = 0;
   private box: BoxInfo & { pending: string | null; pendingFlaw: ZFlaw | null } = { state: 'idle', by: null, item: null, flaw: null, until: 0, pending: null, pendingFlaw: null };
   private spits: { to: Vec3; at: number; damage: number; radius: number; from: Vec3 }[] = [];
   private waves: Shockwave[] = [];
@@ -290,6 +310,9 @@ export class ZombieMatch {
       thornNext: 0,
       waiting,
       xpCarry: 0,
+      tombSince: 0,
+      tombNext: 0,
+      ghostHitAt: 0,
     });
     if (this.phase === 'waiting') this.countdown();
   }
@@ -763,11 +786,12 @@ export class ZombieMatch {
   /** A new match for whoever is there: fresh money and weapons, no barricades, everyone back at once. */
   private restart() {
     for (const p of this.parts.values()) {
-      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0, bleedUntil: 0, bleedNext: 0, thornNext: 0, waiting: false, xpCarry: 0 });
+      Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0, bleedUntil: 0, bleedNext: 0, thornNext: 0, waiting: false, xpCarry: 0, tombSince: 0, tombNext: 0, ghostHitAt: 0 });
       this.host.setLoadout(p.id, zombieLoadout(p.items));
     }
     this.resetBarricades(true);
     this.offTotem(true);
+    this.ghosts.clear();
     this.spec = waveSpec(1, this.parts.size);
     this.host.newMatch([...this.parts.keys()]);
     this.countdown();
@@ -790,6 +814,7 @@ export class ZombieMatch {
     this.spits = [];
     this.waves = [];
     this.offTotem(false);
+    this.ghosts.clear();
     Object.assign(this.box, { state: 'idle', by: null, item: null, flaw: null, until: 0, pending: null, pendingFlaw: null });
   }
 
@@ -959,6 +984,7 @@ export class ZombieMatch {
     }
     this.tickRevives(now);
     this.tickThorns(now);
+    this.tickGhosts(dt, now);
     this.tickWork(now);
     this.tickZombies(dt, now);
     this.tickProjectiles(now);
@@ -970,6 +996,84 @@ export class ZombieMatch {
    * bleeding for espinhos.sangraSegundos (touching again renews it, doesn't stack). Only standing players
    * bleed: going down or dying stops it.
    */
+  /**
+   * The haunted graves. Standing on a tombstone calls fantasmas.porVez ghosts, and as many again every
+   * fantasmas.intervaloSegundos up there. Each flies after that player (through walls) until its time is up or the
+   * player goes down, and hits on reaching them. They never die: a knife swing or a grenade scares them away.
+   */
+  private tickGhosts(dt: number, now: number) {
+    const F = ZOMBIE.fantasmas;
+    const tombs = this.map.lapides ?? [];
+    for (const p of this.parts.values()) {
+      const tomb = p.state === 'up' && p.alive && p.grounded && tombs.length ? tombUnder(tombs, p.feet) : null;
+      if (!tomb) {
+        p.tombSince = p.tombNext = 0;
+        continue;
+      }
+      // A while up there, not a touch: then they come, and more for as long as the player stays.
+      if (!p.tombSince) p.tombSince = now;
+      if (now - p.tombSince < F.esperaSegundos * 1000 || now < p.tombNext) continue;
+      p.tombNext = now + F.intervaloSegundos * 1000;
+      this.raiseGhosts(p, now);
+    }
+    for (const g of [...this.ghosts.values()]) {
+      const t = this.parts.get(g.target);
+      if (!t || t.state !== 'up' || !t.alive || now >= g.until) {
+        this.ghosts.delete(g.id);
+        continue;
+      }
+      // Toward a point around the target's chest, each ghost circling on its own side.
+      g.phase += dt * 1.4;
+      const aim: Vec3 = [t.feet[0] + Math.cos(g.phase) * 0.8, t.feet[1] + 1.2 + Math.sin(g.phase * 1.7) * 0.25, t.feet[2] + Math.sin(g.phase) * 0.8];
+      const d: Vec3 = [aim[0] - g.pos[0], aim[1] - g.pos[1], aim[2] - g.pos[2]];
+      const len = Math.hypot(d[0], d[1], d[2]);
+      // A dive from the sky, then the chase at a pace a sprint outruns.
+      const step = Math.min(len, (len > 10 ? F.mergulho : F.velocidade) * dt);
+      if (len > 1e-6) for (let i = 0; i < 3; i++) g.pos[i] += (d[i] / len) * step;
+      const reach = Math.hypot(g.pos[0] - t.feet[0], g.pos[1] - (t.feet[1] + 1.1), g.pos[2] - t.feet[2]);
+      if (reach > F.alcance || now < g.nextHit || now - t.ghostHitAt < F.golpeIntervaloSegundos * 1000) continue;
+      g.nextHit = now + F.recargaSegundos * 1000;
+      t.ghostHitAt = now;
+      this.host.hurt(t.id, F.dano, [g.pos[0], g.pos[1], g.pos[2]]);
+    }
+  }
+
+  /**
+   * fantasmas.porVez ghosts after `p`, coming down from the sky: high above and spread around them, never next to
+   * them (up to fantasmas.maximo in the match).
+   */
+  private raiseGhosts(p: Part, now: number) {
+    const F = ZOMBIE.fantasmas;
+    const n = Math.min(F.porVez, F.maximo - this.ghosts.size);
+    if (n <= 0) return;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + this.host.rng() * 0.5;
+      const r = F.ceuRaio * (0.6 + this.host.rng() * 0.4);
+      const id = ++this.ghostSeq;
+      const pos: Vec3 = [p.feet[0] + Math.cos(a) * r, p.feet[1] + F.ceuAltura * (0.85 + this.host.rng() * 0.3), p.feet[2] + Math.sin(a) * r];
+      this.ghosts.set(id, { id, target: p.id, pos, until: now + F.duracaoSegundos * 1000, nextHit: now, phase: a });
+    }
+    this.host.emit({ t: 'zghost', fx: 'rise', n, at: [p.feet[0], p.feet[1] + F.ceuAltura, p.feet[2]], target: p.id });
+  }
+
+  /** Ghosts within `radius` of `at` are scared away (a grenade's blast, a knife swing). */
+  scareGhosts(at: Vec3, radius: number) {
+    let n = 0;
+    for (const g of [...this.ghosts.values()]) {
+      if (Math.hypot(g.pos[0] - at[0], g.pos[1] - at[1], g.pos[2] - at[2]) > radius) continue;
+      this.ghosts.delete(g.id);
+      n++;
+    }
+    if (n) this.host.emit({ t: 'zghost', fx: 'scare', n, at });
+  }
+
+  /** A player swung their knife: the ghosts around them are scared away. */
+  knifeScare(id: number) {
+    const p = this.parts.get(id);
+    if (!p || p.state !== 'up' || !p.alive || !this.ghosts.size) return;
+    this.scareGhosts([p.feet[0], p.feet[1] + 1.1, p.feet[2]], ZOMBIE.fantasmas.sustoFaca);
+  }
+
   private tickThorns(now: number) {
     const t = ZOMBIE.espinhos;
     for (const p of this.parts.values()) {
@@ -1469,6 +1573,7 @@ export class ZombieMatch {
       z.push([o.id, Z_KINDS.indexOf(o.kind), r2(o.pos[0]), r2(o.pos[1]), r2(o.pos[2]), r2(o.yaw), f]);
     }
     const left = this.phase === 'wave' ? Math.max(0, this.spec.total - this.killed) + extras + (this.boss ? 1 : 0) : 0;
-    return { t: 'zsnap', time: now, z, left, ...(this.boss ? { boss: [this.boss.id, Math.ceil(this.boss.hp), this.boss.max] as [number, number, number] } : {}) };
+    const g = [...this.ghosts.values()].map((o) => [o.id, r2(o.pos[0]), r2(o.pos[1]), r2(o.pos[2])] as [number, number, number, number]);
+    return { t: 'zsnap', time: now, z, left, ...(this.boss ? { boss: [this.boss.id, Math.ceil(this.boss.hp), this.boss.max] as [number, number, number] } : {}), ...(g.length ? { g } : {}) };
   }
 }

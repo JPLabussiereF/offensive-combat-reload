@@ -75,6 +75,7 @@ import { Scoreboard } from './ui/scoreboard';
 import { DEATH_MESSAGES, getLang, pick, t, type StringKey } from './ui/strings';
 import { itemOf, startItems, ZOMBIE, zombieGunData, zombieLoadout, type ZItems } from '@shared/zombies';
 import { gateAreas } from '@shared/barricades';
+import { tombsOf } from '@shared/tombs';
 import { ZombieClient, type ZombieLink } from './zombies/client';
 import { LocalZombies } from './zombies/local';
 import { renderCoffinTab, tintFog, zombieAtmosphere } from './zombies/ambience';
@@ -327,7 +328,8 @@ async function boot() {
   // Bots route around Amora's bite zone (a little wider than the zone itself). The solo zumbi game builds the
   // mesh the server bakes: the wall's gaps as polygons of their own, for its barricades (shared/barricades.ts).
   // (a glTF preview, ?mapa=, has no data: the cemetery's layout stands in)
-  const zombieNavMap = zombieMode ? (mapData?.zumbi ?? ZOMBIE.mapas.cemiterio) : undefined;
+  // The haunted graves: the map's own tombstones go along with its zombie data (as the server does).
+  const zombieNavMap = zombieMode ? (mapData?.zumbi ? { ...mapData.zumbi, lapides: tombsOf(mapData.pecas) } : ZOMBIE.mapas.cemiterio) : undefined;
   const nav = botMode ? await NavMap.build(physics, map.dog ? [map.dog.zone.clone().expandByScalar(0.3)] : [], zombieNavMap ? gateAreas(zombieNavMap) : []) : null;
   const playerPos = new THREE.Vector3();
   const playerTarget: Combatant & { yaw: number } = {
@@ -1052,6 +1054,8 @@ async function boot() {
 
   const resolveMelee = () => {
     player.eye(1, eye);
+    // Zumbi: a swing scares the haunted graves' ghosts close by (whatever it hits).
+    zombies?.knifeSwing();
     // The lunge target if it is now in reach, otherwise whatever is in front of us.
     let target = melee.target;
     const inReach = target && findMeleeTarget(physics, targets(), eye, player.yaw, melee.data.alcance + 0.4, 180)?.target === target;

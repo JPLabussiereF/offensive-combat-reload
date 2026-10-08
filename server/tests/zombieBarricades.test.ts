@@ -18,6 +18,7 @@ import type { MapData } from '@shared/mapData';
 import { officialRuntime } from '../maps';
 import type { ServerMsg, Vec3 } from '@shared/protocol';
 import { gateFlag, insideWall, thornsAt, WALK_FLAG } from '@shared/barricades';
+import { TOMB_BOXES, tombUnder, type Tomb } from '@shared/tombs';
 import {
   BOX_ITEMS,
   flawChance,
@@ -684,5 +685,133 @@ describe('o totem da capela (Vigília Sem Trégua)', () => {
     (match as unknown as { restart(): void }).restart();
     expect(match.totem.on).toBe(false);
     expect(v.events.filter((e) => e.t === 'ztotem').at(-1)).toEqual({ t: 'ztotem', on: false, by: null });
+  });
+});
+
+describe('lápides assombradas (fantasmas)', () => {
+  const top = (t: Tomb) => TOMB_BOXES[t.kind].c[1] + TOMB_BOXES[t.kind].h[1];
+  /** A stone of this kind standing on its own (no other stone within 3 m), from the map. */
+  const lone = (kind: Tomb['kind']) => MAP().lapides!.find((t) => t.kind === kind && MAP().lapides!.every((o) => o === t || Math.hypot(o.x - t.x, o.z - t.z) > 3))!;
+  const onTop = (t: Tomb): Vec3 => [t.x, top(t), t.z];
+
+  it('o mapa traz as lápides, e só conta quem está em cima de uma', () => {
+    expect(MAP().lapides!.length).toBeGreaterThan(100);
+    const arco = lone('arco');
+    expect(tombUnder(MAP().lapides!, onTop(arco))).toBe(arco);
+    // Beside it, on the ground: no.
+    expect(tombUnder(MAP().lapides!, [arco.x + 0.9, 0, arco.z])).toBeNull();
+    // A ledger slab: its top (0.6 m) over the slab, which lies behind the headstone (local -Z).
+    const laje = lone('laje');
+    const back: Vec3 = [laje.x - Math.sin(laje.yaw) * 0.9, 0.6, laje.z - Math.cos(laje.yaw) * 0.9];
+    expect(tombUnder(MAP().lapides!, back)).toBe(laje);
+    expect(tombUnder(MAP().lapides!, [back[0], 0, back[2]])).toBeNull();
+  });
+
+  /** A match on a fake clock (no wave: a long countdown), player 1 at `feet`, recording the ghosts' hits. */
+  function haunted(feet: { at: Vec3; grounded: boolean }) {
+    ZOMBIE.inicioSegundos = 1000;
+    const h = { t: 0, events: [] as ServerMsg[], hits: [] as [number, number][] };
+    const host: ZombieHost = {
+      now: () => h.t,
+      rng: seeded(4),
+      emit: (m) => h.events.push(m),
+      hurt: (_id, amount) => h.hits.push([h.t, amount]),
+      giveXp: () => {},
+      setLoadout: () => {},
+      bleedOut: () => {},
+      revive: () => {},
+      allowRespawn: () => {},
+      newMatch: () => {},
+    };
+    const match = new ZombieMatch(host, navMesh, MAP());
+    match.join(1, 'P1');
+    const tick = (seconds: number) => {
+      for (let i = 0; i < seconds * 20; i++) {
+        h.t += 50;
+        match.tick(0.05, [{ id: 1, feet: feet.at, grounded: feet.grounded, alive: true }]);
+      }
+    };
+    return { h, match, tick };
+  }
+  const F = () => ZOMBIE.fantasmas;
+  const rises = (h: { events: ServerMsg[] }) => h.events.filter((e) => e.t === 'zghost' && e.fx === 'rise');
+
+  it('só depois de 3 s seguidos em cima: encostar ou pular por cima não chama nada; depois, mais 10 a cada 2 s', () => {
+    const tomb = lone('arco');
+    const feet = { at: onTop(tomb), grounded: false };
+    const { h, match, tick } = haunted(feet);
+    tick(1);
+    expect(match.ghosts.size).toBe(0);
+    feet.grounded = true;
+    tick(F().esperaSegundos - 0.5);
+    expect(match.ghosts.size).toBe(0);
+    // Stepping off restarts the count.
+    feet.at = [tomb.x + 6, 0, tomb.z];
+    tick(0.2);
+    feet.at = onTop(tomb);
+    tick(F().esperaSegundos - 0.5);
+    expect(match.ghosts.size).toBe(0);
+    tick(0.6);
+    expect(match.ghosts.size).toBe(F().porVez);
+    expect(rises(h)[0]).toMatchObject({ n: F().porVez, target: 1 });
+    tick(F().intervaloSegundos);
+    expect(match.ghosts.size).toBe(2 * F().porVez);
+    feet.at = [tomb.x + 6, 0, tomb.z];
+    tick(F().intervaloSegundos * 2);
+    expect(rises(h)).toHaveLength(2);
+  });
+
+  it('descem do céu: nascem lá no alto e longe, nunca na frente do jogador', () => {
+    const tomb = lone('arco');
+    const feet = { at: onTop(tomb), grounded: true };
+    const { match, tick } = haunted(feet);
+    tick(F().esperaSegundos + 0.05);
+    expect(match.ghosts.size).toBe(F().porVez);
+    for (const g of match.ghosts.values()) {
+      expect(g.pos[1] - feet.at[1]).toBeGreaterThan(F().ceuAltura * 0.8);
+      expect(Math.hypot(g.pos[0] - feet.at[0], g.pos[2] - feet.at[2])).toBeGreaterThan(F().ceuRaio * 0.5);
+    }
+  });
+
+  /** On the stone long enough to call them, then off it, and time for them to dive down. */
+  function chased() {
+    const tomb = lone('arco');
+    const feet = { at: onTop(tomb), grounded: true };
+    const run = haunted(feet);
+    run.tick(F().esperaSegundos + 0.05);
+    feet.at = [tomb.x + 3, 0, tomb.z];
+    return { ...run, feet };
+  }
+
+  it('perseguem e batem 10 (no máximo um golpe a cada 0,5 s), e somem depois de 20 s', () => {
+    const { h, match, tick } = chased();
+    tick(8);
+    expect(h.hits.length).toBeGreaterThan(0);
+    expect(h.hits.every(([, a]) => a === F().dano)).toBe(true);
+    for (let i = 1; i < h.hits.length; i++) expect(h.hits[i][0] - h.hits[i - 1][0]).toBeGreaterThanOrEqual(F().golpeIntervaloSegundos * 1000);
+    tick(F().duracaoSegundos);
+    expect(match.ghosts.size).toBe(0);
+  });
+
+  it('uma facada espanta os que estão perto; uma granada, os que estão no raio do estouro', () => {
+    const { h, match, tick, feet } = chased();
+    tick(8);
+    const close = [...match.ghosts.values()].filter((g) => Math.hypot(g.pos[0] - feet.at[0], g.pos[1] - 1.1, g.pos[2] - feet.at[2]) <= F().sustoFaca).length;
+    expect(close).toBeGreaterThan(0);
+    const before = match.ghosts.size;
+    match.knifeScare(1);
+    expect(match.ghosts.size).toBe(before - close);
+    expect(h.events.filter((e) => e.t === 'zghost' && e.fx === 'scare').at(-1)).toMatchObject({ n: close });
+    match.scareGhosts([feet.at[0], 1.1, feet.at[2]], 100);
+    expect(match.ghosts.size).toBe(0);
+  });
+
+  it('o alvo caído ou morto: os fantasmas dele vão embora', () => {
+    const { h, match, tick, feet } = chased();
+    expect(match.ghosts.size).toBe(F().porVez);
+    feet.at = [feet.at[0] + 3, 0, feet.at[2]];
+    Object.assign(match.parts.get(1) as object, { state: 'down', downUntil: h.t + 100_000 });
+    tick(0.1);
+    expect(match.ghosts.size).toBe(0);
   });
 });
