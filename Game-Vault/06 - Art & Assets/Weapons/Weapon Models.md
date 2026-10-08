@@ -110,7 +110,7 @@ Ver [[Grenades]], [[Land Mines]] e [[Buffs & Debuffs]].
 | Faca | aparece só durante o golpe, na mão direita (ou espelhada para a esquerda sem mão direita) | `heldKnife(form)`, na mão durante o golpe; a arma de fogo vai para as costas |
 | Granada | mão esquerda, tremendo enquanto "cozinha" | mão esquerda, com o arremesso animado |
 | Material | `MeshToonMaterial` com cor por vértice | **um** material toon compartilhado por todas as armas de todos |
-| Brilhos | mantidos | descartados ("minúsculos de longe") |
+| Brilhos | mantidos | das armas de fogo, descartados ("minúsculos de longe": pontos de mira, LEDs); das facas, **mantidos** como malhas próprias presas à faca (`glowParts`), porque a lâmina do Sabre de Luz é toda brilho (PF-17: antes só o cabo aparecia, na mão dos outros e no caixão do modo zumbi) |
 
 Em primeira pessoa a arma tem origem no receptor; em terceira, no punho (`RIFLE_FROM_GRIP = (0, 0,035, −0,09)`). Como todas as armas têm o punho no mesmo lugar, o mesmo deslocamento serve para todas. Em terceira pessoa, a mão esquerda vai ao ponto de `ANIM.leftGrip[hold]` (`AvatarPose.hold`, em `client/character/animator.ts`) — ver [[Animation]].
 
