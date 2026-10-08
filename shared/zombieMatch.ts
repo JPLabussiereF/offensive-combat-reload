@@ -16,9 +16,15 @@
 // open. Bruisers and bosses use a second filter that ignores barricades: they walk up to the boards and tear them
 // down, and so does everyone else when there's no open way left. A zombie at the boards switches back to the
 // main filter, which holds it in front of them until the last board falls.
+//
+// Pets (shared/pets.ts, PF-29): a player can bring one, and it acts by itself when its ability is ready (the
+// numbers in data/pets.json): the Amora holds a zombie by the shin, the Bruxinha traps one in a duck float, the cat
+// lifts its owner when they go down (pausing while a teammate revives them: it never takes a revive's place), the
+// weasel nails boards back, the otter's stone cancels a spit or a bloater's swelling and the iguana's tail lures the
+// zombies around. No damage and no money; the zombies ignore pets (they aren't in the match).
 import { Crowd, NavMeshQuery, type CrowdAgent, type NavMesh } from 'recast-navigation';
 import type { Loadout } from './arsenal';
-import type { BoxInfo, ServerMsg, Vec3, ZBarricade, ZHazard, ZombiePlayer, ZombieSync, ZPhase, ZSummaryRow } from './protocol';
+import type { BoxInfo, PetAct, ServerMsg, Vec3, ZBarricade, ZHazard, ZombiePlayer, ZombieSync, ZPhase, ZSummaryRow } from './protocol';
 import {
   atGap,
   boardDamage,
@@ -38,6 +44,7 @@ import {
   wallBetween,
 } from './barricades';
 import { tombUnder } from './tombs';
+import { PET_ABILITIES, type PetId } from './pets';
 import { treeUnder } from './trees';
 import { onAltar } from './altar';
 import {
@@ -93,6 +100,8 @@ export interface ZombieHost {
   newMatch(ids: number[]): void;
   /** Something for a player's zumbi stats (the server saves them; solo play has nowhere to). */
   stat?(id: number, s: ZStat): void;
+  /** A player's health as a fraction of their max (0..1): the iguana drops her tail when it's low. */
+  health?(id: number): number;
 }
 
 /** What counts toward a player's zumbi stats. */
@@ -161,7 +170,24 @@ interface Part {
   /** The crows peck them until then (0: no crows), and when they peck next. */
   crowsUntil: number;
   crowsNext: number;
+  /** The pet along (null: none). */
+  pet: PetState | null;
 }
+
+/** A player's pet in the match. */
+interface PetState {
+  id: PetId;
+  /** When it can act again (ms; 0: now, or busy with no end set yet). */
+  ready: number;
+  /** The cat's lifts left this match. */
+  charges: number;
+  /** The cat lifting its owner, who's down: from `start` on, `done` ms of work so far; `paused` while a teammate revives them. */
+  lift: { start: number; done: number; paused: boolean } | null;
+  /** The weasel at barricade `gap`: the next board at `next`, `left` more this time. */
+  nail: { gap: number; next: number; left: number } | null;
+}
+
+const freshPet = (id: PetId): PetState => ({ id, ready: 0, charges: id === 'gato' ? PET_ABILITIES.gato.cargas : 0, lift: null, nail: null });
 
 /** A ghost from the haunted graves: flies after `target` through anything until `until`. */
 interface Ghost {
@@ -215,6 +241,12 @@ interface Zombie {
   filter: number;
   /** The gap whose boards it's tearing at (-1: none). */
   smash: number;
+  /** A pet's doing (ms): held by the shin (or a jolt), in the duck float, dizzy from a stone, after the iguana's tail (at `lureAt`). */
+  heldUntil: number;
+  duckUntil: number;
+  dazeUntil: number;
+  lureUntil: number;
+  lureAt: Vec3 | null;
 }
 
 interface Shockwave {
@@ -296,7 +328,8 @@ export class ZombieMatch {
 
   // --- Players ---------------------------------------------------------------------------------------------
 
-  join(id: number, name: string) {
+  /** `pet`: the pet the player brings (its PvE switch on), if any. */
+  join(id: number, name: string, pet: PetId | null = null) {
     // During a wave nobody drops in: they wait, like the dead, and come in at the break.
     const waiting = this.phase === 'wave';
     this.parts.set(id, {
@@ -330,6 +363,7 @@ export class ZombieMatch {
       treeSince: 0,
       crowsUntil: 0,
       crowsNext: 0,
+      pet: pet ? freshPet(pet) : null,
     });
     if (this.phase === 'waiting') this.countdown();
   }
@@ -396,8 +430,24 @@ export class ZombieMatch {
     p.reviving = null;
     for (const o of this.parts.values()) if (o.reviving?.target === id) o.reviving = null;
     this.host.emit({ t: 'zdown', id, until: p.downUntil });
+    // The cat comes to lift them (a while after the fall, slower than a teammate): never through `reviving`.
+    if (p.pet?.id === 'gato' && p.pet.charges > 0) {
+      const G = PET_ABILITIES.gato;
+      const start = this.now + G.espera * 1000;
+      p.pet.lift = { start, done: 0, paused: false };
+      this.emitPet(p, 'lift', start + G.segundos * 1000);
+    }
     this.checkLoss();
     return true;
+  }
+
+  /**
+   * Whether a player whose health runs out now would go down with their cat coming to lift them (the solo game has
+   * no 'down' otherwise: alone, running out of health is the end).
+   */
+  petCanLift(id: number): boolean {
+    const p = this.parts.get(id);
+    return !!p && p.state === 'up' && this.phase === 'wave' && p.pet?.id === 'gato' && p.pet.charges > 0;
   }
 
   /** A player died (any cause: bled out, fell, the void). */
@@ -722,7 +772,7 @@ export class ZombieMatch {
     for (const p of this.parts.values()) {
       if (p.state !== 'up') continue;
       const d = Math.hypot(p.feet[0] - z.pos[0], p.feet[1] - z.pos[1], p.feet[2] - z.pos[2]);
-      if (d <= e.raio) this.host.hurt(p.id, Math.round(e.dano * (1 - (0.6 * d) / e.raio)), z.pos);
+      if (d <= e.raio) this.zHurt(p, Math.round(e.dano * (1 - (0.6 * d) / e.raio)), z.pos);
     }
     let chain = 0;
     for (const o of [...this.zombies.values()]) {
@@ -794,17 +844,19 @@ export class ZombieMatch {
     this.host.allowRespawn(p.id);
   }
 
-  private standUp(p: Part, by: number | null) {
+  private standUp(p: Part, by: number | null, health = ZOMBIE.jogador.reanimarVida) {
     p.state = 'up';
     p.downUntil = 0;
-    this.host.revive(p.id, ZOMBIE.jogador.reanimarVida);
+    if (p.pet) p.pet.lift = null;
+    this.host.revive(p.id, health);
     const r = by !== null ? this.parts.get(by) : undefined;
     this.host.emit({ t: 'zup', id: p.id, by: r ? by : null, ...(r ? { money: r.money } : {}) });
   }
 
   private checkLoss() {
     if (this.phase !== 'wave' || !this.parts.size) return;
-    if ([...this.parts.values()].some((p) => p.state === 'up')) return;
+    // Down with the cat coming to lift them isn't over yet.
+    if ([...this.parts.values()].some((p) => p.state === 'up' || (p.state === 'down' && !!p.pet?.lift))) return;
     this.finish(false);
   }
 
@@ -833,6 +885,8 @@ export class ZombieMatch {
   private restart() {
     for (const p of this.parts.values()) {
       Object.assign(p, { money: ZOMBIE.dinheiroInicial, earned: 0, kills: 0, headshots: 0, downs: 0, revives: 0, xp: 0, state: 'up', downUntil: 0, reviving: null, items: startItems(), repairPaid: 0, bleedUntil: 0, bleedNext: 0, thornNext: 0, waiting: false, xpCarry: 0, tombSince: 0, tombNext: 0, ghostHitAt: 0, altarSince: 0, profanedUntil: 0, treeSince: 0, crowsUntil: 0, crowsNext: 0 });
+      // A new match: the pet is ready again, the cat with all its lifts.
+      if (p.pet) p.pet = freshPet(p.pet.id);
       this.host.setLoadout(p.id, zombieLoadout(p.items));
     }
     this.resetBarricades(true);
@@ -952,6 +1006,11 @@ export class ZombieMatch {
       dead: false,
       filter: FILTER_AROUND,
       smash: -1,
+      heldUntil: 0,
+      duckUntil: 0,
+      dazeUntil: 0,
+      lureUntil: 0,
+      lureAt: null,
     };
     // The first boss moves come a little after it rises.
     if (kind === 'coveiro') z.cd.summon = now + (ZOMBIE.chefes.coveiro.invocar?.primeira ?? 6) * 1000;
@@ -1033,6 +1092,7 @@ export class ZombieMatch {
     this.tickGhosts(dt, now);
     this.tickPerches(now);
     this.tickWork(now);
+    this.tickPets(dt, now);
     this.tickZombies(dt, now);
     this.tickProjectiles(now);
     if (this.phase === 'wave' && this.spawned >= this.spec.total && this.zombies.size === 0 && this.rising.length === 0) this.endWave();
@@ -1251,7 +1311,7 @@ export class ZombieMatch {
     this.spits = this.spits.filter((s) => {
       if (now < s.at) return true;
       for (const p of this.parts.values()) {
-        if (p.state === 'up' && dist2(p.feet, s.to) <= s.radius && Math.abs(p.feet[1] - s.to[1]) < 2) this.host.hurt(p.id, s.damage, s.from);
+        if (p.state === 'up' && dist2(p.feet, s.to) <= s.radius && Math.abs(p.feet[1] - s.to[1]) < 2) this.zHurt(p, s.damage, s.from);
       }
       return false;
     });
@@ -1265,7 +1325,7 @@ export class ZombieMatch {
         // Jumping over the shockwave dodges it.
         if (!p.grounded) continue;
         w.hit.add(p.id);
-        this.host.hurt(p.id, w.damage, w.center);
+        this.zHurt(p, w.damage, w.center);
         const k = d > 0.1 ? 4 / d : 0;
         this.host.emit({ t: 'zhitfx', id: p.id, fx: 'pound', v: [r2((p.feet[0] - w.center[0]) * k), 5, r2((p.feet[2] - w.center[2]) * k)] });
       }
@@ -1278,6 +1338,26 @@ export class ZombieMatch {
     for (const z of this.zombies.values()) {
       if (z.dead) continue;
       if (now < z.riseUntil) continue;
+      // A pet's doing: held (a move already started still lands), in the duck float or dizzy (both cancel the move
+      // when they start): it stands there. After the iguana's tail: it goes for the tail and nothing else.
+      if (this.petStopped(z, now)) {
+        z.stuckAt = now + 8000;
+        if (z.act) this.tickAct(z, now, standing);
+        else this.standStill(z);
+        continue;
+      }
+      if (z.lureUntil > now && z.lureAt) {
+        z.stuckAt = now + 8000;
+        if (z.act) this.tickAct(z, now, standing);
+        else this.chase(z, z.lureAt, now);
+        continue;
+      }
+      if (z.lureAt) {
+        // The tail's time is up: back to its own target.
+        z.lureAt = null;
+        z.goal = null;
+        z.retargetAt = 0;
+      }
       if (z.act) this.tickAct(z, now, standing);
       else this.think(z, now, standing);
     }
@@ -1469,7 +1549,7 @@ export class ZombieMatch {
       case 'swipe': {
         const reach = isBoss(z.kind) ? ZOMBIE.chefes[z.kind as BossId].alcance : ZOMBIE.tipos[z.kind as ZType].alcance;
         // Still in reach when it lands, and nothing of the wall in between (the target may have stepped behind the bars).
-        if (t?.state === 'up' && dist2(z.pos, t.feet) <= reach + 0.6 && Math.abs(t.feet[1] - z.pos[1]) < 2.2 && !this.walled(z.pos, t.feet)) this.host.hurt(t.id, zombieHit(z.kind, wave), z.pos);
+        if (t?.state === 'up' && dist2(z.pos, t.feet) <= reach + 0.6 && Math.abs(t.feet[1] - z.pos[1]) < 2.2 && !this.walled(z.pos, t.feet)) this.zHurt(t, zombieHit(z.kind, wave), z.pos);
         z.nextAttack = now + (isBoss(z.kind) ? ZOMBIE.chefes[z.kind as BossId].recarga : ZOMBIE.tipos[z.kind as ZType].recarga) * 1000;
         break;
       }
@@ -1497,7 +1577,7 @@ export class ZombieMatch {
       case 'slam': {
         const s = ZOMBIE.chefes.coveiro.pancada!;
         for (const p of standing) {
-          if (dist2(p.feet, z.pos) <= s.raio && Math.abs(p.feet[1] - z.pos[1]) < 2.5) this.host.hurt(p.id, s.dano, z.pos);
+          if (dist2(p.feet, z.pos) <= s.raio && Math.abs(p.feet[1] - z.pos[1]) < 2.5) this.zHurt(p, s.dano, z.pos);
         }
         z.cd.slam = now + s.recarga * 1000 * this.cdMul(z);
         break;
@@ -1514,7 +1594,7 @@ export class ZombieMatch {
         for (const p of standing) {
           if (Math.hypot(p.feet[0] - z.pos[0], p.feet[1] - z.pos[1], p.feet[2] - z.pos[2]) > s.raio) continue;
           hit.push(p.id);
-          this.host.hurt(p.id, s.dano, z.pos);
+          this.zHurt(p, s.dano, z.pos);
           this.host.emit({ t: 'zhitfx', id: p.id, fx: 'scream', slow: s.lentidao, until: now + s.duracao * 1000 });
         }
         z.cd.scream = now + s.recarga * 1000;
@@ -1655,7 +1735,7 @@ export class ZombieMatch {
     for (const p of this.parts.values()) {
       if (p.state !== 'up' || z.actHit.has(p.id) || dist2(p.feet, z.pos) > c.largura || Math.abs(p.feet[1] - z.pos[1]) > 2) continue;
       z.actHit.add(p.id);
-      this.host.hurt(p.id, c.dano, z.pos);
+      this.zHurt(p, c.dano, z.pos);
       const len = Math.max(0.01, Math.hypot(dx, dz));
       this.host.emit({ t: 'zhitfx', id: p.id, fx: 'charge', v: [r2((dx / len) * c.empurrao), 6, r2((dz / len) * c.empurrao)] });
     }
@@ -1681,6 +1761,204 @@ export class ZombieMatch {
     z.goal = null;
   }
 
+  // --- Pets ----------------------------------------------------------------------------------------------------
+
+  /** A zombie a pet is keeping in place right now (held, in the duck float, dizzy). */
+  private petStopped(z: Zombie, now: number) {
+    return z.heldUntil > now || z.duckUntil > now || z.dazeUntil > now;
+  }
+
+  /** Stops walking where it is. */
+  private standStill(z: Zombie) {
+    if (z.goal) z.agent.resetMoveTarget();
+    z.goal = null;
+    z.agent.requestMoveVelocity({ x: 0, y: 0, z: 0 });
+  }
+
+  /** A zombie's blow (or blast, spit, shockwave) reached `p`: hurt, and the iguana may drop her tail. */
+  private zHurt(p: Part, amount: number, from: Vec3) {
+    this.host.hurt(p.id, amount, from);
+    this.petTail(p);
+  }
+
+  /** Zombies a pet can act on: out of the ground, seen (not mid-blink), not already held or in a float. */
+  private petTargets(now: number): Zombie[] {
+    return [...this.zombies.values()].filter((z) => !z.dead && !z.hidden && now >= z.riseUntil && z.heldUntil <= now && z.duckUntil <= now);
+  }
+
+  /** The zombies within `range` of `p` (and about their floor), nearest first. */
+  private near(p: Part, list: Zombie[], range: number): Zombie[] {
+    return list
+      .map((z) => ({ z, d: dist2(z.pos, p.feet) }))
+      .filter((o) => o.d <= range && Math.abs(o.z.pos[1] - p.feet[1]) < 2.5)
+      .sort((a, b) => a.d - b.d)
+      .map((o) => o.z);
+  }
+
+  private emitPet(p: Part, act: PetAct, until: number, extra: { z?: number; i?: number; at?: Vec3 } = {}) {
+    const pet = p.pet!;
+    this.host.emit({ t: 'zpet', id: p.id, act, ...extra, until, ready: pet.ready, ...(pet.id === 'gato' ? { n: pet.charges } : {}) });
+  }
+
+  private tickPets(dt: number, now: number) {
+    for (const p of this.parts.values()) {
+      const pet = p.pet;
+      if (!pet) continue;
+      if (pet.id === 'gato') this.tickCat(p, pet, dt, now);
+      else if (pet.id === 'fuinha') this.tickWeasel(p, pet, now);
+      else if (pet.id !== 'iguana' && p.state === 'up' && p.alive && now >= pet.ready && this.phase === 'wave') {
+        if (pet.id === 'amora') this.petHold(p, pet, now);
+        else if (pet.id === 'bruxinha') this.petDuck(p, pet, now);
+        else if (pet.id === 'lontra') this.petStone(p, pet, now);
+      }
+    }
+  }
+
+  /** Segura, Amora!: the zombie nearest her owner, held by the shin; a bruiser or a boss only takes a jolt. */
+  private petHold(p: Part, pet: PetState, now: number) {
+    const A = PET_ABILITIES.amora;
+    const z = this.near(p, this.petTargets(now), A.alcance)[0];
+    if (!z) return;
+    const jolt = isBoss(z.kind) || z.kind === 'brutamontes';
+    z.heldUntil = now + (jolt ? A.tranco : A.segura) * 1000;
+    pet.ready = now + A.recarga * 1000;
+    this.emitPet(p, jolt ? 'nudge' : 'hold', z.heldUntil, { z: z.id });
+  }
+
+  /** Feitiço do Pato: the most dangerous zombie near the owner (a variant before a plain one; bosses are immune) in a duck float. */
+  private petDuck(p: Part, pet: PetState, now: number) {
+    const B = PET_ABILITIES.bruxinha;
+    const list = this.near(p, this.petTargets(now).filter((z) => !isBoss(z.kind)), B.alcance);
+    const z = list.find((o) => o.kind !== 'comum') ?? list[0];
+    if (!z) return;
+    // It stops whatever it was winding up.
+    if (z.act) this.endAct(z);
+    this.standStill(z);
+    z.duckUntil = now + B.duracao * 1000;
+    pet.ready = now + B.recarga * 1000;
+    this.emitPet(p, 'duck', z.duckUntil, { z: z.id });
+  }
+
+  /** Pedrada: a spitter winding up its spit or a bloater swelling near the owner: the move is cancelled, the zombie dizzy. */
+  private petStone(p: Part, pet: PetState, now: number) {
+    const L = PET_ABILITIES.lontra;
+    const busy = [...this.zombies.values()].filter((z) => !z.dead && (z.act === 'spit' || z.act === 'fuse'));
+    const z = this.near(p, busy, L.alcance)[0];
+    if (!z) return;
+    this.endAct(z);
+    this.standStill(z);
+    // A spitter starts its wait for the next spit over.
+    if (z.kind === 'cuspidor') z.cd.spit = now + (ZOMBIE.tipos.cuspidor.cuspe?.recarga ?? 3) * 1000;
+    z.dazeUntil = now + L.tonto * 1000;
+    pet.ready = now + L.recarga * 1000;
+    this.emitPet(p, 'stone', z.dazeUntil, { z: z.id });
+  }
+
+  /** Rabo de Isca: a blow left the owner low: the tail drops where they are, and the zombies around go after it. */
+  private petTail(p: Part) {
+    const pet = p.pet;
+    const now = this.now;
+    if (pet?.id !== 'iguana' || p.state !== 'up' || now < pet.ready || this.phase !== 'wave' || !this.host.health) return;
+    const I = PET_ABILITIES.iguana;
+    const h = this.host.health(p.id);
+    if (!(h > 0 && h <= I.vida)) return;
+    const at: Vec3 = [p.feet[0], p.feet[1], p.feet[2]];
+    const lured = [...this.zombies.values()].filter((z) => !z.dead && !isBoss(z.kind) && now >= z.riseUntil && dist2(z.pos, at) <= I.raio && Math.abs(z.pos[1] - at[1]) < 2.5);
+    if (!lured.length) return;
+    const until = now + I.duracao * 1000;
+    for (const z of lured) {
+      z.lureUntil = until;
+      z.lureAt = at;
+      z.goal = null;
+      // A swipe on its way stops: it turns to the tail.
+      if (z.act === 'swipe' || z.act === 'smash') this.endAct(z);
+    }
+    pet.ready = now + I.recarga * 1000;
+    this.emitPet(p, 'tail', until, { at });
+  }
+
+  /**
+   * Sétima Vida: its owner down, the cat starts lifting them a while after the fall and gets them up after
+   * gato.segundos of work; a teammate reviving them comes first (the cat waits, and goes on if they let go). The
+   * cat never takes a revive's place: the teammate still sees the revive prompt and the down player their revive.
+   */
+  private tickCat(p: Part, pet: PetState, dt: number, now: number) {
+    const L = pet.lift;
+    if (!L) return;
+    if (p.state !== 'down') {
+      pet.lift = null;
+      return;
+    }
+    if (now < L.start) return;
+    const G = PET_ABILITIES.gato;
+    const human = [...this.parts.values()].some((o) => o.reviving?.target === p.id);
+    if (human) {
+      if (!L.paused) {
+        L.paused = true;
+        this.emitPet(p, 'yield', 0);
+      }
+      return;
+    }
+    if (L.paused) {
+      L.paused = false;
+      this.emitPet(p, 'lift', now + Math.max(0, G.segundos * 1000 - L.done));
+    }
+    L.done += dt * 1000;
+    if (L.done < G.segundos * 1000) return;
+    pet.charges--;
+    pet.lift = null;
+    this.emitPet(p, 'up', now);
+    this.standUp(p, null, G.vida);
+  }
+
+  /** Mão na Massa: board by board, slowly, on the most damaged barricade near the owner (never building one: that's paid). */
+  private tickWeasel(p: Part, pet: PetState, now: number) {
+    const F = PET_ABILITIES.fuinha;
+    const working = p.state === 'up' && p.alive && this.phase !== 'waiting' && this.phase !== 'over';
+    const w = pet.nail;
+    if (w) {
+      const b = this.bars[w.gap];
+      const g = this.map.barricadas[w.gap];
+      if (!working || !b?.built || !needsWork(b) || dist2(p.feet, g.centro) > F.alcance + 2) return this.weaselDone(p, pet, now);
+      if (now < w.next) return;
+      // The board that shuts the gap waits until nobody stands in it, as a player's does.
+      if (!isClosed(b) && this.gapBusy(w.gap)) return;
+      const wasClosed = isClosed(b);
+      nailBoard(b);
+      if (!wasClosed) this.updateGates();
+      this.emitBar(w.gap, 'nail');
+      w.left--;
+      if (w.left <= 0 || !needsWork(b)) return this.weaselDone(p, pet, now);
+      w.next = now + F.tabuaSegundos * 1000;
+      this.emitPet(p, 'nail', w.next, { i: w.gap });
+      return;
+    }
+    if (!working || now < pet.ready) return;
+    let best = -1;
+    let worst = Infinity;
+    this.map.barricadas.forEach((g, i) => {
+      const b = this.bars[i];
+      if (!b.built || !needsWork(b) || dist2(p.feet, g.centro) > F.alcance || Math.abs(g.centro[1] - p.feet[1]) > 2.5) return;
+      // The most damaged: the fewest boards, then the weakest top one.
+      const score = b.boards * 1e4 + b.hp;
+      if (score < worst) {
+        worst = score;
+        best = i;
+      }
+    });
+    if (best < 0) return;
+    pet.nail = { gap: best, next: now + F.tabuaSegundos * 1000, left: F.tabuas };
+    pet.ready = 0;
+    this.emitPet(p, 'nail', pet.nail.next, { i: best });
+  }
+
+  private weaselDone(p: Part, pet: PetState, now: number) {
+    const gap = pet.nail?.gap;
+    pet.nail = null;
+    pet.ready = now + PET_ABILITIES.fuinha.recarga * 1000;
+    this.emitPet(p, 'nail', now, gap !== undefined ? { i: gap } : {});
+  }
+
   // --- Snapshot ------------------------------------------------------------------------------------------------
 
   /** Every zombie for the network (or the local view offline). */
@@ -1699,6 +1977,8 @@ export class ZombieMatch {
       if (o.hidden) f |= ZF.hidden;
       if (o.run || o.act === 'charge') f |= ZF.run;
       if (o.enraged) f |= ZF.enraged;
+      if (o.heldUntil > now) f |= ZF.held;
+      if (o.duckUntil > now) f |= ZF.duck;
       z.push([o.id, Z_KINDS.indexOf(o.kind), r2(o.pos[0]), r2(o.pos[1]), r2(o.pos[2]), r2(o.yaw), f]);
     }
     const left = this.phase === 'wave' ? Math.max(0, this.spec.total - this.killed) + extras + (this.boss ? 1 : 0) : 0;
