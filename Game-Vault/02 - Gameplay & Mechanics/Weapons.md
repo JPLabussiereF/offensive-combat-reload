@@ -37,7 +37,7 @@ tags:
   - game
   - gameplay
   - weapons
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Weapons
@@ -126,7 +126,7 @@ O que cada melhoria muda (dano, cadência, pente, mira, silenciador…) está em
 - **Atirar**: segurar o botão nas automáticas (até 4 tiros por tick para não perder cadência); nas semiautomáticas (pistola, revólver, garrucha, pistolão), cada clique é um tiro (`modo: semi`); no grampeador, cada clique é uma rajada de 3 (`modo: rajada`). Um toque mais curto que um tick ainda dispara.
 - **Mirar (ADS)**: segurar o botão direito. Entra em `ads.tempo`, sai 1,3× mais rápido. Reduz o FOV (`zoom`) e a sensibilidade (`adsSensitivity` das [[Settings]]). Correr derruba a mira. Com uma luneta (2x, a do Vovô 3x ou 4x), mirar por completo mostra a visão da luneta.
 - **Recarregar**: R. Atirar com pente vazio e reserva > 0 recarrega sozinho; sem reserva toca "clique seco".
-- **Trocar de arma**: `1` (primária), `2` (secundária), roda do mouse (qualquer direção vai para a outra) — ações `weapon1`, `weapon2`, `swapWeapon`, remapeáveis ([[ADR - Teclas remapeáveis com primária e alternativa]]); no controle, **D-pad ←/→**; no celular, o botão de troca acima do pulo ([[Touch Controls]]).
+- **Trocar de arma**: `1` (primária), `2` (secundária), roda do mouse (qualquer direção vai para a outra; no máximo uma troca a cada 150 ms, ver [[Input & Controls]]) — ações `weapon1`, `weapon2`, `swapWeapon`, remapeáveis ([[ADR - Teclas remapeáveis com primária e alternativa]]); no controle, **D-pad ←/→**; no celular, o botão de troca acima do pulo ([[Touch Controls]]).
 
 ## Troca de arma
 
