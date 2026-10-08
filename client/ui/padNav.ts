@@ -7,10 +7,11 @@
 // Sub-tabs (data-pad-subtabs, the settings') switch with L1/R1 only where no other tab bar is on screen.
 
 import type { GamepadInput } from '../core/gamepad';
+import { BACK_WORDS } from './strings';
 
 const FOCUSABLE = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"]), .cz-card';
-/** Buttons that go back (◯/B), by attribute or by their text. */
-const BACK_TEXT = /^(voltar|cancelar|fechar|sair|back|cancel|close)\b/i;
+/** Buttons that go back (◯/B), by attribute or by their text (the first word, in any of the game's languages). */
+const BACK_TEXT = BACK_WORDS;
 const REPEAT_DELAY = 0.38;
 const REPEAT_EVERY = 0.11;
 

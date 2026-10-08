@@ -1,5 +1,7 @@
-// Floating countdown above a humiliable corpse (section 8): ring + seconds + [E], or "OPRIMIDO!".
+// Floating countdown above a humiliable corpse (section 8): ring + seconds + [E], or the "humiliated" banner.
 import * as THREE from 'three';
+import { fitFont } from '../world/canvasText';
+import { t } from './strings';
 
 export class CorpseTimer {
   readonly sprite: THREE.Sprite;
@@ -75,15 +77,17 @@ export class CorpseTimer {
     g.clearRect(0, 0, 160, 200);
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.font = '400 30px "Lilita One", system-ui, sans-serif';
+    // The banner in the player's language (PF-30), shrunk to fit the sprite (the German one runs long).
+    const banner = t('humiliatedBanner');
+    fitFont(g, banner, 146, (px) => `400 ${px}px "Lilita One", system-ui, sans-serif`, 30);
     g.lineWidth = 7;
     g.strokeStyle = '#1b1530';
     g.fillStyle = '#ffd23f';
     g.save();
     g.translate(80, 100);
     g.rotate(-0.12);
-    g.strokeText('OPRIMIDO!', 0, 0);
-    g.fillText('OPRIMIDO!', 0, 0);
+    g.strokeText(banner, 0, 0);
+    g.fillText(banner, 0, 0);
     g.restore();
     this.tex.needsUpdate = true;
   }

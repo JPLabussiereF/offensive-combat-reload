@@ -4,6 +4,7 @@
 // UI lives in the world but stays real HTML. Every text painted into a texture comes from GalpaoOptions.labels
 // (the game ships pt-BR and en); the arsenal's pegboard is laid out from the weapon catalog passed in.
 import * as THREE from 'three';
+import { fitText, sizedFont } from '../../world/canvasText';
 import { STATION_ORDER } from './galpaoRules';
 import type { CamStation, StationId } from './galpaoRules';
 
@@ -312,7 +313,8 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   const textTex = (lines: TextLine[], o: TextOpts = {}) => canvasTex(o.w || 512, o.h || 128, (g, w, h) => {
     if (o.bg) { g.fillStyle = o.bg; g.fillRect(0, 0, w, h); }
     g.fillStyle = o.fg || '#fff'; g.textBaseline = 'middle'; g.textAlign = o.align || 'center';
-    lines.forEach((l, i) => { g.font = l.font || o.font || '700 64px "Barlow Condensed", Arial Narrow, sans-serif'; g.fillStyle = l.fg || o.fg || '#fff'; g.fillText(l.t, o.align === 'left' ? (o.pad || 16) : w / 2, l.y != null ? l.y * h : ((i + 0.5) * h) / lines.length); });
+    // Each line shrinks to the texture's width (PF-30: the signs are translated, German runs long).
+    lines.forEach((l, i) => { const f = sizedFont(l.font || o.font || '700 64px "Barlow Condensed", Arial Narrow, sans-serif'); g.fillStyle = l.fg || o.fg || '#fff'; fitText(g, l.t, o.align === 'left' ? (o.pad || 16) : w / 2, l.y != null ? l.y * h : ((i + 0.5) * h) / lines.length, w - 2 * (o.pad || 16), f.font, f.px); });
     if (o.after) o.after(g, w, h);
   });
   await tick(0.3);
@@ -699,11 +701,12 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   const cover = textTex([], {
     w: 512, h: 683, after: (g, w, h) => {
       g.fillStyle = '#121314'; g.fillRect(0, 0, w, h);
-      g.fillStyle = '#e8e2d4'; g.font = '700 26px "Barlow Condensed", Arial Narrow, sans-serif'; g.textAlign = 'left'; g.fillText(al(0), 32, 48);
-      g.font = '800 120px "Barlow Condensed", Arial Narrow, sans-serif'; g.fillStyle = '#f07a2a'; g.fillText(al(1), 28, 150); g.fillText(al(2), 28, 260);
+      g.fillStyle = '#e8e2d4'; g.textAlign = 'left'; fitText(g, al(0), 32, 48, w - 64, (px) => `700 ${px}px "Barlow Condensed", Arial Narrow, sans-serif`, 26);
+      const big = (px: number) => `800 ${px}px "Barlow Condensed", Arial Narrow, sans-serif`;
+      g.fillStyle = '#f07a2a'; fitText(g, al(1), 28, 150, w - 56, big, 120); fitText(g, al(2), 28, 260, w - 56, big, 120);
       g.strokeStyle = 'rgba(232,226,212,.25)'; g.lineWidth = 2;
       for (let i = -h; i < w; i += 18) { g.beginPath(); g.moveTo(i, 300); g.lineTo(i + 200, 640); g.stroke(); }
-      g.fillStyle = '#e8e2d4'; g.font = '600 24px "JetBrains Mono", monospace'; g.fillText(al(3), 32, 660);
+      g.fillStyle = '#e8e2d4'; fitText(g, al(3), 32, 660, w - 64, (px) => `600 ${px}px "JetBrains Mono", monospace`, 24);
     },
   });
   const magPaper = std({ color: 0xf0ebe0, roughness: 0.6 });
@@ -914,7 +917,7 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     g.font = `700 ${h * 0.048}px "Barlow Condensed", Arial Narrow, sans-serif`; g.textAlign = 'left';
     for (const sec of SECTIONS) {
       const vy = sec.kind === 'sub' ? sec.v + 0.3 : 0.97, u0 = sec.u0, u1 = sec.u1;
-      g.fillStyle = 'rgba(230,224,210,.88)'; g.fillText(`${sec.label} · ${sec.ids.length}`, pu(u0) * w, pv(vy) * h);
+      g.fillStyle = 'rgba(230,224,210,.88)'; fitText(g, `${sec.label} · ${sec.ids.length}`, pu(u0) * w, pv(vy) * h, (pu(u1) - pu(u0)) * w, (px) => `700 ${px}px "Barlow Condensed", Arial Narrow, sans-serif`, h * 0.048);
       g.fillStyle = 'rgba(230,224,210,.6)'; g.fillRect(pu(u0) * w, pv(vy - 0.07) * h, (pu(u1) - pu(u0)) * w, 3);
     }
     g.fillStyle = 'rgba(230,224,210,.18)'; for (const x of [-0.85, 1.29]) g.fillRect(pu(x) * w, pv(1.0) * h, 3, (BH - 0.2) / BH * h);
@@ -1058,7 +1061,7 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
           gl_FragColor=vec4(c,1.); }`,
     });
   };
-  const idleScreen = textTex([], { w: 512, h: 288, after: (g, w, h) => { g.fillStyle = '#0b100f'; g.fillRect(0, 0, w, h); g.fillStyle = '#d5e8df'; g.font = '700 30px "Barlow Condensed", Arial Narrow, sans-serif'; g.textAlign = 'center'; g.fillText(labels.adminTitle, w / 2, h / 2 - 6); g.fillStyle = '#6f8a80'; g.font = '500 16px "JetBrains Mono", monospace'; g.fillText(labels.adminSub, w / 2, h / 2 + 24); } });
+  const idleScreen = textTex([], { w: 512, h: 288, after: (g, w, h) => { g.fillStyle = '#0b100f'; g.fillRect(0, 0, w, h); g.fillStyle = '#d5e8df'; g.textAlign = 'center'; fitText(g, labels.adminTitle, w / 2, h / 2 - 6, w - 32, (px) => `700 ${px}px "Barlow Condensed", Arial Narrow, sans-serif`, 30); g.fillStyle = '#6f8a80'; fitText(g, labels.adminSub, w / 2, h / 2 + 24, w - 32, (px) => `500 ${px}px "JetBrains Mono", monospace`, 16); } });
   const monitor = (z: number, y: number, w: number, h: number, mat: THREE.Material) => {
     const g = new THREE.Group(); g.position.set(11.68, y, z); g.rotation.y = -Math.PI / 2; monG.add(g);
     mesh(boxGeo(w + 0.04, h + 0.04, 0.05), M.poly, g, 0, 0, -0.02);

@@ -2166,6 +2166,13 @@ export const locale = (): string => LANG_LOCALE[lang];
 /** A data file's text (album, catalogs: { pt, en, es, de }) in the chosen language. */
 export const textOf = (x: Text): string => textIn(x, lang);
 
+/**
+ * The first word of a button that goes back, in every language (client/ui/padNav.ts: ◯/B presses it where a screen
+ * doesn't name its back button): voltar/back/volver/zurück, cancelar/cancel/abbrechen, fechar/close/cerrar/schließen,
+ * and pt's sair. The texts keep to it (client/tests/i18n.test.ts).
+ */
+export const BACK_WORDS = /^(voltar|cancelar|fechar|sair|back|cancel|close|volver|cerrar|zurück|abbrechen|schließen)(?![\p{L}\p{N}_])/iu;
+
 export function t(key: StringKey, params: Record<string, string | number> = {}): string {
   return dicts[lang][key].replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ''));
 }
