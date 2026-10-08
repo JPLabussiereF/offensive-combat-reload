@@ -46,7 +46,7 @@ Como fazer a caixa ser de fato a progressão do modo com tão poucas armas, sem 
 ## Decisão
 
 1. **Cooperativo**, só na [[Map - Vila Assombrada]] (`MODE_RULES.zumbi`: `coop: true`, `maps: ['halloween']`): sem fogo amigo, sem opressão de colegas, sem mexer nas estatísticas de abates/mortes da conta.
-2. **Começo igual para todos**: Rifle Padrão sem melhorias, faca comum, 2 granadas básicas (devolvidas no intervalo). O Arsenal e as melhorias da conta **não valem** no modo (`weapons: 'mode'`, `lockedLoadout`).
+2. **Começo igual para todos**: Rifle Padrão sem melhorias, faca comum, 2 granadas básicas (devolvidas no intervalo). **Revisão (2026-10-07):** o começo passou a ser só a **Pistola do Porteiro** sem melhorias (na mão da primária), e o Rifle Padrão entrou no caixão como arma comum: o começo fica mais apertado e o primeiro giro no caixão vale mais (ver [[Zombie]]). O Arsenal e as melhorias da conta **não valem** no modo (`weapons: 'mode'`, `lockedLoadout`).
 3. **O Caixão Misterioso** ($950, sorteio no servidor): 15 prêmios em 4 raridades (50/32/14/4%) que multiplicam o dano contra zumbis (×1,4 / ×1,9 / ×2,6 / ×3,5); a arma vai para o lugar dela e substitui a que estava lá; nunca repete a que já está na mão; o pato de borracha devolve o dinheiro e muda o caixão de lugar (contra quem gira sem parar no mesmo canto).
 4. **Dinheiro só da partida** (nunca salvo): abate, tiro na cabeça, facada, ajuda, reanimar, onda vencida, chefe.
 5. **XP só de conta** (`weaponXp: false`), como na [[Gun Game]]: as armas são do modo, e o PvE não pode virar atalho para as melhorias do PvP. Valores calibrados para uma partida vencida de ~30 min render ~1,3× o XP de um mata-mata do mesmo tempo.
