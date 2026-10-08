@@ -38,6 +38,11 @@ export interface CharacterConfig {
   face?: Face;
   build: { height: Height; build: Build };
   pcd: { braco: ArmLoss; perna: LegLoss };
+  /**
+   * No body: only the pieces, on the skeleton (the editor's item cards, client/ui/customize/itemThumbs.ts, show a
+   * piece on its own). Not saved: a look always has a body.
+   */
+  bodyless?: boolean;
 }
 
 const DEFAULT_COLORS: Record<string, string> = { skin: '#e8bfa0', hair: '#45301f', eyes: '#4a6fa5', team: '#e8e2d6' };
@@ -216,7 +221,7 @@ export class Character {
   }
 
   private itemFor(slot: CharSlot): string | null {
-    if (slot === 'body') return this.config.items.body ?? (this.config.sex === 'f' ? 'corpo_f' : 'corpo_m');
+    if (slot === 'body') return this.config.bodyless ? null : (this.config.items.body ?? (this.config.sex === 'f' ? 'corpo_f' : 'corpo_m'));
     return this.config.items[slot] ?? null;
   }
 
@@ -541,6 +546,19 @@ export class Character {
     return out;
   }
 
+  /** Body regions hidden on top of what the pieces and the PCD mode hide (hideBody). */
+  private bodyHidden = 0;
+
+  /**
+   * Hides parts of the body, whatever is worn (the editor's cards: a clay head shows only the head and the neck).
+   * An empty list shows the whole body again.
+   */
+  hideBody(regions: readonly RegionName[]) {
+    this.bodyHidden = regionBits(regions);
+    this.unbake();
+    this.refresh();
+  }
+
   /** Recomputes hidden regions, build morphs and stumps after any change of equipment. */
   private refresh() {
     const pcd = regionBits(this.pcdRegions());
@@ -559,7 +577,7 @@ export class Character {
       let others = 0;
       // Only on pieces in a lower layer: a jacket hides the shirt's sleeves, not the elbow pads worn over it.
       for (const [s2, p2] of this.pieces) if (s2 !== slot && s2 !== 'body' && layerOf(s2) > layerOf(slot)) others |= regionBits(p2.item.over ?? []);
-      const mask = p.kind === 'body' ? cover | pcd : p.kind === 'hair' ? pcd | hairTop | others : pcd | others;
+      const mask = p.kind === 'body' ? cover | pcd | this.bodyHidden : p.kind === 'hair' ? pcd | hairTop | others : pcd | others;
       for (const m of p.materials) m.userData.uniforms.uHidden.value = mask;
     }
     this.refreshStumps();
@@ -861,7 +879,8 @@ export class Character {
     for (const m of this.stumpMaterials) m.dispose();
     this.mixer?.stopAllAction();
     this.root.removeFromParent();
-    // Geometries are shared caches: they stay.
+    // The bone texture (GPU skinning) is this character's own; geometries are shared caches: they stay.
+    this.skeleton.dispose();
   }
 }
 

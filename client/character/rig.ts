@@ -8,6 +8,12 @@
 import * as THREE from 'three';
 import type { Sex } from '@shared/protocol';
 
+/**
+ * The standard body's height (m), before the visual height scale (EFFECTS.heightScale in shared/appearance.ts): the
+ * editor's height wall shows each choice as this times its scale.
+ */
+export const RIG_HEIGHT = 1.8;
+
 /** Bone name → [parent, rest position relative to the parent (m)]. Feet at y = 0, facing -Z. */
 export const BONES = {
   root: [null, [0, 0, 0]],
