@@ -815,3 +815,39 @@ describe('lápides assombradas (fantasmas)', () => {
     expect(match.ghosts.size).toBe(0);
   });
 });
+
+describe('começo com a Pistola do Porteiro', () => {
+  const it_ = (id: string) => itemOf(id)!;
+
+  it('todo mundo começa só com a pistola, sem melhorias; o Rifle Padrão sai do caixão', () => {
+    expect(startItems()).toEqual({ primaria: 'pistolaInicial', secundaria: null, faca: null });
+    expect(zombieLoadout(startItems())).toMatchObject({ primaria: 'pistola', secundaria: null, faca: 'faca' });
+    expect(zombieLoadout(startItems()).ativas.pistola).toEqual([]);
+    expect(BOX_ITEMS.some((i) => i.id === 'riflePadrao' && i.raridade === 'comum')).toBe(true);
+    expect(BOX_ITEMS.some((i) => i.id === 'pistolaInicial')).toBe(false);
+  });
+
+  it('um rifle do caixão vai para a primária e a pistola passa para a secundária', () => {
+    const items = withItem(startItems(), it_('riflePadrao'), null);
+    expect(items).toMatchObject({ primaria: 'riflePadrao', secundaria: 'pistolaInicial' });
+    expect(zombieLoadout(items)).toMatchObject({ primaria: 'rifle', secundaria: 'pistola' });
+    // With the secondary taken, another rifle just takes the primary's place.
+    const smg = BOX_ITEMS.find((i) => i.arma === 'smg')!;
+    const both = withItem(withItem(startItems(), smg, null), it_('riflePadrao'), null);
+    expect(both).toMatchObject({ primaria: 'riflePadrao', secundaria: smg.id });
+  });
+
+  it('outra pistola do caixão toma o lugar da inicial; uma arma de mão diferente fica ao lado dela', () => {
+    expect(withItem(startItems(), it_('pistola'), null)).toMatchObject({ primaria: 'pistola', secundaria: null });
+    const other = BOX_ITEMS.find((i) => itemSlot(i) === 'secundaria' && i.arma !== 'pistola')!;
+    expect(withItem(startItems(), other, null)).toMatchObject({ primaria: 'pistolaInicial', secundaria: other.id });
+  });
+
+  it('o dano de cada pistola é o da raridade dela, esteja onde estiver', () => {
+    expect(weaponMul(startItems(), 'pistola')).toBe(rarityMul('inicial'));
+    expect(weaponMul(withItem(startItems(), it_('pistola'), null), 'pistola')).toBe(rarityMul('comum'));
+    const moved = withItem(startItems(), it_('riflePadrao'), null);
+    expect(weaponMul(moved, 'pistola')).toBe(rarityMul('inicial'));
+    expect(weaponMul(moved, 'rifle')).toBe(rarityMul('comum'));
+  });
+});

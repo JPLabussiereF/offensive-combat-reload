@@ -64,7 +64,7 @@ As diferenças entre modos estão declaradas em `MODE_RULES` e, no servidor, em 
 | --- | --- | --- | --- |
 | Autoridade das regras | servidor (`server/session.ts` + `server/modes.ts`; zumbi: o servidor simula a horda) | cliente (`BotManager`, mesmas regras; zumbi: o mesmo motor do servidor, `client/zombies/local.ts`) | cliente |
 | Pontos pontuam a progressão? | Sim (corrida armada e zumbi: só XP de conta) | Não | Não |
-| Armas e melhorias usadas | mata-mata: Arsenal da conta, travado ao entrar · corrida armada: a escada · zumbi: rifle inicial + o que sair do caixão | idem (sem melhorias sem conta) | Arsenal da conta, editável na pausa |
+| Armas e melhorias usadas | mata-mata: Arsenal da conta, travado ao entrar · corrida armada: a escada · zumbi: pistola inicial + o que sair do caixão | idem (sem melhorias sem conta) | Arsenal da conta, editável na pausa |
 | Pontos de nascimento | `spawnsFFA` + seletor seguro | `spawnsFFA` + seletor seguro | `spawnsA` (sorteio, sem repetir o último) |
 | Atraso de respawn | 5 s (servidor); zumbi: caído e reanimado, morto volta no intervalo | 5 s (zumbi solo: cair é perder) | 3 s |
 | Proteção ao nascer | Não | **2 s** (pisca, cancelada ao atirar) | Não |

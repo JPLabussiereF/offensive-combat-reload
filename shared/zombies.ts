@@ -236,12 +236,26 @@ export const startItems = (): ZItems => ({ primaria: ZOMBIE.inicial, secundaria:
 
 /** Items with `it` (damaged with `flaw`, or intact) in its slot, in place of what was there. */
 export function withItem(items: ZItems, it: ZItem, flaw: ZFlaw | null): ZItems {
-  const slot = itemSlot(it);
+  let slot = itemSlot(it);
   const { danificadas, ...rest } = items;
   const flaws: Partial<Record<ZSlot, ZFlaw>> = { ...danificadas };
+  const next: ZItems = { ...rest };
+  // The primary can hold a sidearm: the starting pistol, or a pistol that took its place.
+  const prim = itemOf(items.primaria);
+  if (prim && itemSlot(prim) === 'secundaria') {
+    if (slot === 'primaria' && !items.secundaria) {
+      // A rifle arriving moves it to the empty secondary instead of throwing it away.
+      next.secundaria = items.primaria;
+      if (flaws.primaria) flaws.secundaria = flaws.primaria;
+    } else if (slot === 'secundaria' && prim.arma === it.arma) {
+      // The same gun again takes its place (two of one gun couldn't be told apart by their shots).
+      slot = 'primaria';
+    }
+  }
   if (flaw) flaws[slot] = flaw;
   else delete flaws[slot];
-  return { ...rest, [slot]: it.id, ...(Object.keys(flaws).length ? { danificadas: flaws } : {}) };
+  (next as unknown as Record<ZSlot, string | null>)[slot] = it.id;
+  return { ...next, ...(Object.keys(flaws).length ? { danificadas: flaws } : {}) };
 }
 
 /** The loadout of a player's items: the guns with their fixed upgrades, the saber on the knife; no grenade upgrades. */
@@ -265,17 +279,24 @@ export function zombieLoadout(items: ZItems): Loadout {
   return { primaria: primGun, secundaria: secGun, faca, ativas, ...(Object.keys(danificadas).length ? { danificadas } : {}) };
 }
 
-/** The slot of the weapon a hit came from (the rifles are the primary, the pistol and the SMG the secondary). */
-const slotOfGun = (gun: WeaponId): ZSlot => (isKnife(gun) ? 'faca' : isGun(gun) && PRIMARIES.includes(gun) ? 'primaria' : 'secundaria');
+/** The slot holding the weapon a hit came from: whichever holds that gun (the starting pistol sits in the primary). */
+function slotOfGun(items: ZItems, gun: WeaponId): ZSlot | null {
+  for (const s of ['primaria', 'secundaria', 'faca'] as const) if (itemOf(items[s])?.arma === gun) return s;
+  return null;
+}
 
 /** The item behind the gun a hit came from (by the gun: the rifles are the primary). */
 export function itemOfGun(items: ZItems, gun: GunId | 'faca'): ZItem | undefined {
-  const it = itemOf(items[slotOfGun(gun)]);
+  const s = slotOfGun(items, gun);
+  const it = s ? itemOf(items[s]) : undefined;
   return it?.arma === gun ? it : undefined;
 }
 
 /** The flaw of the weapon a hit came from, if it's a damaged one. */
-export const flawOfGun = (items: ZItems, gun: GunId | 'faca'): ZFlaw | null => (itemOfGun(items, gun) ? (items.danificadas?.[slotOfGun(gun)] ?? null) : null);
+export function flawOfGun(items: ZItems, gun: GunId | 'faca'): ZFlaw | null {
+  const s = slotOfGun(items, gun);
+  return s ? (items.danificadas?.[s] ?? null) : null;
+}
 
 /** A flaw's damage multiplier (less damage for 'dano' and 'ambos'). */
 export const flawDamageMul = (flaw: ZFlaw | null | undefined) => (flaw === 'dano' || flaw === 'ambos' ? ZOMBIE.caixa.danificada.dano : 1);
@@ -480,7 +501,7 @@ export function zombieProblems(): string[] {
     if (!RARITIES.includes(it.raridade)) out.push(`${it.id}: raridade desconhecida`);
   }
   const start = itemOf(ZOMBIE.inicial);
-  if (!start || start.arma !== 'rifle' || start.melhorias.length) out.push('a arma inicial deve ser o rifle sem melhorias');
+  if (!start || start.arma !== 'pistola' || start.melhorias.length || start.raridade !== 'inicial') out.push('a arma inicial deve ser a pistola sem melhorias');
   for (const r of RARITIES) if (r !== 'inicial' && !BOX_ITEMS.some((i) => i.raridade === r)) out.push(`nenhum item ${r} na caixa`);
   ZOMBIE.ondas.forEach((w, i) => {
     const chance = Object.values(w.tipos).reduce((a, b) => a + (b ?? 0), 0);
