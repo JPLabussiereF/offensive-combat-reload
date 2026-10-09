@@ -538,6 +538,26 @@ describe('pets no servidor', () => {
     expect(r.body.pet).toMatchObject({ id: 'lontra', cfg: { lontra: { nome: 'Nome comprid' } } });
     expect(r.body.pet.cfg.lontra.cor).toBeUndefined();
     expect(r.body.pet.cfg.lontra.coleira).toBeUndefined();
+    // A look for an unknown pet in cfg: dropped silently, 200 (P38).
+    const extra = await b.req('PATCH', '/api/perfil', { pet: { id: 'lontra', cfg: { dragao: { nome: 'Smaug' }, lontra: { cor: 'chocolate' } } } });
+    expect(extra.status).toBe(200);
+    expect(Object.keys(extra.body.pet.cfg)).toEqual(['lontra']);
+    expect(JSON.stringify(extra.body.pet)).not.toContain('Smaug');
+  });
+
+  it('PATCH /api/perfil {pet}: um pet que não é objeto nem null é 400 pet_invalido e nada muda (P39)', async () => {
+    const b = new Browser(game);
+    await b.register('Dono Teimoso');
+    await b.req('PATCH', '/api/perfil', { pet: { id: 'iguana', cfg: { iguana: { cor: 'laranja' } } } });
+    for (const pet of ['gato', 7, true, ['gato'], []]) {
+      const r = await b.req('PATCH', '/api/perfil', { pet });
+      expect({ pet, status: r.status, erro: r.body.erro }).toEqual({ pet, status: 400, erro: 'pet_invalido' });
+    }
+    expect((await b.req('GET', '/api/perfil')).body.pet).toMatchObject({ id: 'iguana', cfg: { iguana: { cor: 'laranja' } } });
+    // null is still "no pet".
+    const none = await b.req('PATCH', '/api/perfil', { pet: null });
+    expect(none.status).toBe(200);
+    expect(none.body.pet.id).toBeNull();
   });
 
   it('PlayerInfo.pet: no PvP só com o interruptor de PvP, no zumbi com o de PvE; nunca o nome', async () => {
