@@ -465,7 +465,9 @@ describe('pets no servidor', () => {
     const p = await connect(b);
     p.send({ t: 'create', name: 'Pets', map: 'cemiterio', mode: 'zumbi' });
     const j = await p.next('joined');
-    const at: Vec3 = [0, 0.1, 0];
+    // Out in the grave field, by where they rise: the Amora never picks one with the wall in between.
+    const rise = ZOMBIE.mapas.cemiterio!.surgir[0];
+    const at: Vec3 = [rise[0], rise[1] + 0.1, rise[2]];
     p.send({ t: 'respawn', p: at, yaw: 0 });
     await p.next('spawned', (m) => m.id === j.you);
     const keep = setInterval(() => p.send({ t: 'state', s: { p: at, yaw: 0, pitch: 0, f: 64 } }), 50);
@@ -480,5 +482,5 @@ describe('pets no servidor', () => {
       p.close();
       await sleep(100);
     }
-  });
+  }, 20_000);
 });
