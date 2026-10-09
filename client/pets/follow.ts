@@ -1,7 +1,8 @@
 // Where a pet walks (PF-29), as pure rules (client/tests/pets.test.ts checks them). Nothing of a pet travels over the
 // network: every game draws each pet from its owner's position, which already does.
 // - Zumbi (its ability, PvE): it follows its owner's path about 1.2 m behind and 0.8 m to one side, staying out of
-//   the 60° cone in front of them closer than 3 m (where the owner aims), except while it's acting.
+//   the 60° cone in front of them closer than 3 m (where the owner aims). Going to act (and coming back), it never
+//   cuts across that cone: out to the side first, then on (routeAround).
 // - PvP (a look only): a short leash, at most 0.7 m from the edge of its owner's body, always on the same side and
 //   behind (no dashes from side to side), so it never gives a position away more than its owner does.
 export type V2 = { x: number; z: number };
@@ -16,6 +17,11 @@ export const PVE_SIDE = 0.8;
 /** PvE: the cone in front of the owner kept clear (half angle, rad) closer than this (m). */
 export const FRONT_CONE = Math.PI / 6;
 export const FRONT_RANGE = 3;
+/** Going around that cone: the waypoint out to the side, this far ahead of the owner and to the side (m). */
+const AROUND_AHEAD = 2.6;
+const AROUND_SIDE = 1.75;
+/** Inside the cone, it steps out sideways to this far beyond the cone's edge (m). */
+const STEP_OUT = 0.5;
 /** Farther than this from its target (a respawn, a teleport) it appears there instead of running. */
 const SNAP = 8;
 
@@ -103,6 +109,52 @@ function clearCone(o: Owner, t: V2, side: 1 | -1): V2 {
   return inFrontCone(o, t) ? behindSpot(o, 'pve', side) : t;
 }
 
+/** Whether the straight way from `p` to `t` cuts across the cone in front of the owner. */
+function crossesCone(o: Owner, p: V2, t: V2): boolean {
+  for (let i = 1; i < 12; i++) {
+    const k = i / 12;
+    if (inFrontCone(o, { x: p.x + (t.x - p.x) * k, z: p.z + (t.z - p.z) * k })) return true;
+  }
+  return false;
+}
+
+/**
+ * Where to head for now on the way to `t` (PvE), never across the cone in front of the owner (where they aim):
+ * inside it (it acted there), straight out to the side first; a way that would cut across it goes by a waypoint
+ * out to the side and ahead, beyond the cone, then on. A target in the cone itself (a zombie right in front) is
+ * gone to straight (the pet is faded there: client/pets/manager.ts).
+ */
+export function routeAround(o: Owner, p: V2, t: V2, side: 1 | -1): V2 {
+  if (inFrontCone(o, t)) return t;
+  const a = axes(o.yaw);
+  const dx = p.x - o.x;
+  const dz = p.z - o.z;
+  const lat = dx * a.rx + dz * a.rz;
+  const fwd = dx * a.fx + dz * a.fz;
+  // Which side to go round: the one the target is on, else the one the pet is on, else its own.
+  const tl = (t.x - o.x) * a.rx + (t.z - o.z) * a.rz;
+  const s = Math.abs(tl) > 0.3 ? Math.sign(tl) : Math.abs(lat) > 0.05 ? Math.sign(lat) : side;
+  if (inFrontCone(o, p)) {
+    // Out sideways, to beyond the cone's edge at its distance ahead.
+    const out = fwd * Math.tan(FRONT_CONE) + STEP_OUT;
+    return { x: o.x + a.fx * fwd + a.rx * out * s, z: o.z + a.fz * fwd + a.rz * out * s };
+  }
+  if (!crossesCone(o, p, t)) return t;
+  const w = { x: o.x + a.fx * AROUND_AHEAD + a.rx * AROUND_SIDE * s, z: o.z + a.fz * AROUND_AHEAD + a.rz * AROUND_SIDE * s };
+  // At the waypoint (or past it): on to the target.
+  return Math.hypot(w.x - p.x, w.z - p.z) < 0.3 ? t : w;
+}
+
+/** Whether a point is in the middle of the owner's view (±15°) closer than FRONT_RANGE: the pet is faded there. */
+export function inSightLine(o: Owner, p: V2): boolean {
+  const dx = p.x - o.x;
+  const dz = p.z - o.z;
+  const d = Math.hypot(dx, dz);
+  if (d > FRONT_RANGE || d < 1e-3) return false;
+  const a = axes(o.yaw);
+  return (dx * a.fx + dz * a.fz) / d > Math.cos(Math.PI / 12);
+}
+
 /** The PvP leash: a point farther than PVP_LEASH from the owner's body edge is pulled back onto it. */
 export function leash(o: Owner, p: V2): V2 {
   const dx = p.x - o.x;
@@ -123,7 +175,9 @@ export function stepFollow(f: FollowState, o: Owner, dt: number, mode: 'pvp' | '
     f.trail.push({ x: o.x, y: o.y, z: o.z });
     if (f.trail.length > 24) f.trail.shift();
   }
-  const t = to ?? followTarget(f, o, mode, side);
+  const goal = to ?? followTarget(f, o, mode, side);
+  // PvE: around the cone in front of the owner, not across it (acting and coming back).
+  const t = mode === 'pve' ? routeAround(o, f, goal, side) : goal;
   const dx = t.x - f.x;
   const dz = t.z - f.z;
   const d = Math.hypot(dx, dz);

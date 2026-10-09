@@ -14,7 +14,7 @@ import type { ServerMsg } from '@shared/protocol';
 import type { Sfx } from '../audio/sfx';
 import type { Effects } from '../render/effects';
 import { PetAnimator, restPose, type Gesture, type PetPose } from './anim';
-import { newFollow, stepFollow, type FollowState } from './follow';
+import { inSightLine, newFollow, stepFollow, type FollowState } from './follow';
 import { PET_LIGHT_FROM, type PetModel } from './rig';
 import { makePet } from './species';
 
@@ -49,6 +49,8 @@ export interface PetHooks {
 const VOICE_GAP = 2;
 /** The paw over the target, at most (s). */
 const PAW_TIME = 1.5;
+/** The cat lifting its owner stands this far in front of them (m): in their view while they're down. */
+const LIFT_FRONT = 0.9;
 /** How high (m) the Bruxinha flies while she casts: above the cemetery fence (bars about 2 m). */
 const CAST_HOVER = 2.4;
 /** How often the PvP line of sight is checked (s). */
@@ -241,6 +243,13 @@ export class PetManager {
       const to = this.mode === 'pve' ? this.actTarget(a, o, now) : null;
       stepFollow(a.follow, ow, dt, this.mode, a.side, to);
       const f = a.follow;
+      // The cat there in front of its owner turns to face them (pushing, licking), not its back to their camera.
+      if (a.act?.act === 'lift' && o.downed && f.speed < 0.3) {
+        let dy = Math.atan2(-(o.feet.x - f.x), -(o.feet.z - f.z)) - f.yaw;
+        while (dy > Math.PI) dy -= Math.PI * 2;
+        while (dy < -Math.PI) dy += Math.PI * 2;
+        f.yaw += dy * Math.min(1, dt * 6);
+      }
       root.position.set(f.x, f.y, f.z);
       root.rotation.y = f.yaw;
       // The pose.
@@ -285,18 +294,22 @@ export class PetManager {
           if (p.gestureT > 0.9) p.gesture = null;
         }
       }
-      // Its head toward its owner (or its target).
-      const look = to ?? { x: o.feet.x, z: o.feet.z };
+      // Its head toward its owner (or its target; the cat lifting its owner: at them).
+      const look = to && a.act?.act !== 'lift' ? to : { x: o.feet.x, z: o.feet.z };
       const yawTo = Math.atan2(-(look.x - f.x), -(look.z - f.z));
       let dy = yawTo - f.yaw;
       while (dy > Math.PI) dy -= Math.PI * 2;
       while (dy < -Math.PI) dy += Math.PI * 2;
       p.lookYaw = dy;
       a.anim.update(dt, p);
-      // The light mesh far away; a faded pet right next to the camera (zumbi).
+      // The light mesh far away; in the zumbi, a faded pet right next to the camera or, ours, in the middle of our view
+      // closer than 3 m (where we aim: running to act and back it goes around, but it can still pass there).
       const dist = camPos.distanceTo(root.position);
       a.model.setLight(dist > PET_LIGHT_FROM);
-      a.model.setOpacity(this.mode === 'pve' && dist < 1 ? 0.35 : 1);
+      // (the cat lifting us stays solid in front of our low camera: she's what we look at then)
+      const inAim = a.owner === this.me && !o.downed && inSightLine(ow, f);
+      const lifting = a.act?.act === 'lift' && o.downed;
+      a.model.setOpacity(this.mode === 'pve' && !lifting && (dist < 1 || inAim) ? 0.35 : 1);
       root.visible = this.shown(a, o, camPos, dt);
     }
     this.renderFlashes(now);
@@ -340,8 +353,11 @@ export class PetManager {
         const g = e.i !== undefined ? this.h.gap?.(e.i) : null;
         return g && now < e.until + 300 ? near(g, 0.7) : null;
       }
-      case 'lift':
-        return o.downed ? near(o.feet, 0.45) : null;
+      case 'lift': {
+        // In front of its owner's low camera (they're down, looking where they fell), facing them: seen pushing.
+        if (!o.downed) return null;
+        return { x: o.feet.x - Math.sin(o.yaw) * LIFT_FRONT, z: o.feet.z - Math.cos(o.yaw) * LIFT_FRONT };
+      }
       default:
         return null;
     }

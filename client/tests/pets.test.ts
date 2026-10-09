@@ -4,7 +4,7 @@
 // and the zumbi's path behind and beside its owner, out of the cone in front of them.
 import { describe, expect, it } from 'bun:test';
 import { PET_IDS, PETS } from '@shared/pets';
-import { behindSpot, BODY_RADIUS, FRONT_RANGE, inFrontCone, newFollow, PVP_LEASH, stepFollow, type Owner } from '../pets/follow';
+import { behindSpot, BODY_RADIUS, FRONT_RANGE, inFrontCone, inSightLine, newFollow, PVP_LEASH, routeAround, stepFollow, type Owner } from '../pets/follow';
 import { loadClient } from '../../tools/headless';
 
 const { makePet } = await loadClient('client/pets/species.ts');
@@ -107,5 +107,48 @@ describe('onde o pet anda', () => {
     const f = newFollow(owner, 1);
     for (let i = 0; i < 180; i++) stepFollow(f, owner, 1 / 60, 'pve', 1, { x: 3, z: -4 });
     expect(Math.hypot(f.x - 3, f.z + 4)).toBeLessThan(0.2);
+  });
+
+  it('correndo para agir num zumbi à frente, nunca cruza a mira do dono: sai para o lado e depois vai', () => {
+    // The owner looks down -Z at a zombie 7 m ahead; the pet is just behind, on the right.
+    const f = newFollow(owner, 1);
+    f.x = 0.8;
+    f.z = 1.2;
+    const zombie = { x: 0, z: -7 };
+    let crossed = false;
+    for (let i = 0; i < 400; i++) {
+      stepFollow(f, owner, 1 / 60, 'pve', 1, zombie);
+      if (inFrontCone(owner, f)) crossed = true;
+    }
+    expect(crossed).toBe(false);
+    expect(Math.hypot(f.x - zombie.x, f.z - zombie.z)).toBeLessThan(0.3);
+    // The way it took: out to the side before going in.
+    expect(routeAround(owner, { x: 0.8, z: 1.2 }, zombie, 1).x).toBeGreaterThan(1.5);
+    // Coming back: from in front of the owner it first steps out sideways, then goes round to behind them.
+    const back = newFollow(owner, 1);
+    back.x = 0.2;
+    back.z = -2;
+    expect(inFrontCone(owner, back)).toBe(true);
+    const out = routeAround(owner, back, behindSpot(owner, 'pve', 1), 1);
+    expect(inFrontCone(owner, out)).toBe(false);
+    expect(Math.abs(out.z - back.z)).toBeLessThan(1e-6);
+    let inside = 0;
+    for (let i = 0; i < 400; i++) {
+      stepFollow(back, owner, 1 / 60, 'pve', 1);
+      if (inFrontCone(owner, back)) inside++;
+    }
+    expect(inFrontCone(owner, back)).toBe(false);
+    // (only the first steps, out of it sideways)
+    expect(inside).toBeLessThan(30);
+    // A zombie right in front, in the cone itself: straight to it.
+    expect(routeAround(owner, { x: 0.8, z: 1.2 }, { x: 0.1, z: -2 }, 1)).toEqual({ x: 0.1, z: -2 });
+  });
+
+  it('no meio da visão do dono (±15°) a menos de 3 m o pet fica apagado; fora disso, não', () => {
+    expect(inSightLine(owner, { x: 0, z: -2 })).toBe(true);
+    expect(inSightLine(owner, { x: 0.4, z: -2.5 })).toBe(true);
+    expect(inSightLine(owner, { x: 1, z: -2 })).toBe(false);
+    expect(inSightLine(owner, { x: 0, z: -4 })).toBe(false);
+    expect(inSightLine(owner, { x: 0, z: 2 })).toBe(false);
   });
 });

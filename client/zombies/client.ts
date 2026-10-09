@@ -418,7 +418,9 @@ export class ZombieClient {
       this.petReady = m.ready;
       this.petUntil = m.act === 'yield' || m.act === 'up' ? 0 : m.until;
       if (m.n !== undefined) this.petN = m.n;
-      this.petFlash = { text: t(`petAct_${m.act}` as StringKey), until: L.now() + 1500 };
+      // The word by the pet's face: 1.5 s; on a phone, where it pops up beside the small chip, ~1.2 s.
+      const brief = typeof document !== 'undefined' && document.documentElement.classList.contains('mobile');
+      this.petFlash = { text: t(`petAct_${m.act}` as StringKey), until: L.now() + (brief ? 1200 : 1500) };
     });
     L.on('zup', (m) => {
       this.down.delete(m.id);
