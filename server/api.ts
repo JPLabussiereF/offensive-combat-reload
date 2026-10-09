@@ -92,7 +92,7 @@ const accountRoutes: Record<string, Handler> = {
     if (body.aparencia !== undefined) await setAppearance(ctx.deps.db, s.accountId, body.aparencia);
     if (body.arsenal !== undefined) await setArsenal(ctx.deps.db, s.accountId, body.arsenal);
     if (body.destaque !== undefined || body.titulo !== undefined) await setShowcase(ctx.deps.db, s.accountId, body.destaque, body.titulo);
-    // The pet (shared/pets.ts: sanitizePet); every pet is free for now.
+    // The pet (shared/pets.ts: sanitizePet; a pet that does not exist is 400 pet_invalido); every pet is free for now.
     if (body.pet !== undefined) await setPet(ctx.deps.db, s.accountId, body.pet);
     return reply(ctx, 200, await fullProfile(ctx.deps.db, s.accountId));
   },

@@ -4,7 +4,7 @@ import { album, canFeature, sourcesFromProfile, titlesOf, type Own } from '@shar
 import { sanitizeAppearance, type Appearance } from '@shared/appearance';
 import { DELETION_GRACE_DAYS, formatTag, NAME_COOLDOWN_DAYS, type Participation, type ProfileResponse, type Totals, type ZombieTotals } from '@shared/account';
 import { legacyChoice, levelForXp, PROG_WEAPONS, sanitizeChoice, type ArsenalChoice, type ProgWeapon, type WeaponXp } from '@shared/progression';
-import { sanitizePet, type PetChoice } from '@shared/pets';
+import { isPetId, sanitizePet, type PetChoice } from '@shared/pets';
 import type { Sex } from '@shared/protocol';
 import { transaction, type Db, type Queryable } from './db';
 import { HttpError } from './http';
@@ -370,9 +370,13 @@ export async function setArsenal(db: Db, accountId: string, raw: unknown): Promi
 
 /**
  * Saves the pet (shared/pets.ts): the one taken along (or none), the PvP / PvE switches and each pet's look.
- * Anything invalid falls back to a valid choice, like the appearance; no pet needs the support pack for now (PF-28).
+ * A pet that doesn't exist is 400 pet_invalido (P36: a client asking for it is out of date or forged); anything
+ * else invalid (a coat, a collar, a long name) falls back to a valid choice, like the appearance. No pet needs the
+ * support pack for now (PF-28).
  */
 export async function setPet(db: Queryable, accountId: string, raw: unknown): Promise<PetChoice> {
+  const id = typeof raw === 'object' && raw !== null ? (raw as { id?: unknown }).id : undefined;
+  if (id !== undefined && id !== null && !isPetId(id)) throw new HttpError(400, 'pet_invalido');
   const p = await profileOf(db, accountId);
   const pet = sanitizePet(raw);
   await db.query('UPDATE player_profile SET pet = $2 WHERE id = $1', [p.id, JSON.stringify(pet)]);

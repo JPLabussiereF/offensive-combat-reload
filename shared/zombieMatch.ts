@@ -1141,7 +1141,8 @@ export class ZombieMatch {
       if (reach > F.alcance || now < g.nextHit || now - t.ghostHitAt < F.golpeIntervaloSegundos * 1000) continue;
       g.nextHit = now + F.recargaSegundos * 1000;
       t.ghostHitAt = now;
-      this.host.hurt(t.id, F.dano, [g.pos[0], g.pos[1], g.pos[2]]);
+      // A ghost's blow counts for the iguana's tail (P33), as a zombie's does; thorns and crows don't.
+      this.zHurt(t, F.dano, [g.pos[0], g.pos[1], g.pos[2]]);
     }
   }
 
@@ -1338,8 +1339,9 @@ export class ZombieMatch {
     for (const z of this.zombies.values()) {
       if (z.dead) continue;
       if (now < z.riseUntil) continue;
-      // A pet's doing: held (a move already started still lands), in the duck float or dizzy (both cancel the move
-      // when they start): it stands there. After the iguana's tail: it goes for the tail and nothing else.
+      // A pet's doing: held, in the duck float or dizzy (all three cancel the move when they start; only the Amora's
+      // jolt on a bruiser or a boss lets it land): it stands there. After the iguana's tail: it goes for the tail and
+      // nothing else.
       if (this.petStopped(z, now)) {
         z.stuckAt = now + 8000;
         if (z.act) this.tickAct(z, now, standing);
@@ -1415,7 +1417,8 @@ export class ZombieMatch {
     if (isBoss(z.kind) && this.bossMove(z, t, d, now, standing)) return;
     const type = isBoss(z.kind) ? null : ZOMBIE.tipos[z.kind as ZType];
     const reach = isBoss(z.kind) ? ZOMBIE.chefes[z.kind as BossId].alcance : type!.alcance;
-    if (z.kind === 'inchado' && d <= reach && dy < 2 && !walled) return this.startAct(z, 'fuse', now + type!.preparo * 1000);
+    // (A bloater the otter's stone deflated can't swell again for a moment: cd.fuse, P32.)
+    if (z.kind === 'inchado' && d <= reach && dy < 2 && !walled && now >= (z.cd.fuse ?? 0)) return this.startAct(z, 'fuse', now + type!.preparo * 1000);
     if (z.kind === 'cuspidor') {
       const s = type!.cuspe!;
       if (d >= s.minimo && d <= s.alcance && dy < 3 && now >= (z.cd.spit ?? 0) && this.clearLine(z.pos, t.feet)) {
@@ -1482,7 +1485,10 @@ export class ZombieMatch {
     z.yaw = yawTo(g.centro[0] - z.pos[0], g.centro[2] - z.pos[2]);
     if (z.goal) z.agent.resetMoveTarget();
     z.goal = null;
-    if (z.kind === 'inchado') return this.startAct(z, 'fuse', now + ZOMBIE.tipos.inchado.preparo * 1000);
+    if (z.kind === 'inchado') {
+      if (now >= (z.cd.fuse ?? 0)) this.startAct(z, 'fuse', now + ZOMBIE.tipos.inchado.preparo * 1000);
+      return;
+    }
     if (now < z.nextAttack) return;
     const windup = isBoss(z.kind) ? ZOMBIE.chefes[z.kind as BossId].preparo : ZOMBIE.tipos[z.kind as ZType].preparo;
     this.startAct(z, 'smash', now + windup * 1000);
@@ -1775,7 +1781,7 @@ export class ZombieMatch {
     z.agent.requestMoveVelocity({ x: 0, y: 0, z: 0 });
   }
 
-  /** A zombie's blow (or blast, spit, shockwave) reached `p`: hurt, and the iguana may drop her tail. */
+  /** A zombie's blow (or blast, spit, shockwave, a ghost's blow) reached `p`: hurt, and the iguana may drop her tail. */
   private zHurt(p: Part, amount: number, from: Vec3) {
     this.host.hurt(p.id, amount, from);
     this.petTail(p);
@@ -1815,24 +1821,41 @@ export class ZombieMatch {
   }
 
   /**
-   * Segura, Amora!: the zombie nearest her owner, held by the shin; a bruiser or a boss only takes a jolt. She runs to
-   * it, so never one with the wall in between (off an open gap), as a swipe can't reach through it either.
+   * Segura, Amora!: the zombie nearest her owner, held by the shin (the blow it had started is cancelled); a bruiser
+   * or a boss only takes a jolt. She runs to it, so never one with the wall in between (off an open gap), as a swipe
+   * can't reach through it either.
    */
   private petHold(p: Part, pet: PetState, now: number) {
     const A = PET_ABILITIES.amora;
     const z = this.near(p, this.petTargets(now), A.alcance).find((o) => !this.walled(p.feet, o.pos));
     if (!z) return;
     const jolt = isBoss(z.kind) || z.kind === 'brutamontes';
+    // Held by the shin, the blow it had started is lost (P34); a jolt only stops its walk.
+    if (!jolt) {
+      if (z.act) this.endAct(z);
+      this.standStill(z);
+    }
     z.heldUntil = now + (jolt ? A.tranco : A.segura) * 1000;
     pet.ready = now + A.recarga * 1000;
     this.emitPet(p, jolt ? 'nudge' : 'hold', z.heldUntil, { z: z.id });
   }
 
-  /** Feitiço do Pato: the most dangerous zombie near the owner (a variant before a plain one; bosses are immune) in a duck float. */
+  /**
+   * Feitiço do Pato: a duck float on the zombie near the owner with the most weight for its distance (bruxinha.peso /
+   * meters, at least 1: a bruiser a little farther before a plain one at the owner's feet; in a wave of plain ones,
+   * the nearest). Bosses are immune.
+   */
   private petDuck(p: Part, pet: PetState, now: number) {
     const B = PET_ABILITIES.bruxinha;
-    const list = this.near(p, this.petTargets(now).filter((z) => !isBoss(z.kind)), B.alcance);
-    const z = list.find((o) => o.kind !== 'comum') ?? list[0];
+    let z: Zombie | undefined;
+    let best = -Infinity;
+    for (const o of this.near(p, this.petTargets(now).filter((o) => !isBoss(o.kind)), B.alcance)) {
+      const score = (B.peso[o.kind] ?? 1) / Math.max(1, dist2(o.pos, p.feet));
+      if (score > best) {
+        best = score;
+        z = o;
+      }
+    }
     if (!z) return;
     // It stops whatever it was winding up.
     if (z.act) this.endAct(z);
@@ -1842,7 +1865,10 @@ export class ZombieMatch {
     this.emitPet(p, 'duck', z.duckUntil, { z: z.id });
   }
 
-  /** Pedrada: a spitter winding up its spit or a bloater swelling near the owner: the move is cancelled, the zombie dizzy. */
+  /**
+   * Pedrada: a spitter winding up its spit or a bloater swelling near the owner: the move is cancelled, the zombie
+   * dizzy, and a bloater can't swell again for a while.
+   */
   private petStone(p: Part, pet: PetState, now: number) {
     const L = PET_ABILITIES.lontra;
     const busy = [...this.zombies.values()].filter((z) => !z.dead && (z.act === 'spit' || z.act === 'fuse'));
@@ -1852,6 +1878,8 @@ export class ZombieMatch {
     this.standStill(z);
     // A spitter starts its wait for the next spit over.
     if (z.kind === 'cuspidor') z.cd.spit = now + (ZOMBIE.tipos.cuspidor.cuspe?.recarga ?? 3) * 1000;
+    // A bloater deflates: it can't swell again for lontra.murcha (P32), longer than the dizziness.
+    else z.cd.fuse = now + L.murcha * 1000;
     z.dazeUntil = now + L.tonto * 1000;
     pet.ready = now + L.recarga * 1000;
     this.emitPet(p, 'stone', z.dazeUntil, { z: z.id });
