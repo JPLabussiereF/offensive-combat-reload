@@ -6,6 +6,7 @@ area: reference
 source_paths:
   - client/ui/home.ts
   - client/ui/playRules.ts
+  - shared/pets.ts
   - client/ui/galpao/galpao.ts
   - server/modes.ts
   - shared/gunGame.ts
@@ -55,6 +56,8 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Entrada rápida | `#gp-quick`, `quickJoin`, `playHooks.quickPlay` | O botão ENTRADA RÁPIDA (e Enter) da visão geral do galpão: sempre online, faz o mesmo que o botão laranja do Online, com o tipo e o mapa do Online ("Mata-mata · Online · Rua dos Vizinhos") | [[Matchmaking UI]] |
 | Botão laranja (aba Jogar) | `#home-play-cta`, `ctaText` | A ação principal da aba Jogar: sempre no pé do painel lateral, com altura fixa, dizendo o que vai acontecer (JOGAR ONLINE, CONTRA N BOTS, ENCARAR A HORDA SOZINHO, CAMPO DE TIRO) | [[Menus]] |
 | Qualquer mapa | `onlineMap = null`, `effectiveOnlineMap`, `quickTarget` | O primeiro cartão de mapa do Online: entra no mapa da sessão mais cheia não lotada do tipo, ou num oficial quando ninguém joga | [[Matchmaking UI]] |
+| Pet / Levar este / Deixar no quintal | `PetId`, `PetChoice` (`shared/pets.ts`), `player_profile.pet` | O companheiro que vai com o jogador (Amora, Bruxinha, gata, fuinha, lontra, iguana): enfeite no PvP, uma habilidade no zumbi. "Levar este" escolhe o que vai junto (chamar um pet na estação só mostra); "Deixar no quintal" fica sem pet | [[Pets]] |
+| Segura, Amora! · Feitiço do Pato · Sétima Vida · Mão na Massa · Pedrada · Rabo de Isca | `zpet` `act`: `hold`/`nudge`, `duck`, `lift`/`yield`/`up`, `nail`, `stone`, `tail` | As habilidades dos pets no zumbi: segurar pela canela, boia de patinho, a gata levantar o dono, pregar tábuas, cancelar o cuspe ou o inchaço, o rabo que atrai a horda | [[Pets]] · [[Zombie]] |
 | Dose Dupla | melhoria opcional da granada (nível 3, grupo `modo`), `tipo: 'dupla'` | Duas granadas por carga, com 0,3 s entre elas | [[Grenades]] |
 | Frases rápidas | `QUICK_CHAT` | Mensagens de chat de um toque no celular | [[Chat]] |
 | Granada de pato | poção `pato` | Visual e som de pato de borracha nas granadas, sem efeito de jogo | [[Buffs & Debuffs]] |
@@ -209,7 +212,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | PadNav | Navegação dos menus pelo controle | [[Input & Controls]] |
 | Trilho / painel do menu de pausa | O trilho (`.pm-rail`: onde se está, voltar, as duas abas, a saída) e o painel da aba aberta (`#pm-panel`) do menu de pausa e do cartão de início; `pauseContext` diz o que o trilho mostra em cada lugar × modo | [[Menus]] · [[ADR - Menu de pausa com trilho e abas]] |
 | `data-pad-back` / `data-pad-explicit` / `data-pad-subtabs` | Marcas para o `PadNav`: o botão que ◯/B aperta / tela que marca o seu voltar em cada nível (sem chutar pelo texto) / subabas que L1/R1 só trocam quando não há outra barra | [[Menus]] |
-| Galpão | `GalpaoHome`, `createGalpao`, `#galpao`, `oc.galpao` | A tela inicial logada em 3D: um galpão com sete **estações** (objetos que seguram as abas: mesa, cortiça, painel perfurado, revista, armário, quadro elétrico, monitor); a home clássica fica sem GPU ou com `oc.galpao` = 'off' | [[Menus]] · [[ADR - Tela inicial em galpão 3D]] |
+| Galpão | `GalpaoHome`, `createGalpao`, `#galpao`, `oc.galpao` | A tela inicial logada em 3D: um galpão com oito **estações** (objetos que seguram as abas: mesa, cortiça, painel perfurado, revista, armário, quadro elétrico, a porta do quintal dos pets, monitor); a home clássica fica sem GPU ou com `oc.galpao` = 'off' | [[Menus]] · [[ADR - Tela inicial em galpão 3D]] |
 | Superfície (galpão) | `.gp-surf`, `bindSurface`, homografia | O elemento DOM de uma estação, preso ao objeto 3D por uma `matrix3d` a cada quadro | [[ADR - Tela inicial em galpão 3D]] |
 | Canvas do Arsenal | `ArsenalCanvas`, `canvasLayout`, `data-pad-pan` | A aba Arsenal da tela inicial: quadros por espaço, armas e melhorias ligadas, câmera com arrastar e zoom, painel de detalhes | [[Inventory UI]] · [[ADR - Arsenal da tela inicial em canvas]] |
 | Primária / Alternativa | Os dois espaços de tecla de cada ação | [[ADR - Teclas remapeáveis com primária e alternativa]] |

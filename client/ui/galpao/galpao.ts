@@ -5,23 +5,27 @@
 // asks this module to fly when a tab opens and is asked to open a tab when a station is picked. Without WebGL (or
 // on a CPU renderer) start() gives up and the classic tabbed home stays.
 // The scene is client/ui/galpao/scene.ts; the Arsenal's pegboard tags and card are client/ui/galpao/arsenalBoard.ts;
-// the player's character leaning on the hero table is client/ui/galpao/heroCharacter.ts.
+// the player's character leaning on the hero table is client/ui/galpao/heroCharacter.ts; the pets (07 · PETS by the
+// front door, the overview's pet, its run at the launch) are petStage.ts with the tags and card of petBoard.ts.
 import { STICKERS } from '@shared/achievements';
+import { PETS, type PetChoice, type PetId } from '@shared/pets';
 import type { Appearance } from '@shared/appearance';
 import type { Sex } from '@shared/protocol';
 import { IS_MOBILE } from '../../core/device';
 import type { Progress } from '../../gameplay/progress';
 import { t, type StringKey } from '../strings';
 import { ArsenalBoard, BOARD, cardWeapon } from './arsenalBoard';
-import { hop, keyAction, lightScene, STATION_ORDER, stationOf, stationOrder, tabOf, type CamStation, type HomeTab, type StationId } from './galpaoRules';
+import { compactGalpao, hop, keyAction, lightScene, STATION_ORDER, stationOf, stationOrder, tabOf, type CamStation, type HomeTab, type StationId } from './galpaoRules';
 import { heroCharacter } from './heroCharacter';
 import { createGalpao, type Galpao, type GalpaoLabels } from './scene';
+import { PetBoard } from './petBoard';
+import { PetStage } from './petStage';
 
 const str = (key: string, params?: Record<string, string | number>) => t(key as StringKey, params);
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
 /** Which of the home's panes each station's surface holds (the profile's locker also holds the name and character forms). */
-const PANES: Record<Exclude<StationId, 'arsenal'>, string[]> = {
+const PANES: Record<Exclude<StationId, 'arsenal' | 'pets'>, string[]> = {
   play: ['tab-play'],
   maps: ['tab-maps'],
   album: ['tab-album'],
@@ -56,6 +60,8 @@ export interface GalpaoStart {
   look: Appearance;
   sex: Sex;
   hooks: GalpaoHooks;
+  /** The account's pet choice and how to save it (the home keeps it: client/ui/home.ts). */
+  pets: { choice(): PetChoice; save(next: PetChoice): void };
 }
 
 /** The scene's painted texts in the player's language (also the dev bench's, client/dev/bench.ts). */
@@ -66,14 +72,16 @@ export const labels = (): GalpaoLabels => ({
     arsenal: t('gpSign_arsenal'),
     profile: t('gpSign_profile'),
     settings: t('gpSign_settings'),
+    pets: t('gpSign_pets'),
     admin: t('gpSign_admin'),
   },
+  doghouse: PETS.amora.nome['pt-BR'],
   sections: { primaria: t('gpBoard_primaria'), secundaria: t('gpBoard_secundaria'), faca: t('gpBoard_faca'), granada: t('gpBoard_granada') },
   adminTitle: t('gpAdminScreen'),
   adminSub: t('gpAdminScreenSub'),
   danger: t('gpDanger'),
   highVoltage: t('gpHighVoltage'),
-  exit: t('gpExit'),
+  yard: t('gpYard'),
   album: [t('gpAlbumCover1'), t('gpAlbumCover2'), t('gpAlbumCover3'), t('gpAlbumCover4', { n: STICKERS.length })],
 });
 
@@ -81,6 +89,8 @@ export class GalpaoHome {
   private scene: Galpao | null = null;
   private readonly root = $('galpao');
   private readonly board: ArsenalBoard;
+  private readonly petBoard: PetBoard;
+  private petStage: PetStage | null = null;
   private at: CamStation = 'intro';
   private arrived = false;
   private hover: StationId | null = null;
@@ -92,11 +102,12 @@ export class GalpaoHome {
   private readonly reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly touch = IS_MOBILE;
   private onKey = (e: KeyboardEvent) => this.key(e);
-  private onResize = () => this.root.classList.toggle('compact', innerHeight < 560 || innerWidth < 700);
+  private onResize = () => this.root.classList.toggle('compact', compactGalpao(innerWidth, innerHeight));
 
   private constructor(private o: GalpaoStart) {
     this.staff = o.staff;
     this.board = new ArsenalBoard($('gp-tags'), $('gp-card'), (id) => this.pickWeapon(id));
+    this.petBoard = new PetBoard($('gp-pettags'), $('gp-petcard'), o.pets, (id) => this.callPet(id));
   }
 
   /** Builds the warehouse and takes over the signed-in home; null (and the classic home stays) if it could not. */
@@ -135,7 +146,8 @@ export class GalpaoHome {
     const scene = await createGalpao({
       canvas: $<HTMLCanvasElement>('gp-canvas'),
       mobile: lightScene(this.touch, innerWidth),
-      duration: this.reduceMotion ? 0.6 : 1,
+      duration: 1,
+      reduceMotion: this.reduceMotion,
       playerTag: this.o.playerTag.replace('#', ' #').toUpperCase(),
       labels: labels(),
       arsenal: BOARD,
@@ -157,7 +169,13 @@ export class GalpaoHome {
     if (this.disposed) return scene.dispose();
     this.scene = scene;
     this.setLook(this.o.look, this.o.sex);
-    for (const [id, panes] of Object.entries(PANES) as [Exclude<StationId, 'arsenal'>, string[]][]) {
+    // The pets: the overview's, the station by the front door, the launch's run.
+    const stage = new PetStage({ reduceMotion: this.reduceMotion, mobile: lightScene(this.touch, innerWidth) });
+    stage.setChoice(this.o.pets.choice());
+    stage.bindTags(this.petBoard.tags as Map<PetId, HTMLElement>);
+    scene.setPetStage(stage);
+    this.petStage = stage;
+    for (const [id, panes] of Object.entries(PANES) as [Exclude<StationId, 'arsenal' | 'pets'>, string[]][]) {
       const surf = root.querySelector<HTMLElement>(`.gp-surf[data-station="${id}"]`)!;
       for (const p of panes) this.borrow($(p), surf);
       scene.bindSurface(id, surf);
@@ -240,7 +258,22 @@ export class GalpaoHome {
     if (this.paused) this.pause(false);
     this.setHover(null);
     if (id !== 'arsenal') this.pickWeapon(null);
+    // At the door, the card of the pet that will be sitting on the mat: the one taken along (or the first).
+    if (id === 'pets') this.petBoard.show(this.petStage?.visiting ?? this.o.pets.choice().id ?? 'amora');
     scene.goTo(id);
+  }
+
+  /** A hook's tag: that pet comes in to the mat and its card opens (it isn't taken along: "Levar este" does that). */
+  private callPet(id: PetId) {
+    this.petStage?.call(id);
+    this.petBoard.show(id);
+    this.render();
+  }
+
+  /** The account's pet choice changed (a card, the classic tab): the overview's pet, the rack and the card follow. */
+  setPetChoice(c: PetChoice) {
+    this.petStage?.setChoice(c);
+    this.petBoard.render();
   }
 
   private step(d: -1 | 1) {
@@ -331,6 +364,8 @@ export class GalpaoHome {
     const r = this.root;
     r.classList.toggle('menu-on', home && this.arrived && !this.launching);
     r.classList.toggle('in-station', inStation && !this.launching);
+    // The pets' card: on the right, while at the door.
+    r.classList.toggle('at-pets', this.at === 'pets' && this.arrived && !this.launching);
     r.classList.toggle('arrived', this.arrived);
     $('gp-crumb').textContent = inStation ? `/ ${str(`gpSt_${this.at}`).toUpperCase()}` : '';
     const o = this.order();
@@ -342,15 +377,20 @@ export class GalpaoHome {
     $('gp-index').textContent = i >= 0 ? `${String(i + 1).padStart(2, '0')}/${String(o.length).padStart(2, '0')}` : '';
     let hint = inStation && this.arrived ? str(`gpHint_${this.at}`) : '';
     if (this.at === 'arsenal') hint = this.board.selected ? '' : t(this.touch ? 'gpHint_arsenalTouch' : 'gpHint_arsenal');
+    if (this.at === 'pets' && this.arrived) hint = t(this.touch ? 'gpHint_petsTouch' : 'gpHint_pets');
     $('gp-hint').textContent = hint;
   }
 
-  /** The match is starting: the roll-up door opens, the light floods in and "ENTRANDO NA PARTIDA" comes up. */
-  launch(title: string, sub: string): Promise<void> {
+  /**
+   * The match is starting: the roll-up door opens, the light floods in and "ENTRANDO NA PARTIDA" comes up. `petRuns`:
+   * the pet taken along comes along in this match's mode (its PvP or PvE switch): it runs out ahead through the door.
+   */
+  launch(title: string, sub: string, petRuns = false): Promise<void> {
     const scene = this.scene;
     if (!scene || this.disposed) return Promise.resolve();
     this.launching = true;
     this.pickWeapon(null);
+    this.petStage?.launch(petRuns);
     this.render();
     $('gp-launch-title').textContent = title;
     $('gp-launch-sub').textContent = sub;
@@ -376,6 +416,7 @@ export class GalpaoHome {
     for (const m of this.moved.reverse()) m.parent.insertBefore(m.el, m.next);
     this.root.hidden = true;
     $('gp-launch').hidden = true;
-    this.root.classList.remove('menu-on', 'in-station', 'arrived', 'loading');
+    this.petStage = null;
+    this.root.classList.remove('menu-on', 'in-station', 'arrived', 'loading', 'at-pets');
   }
 }

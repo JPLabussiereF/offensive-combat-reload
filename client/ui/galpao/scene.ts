@@ -5,8 +5,10 @@
 // (the game ships pt-BR and en); the arsenal's pegboard is laid out from the weapon catalog passed in.
 import * as THREE from 'three';
 import { fitText, sizedFont } from '../../world/canvasText';
-import { STATION_ORDER } from './galpaoRules';
+import { flightDuration, STATION_ORDER } from './galpaoRules';
 import type { CamStation, StationId } from './galpaoRules';
+import { namePlate } from '../../world/dog';
+import { PET_MAT, type PetStage } from './petStage';
 
 export { STATION_ORDER };
 export type { CamStation, StationId };
@@ -14,13 +16,16 @@ export type { CamStation, StationId };
 export interface GalpaoLabels {
   /** Floor stencils, e.g. '01 · OPERAÇÕES' (the album has none). */
   stations: Record<Exclude<StationId, 'album'>, string>;
+  /** The name on the doghouse's plate in the yard (the Amora's). */
+  doghouse: string;
   /** Pegboard section headers. */
   sections: { primaria: string; secundaria: string; faca: string; granada: string };
   adminTitle: string;
   adminSub: string;
   danger: string;
   highVoltage: string;
-  exit: string;
+  /** The sign over the front door (the yard's: PF-29). */
+  yard: string;
   /** Magazine cover, in order: masthead, title line 1, title line 2, footer. */
   album: string[];
 }
@@ -29,6 +34,8 @@ export interface GalpaoOptions {
   canvas: HTMLCanvasElement;
   mobile?: boolean;
   duration?: number;
+  /** prefers-reduced-motion: no flights, a cut through a short dip to black instead (every station). */
+  reduceMotion?: boolean;
   /** The nameplate on the locker (was hardcoded 'AIRAM #4821'). */
   playerTag: string;
   labels: GalpaoLabels;
@@ -76,6 +83,8 @@ export interface Galpao {
    */
   pause(on: boolean): void;
   dispose(): void;
+  /** The pets (PF-29): the overview's, the 07 · PETS station by the front door, the launch's run (petStage.ts). */
+  setPetStage(stage: PetStage | null): void;
 }
 
 type V3 = THREE.Vector3;
@@ -222,7 +231,7 @@ interface Surf {
 interface Basis { c: V3; r: V3; u: V3; n: V3; dir: V3 }
 interface Pose { pos: V3; target: V3; up: V3; fov: number; film: number }
 interface SurfPose extends Pose { d: number; basis: Basis }
-interface Move { curve: THREE.CatmullRomCurve3; q0: THREE.Quaternion; q1: THREE.Quaternion; fov0: number; fov1: number; film0: number; film1: number; t: number; dur: number; id: StationId | 'home' }
+interface Move { curve: THREE.CatmullRomCurve3; q0: THREE.Quaternion; q1: THREE.Quaternion; fov0: number; fov1: number; film0: number; film1: number; t: number; dur: number; id: StationId | 'home'; upright?: boolean }
 interface Tween { obj: THREE.Euler; key: 'x' | 'y' | 'z'; from: number; to: number; dur: number; t: number; done?: () => void }
 interface Drag { x: number; y: number; moved: number; pinch: number }
 
@@ -407,6 +416,8 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     return g;
   }
   const openings: { pts: V3[]; door: boolean; name: string }[] = []; // world rects for shafts
+  /** The front door (07 · PETS, PF-29): a yard of its own outside instead of the plain sky. */
+  const isYardDoor = (name: string, o: number[]) => name === 'front' && o[2] === 0;
   for (const [name, w] of Object.entries(wallDefs)) {
     const xs = [...new Set([0, w.len, ...w.open.flatMap((o) => [o[0], o[1]])])].sort((a, b) => a - b);
     B.push(w.m);
@@ -436,7 +447,7 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
         B.box(M.steel, 0.14, b1 + 0.3, 0.16, a0 - 0.07, (b1 + 0.3) / 2, 0.05);
         B.box(M.steel, 0.14, b1 + 0.3, 0.16, a1 + 0.07, (b1 + 0.3) / 2, 0.05);
       }
-      B.add(M.sky, new THREE.PlaneGeometry(a1 - a0 + 1.2, b1 - b0 + 1.2).translate((a0 + a1) / 2, (b0 + b1) / 2, door ? -1.6 : -0.6));
+      if (!isYardDoor(name, o)) B.add(M.sky, new THREE.PlaneGeometry(a1 - a0 + 1.2, b1 - b0 + 1.2).translate((a0 + a1) / 2, (b0 + b1) / 2, door ? -1.6 : -0.6));
       if (w.sun) {
         const c = [[a0, b1], [a1, b1], [a1, door ? 0.45 : b0], [a0, door ? 0.45 : b0]].map(([a, b]) => V(a, door ? Math.min(b, 0.45) : b, 0).applyMatrix4(w.m));
         if (door) { c[0].y = 0.45; c[1].y = 0.45; c[2].y = 0.02; c[3].y = 0.02; }
@@ -512,12 +523,14 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   const st = labels.stations;
   stencil(st.play, 5.2, -2.6, 0); stencil(st.maps, -5.7, -5.9, 0, 2.6); stencil(st.arsenal, -9.6, -2.0, -Math.PI / 2);
   stencil(st.profile, -9.9, 4.7, -Math.PI / 2); stencil(st.settings, 9.6, -2.6, Math.PI / 2); stencil(st.admin, 6.4, 6.0, Math.PI / 2, 1.8);
+  stencil(st.pets, -1.4, 6.55, Math.PI, 1.8);
   // wall zone numerals
-  const wallNum = (txt: string, x: number, y: number, z: number, ry: number) => {
+  const wallNum = (txt: string, x: number, y: number, z: number, ry: number, size = 1.3) => {
     const m = std({ map: textTex([{ t: txt }], { w: 256, h: 256, font: '800 210px "Barlow Condensed", Arial Narrow, sans-serif', fg: 'rgba(225,220,205,1)' }), transparent: true, opacity: 0.55, roughness: 0.9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
-    mesh(new THREE.PlaneGeometry(1.3, 1.3), m, world, x, y, z, 0, ry, 0, false);
+    mesh(new THREE.PlaneGeometry(size, size), m, world, x, y, z, 0, ry, 0, false);
   };
   wallNum('01', 8.6, 3.2, -7.95, 0); wallNum('02', -5.7, 3.4, -7.95, 0); wallNum('03', -11.95, 3.6, -5.0, Math.PI / 2); wallNum('06', 11.95, 3.6, -4.6, -Math.PI / 2);
+  wallNum('07', -1.75, 2.18, 7.95, Math.PI, 0.8);
 
   // ---------- lights ----------
   const env = new THREE.Scene();
@@ -561,6 +574,8 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   point('settings', 10.7, 2.5, -2.6, 0xfff1dd, 10, 6);
   point('admin', 10.0, 2.35, 5.9, 0x9fd8ff, 6, 6);
   point(null, 5.3, 0.35, -7.4, 0xffb067, 6, 5);
+  // 07 · PETS: a warm sconce over the front door lights the doormat (shadows only off the phone).
+  spot('pets', -0.2, 2.6, 7.6, -0.3, 0, 7.15, 0xffc58a, 13.5, 0.75, !mobile, 0.6);
   spot(null, 0, 6.0, -2, 0, 0, 1, 0xffd9b0, 120, 1.0, false, 1); // high bay
   await tick(0.5);
 
@@ -1049,8 +1064,18 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   for (let i = 0; i < 5; i++) { const a = (i / 5) * TAU; bo.box(M.poly, 0.3, 0.03, 0.04, 10.35 + Math.cos(a) * 0.15, 0.06, 5.95 + Math.sin(a) * 0.15, 0, -a, 0); }
   bo.cyl(M.galv, 0.025, 0.025, 0.4, 10, 10.35, 0.25, 5.95); bo.box(M.poly, 0.48, 0.08, 0.46, 10.35, 0.48, 5.95); bo.box(M.poly, 0.06, 0.55, 0.44, 10.1, 0.82, 5.95, 0, 0, -0.12);
   bo.flush(world);
-  const exitS = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.16), new THREE.MeshBasicMaterial({ map: textTex([{ t: labels.exit }], { w: 256, h: 96, bg: '#0d7a3a', fg: '#eafff0', font: '800 64px "Barlow Condensed", Arial Narrow, sans-serif' }), color: new THREE.Color(1.8, 1.8, 1.8) }));
-  exitS.position.set(-0.55, 2.6, 7.94); exitS.rotation.y = Math.PI; world.add(exitS);
+  // The yard door's sign (PF-29, the PF-36 review): a warm painted wooden plank, lit by the sconce, not a glowing exit sign.
+  const yardTex = canvasTex(320, 112, (g, w, h) => {
+    g.fillStyle = '#7a4b28'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(48, 26, 12, 0.45)'; g.lineWidth = 2;
+    for (let y = 10; y < h; y += 17) { g.beginPath(); g.moveTo(0, y); g.bezierCurveTo(w * 0.3, y + 4, w * 0.6, y - 4, w, y + 1); g.stroke(); }
+    g.strokeStyle = '#4a2a14'; g.lineWidth = 8; g.strokeRect(4, 4, w - 8, h - 8);
+    g.fillStyle = '#f1dfbd'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '800 66px "Barlow Condensed", Arial Narrow, sans-serif';
+    g.fillText(labels.yard, w / 2, h / 2 + 3);
+  });
+  const yardSign = new THREE.Group(); yardSign.position.set(-0.55, 2.6, 7.95); yardSign.rotation.y = Math.PI; world.add(yardSign);
+  mesh(new THREE.BoxGeometry(0.52, 0.2, 0.025), std({ color: 0x5a361c, roughness: 0.9 }), yardSign, 0, 0, -0.0125, 0, 0, 0, false);
+  mesh(new THREE.PlaneGeometry(0.5, 0.18), std({ map: yardTex, roughness: 0.8 }), yardSign, 0, 0, 0.002, 0, 0, 0, false);
   // monitors
   const monG = new THREE.Group(); world.add(monG);
   const feeds: { rt: THREE.WebGLRenderTarget; cam: THREE.PerspectiveCamera }[] = [];
@@ -1093,6 +1118,38 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   addPick('admin', monG);
   await tick(0.92);
 
+  // ---------- 07 · PETS: the front door and its yard (PF-29) ----------
+  // Outside: a patch of grass (~3 × 3 m) inside a low wall, the Amora's doghouse with her name plate, a sky of its
+  // own (dimmer than the other openings', which don't change). Inside: the doormat and the sconce over the door.
+  const grassMap = canvasTex(256, 256, (g, w, h) => pixels(g, w, h, (u, v) => { const c = 0.42 + (N32(u, v, 2) - 0.5) * 0.3 + (R() - 0.5) * 0.12; return [c * 0.52, c * 0.86, c * 0.38]; }), { rep: [2, 2] });
+  const yb = new Batch();
+  yb.add(std({ map: grassMap, roughness: 0.95 }), new THREE.PlaneGeometry(3.6, 3.2).rotateX(-Math.PI / 2).translate(-0.2, 0.0, 9.65));
+  const yardWall = std({ map: blockMap, color: 0xb8b0a0, roughness: 0.9 });
+  yb.box(yardWall, 3.8, 0.6, 0.2, -0.2, 0.3, 11.35);
+  yb.box(yardWall, 0.2, 0.6, 3.2, -2.1, 0.3, 9.75);
+  yb.box(yardWall, 0.2, 0.6, 3.2, 1.7, 0.3, 9.75);
+  // The doghouse, in the yard's far corner, its door toward the warehouse.
+  const house = std({ color: 0xa8643a, roughness: 0.8 });
+  const roofM = std({ color: 0x5a2e22, roughness: 0.7 });
+  yb.box(house, 0.9, 0.62, 0.8, 1.05, 0.31, 10.55);
+  yb.box(roofM, 0.62, 0.05, 0.96, 0.82, 0.78, 10.55, 0, 0, 0.62);
+  yb.box(roofM, 0.62, 0.05, 0.96, 1.28, 0.78, 10.55, 0, 0, -0.62);
+  yb.box(std({ color: 0x1a1214, roughness: 1 }), 0.34, 0.4, 0.02, 1.05, 0.22, 10.14);
+  yb.add(std({ color: 0xb03a2a, metalness: 0.3, roughness: 0.5 }), new THREE.CylinderGeometry(0.12, 0.09, 0.07, 14), mtx(0.35, 0.035, 9.95));
+  // Inside: the doormat (coir), 0.7 m in from the threshold.
+  yb.box(std({ color: 0x8a5a32, roughness: 1 }), 0.95, 0.012, 0.6, PET_MAT.x, 0.006, PET_MAT.z);
+  yb.box(std({ color: 0x6a3f22, roughness: 1 }), 0.8, 0.014, 0.46, PET_MAT.x, 0.007, PET_MAT.z);
+  // The sconce over the door.
+  yb.box(M.steel, 0.16, 0.12, 0.1, -0.2, 2.56, 7.92);
+  yb.flush(world);
+  mesh(new THREE.SphereGeometry(0.05, 10, 8), M.bulb, world, -0.2, 2.5, 7.84, 0, 0, 0, false);
+  const doghousePlate = namePlate(labels.doghouse, 0.42, 0.13);
+  doghousePlate.position.set(1.05, 0.52, 10.13); doghousePlate.rotation.y = Math.PI; world.add(doghousePlate);
+  const yardSky = new THREE.MeshBasicMaterial({ map: skyMap, color: new THREE.Color(1.2, 1.1, 1.0), fog: false }); yardSky.userData.noCast = true;
+  mesh(new THREE.PlaneGeometry(9, 5), yardSky, world, -0.2, 2.2, 12.6, 0, Math.PI, 0, false);
+  let petStage: PetStage | null = null;
+  await tick(0.95);
+
   // ---------- clutter ----------
   const cb2 = new Batch();
   // pallet racking (back right)
@@ -1134,7 +1191,9 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
 
   // ---------- surfaces ----------
   const surf = (d: Pick<Surf, 'anchor' | 'w' | 'h' | 'dir' | 'fov' | 'maxW' | 'noDom'>): Surf => ({ ...d, el: null, reveal: 0, want: 0, W: 0, H: 0 });
-  const SURF: Record<StationId, Surf> = {
+  // The pets' station has no DOM surface on a prop: its card is a panel on the right (galpao.ts) and its tags hang
+  // under the hooks (petStage.ts).
+  const SURF: Record<Exclude<StationId, 'pets'>, Surf> & { pets?: Surf } = {
     play: surf({ anchor: playAnchor, w: 2.4, h: 1.3, dir: V(0, -0.47, 0.88), fov: 36, maxW: 1240 }),
     maps: surf({ anchor: mapsAnchor, w: 3.5, h: 1.92, dir: V(0, 0.04, 1), fov: 36, maxW: 1260 }),
     arsenal: surf({ anchor: peg, w: BW, h: BH, dir: V(0, 0.02, 1), fov: 36, noDom: true }),
@@ -1144,6 +1203,11 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     admin: surf({ anchor: adminAnchor, w: 0.94, h: 0.53, dir: V(0, 0, 1), fov: 34, maxW: 960 }),
   };
   const surfOf = (id: CamStation): Surf | undefined => (id === 'home' || id === 'intro' ? undefined : SURF[id]);
+  /** The 07 · PETS pose (the PF-36 framing): 3/4 from the right of the door, the card's room on the right. */
+  const PETS_POSE = { pos: V(2.2, 1.3, 4.8), target: V(-1.0, 0.8, 7.9), fov: 40, film: 6 };
+  /** In portrait the card is a sheet along the bottom (with the row of faces: no tags there): the pet on the doormat
+   * in the middle of the top half (the camera looks below it), from the right of the door, 60°. */
+  const PETS_PORTRAIT = { pos: V(0.6, 1.2, 5.0), target: V(-0.3, -0.66, 7.3), fov: 60 };
 
   // ---------- post chain ----------
   const rtOpts = { type: THREE.HalfFloatType, depthBuffer: true };
@@ -1211,7 +1275,7 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   const C4 = [V(), V(), V(), V()], _v = V();
   // the pose that frames a station's surface inside the screen margins (iterated: perspective is not linear)
   function surfPose(id: StationId): SurfPose {
-    const s = SURF[id], b = surfBasis(s), mg = margins();
+    const s = SURF[id]!, b = surfBasis(s), mg = margins();
     const fov = s.fov + (portrait ? 14 : 0);
     tmpCam.fov = fov; tmpCam.aspect = aspect; tmpCam.filmOffset = 0; tmpCam.updateProjectionMatrix();
     const t = Math.tan(THREE.MathUtils.degToRad(fov / 2));
@@ -1230,6 +1294,11 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
       const film = portrait ? 0 : vw < 900 ? 6.5 : 8.5;
       return { pos: HOME.pos.clone(), target: HOME.target.clone(), up: V(0, 1, 0), fov: portrait ? 48 : HOME.fov, film };
     }
+    if (id === 'pets') {
+      // A fixed pose (no surface to frame): the pet on the mat left of center, the card on the right.
+      if (portrait) return { pos: PETS_PORTRAIT.pos.clone(), target: PETS_PORTRAIT.target.clone(), up: V(0, 1, 0), fov: PETS_PORTRAIT.fov, film: 0 };
+      return { pos: PETS_POSE.pos.clone(), target: PETS_POSE.target.clone(), up: V(0, 1, 0), fov: PETS_POSE.fov, film: vw < 900 ? 4.5 : PETS_POSE.film };
+    }
     return surfPose(id);
   }
   function sizeSurface(id: StationId | 'home', pose: Pose) {
@@ -1243,9 +1312,14 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     s.W = W; s.H = H; s.el.style.width = `${W}px`; s.el.style.height = `${H}px`;
   }
   const WAY: Partial<Record<CamStation, V3[]>> = { admin: [V(6.9, 1.7, 5.0)] };
+  /** The hero table, with room around it: no flight goes through it (a side waypoint goes around). */
+  const TABLE_BOX = new THREE.Box3(V(-1.4, 0, -0.2), V(1.4, 1.25, 1.4));
+  /** With reduced motion: a cut through black instead of a flight (the pose it lands on, how far into the dip). */
+  let cut: { t: number; dest: Pose; q: THREE.Quaternion; swapped: boolean } | null = null;
+  const reduce = !!opt.reduceMotion;
   function goTo(id: StationId | 'home', instant = false) {
     if (disposed) return;
-    if (id === station && !move) return;
+    if (id === station && !move && !cut) return;
     const prev = station;
     const ps = surfOf(prev); if (ps) ps.want = 0;
     if (prev === 'album' && id !== 'album') animate(coverPivot.rotation, 'z', Math.PI, 0, 0.55);
@@ -1255,7 +1329,9 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     const dest = poseFor(id);
     sizeSurface(id, dest);
     const q1 = lookQuat(dest.pos, dest.target, dest.up);
-    if (instant) { cam.position.copy(dest.pos); cam.quaternion.copy(q1); cam.fov = dest.fov; cam.filmOffset = dest.film; cam.updateProjectionMatrix(); move = null; arrive(); return; }
+    if (instant) { cut = null; cam.position.copy(dest.pos); cam.quaternion.copy(q1); cam.fov = dest.fov; cam.filmOffset = dest.film; cam.updateProjectionMatrix(); move = null; arrive(); return; }
+    // Reduced motion: a quick dip to black and a cut to the station (every station: Perfil and Configurações too).
+    if (reduce && prev !== 'intro') { move = null; cut = { t: 0, dest, q: q1, swapped: false }; return; }
     const p0 = cam.position.clone(), p3 = dest.pos.clone(), dist = p0.distanceTo(p3);
     const pts = [p0];
     if (dist > 1.5) {
@@ -1265,7 +1341,27 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     for (const w of [...(WAY[id] || []), ...(WAY[prev] || [])]) pts.push(w.clone());
     if (dist > 1.2) pts.push(p3.clone().addScaledVector(p3.clone().sub(dest.target).normalize(), Math.min(1.2, dist * 0.2)));
     pts.push(p3);
-    move = { curve: new THREE.CatmullRomCurve3(pts, false, 'centripetal'), q0: cam.quaternion.clone(), q1, fov0: cam.fov, fov1: dest.fov, film0: cam.filmOffset, film1: dest.film, t: 0, dur: duration, id };
+    // A curve through the hero table goes around it by the side it's on (from Jogar or Configurações to the door…).
+    let curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+    const cross = curve.getSpacedPoints(48).find((p) => TABLE_BOX.containsPoint(p));
+    if (cross) {
+      const side = (p0.x + p3.x) / 2 >= 0 ? 1 : -1;
+      pts.splice(Math.max(1, pts.length - 2), 0, V(side * 2.2, 1.65, Math.max(-0.4, Math.min(1.6, cross.z))));
+      curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+    }
+    // The longer the turn, the longer the flight (1.2 s at 120°, 1.4 s at 180°).
+    const turn = THREE.MathUtils.radToDeg(2 * Math.acos(Math.min(1, Math.abs(cam.quaternion.dot(q1)))));
+    const upright = (q: THREE.Quaternion) => Math.abs(V(1, 0, 0).applyQuaternion(q).y) < 0.03;
+    move = { curve, q0: cam.quaternion.clone(), q1, fov0: cam.fov, fov1: dest.fov, film0: cam.filmOffset, film1: dest.film, t: 0, dur: flightDuration(turn, false) * duration, id, upright: upright(cam.quaternion) && upright(q1) };
+  }
+  /** A flight between two upright poses tilts the horizon by at most ~8° on the way (a slerp alone can roll it). */
+  const MAX_ROLL = THREE.MathUtils.degToRad(8);
+  function limitRoll(q: THREE.Quaternion) {
+    for (let i = 0; i < 3; i++) {
+      const r = Math.asin(clamp(V(1, 0, 0).applyQuaternion(q).y, -1, 1));
+      if (Math.abs(r) <= MAX_ROLL) return;
+      q.premultiply(new THREE.Quaternion().setFromAxisAngle(V(0, 0, -1).applyQuaternion(q), (Math.abs(r) - MAX_ROLL) * Math.sign(r)));
+    }
   }
   function arrive() {
     arrived = true;
@@ -1296,6 +1392,7 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   function updateSurfaces(dt: number) {
     for (const id of STATION_ORDER) {
       const s = SURF[id];
+      if (!s) continue;
       s.reveal = clamp(s.reveal + (s.want ? dt / 0.35 : -dt / 0.16), 0, 1);
       const a = smoother(s.reveal);
       for (const m of fades[id] || []) m.opacity = 1 - a;
@@ -1344,7 +1441,7 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     const r = canvas.getBoundingClientRect(); ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, cam); return ray.intersectObjects(list, true)[0];
   };
-  const pickList = (): THREE.Object3D[] => STATION_ORDER.flatMap((id) => pick[id] ?? []);
+  const pickList = (): THREE.Object3D[] => [...STATION_ORDER.flatMap((id) => pick[id] ?? []), ...(petStage?.pickables ?? [])];
   const stationOfHit = (hit: THREE.Intersection | undefined): StationId | null => (hit?.object.userData.station as StationId | undefined) ?? null;
   const weaponOfHit = (hit: THREE.Intersection | undefined): string | null => (hit?.object.userData.weapon as string | undefined) ?? null;
   const pinchDist = () => { const p = [...pointers.values()]; return p.length < 2 ? 0 : Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y); };
@@ -1401,6 +1498,13 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     if (paused) { cam.updateMatrixWorld(); drawScene(); updateSurfaces(0); }
   }
   const ro = new ResizeObserver(resize); ro.observe(host); resize();
+  /** The overview menu's box on screen (the overview's pet stays clear of it). */
+  const menuRect = (): DOMRect | null => {
+    const m = host.querySelector('.gp-menu') as HTMLElement | null;
+    if (!m || m.offsetParent === null) return null;
+    const r = m.getBoundingClientRect();
+    return r.width > 0 ? r : null;
+  };
 
   // ---------- intro ----------
   cam.position.set(4.5, 5.6, 6.4); cam.quaternion.copy(lookQuat(cam.position, V(-0.5, 1.4, -2), V(0, 1, 0))); cam.fov = 40; cam.updateProjectionMatrix();
@@ -1435,14 +1539,24 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
       const e = clamp(smoother(move.t), 0, 1);
       cam.position.copy(move.curve.getPointAt(e));
       cam.quaternion.slerpQuaternions(move.q0, move.q1, smoother(clamp((move.t - 0.04) / 0.9, 0, 1)));
+      if (move.upright) limitRoll(cam.quaternion);
       cam.fov = lerp(move.fov0, move.fov1, e); cam.filmOffset = lerp(move.film0, move.film1, e); cam.updateProjectionMatrix();
       const ms = surfOf(move.id);
       if (ms && move.t > 0.84 && move.id !== 'album' && !ms.noDom) ms.want = 1;
       if (move.t >= 1) { move = null; arrive(); }
+    } else if (cut) {
+      // Reduced motion: down to black, the cut, back up (about 0.2 s).
+      cut.t += dt;
+      if (cut.t >= 0.1 && !cut.swapped) {
+        cut.swapped = true;
+        cam.position.copy(cut.dest.pos); cam.quaternion.copy(cut.q); cam.fov = cut.dest.fov; cam.filmOffset = cut.dest.film; cam.updateProjectionMatrix();
+      }
+      if (cut.t >= 0.2) { cut = null; arrive(); }
     } else if (arrived && station === 'home') {
       const p = poseFor('home');
       const tgt = p.target.clone();
-      if (peekId) { const c = surfBasis(SURF[peekId]).c; tgt.lerp(c, 0.035); }
+      // (the pets' item: toward the pet on the table, if there's one; the door is behind the camera)
+      if (peekId) { const c = peekId === 'pets' ? petStage?.peekPoint() ?? null : surfBasis(SURF[peekId]!).c; if (c) tgt.lerp(c, 0.035); }
       peekT.lerp(tgt, 1 - Math.exp(-dt * 3));
       const breathe = V(Math.sin(time * 0.31) * 0.012, Math.sin(time * 0.43) * 0.008, 0);
       cam.position.copy(p.pos).add(breathe);
@@ -1468,6 +1582,10 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
       if (launchState.t > 2.7 && !launchState.fired) { launchState.fired = true; launchState.done(); }
     }
     fadeIn = Math.min(1, fadeIn + dt / 1.2); postU.black.value = 1 - smoother(fadeIn);
+    if (cut) postU.black.value = Math.max(postU.black.value, Math.sin(clamp(cut.t / 0.2, 0, 1) * Math.PI));
+    if (petStage) {
+      petStage.update({ dt, time, camera: cam, station, arrived, peek: peekId, vw, vh, launch: launchState ? launchState.t : null, menuRect: menuRect(), fly: move ? move.t : cut ? (cut.swapped ? 1 : 0) : null });
+    }
     for (let i = tweens.length - 1; i >= 0; i--) {
       const tw = tweens[i]; tw.t = Math.min(1, tw.t + dt / tw.dur); tw.obj[tw.key] = lerp(tw.from, tw.to, smoother(tw.t));
       if (tw.t >= 1) { tweens.splice(i, 1); tw.done?.(); }
@@ -1581,7 +1699,13 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
       launchState = { t: 0, done: () => { if (!disposed) done(); }, fired: false }; arrived = false;
       const s = surfOf(station); if (s) s.want = 0;
     },
-    resetLaunch() { if (disposed) return; launchState = null; curtain.position.y = 0; postU.white.value = 0; fadeIn = 0; station = 'intro'; goTo('home', true); },
+    resetLaunch() { if (disposed) return; launchState = null; curtain.position.y = 0; postU.white.value = 0; fadeIn = 0; station = 'intro'; petStage?.resetLaunch(); goTo('home', true); },
+    setPetStage(stage: PetStage | null) {
+      if (disposed) return stage?.dispose();
+      petStage?.dispose();
+      petStage = stage;
+      if (stage) world.add(stage.root);
+    },
     resize,
     pause(on: boolean) {
       if (disposed || on === paused) return;
@@ -1598,6 +1722,8 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     dispose() {
       if (disposed) return;
       dropHero();
+      petStage?.dispose();
+      petStage = null;
       disposed = true;
       cancelAnimationFrame(raf);
       for (const id of timers) clearTimeout(id);

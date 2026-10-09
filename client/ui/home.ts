@@ -42,6 +42,8 @@ import { showAlbum } from './album';
 import { getLang, t, type StringKey } from './strings';
 import { GalpaoHome } from './galpao/galpao';
 import { galpaoWanted } from './galpao/galpaoRules';
+import { emptyPetChoice, petAlong, playerPet, sanitizePet, type PetChoice } from '@shared/pets';
+import { PetsTab, type PetCardHooks } from './pets';
 
 export type BotSkillName = 'facil' | 'normal' | 'dificil';
 
@@ -61,8 +63,8 @@ export type HomeChoice = { name: string; sex: Sex; account: ProfileResponse | nu
 );
 
 type PlayMode = 'online' | 'bots' | 'treino';
-type Tab = 'play' | 'maps' | 'arsenal' | 'album' | 'profile' | 'settings' | 'management' | 'auth';
-const TABS: Tab[] = ['play', 'maps', 'arsenal', 'album', 'profile', 'settings', 'management', 'auth'];
+type Tab = 'play' | 'maps' | 'arsenal' | 'album' | 'profile' | 'settings' | 'pets' | 'management' | 'auth';
+const TABS: Tab[] = ['play', 'maps', 'arsenal', 'album', 'profile', 'settings', 'pets', 'management', 'auth'];
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -313,6 +315,45 @@ export function showHome(opts: { software?: boolean; onLanguage?: (l: Lang) => v
   /** The Mapas and Gerenciamento tabs, wired once the online part below exists (they play and open the editor). */
   let openMaps = () => {};
   let openManagement = () => {};
+  // --- Pets (PF-29): the account's choice, shown at once and saved (undone if the server refuses) --------------
+  let petChoice: PetChoice = emptyPetChoice();
+  let petsTab: PetsTab | null = null;
+  /** Saves one at a time, in order (the last change wins). */
+  let petSaving: Promise<void> = Promise.resolve();
+  const refreshPets = () => {
+    galpao?.setPetChoice(petChoice);
+    petsTab?.refresh();
+  };
+  const petHooks: PetCardHooks = {
+    choice: () => petChoice,
+    save: (next) => {
+      const before = petChoice;
+      petChoice = sanitizePet(next);
+      refreshPets();
+      const sent = petChoice;
+      petSaving = petSaving.then(async () => {
+        try {
+          const p = await api<ProfileResponse>('PATCH', '/api/perfil', { pet: sent });
+          if (profile) profile.pet = p.pet;
+          // Only if nothing else changed meanwhile (a later change is on its way).
+          if (petChoice === sent) {
+            petChoice = p.pet;
+            refreshPets();
+          }
+        } catch {
+          if (petChoice === sent) {
+            petChoice = before;
+            refreshPets();
+          }
+          setStatus(t('petSaveFailed'), true);
+        }
+      });
+    },
+  };
+  const openPets = () => {
+    petsTab ??= new PetsTab($('tab-pets'), petHooks);
+    petsTab.refresh();
+  };
   /** The 3D warehouse holding the tabs, once it is up (null: the classic home, or still building). */
   let galpao: GalpaoHome | null = null;
   /** Whether this browser gets the warehouse; false for good once it failed to start. */
@@ -329,11 +370,12 @@ export function showHome(opts: { software?: boolean; onLanguage?: (l: Lang) => v
     for (const id of TABS) $(`tab-${id}`).classList.toggle('hidden', id !== next);
     for (const b of homeTabs()) b.setAttribute('aria-selected', String(b.dataset.tab === next));
     // The lists want the room the character card takes.
-    home.querySelector('.home-panel')!.classList.toggle('wide', next === 'maps' || next === 'management');
+    home.querySelector('.home-panel')!.classList.toggle('wide', next === 'maps' || next === 'management' || next === 'pets');
     // The Arsenal takes the screen's height (the canvas pans and zooms instead of the page scrolling).
     $('home-in').classList.toggle('arsenal-open', next === 'arsenal');
     if (next === 'arsenal') canvas?.shown();
     if (next === 'profile') openProfile();
+    else if (next === 'pets' && !galpao) openPets();
     else if (next === 'maps') openMaps();
     else if (next === 'management') openManagement();
     else if (next === 'album') void showAlbum($('tab-album'), { setStatus, onBack: toStart });
@@ -395,6 +437,8 @@ export function showHome(opts: { software?: boolean; onLanguage?: (l: Lang) => v
     const r = await fetchMe();
     me = r.me;
     profile = me ? await fetchProfile().catch(() => null) : null;
+    petChoice = sanitizePet(profile?.pet);
+    refreshPets();
     // The Arsenal tab edits the account's Arsenal choice (a new Progress for every load of the account).
     progress = profile ? new Progress(profile) : null;
     canvas ??= new ArsenalCanvas($('home-arsenal'));
@@ -486,6 +530,7 @@ export function showHome(opts: { software?: boolean; onLanguage?: (l: Lang) => v
       sex,
       // Leaving the locker closes the character editor (and so lets the warehouse run again).
       hooks: { showTab: (next) => showTab(next), quickPlay: () => playHooks.quickPlay(), quickLine: () => playHooks.quickLine(), leaving: () => closeCustomizer() },
+      pets: petHooks,
     });
     galpaoStarting = false;
     if (!g) {
@@ -658,9 +703,15 @@ export function showHome(opts: { software?: boolean; onLanguage?: (l: Lang) => v
         home.classList.add('hidden');
         resolve(choice);
       };
-      // In the warehouse a match starts with the roll-up door opening (not the editor: it isn't a match).
-      if (galpao && choice.mode !== 'editor') void galpao.launch(...launchText(choice)).then(go);
+      // In the warehouse a match starts with the roll-up door opening (not the editor: it isn't a match), the pet
+      // taken along running out ahead if it comes along in this match's mode (its PvP or PvE switch).
+      if (galpao && choice.mode !== 'editor') void galpao.launch(...launchText(choice), petRuns(choice)).then(go);
       else go();
+    };
+    /** Whether the pet comes along in the chosen match (the shooting range is PvP). */
+    const petRuns = (c: HomeChoice): boolean => {
+      const mode: GameModeId | null = c.mode === 'online' ? c.joined.session.mode : c.mode === 'bots' ? c.game : null;
+      return petAlong(playerPet(petChoice), mode ? MODE_RULES[mode] : null);
     };
     /** The launch's title and line: the session, or the match type (the range) and the map. */
     const launchText = (c: HomeChoice): [string, string] => {

@@ -94,6 +94,9 @@ export class Hud {
   private zwaveEl = $('zwave');
   private zwaveKey = '';
   private zmoneyEl = $('zmoney');
+  /** The pet's icon (zumbi, PF-29): next to the money; on a phone, the first chip of the buffs. */
+  private petEl = $('zpet');
+  private petKey = '';
   private zmoney = -1;
   private zsumEl = $('zsummary');
 
@@ -108,6 +111,40 @@ export class Hud {
     this.crowsEl.innerHTML = Array.from({ length: 9 }, (_, i) => `<span class="feather f${i}">${feather}</span>`).join('');
     $('spec-prev').addEventListener('click', () => this.onSpectateStep(-1));
     $('spec-next').addEventListener('click', () => this.onSpectateStep(1));
+    // On a phone the pet's icon is the first chip of the buffs' row (styled like an untimed buff).
+    if (IS_MOBILE) {
+      this.petEl.classList.add('buff', 'forever');
+      this.buffsEl.prepend(this.petEl);
+    }
+  }
+
+  /**
+   * Zumbi (PF-29): our pet's face in a ring that fills up as its ability gets ready again (`frac`), in its collar's
+   * color; `acting` while it's doing it, `n` the cat's lifts left, and a short text blinking right after it acts
+   * (`flash`). Only its owner sees this; null hides it. It isn't a button: the pet acts by itself.
+   */
+  setPet(p: { face: string; color: string; frac: number; acting: boolean; n: number | null; flash: string | null; label: string } | null) {
+    const el = this.petEl;
+    const key = p ? `${p.face.length}|${p.color}|${p.frac.toFixed(2)}|${p.acting}|${p.n}|${p.flash}` : '';
+    if (key === this.petKey) return;
+    this.petKey = key;
+    el.classList.toggle('hidden', !p);
+    if (!p) return;
+    const img = $<HTMLImageElement>('zpet-face');
+    if (img.getAttribute('src') !== p.face && p.face) img.src = p.face;
+    el.style.setProperty('--c', p.color);
+    el.style.setProperty('--p', Math.max(0, Math.min(1, p.frac)).toFixed(3));
+    el.classList.toggle('ready', p.frac >= 1 && !p.acting);
+    el.classList.toggle('acting', p.acting);
+    el.title = p.label;
+    $('zpet-n').textContent = p.n === null ? '' : String(p.n);
+    const text = $('zpet-text');
+    if (p.flash && text.textContent !== p.flash) {
+      el.classList.remove('flash');
+      void el.offsetWidth;
+    }
+    el.classList.toggle('flash', !!p.flash);
+    if (p.flash) text.textContent = p.flash;
   }
 
   show(v: boolean) {
@@ -173,7 +210,8 @@ export class Hud {
     const key = buffs.map((b) => `${b.id}:${b.label}`).join('|');
     if (key !== this.buffsKey) {
       this.buffsKey = key;
-      this.buffsEl.replaceChildren();
+      // (the pet's chip stays first on a phone)
+      this.buffsEl.replaceChildren(...(IS_MOBILE ? [this.petEl] : []));
       this.buffRows = buffs.map((b) => {
         const row = document.createElement('div');
         row.className = `buff${b.total ? '' : ' forever'}`;

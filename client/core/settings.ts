@@ -50,6 +50,8 @@ export interface Settings {
   keyLabels: Record<string, string>;
   /** The language chosen on this device (PF-30); unset: the browser's (client/ui/strings.ts resolveLang). */
   idioma?: Lang;
+  /** PvP only: other players' pets aren't drawn (PF-29); the own pet stays. Saved on this device. */
+  hidePets: boolean;
 }
 
 export type { ObjectDetail };
@@ -85,6 +87,7 @@ const DEFAULTS: Settings = {
   padSensitivity: 1,
   keybinds: mergeKeybinds(undefined),
   keyLabels: {},
+  hidePets: false,
 };
 
 export function loadSettings(): Settings {

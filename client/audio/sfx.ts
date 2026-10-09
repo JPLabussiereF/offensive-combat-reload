@@ -1371,6 +1371,101 @@ export class Sfx {
     this.tone(t + 0.5, 'sawtooth', 160, 90, 0.5, 0.05, 'sfx', 0.02);
   }
 
+  // --- Pets (PF-29): short, under the mode's warnings ---------------------------------------------------------
+
+  /** The cat: a short "miau" (`happy`: rising at the end, after getting its owner up). */
+  meow(happy = false) {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sawtooth', 620, happy ? 1150 : 980, 0.14, 0.06, 'sfx', 0.03);
+    this.tone(t + 0.14, 'sawtooth', happy ? 1150 : 980, happy ? 1300 : 560, 0.22, 0.05, 'sfx', 0.01);
+    this.noiseBurst(t, 0.3, 'bandpass', 1600, 5, 0.03);
+  }
+
+  /** The weasel's hammer: a high, light tap (higher than a player's). */
+  petHammer() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.noiseBurst(t, 0.03, 'bandpass', 3600, 3, 0.12);
+    this.tone(t, 'square', 1400, 900, 0.03, 0.04, 'sfx', 0.001);
+  }
+
+  /** A sweep of noise through a band-pass gliding from `f0` to `f1` (a whoosh, air leaking out). */
+  private sweep(f0: number, f1: number, dur: number, peak: number) {
+    const ctx = this.ctx!;
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 2.5;
+    f.frequency.setValueAtTime(f0, t);
+    f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = ctx.createGain();
+    this.env(g, t, peak, 0.02, dur);
+    src.connect(f).connect(g).connect(this.out('sfx'));
+    src.start(t);
+    src.stop(t + dur + 0.1);
+  }
+
+  /** The otter's stone flying off: a quick whoosh. */
+  stoneThrow() {
+    if (!this.ready) return;
+    this.sweep(600, 2400, 0.18, 0.07);
+  }
+
+  /** The stone landing on a head: a dull knock. */
+  stoneHit() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sine', 240, 110, 0.08, 0.12, 'sfx', 0.001);
+    this.noiseBurst(t, 0.04, 'bandpass', 1200, 2, 0.1);
+  }
+
+  /** The bloater going limp: "pfff", air leaking out. */
+  deflate() {
+    if (!this.ready) return;
+    this.sweep(2200, 380, 0.6, 0.1);
+  }
+
+  /** The iguana's tail dropping off: a little pop and a squeak. */
+  tailPop() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sine', 520, 130, 0.09, 0.1, 'sfx', 0.001);
+    this.tone(t + 0.08, 'square', 1600, 2100, 0.07, 0.03, 'sfx', 0.003);
+  }
+
+  /** The Bruxinha's spell: a quick sparkle up the scale. */
+  witchSpell() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    [988, 1319, 1568, 1976].forEach((f, i) => this.tone(t + i * 0.05, 'triangle', f, f * 1.02, 0.12, 0.035, 'sfx', 0.002));
+  }
+
+  /** The otter: two quick chirps. */
+  otterChirp() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    for (const at of [0, 0.11]) this.tone(t + at, 'square', 1900, 2600, 0.06, 0.03, 'sfx', 0.003);
+  }
+
+  /** The Bruxinha's potion bursting into a duck float on the zombie: a glassy pop and a sparkle. */
+  potionPop() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.noiseBurst(t, 0.06, 'highpass', 4000, 1, 0.1);
+    for (const [f, at] of [[1568, 0.05], [2093, 0.1], [2637, 0.15]] as const) this.tone(t + at, 'triangle', f, f, 0.12, 0.025, 'sfx', 0.005);
+  }
+
+  /** A duck float's quiet quack (when it catches a zombie and every ~1.5 s while the zombie is stuck in it). */
+  softQuack() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sawtooth', 820, 500, 0.12, 0.035, 'sfx', 0.01);
+    this.noiseBurst(t, 0.08, 'bandpass', 1200, 4, 0.03);
+  }
+
   /** A hammer knocking a nail in: two knocks on wood. */
   boardNail() {
     if (!this.ready) return;

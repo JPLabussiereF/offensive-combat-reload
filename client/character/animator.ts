@@ -84,6 +84,11 @@ export interface ZombiePose {
   spit: number | null;
   /** A boss move and how far into its telegraph (0..1). */
   special: { kind: ZombieMove; t: number } | null;
+  /**
+   * Kept in place by a pet (PF-29): 'duck' in the Bruxinha's float (standing still, arms resting on it, the head
+   * steady: only the float bobs), 'held' by the Amora at the shin (looking down at her, struggling).
+   */
+  stuck?: 'duck' | 'held' | null;
 }
 
 /** Every "feel" parameter of the animation, in one place (tunable live with F6). */
@@ -743,6 +748,20 @@ export class CharacterAnimator {
     let hunch = (s.run ? 0.42 : 0.24) - lean * 0.3;
     let headX = -0.2 + Math.sin(t * 1.3) * 0.08;
     let headZ = 0.22 + Math.sin(t * 0.9) * 0.1;
+    let headY = Math.sin(t * 0.7) * 0.15;
+    if (s.stuck === 'duck') {
+      // In the float: upright and still, the head doesn't loll around.
+      hunch = 0.08;
+      headX = -0.05;
+      headZ = 0.05;
+      headY = 0;
+    } else if (s.stuck === 'held') {
+      // Something has it by the shin: looking down at it, shaking.
+      hunch = 0.45 + Math.sin(t * 18) * 0.04;
+      headX = 0.55;
+      headZ = Math.sin(t * 9) * 0.15;
+      headY = 0.3;
+    }
     if (move === 'charge') hunch = 0.65;
     if (move === 'scream') {
       hunch = -0.25 * smooth(k);
@@ -757,14 +776,22 @@ export class CharacterAnimator {
     }
     this.turn('spine', -hunch * 0.55, twist * 0.5 + Math.sin(t * 0.8) * 0.05, Math.sin(t * 1.1) * 0.04);
     this.turn('chest', -hunch * 0.45, twist * 0.5, 0);
-    this.turn('head', -headX, Math.sin(t * 0.7) * 0.15, headZ);
+    this.turn('head', -headX, headY, headZ);
     // Arms: reaching ahead by default, swaying; flailing when running.
     const sway = (o: number) => Math.sin(t * 2.2 + o) * 0.08;
     const run = s.run ? Math.sin(this.phase * Math.PI * 2) * 0.7 * this.gait : 0;
     // Stooped, the shoulders tip forward with the chest: the arms rise as much to keep reaching straight ahead.
     let left: [number, number, number, number] = [1.35 + hunch + sway(0) + run, 0, -0.12, 0.25];
     let right: [number, number, number, number] = [1.25 + hunch + sway(1) - run, 0, 0.12, 0.3];
-    if (s.attack !== null) {
+    if (s.stuck === 'duck') {
+      // The arms rest on the float around its belly.
+      left = [0.35, 0, -0.75, 0.9];
+      right = [0.35, 0, 0.75, 0.9];
+    } else if (s.stuck === 'held') {
+      // Flailing down at the dog on its shin.
+      left = [0.6 + Math.sin(t * 14) * 0.3, 0, -0.35, 0.5];
+      right = [0.6 - Math.sin(t * 14) * 0.3, 0, 0.35, 0.5];
+    } else if (s.attack !== null) {
       // Up over the head through the windup, then down hard as it lands.
       const a = s.attack;
       const x = a < 0.75 ? 1.3 + 1.4 * smooth(a / 0.75) : 2.7 - 2.1 * smooth((a - 0.75) / 0.25);

@@ -7,7 +7,7 @@
 // An exact route wins over one with parameters.
 import { cleanName, validName } from '@shared/account';
 import { asSex } from '@shared/protocol';
-import { audit, cancelDeletion, changeName, fullProfile, getAccount, me, requestDeletion, setAppearance, setArsenal, setSex, setShowcase } from './accounts';
+import { audit, cancelDeletion, changeName, fullProfile, getAccount, me, requestDeletion, setAppearance, setArsenal, setPet, setSex, setShowcase } from './accounts';
 import { discordAvailable, discordCallback, startDiscord, unlinkDiscord } from './auth/discord';
 import { login, register, requestReset, resetPassword } from './auth/password';
 import { authenticate, clearSessionCookie, revokeSession, type Deps } from './auth/sessions';
@@ -92,6 +92,8 @@ const accountRoutes: Record<string, Handler> = {
     if (body.aparencia !== undefined) await setAppearance(ctx.deps.db, s.accountId, body.aparencia);
     if (body.arsenal !== undefined) await setArsenal(ctx.deps.db, s.accountId, body.arsenal);
     if (body.destaque !== undefined || body.titulo !== undefined) await setShowcase(ctx.deps.db, s.accountId, body.destaque, body.titulo);
+    // The pet (shared/pets.ts: sanitizePet; a pet that does not exist is 400 pet_invalido); every pet is free for now.
+    if (body.pet !== undefined) await setPet(ctx.deps.db, s.accountId, body.pet);
     return reply(ctx, 200, await fullProfile(ctx.deps.db, s.accountId));
   },
 

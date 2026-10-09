@@ -14,11 +14,13 @@ source_paths:
   - client/zombies/client.ts
   - client/styles.css
   - index.html
+  - client/pets/manager.ts
+  - client/pets/portrait.ts
 tags:
   - game
   - ui
   - hud
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # HUD
@@ -45,6 +47,7 @@ Interface sobreposta durante a partida (`#hud` em `index.html`, classe `Hud` em 
 | **Fim de rodada** (`#round-end`) | centro-alto | Cartão do vencedor ("{nome} venceu a corrida armada!" / "VOCÊ VENCEU…", laranja) e "Nova rodada em N…". `hud.showRoundEnd`. | [[Gun Game]] |
 | **Onda** (`#zwave`) | topo, sob o placar | Só no zumbi: "ONDA 3/12 · 14 zumbis" (vermelho numa onda de chefe), "A HORDA VEM AÍ em Ns · ache o caixão!", "INTERVALO · próxima onda em Ns" ou "FIM DA PARTIDA"; com chefe vivo, o nome dele e uma **barra de vida** (pulsa com a fúria do Prefeito). `hud.setZombie`. | [[Zombie]] |
 | **Dinheiro** (`#zmoney`) | sobre a vida | Só no zumbi: "$ 1.250", salta quando sobe. `hud.setMoney`; os ganhos aparecem nos pop-ups como "+$100 Tiro na cabeça" (`hud.cash`). | [[Zombie]], [[Economy Design]] |
+| **Pet** (`#zpet`) | ao lado do dinheiro; no celular, o primeiro chip da fileira de efeitos (`.buff.forever`) | Só no zumbi e só para o dono: um círculo com o **rosto do pet** (retrato 2D, `client/pets/portrait.ts`) num **anel de recarga** na cor da coleira; pulsa enquanto o pet age, brilha quando está pronto, mostra as cargas da gata e **pisca com um texto curto em branco** quando ele age ("Segurou!", "Pato!", "Pedrada!", "Tábua!", "Rabo!", "Levantando…", "De pé!"; a cor da coleira só no anel), por 1,5 s; no celular, a palavra aparece ao lado do rosto por ~1,2 s e o anel pulsa. **Não é botão** (o pet age sozinho). `hud.setPet`. | [[Pets]] |
 | **Resumo da partida zumbi** (`#zsummary`) | centro | "SOBREVIVERAM À HORDA!" / "A HORDA VENCEU", onda e tempo, uma linha por jogador (abates, na cabeça, dinheiro, caiu, reanimou, XP) e "Nova partida em Ns…". `hud.showZombieSummary`. | [[Zombie]] |
 | **Placar pessoal** (`#score`) | topo | Pontos, Abates, Precisão (%). Online/bots: números do servidor/gerenciador; offline: contagem local. | [[Scoring]] |
 | **Bônus/penalidades** (`#buffs`) | superior esquerdo | Um cartão por efeito: ícone, nome, segundos restantes e barra que esvazia; pisca nos últimos 10 s; efeitos sem tempo dizem "até morrer". No celular viram chips compactos. | [[Buffs & Debuffs]] |
@@ -52,7 +55,7 @@ Interface sobreposta durante a partida (`#hud` em `index.html`, classe `Hud` em 
 | **Banner** (`#banner`) | centro | Texto grande animado por 1,8 s: variantes `bird` ("NO PÁSSARO!", "Esfaqueado! Voltou para…"), `taunt` ("OPRIMIDO!"), `level` (subida de nível, bônus, "Próxima arma: …", "SABRE DE LUZ!", "Nova rodada…"), `flaw` (laranja, menor e com quebra de linha: "Saiu DANIFICADA: menos dano", "Você pegou: {arma} ({raridade}) · DANIFICADA"). | [[Notifications]] |
 | **Pop-ups de pontos** (`#popups`) | sob o retículo | "+N Motivo" empilhados (1,6 s) e um total acumulado que some 2 s após o último. | [[Scoring]] |
 | **Kill feed** (`#killfeed`) | superior direito | Ver [[Notifications]]. | — |
-| **Tela de morte** (`#death`) | centro | Mensagem + a **figurinha em destaque e o título de quem te matou** (`#death-showcase`, `hud.setDeathShowcase`; [[Achievements]]) + "Renascendo em N…". Ver [[Flow - Death and Respawn]]. No zumbi também serve para **caído** ("CAÍDO!" + "Um amigo pode te reanimar · sangra em Ns" ou "{nome} está te reanimando!", com batimento cardíaco e a câmera rente ao chão) e para quem morreu numa onda ("Você volta no intervalo"). `hud.setDeathText`. | [[Respawn]], [[Zombie]] |
+| **Tela de morte** (`#death`) | centro | Mensagem + a **figurinha em destaque e o título de quem te matou** (`#death-showcase`, `hud.setDeathShowcase`; [[Achievements]]) + "Renascendo em N…". Ver [[Flow - Death and Respawn]]. No zumbi também serve para **caído** ("CAÍDO!" + "Um amigo pode te reanimar · sangra em Ns", "{nome} está te reanimando!" ou, com a gata, "A gata está te levantando · Ns", com batimento cardíaco e a câmera rente ao chão) e para quem morreu numa onda ("Você volta no intervalo"). `hud.setDeathText`. | [[Respawn]], [[Zombie]] |
 | **Penas dos corvos** (`#crows`) | bordas da tela | Zumbi: penas pretas balançando enquanto os corvos te bicam (você ficou 3 s numa árvore). `hud.setCrows`. Ver [[Zombie]]. | — |
 | **Assistindo** (`#spectate`) | embaixo, no centro | Zumbi online, fora da onda: "ASSISTINDO", o nome do colega, a vida dele (ou "Caído: precisa de ajuda!") e "[D] anterior · [F] próximo" (LB/RB no controle; no celular, as setas ◀ ▶ são tocáveis). Enquanto aparece, a tela de morte perde o vermelho e sobe para o topo (`#death.spectating`), e a barra de vida mostra a do colega. `hud.setSpectate`. Ver [[Zombie]]. | — |
 | **Placar** (`#scoreboard`) | centro | Segurando Tab. Ver [[Scoreboard]]. | — |
@@ -91,7 +94,7 @@ Regras puras e testadas ([[Unit Tests]]): `damageTier` (cor), `ShotDamage` (um n
 
 ## O que não existe
 
-Não há minimapa, radar, bússola, cronômetro de partida nem indicador de objetivo no HUD (as contagens entre rodadas da corrida armada e as do zumbi são as únicas de partida) (verificado em `index.html` e `client/ui/hud.ts`). No zumbi, uma **cruz vermelha 3D** sobre cada colega caído é vista através das paredes, o caixão tem um feixe de luz visível de longe, cada zumbi que vai sair do chão acende um **feixe verde** no ponto (0,9 s antes) e as setas das brechas apontam por onde a horda está chegando. Ver [[Objectives]].
+Não há minimapa, radar, bússola, cronômetro de partida nem indicador de objetivo no HUD (as contagens entre rodadas da corrida armada e as do zumbi são as únicas de partida) (verificado em `index.html` e `client/ui/hud.ts`). No zumbi, uma **cruz vermelha 3D** sobre cada colega caído é vista através das paredes (com uma **pata na cor da coleira** em cima enquanto a gata dele o levanta, e a pata do pet sobre o zumbi em que ele agiu, por até 1,5 s: [[Pets]]), o caixão tem um feixe de luz visível de longe, cada zumbi que vai sair do chão acende um **feixe verde** no ponto (0,9 s antes) e as setas das brechas apontam por onde a horda está chegando. Ver [[Objectives]].
 
 ## Código relacionado
 

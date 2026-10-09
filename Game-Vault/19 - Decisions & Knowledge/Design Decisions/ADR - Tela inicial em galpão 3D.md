@@ -16,6 +16,9 @@ source_paths:
   - client/styles.css
   - index.html
   - client/tests/galpaoRules.test.ts
+  - client/ui/galpao/petStage.ts
+  - client/ui/galpao/petBoard.ts
+  - client/ui/pets.ts
 tags:
   - game
   - decision
@@ -62,6 +65,11 @@ Trocar a cara da tela inicial sem reescrever as abas (que já têm regras, teste
 
 > [!info] Revisão (08/10/2026, PF-32: aba Jogar redesenhada, proposta da PF-31)
 > O item 5 mudou. As três colunas (`.play-col`) deram lugar a um caminho só, **onde → tipo → mapa → botão laranja**: **onde jogar** num segmentado no cabeçalho; **tipo de partida** com a descrição embaixo, num espaço de altura fixa (os botões não pulam mais); **um mapa** em cartões de escolha única (no Online, primeiro **Qualquer mapa**; o filtro de vários mapas saiu); um **painel lateral** que muda com o lugar (sessões do mapa escolhido, opções dos bots, a horda, o treino); e o **botão laranja** `#home-play-cta` sempre no pé do painel, com altura fixa e dizendo o que vai acontecer, agora também na home clássica (lá o JOGAR ONLINE do cartão do personagem some com a aba Jogar aberta). O tamanho da própria folha decide a disposição (container query `playsurf`): desktop a partir de 440 px de altura; abaixo disso, um **layout compacto** para o celular deitado (folha de ~550×270 px) que cabe sem rolar, com alvos de 40 px, a lista de sessões como vista (SESSÕES (N) / ‹ MAPAS) e os seletores de bots nativos. No Campo de tiro o clique no mapa só escolhe. A cena (`scene.ts`, inclusive a folha do celular) e o `galpao.ts` não mudaram: a ENTRADA RÁPIDA continua chamando o `quickPlay` da home, que agora usa o mapa do Online (o escolhido ou Qualquer mapa). Regras puras em `client/ui/playRules.ts`. Ver [[Menus]] e [[Matchmaking UI]].
+
+> [!info] Revisão (08/10/2026, PF-29: pets, com o parecer de câmera da PF-36)
+> - **Estação nova, 07 · PETS** (`'pets'` em `STATION_ORDER`, antes do Gerenciamento): a **porta da frente** com um **quintal de verdade** do lado de fora (grama, muro baixo, casinha da Amora com a plaquinha, céu próprio em ~1,2; o céu das outras aberturas não muda), arandela e spot no capacho registrados em `keys` como `pets`, placa **SAÍDA → QUINTAL**, numeral 07 e **07 · PETS** no chão. **Pose de câmera fixa** (não enquadra uma superfície: posição 2,2; 1,3; 4,8, alvo −1; 0,8; 7,9, 40°, `filmOffset` 6, ~4,5 abaixo de 900 px; retrato: posição 0,6; 1,2; 5,0, alvo −0,3; −0,66; 7,3, 60°, sem `filmOffset`, o pet no meio da metade de cima e a ficha como folha no rodapé). Porta-coleiras com **etiquetas DOM** numa fileira no computador (ganchos cada vez mais espaçados longe da porta, etiquetas do tamanho da janela; nunca sobrepostas) e, no celular, no retrato e em janelas pequenas, uma **fileira de rostos** no topo da **ficha** no padrão do Arsenal (`petBoard.ts` no molde de `arsenalBoard.ts`); os pets ficam em `petStage.ts` (`Galpao.setPetStage`). **Escolher ≠ equipar** ("Levar este"); troca cruzando na porta em menos de 2 s, interrompível; o pet levado aparece na visão geral sem cruzar o menu, é clicável (`'pets'` nos objetos de clique) e corre na cinemática de lançamento, à frente da câmera, saindo pela porta antes do branco. Nos voos de e para a estação, os pets só somem depois que a câmera vira (40% do voo ou fora do quadro): `PetStageFrame.fly`. A placa da porta (**QUINTAL**) é uma tábua de madeira iluminada, não uma luz de saída. O **Gerenciamento passa a 08**; as teclas 1 a 6 não mudam. Ver [[Pets]] e [[ADR - Pets companheiros com habilidade no zumbi]].
+> - **Voo pela amplitude** (`flightDuration`): 1 s até 60° de giro, 1,2 s a 120°, 1,4 s a 180°; o horizonte inclina no máximo ~8° no caminho (o slerp entre poses retas podia rolar ~15° de Jogar até a porta); uma curva que passaria pela mesa do personagem ganha um ponto de passagem lateral; do Gerenciamento continua por `WAY.admin`.
+> - **Movimento reduzido**: em vez do voo de 0,6 s, um **corte com mergulho no preto de ~0,2 s** (`postU.black`), em todas as estações (Perfil e Configurações também).
 
 ## Motivo
 

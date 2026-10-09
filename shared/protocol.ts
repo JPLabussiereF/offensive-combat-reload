@@ -10,6 +10,7 @@ import type { MapId } from './maps';
 import type { GameModeId } from './modes';
 import type { LadderPos } from './gunGame';
 import type { BossId, KillHow, ZFlaw, ZItems, ZNet } from './zombies';
+import type { PlayerPet } from './pets';
 
 export const NET = {
   /** Server simulation/broadcast rate. */
@@ -104,6 +105,11 @@ export interface PlayerInfo {
   /** The album sticker the player shows (its id and the targets it reached) and the title they wear (a page id). */
   fig?: [id: string, nivel: number];
   tit?: string;
+  /**
+   * The pet along in this match (shared/pets.ts), sent when the player appears ('joined', 'playerJoined'), only if
+   * it comes along in the session's mode (its PvP or PvE switch). Never its name: only its owner sees that.
+   */
+  pet?: PlayerPet;
 }
 
 /** A player in a zumbi match. */
@@ -170,6 +176,15 @@ export interface ZombieSync {
  * 'rise': a zombie is about to come out of the ground at `at` (it appears at t1).
  */
 export type ZFx = 'slam' | 'summon' | 'scream' | 'blink' | 'charge' | 'pound' | 'spit' | 'boom' | 'intro' | 'rise' | 'sacrilege';
+
+/**
+ * What a pet did in the zumbi mode (shared/zombieMatch.ts): 'hold' (the Amora holds zombie `z` by the shin until
+ * `until`), 'nudge' (only a jolt: a bruiser or a boss), 'duck' (the Bruxinha's duck float on `z`), 'lift' (the cat
+ * started lifting its owner, up at `until`), 'yield' (it stopped: a teammate is reviving them), 'up' (the cat got
+ * them up), 'nail' (the weasel nailed a board on barricade `i`), 'stone' (the otter's stone on `z`, dizzy until
+ * `until`), 'tail' (the iguana dropped her tail at `at`: the zombies around go after it until `until`).
+ */
+export type PetAct = 'hold' | 'nudge' | 'duck' | 'lift' | 'yield' | 'up' | 'nail' | 'stone' | 'tail';
 
 /** One line of the end-of-match summary. */
 export interface ZSummaryRow {
@@ -379,6 +394,11 @@ export type ServerMsg =
   | { t: 'zrevive'; id: number; by: number; until: number }
   /** Zumbi: a player is back up (`by` null: the wave ended); `money`: the reviver's. */
   | { t: 'zup'; id: number; by: number | null; money?: number }
+  /**
+   * Zumbi: owner `id`'s pet acted (`act`, on zombie `z`, barricade `i` or at `at`) until `until`; it's ready again
+   * at `ready` (server ms; 0: now) and `n` is how many times it can still act this match (the cat's charges).
+   */
+  | { t: 'zpet'; id: number; act: PetAct; z?: number; i?: number; at?: Vec3; until: number; ready: number; n?: number }
   /** Zumbi: the match is over (won: the last wave survived); a new one starts at `restartAt`. */
   | { t: 'zend'; won: boolean; wave: number; secs: number; players: ZSummaryRow[]; restartAt: number }
   /** The account's progress changed (points only come from the server online); `escolha` is the Arsenal choice it kept. */

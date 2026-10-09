@@ -461,6 +461,88 @@ body {
   font-weight: 400;
   font-size: 28px;
 }
+/* The pet's icon (zumbi, PF-29): its face in a ring filling up with its cooldown, in its collar's color (--c); a
+   short text blinks beside it when it acts. Never a button. */
+#zpet {
+  --c: #ffe066;
+  --p: 1;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 14px;
+  align-self: center;
+  pointer-events: none;
+}
+#zpet.hidden {
+  display: none;
+}
+.zpet-ring {
+  width: 42px;
+  height: 42px;
+  padding: 3px;
+  border-radius: 50%;
+  background: conic-gradient(var(--c) calc(var(--p) * 360deg), rgba(255, 255, 255, 0.16) 0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  transition: box-shadow 0.2s;
+}
+.zpet-ring img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #2a2630;
+  object-fit: cover;
+}
+#zpet.ready .zpet-ring {
+  box-shadow: 0 0 12px var(--c), 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+#zpet.acting .zpet-ring {
+  animation: zpet-pulse 0.5s ease-in-out infinite alternate;
+}
+#zpet.flash .zpet-ring {
+  animation: zpet-blink 0.22s 4 alternate;
+}
+#zpet-n {
+  position: absolute;
+  left: 32px;
+  top: -5px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--c);
+  color: #1a1414;
+  font: 900 12px var(--body);
+  text-align: center;
+}
+#zpet-n:empty {
+  display: none;
+}
+#zpet-text {
+  font: 900 13px var(--body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  /* White: the collar's color is only on the ring (a purple vanishes at night, a red reads as an alarm). */
+  color: #fff;
+  text-shadow: var(--hud-shadow);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+#zpet.flash #zpet-text {
+  opacity: 1;
+}
+@keyframes zpet-pulse {
+  to {
+    filter: brightness(1.35);
+  }
+}
+@keyframes zpet-blink {
+  to {
+    filter: brightness(1.8);
+    transform: scale(1.12);
+  }
+}
 #zmoney.bump #zmoney-num {
   animation: zmoney-bump 0.35s ease-out;
 }
@@ -6360,6 +6442,37 @@ html:not(.mobile) #tab-arsenal .hint-touch {
 .mobile .buff-icon {
   font-size: 15px;
 }
+/* The pet's chip: the first of the row, its face in the ring (a word beside it and the ring blinking when it acts). */
+.mobile #zpet.buff {
+  display: inline-flex;
+  margin: 0;
+  padding: 3px 6px 3px 4px;
+  gap: 4px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent);
+}
+.mobile #zpet.hidden {
+  display: none;
+}
+.mobile .zpet-ring {
+  width: 24px;
+  height: 24px;
+  padding: 2px;
+}
+/* Acting, a short word beside the face for a moment (~1.2 s, zombies/client.ts), and the ring's pulse. */
+.mobile #zpet-text {
+  display: inline-block;
+  max-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  transition: max-width 0.2s, opacity 0.2s;
+}
+.mobile #zpet.flash #zpet-text {
+  max-width: 96px;
+}
+.mobile #zpet-n {
+  position: static;
+  font-size: 11px;
+}
 .mobile .buff-name,
 .mobile .buff.forever .buff-secs {
   display: none;
@@ -8293,6 +8406,381 @@ html:not(.mobile) #tab-arsenal .hint-touch {
 }
 .gp-switch:disabled {
   cursor: default;
+}
+/* 07 · PETS (PF-29): the tags under the collar rack's hooks (44 px to touch), and the card on the right, clear of
+   the pet on the doormat. */
+.gp-pettag {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+  padding: 4px 6px 5px;
+  border-radius: 2px;
+}
+.gp-pettag::before {
+  content: '';
+  position: absolute;
+  left: calc(50% + var(--sx, 0px));
+  bottom: 100%;
+  width: 1px;
+  height: var(--drop, 6px);
+  background: rgba(230, 224, 210, 0.55);
+}
+/* (no status dot: the name only, so the six fit in one row; the one taken along is the green tag) */
+.gp-pettag .gp-tag-line i {
+  display: none;
+}
+.gp-pettag small {
+  font: 700 9px 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: 0.02em;
+}
+.gp-pettag.along {
+  background: #3f8a4a;
+  border-color: #2c6a36;
+  color: #f4f8f2;
+}
+.gp-pettag.locked {
+  background: #9b2a21;
+  color: #fbe9e5;
+}
+.gp-pettag.sel {
+  border-color: #f07a2a;
+  box-shadow: 0 0 0 2px #f07a2a, 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+.gp-petcard {
+  top: 50%;
+  left: auto;
+  right: clamp(14px, 4vw, 64px);
+  transform: translateY(-50%);
+  max-height: calc(100% - 170px);
+  transition: opacity 0.3s ease;
+  opacity: 0;
+}
+.galpao.at-pets .gp-petcard {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+.galpao.compact .gp-petcard {
+  width: min(300px, 44vw);
+  max-height: calc(100% - 120px);
+  gap: 8px;
+  padding: 10px 12px;
+}
+/* A phone (lying down or in portrait) and small windows: no tags under the hooks (too close together there); the
+   card's row of faces calls a pet in instead, like the classic tab's list. */
+.pc-faces {
+  display: none;
+}
+.galpao.compact .gp-pettag {
+  display: none;
+}
+.galpao.compact .pc-faces {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+  margin: -2px -4px 2px;
+  padding: 0 0 6px;
+  border-bottom: 1px dashed #b9b09c;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pc-face {
+  position: relative;
+  display: flex;
+  flex: 1 0 44px;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 3px 2px 2px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #3d3930;
+  cursor: pointer;
+}
+.pc-face img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #2a2826;
+}
+.pc-face span {
+  max-width: 52px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 10px / 1.1 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  text-transform: uppercase;
+}
+.pc-face.on {
+  border-color: #f07a2a;
+  background: rgba(240, 122, 42, 0.12);
+}
+.pc-face.along::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid #ece6d7;
+  border-radius: 50%;
+  background: #3f8a4a;
+}
+/* In portrait the card is a sheet along the bottom: the doormat and the pet on it are framed above it. */
+@media (orientation: portrait) {
+  .galpao .gp-petcard,
+  .galpao.compact .gp-petcard {
+    top: auto;
+    bottom: 84px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: 44%;
+    transform: none;
+  }
+}
+.pc-state .gp-chip.red,
+.pets-item .gp-chip.red {
+  background: #9b2a21;
+  color: #fbe9e5;
+}
+.pc-leave {
+  padding: 4px 10px;
+  border: 1px solid #8a8272;
+  border-radius: 2px;
+  background: transparent;
+  color: #4f4a40;
+  font: 600 12px 'Barlow', system-ui, sans-serif;
+  cursor: pointer;
+}
+.pc-ability {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px dashed #8a8272;
+}
+.pc-ability b {
+  font: 800 18px / 1 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  text-transform: uppercase;
+}
+.pc-ability p {
+  font-size: 13px;
+}
+.pc-note {
+  font-size: 13px !important;
+  color: #5f5a50 !important;
+}
+.pc-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.pc-name input {
+  padding: 7px 9px;
+  border: 1px solid #8a8272;
+  border-radius: 2px;
+  background: #f6f2e8;
+  color: #1e1d1b;
+  font: 600 15px 'Barlow', system-ui, sans-serif;
+}
+.pc-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pc-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 4px 9px 4px 5px;
+  border: 1px solid #b9b09c;
+  border-radius: 2px;
+  background: #f6f2e8;
+  color: #1e1d1b;
+  font: 600 12px 'Barlow', system-ui, sans-serif;
+  cursor: pointer;
+}
+.pc-swatch i {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--sw);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.pc-swatch.dot {
+  padding: 5px;
+}
+.pc-swatch.on {
+  border-color: #f07a2a;
+  box-shadow: 0 0 0 2px #f07a2a;
+}
+.pc-switches {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pc-switch {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid #b9b09c;
+  border-radius: 2px;
+  background: #f6f2e8;
+  color: #1e1d1b;
+  text-align: left;
+  cursor: pointer;
+}
+.pc-switch span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.pc-switch b {
+  font: 700 14px 'Barlow', system-ui, sans-serif;
+}
+.pc-switch small {
+  font: 500 11px 'Barlow', system-ui, sans-serif;
+  color: #6a6458;
+}
+.pc-switch em {
+  flex: none;
+  font: 600 11px 'JetBrains Mono', ui-monospace, monospace;
+  font-style: normal;
+  padding: 3px 8px;
+  border: 1px solid #8a8272;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+.pc-switch.on em {
+  border-color: #3f8a4a;
+  background: #3f8a4a;
+  color: #f4f8f2;
+}
+/* The classic home's Pets tab: the list with their faces, the big portrait and the card. */
+.pets-head h3 {
+  margin: 0 0 4px;
+}
+.pets-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 12px;
+}
+.pets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pets-item {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 4px 10px 4px 4px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pets-item.on {
+  border-color: #ff7a1a;
+}
+.pets-item img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #2a2630;
+}
+.pets-item span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.pets-item small {
+  opacity: 0.7;
+}
+.pets-item .gp-chip {
+  font-size: 11px;
+  padding: 2px 6px;
+}
+.pets-item .gp-chip.green {
+  background: #3f8a4a;
+  color: #f4f8f2;
+}
+.pets-detail {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.pets-portrait {
+  width: 160px;
+  height: 160px;
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+  background: radial-gradient(circle at 40% 35%, #4a4252, #1e1b24);
+}
+.pets-portrait img {
+  width: 100%;
+  height: 100%;
+}
+.pets-card.gp-card {
+  position: static;
+  visibility: visible;
+  flex: 1 1 300px;
+  max-height: none;
+  box-shadow: none;
+  border: 1px solid #d8cfba;
+}
+/* The classic home's Pets tab: the card in the home's own type (Lilita One for titles, Nunito for the rest), not
+   the Galpão's (Barlow, the mono). */
+.pets-card.gp-card,
+.pets-card.gp-card p,
+.pets-card .gp-kicker,
+.pets-card .gp-mono,
+.pets-card .pc-leave,
+.pets-card .pc-name input,
+.pets-card .pc-swatch,
+.pets-card .pc-switch b,
+.pets-card .pc-switch small,
+.pets-card .pc-switch em {
+  font-family: var(--body);
+}
+.pets-card .gp-kicker {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.pets-card .gp-card-head b,
+.pets-card .pc-ability b,
+.pets-card .gp-chip,
+.pets-card .gp-equip,
+.pets-item .gp-chip {
+  font-family: var(--display);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+@media (max-width: 700px) {
+  .pets-body {
+    grid-template-columns: 1fr;
+  }
+  .pets-portrait {
+    width: 110px;
+    height: 110px;
+  }
 }
 /* Headings breathe between the tabs' blocks (the pane heads keep theirs). */
 #galpao .gp-surf h3 {

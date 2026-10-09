@@ -22,6 +22,7 @@ source_paths:
   - deploy/nginx/docker.conf
   - server/accounts.ts
   - shared/progression.ts
+  - shared/pets.ts
 tags:
   - backend
   - api
@@ -62,7 +63,7 @@ A API HTTP do jogo vive sob `/api/` e é atendida pelo próprio servidor do jogo
 | `POST /api/auth/redefinir` | não | Troca a senha com o token do link. | 204; 400 `token_invalido`/`senha_invalida` |
 | `DELETE /api/auth/identidade/discord` | sim | Desvincula o Discord. | 204; 404; 409 `unica_forma_de_entrar` |
 | `GET /api/perfil` | sim | Perfil completo (nível, totais, `armas` com `{xp, nivel}` por arma, `arsenal` com a escolha do Arsenal, participações, aparência). | 200 |
-| `PATCH /api/perfil` | sim | Muda `nome`, `sexo`, `aparencia`, `arsenal` (`ArsenalChoice {primaria, secundaria, faca, ligadas, desligadas}`: o rifle, a secundária, a faca, as melhorias opcionais ligadas e as comuns desligadas), `destaque` (id de figurinha colada, ou `null`) e/ou `titulo` (id de página com o título ganho, ou `null`). Ver [[Achievements]]. | 200 com o perfil; 400 `nome_invalido`; 429 `cooldown_nome` (+ `liberaEm`); 409 `nome_esgotado`; 400 `nivel_bloqueado` (melhoria ainda não liberada, ou rifle, secundária ou faca trancados na escolha); 400 `figurinha_bloqueada` (figurinha não colada ou título não ganho) |
+| `PATCH /api/perfil` | sim | Muda `nome`, `sexo`, `aparencia`, `arsenal` (`ArsenalChoice {primaria, secundaria, faca, ligadas, desligadas}`: o rifle, a secundária, a faca, as melhorias opcionais ligadas e as comuns desligadas), `destaque` (id de figurinha colada, ou `null`) e/ou `titulo` (id de página com o título ganho, ou `null`). Ver [[Achievements]]. E `pet` (PF-29: `{ id, pvp, pve, cfg }`, o pet levado, os interruptores e o nome, a pelagem e a coleira de cada pet), conferido por `sanitizePet` como a aparência (pelagem, coleira e nome inválidos caem num valor válido; nenhum pet exige o pacote de apoio agora), mas um `pet.id` que não é pet nenhum (P36) ou um `pet` que não é objeto nem `null` (string, número, lista: P39) é recusado e nada muda; o visual de um pet desconhecido em `cfg` é descartado em silêncio (P38); `pet: null` = sem pet. Ver [[Pets]]. | 200 com o perfil; 400 `nome_invalido`; 400 `pet_invalido` (espécie de pet desconhecida, ou `pet` que não é objeto nem `null`); 429 `cooldown_nome` (+ `liberaEm`); 409 `nome_esgotado`; 400 `nivel_bloqueado` (melhoria ainda não liberada, ou rifle, secundária ou faca trancados na escolha); 400 `figurinha_bloqueada` (figurinha não colada ou título não ganho) |
 | `POST /api/ws-ticket` | sim | Emite ticket de uso único (30 s) para abrir o WebSocket. | 200 `{ ticket }`; 403 `conta_em_exclusao` |
 | `DELETE /api/conta` | sim | Pede exclusão (30 dias de carência); revoga as outras sessões e derruba o jogo. | 204 |
 | `POST /api/conta/cancelar-exclusao` | sim | Cancela a exclusão. | 204 |
