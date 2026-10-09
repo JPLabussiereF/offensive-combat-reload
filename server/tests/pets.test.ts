@@ -2,7 +2,7 @@
 // ability in the zumbi match engine with a fake clock (shared/zombieMatch.ts: the Amora's hold, never through the
 // wall, the Bruxinha's duck,
 // the cat lifting its owner and yielding to a teammate without ever entering the revives, the weasel's boards, the
-// otter's stone and the iguana's tail), and the server (PATCH /api/perfil {pet}, PlayerInfo.pet by mode and switch,
+// otter's stone and the iguana's tail), and the server (PATCH /api/perfil {pet}, an unknown pet a 400, PlayerInfo.pet by mode and switch,
 // never the name, and the pet reaching the zombie match).
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'bun:test';
 import { importNavMesh, init, type NavMesh } from 'recast-navigation';
@@ -168,8 +168,17 @@ function fakeMatch(spots: [Vec3, PetId | null][], seed = 1): Fake {
 }
 
 const YARD: Vec3 = [0, 0.1, 0];
-type Z = { id: number; pos: Vec3; kind: string; act: string | null; riseUntil: number; heldUntil: number; duckUntil: number; dazeUntil: number; lureUntil: number; lureAt: Vec3 | null };
+type Z = { id: number; pos: Vec3; kind: string; act: string | null; riseUntil: number; heldUntil: number; duckUntil: number; dazeUntil: number; lureUntil: number; lureAt: Vec3 | null; cd: Record<string, number> };
 const zs = (f: Fake) => [...f.match.zombies.values()] as unknown as Z[];
+type Engine = { spawn(kind: string, at: Vec3): Z | null; startAct(z: Z, act: string, until: number): void; ghosts: Map<number, object> };
+const engine = (f: Fake) => f.match as unknown as Engine;
+/** A zombie of `kind` out of the ground at `at` (the others killed first when `alone`). */
+function put(f: Fake, kind: string, at: Vec3, alone = false): Z {
+  if (alone) for (const z of zs(f)) f.match.damage(z.id, null, 1e9, 'gun');
+  const z = engine(f).spawn(kind, at)!;
+  z.riseUntil = 0;
+  return z;
+}
 
 describe('habilidades dos pets no motor do zumbi', () => {
   it('Segura, Amora!: o zumbi mais perto do dono fica segurado pela canela, parado; depois só de novo após a recarga', () => {
@@ -211,6 +220,39 @@ describe('habilidades dos pets no motor do zumbi', () => {
     expect(outside).toBeGreaterThan(0);
   });
 
+  it('Segura, Amora!: segurar cancela o golpe que o zumbi já tinha começado; o tranco no Segurança não (P34)', () => {
+    quick();
+    const f = fakeMatch([[YARD, 'amora']]);
+    const pet = (f.match.parts.get(1) as unknown as { pet: { ready: number } }).pet;
+    pet.ready = Infinity;
+    f.step(0.5);
+    const z = put(f, 'comum', [0.8, 0.1, 0], true);
+    engine(f).startAct(z, 'swipe', f.t + 400);
+    pet.ready = 0;
+    f.step(0.05);
+    expect(f.pet(1, 'hold')[0].z).toBe(z.id);
+    expect(z.act).toBeNull();
+    // The swipe never lands, and none starts while held.
+    f.step(1);
+    expect(f.hp.get(1)).toBe(100);
+    expect(z.act).toBeNull();
+    // A bruiser only takes a jolt: the blow it started goes on.
+    pet.ready = Infinity;
+    const brute = put(f, 'brutamontes', [0.8, 0.1, 0], true);
+    engine(f).startAct(brute, 'swipe', f.t + 400);
+    pet.ready = 0;
+    f.step(0.05);
+    expect(f.pet(1, 'nudge').at(-1)!.z).toBe(brute.id);
+    expect(brute.act).toBe('swipe');
+  });
+
+  it('pet desligado no PvE (ou nenhum) não age', () => {
+    quick();
+    const f = fakeMatch([[YARD, null]]);
+    f.until(() => f.of('zend').length > 0);
+    expect(f.of('zpet')).toHaveLength(0);
+  });
+
   it('a Amora só dá um tranco no Segurança e nos chefes', () => {
     quick();
     for (const w of ZOMBIE.ondas) Object.assign(w, { tipos: { brutamontes: 1 } });
@@ -222,28 +264,46 @@ describe('habilidades dos pets no motor do zumbi', () => {
     expect(ev.until - f.t).toBeLessThanOrEqual(PET_ABILITIES.amora.tranco * 1000);
   });
 
-  it('Feitiço do Pato: a variante perigosa mais perto fica na boia, parada e levando tiro; chefes são imunes', () => {
+  it('Feitiço do Pato: o peso do tipo pela distância escolhe o alvo, que fica na boia, parado e levando tiro (P35)', () => {
     quick();
-    for (const w of ZOMBIE.ondas) Object.assign(w, { tipos: { corredor: 0.5 }, intervalo: 0.3 });
     for (const t of Object.values(ZOMBIE.tipos)) t.dano = 0;
-    Object.assign(PET_ABILITIES.bruxinha, { alcance: 60, duracao: 4 });
     const f = fakeMatch([[YARD, 'bruxinha']], 3);
-    // She waits until there are plain zombies and a variant out of the ground: she picks the variant.
     const pet = (f.match.parts.get(1) as unknown as { pet: { ready: number } }).pet;
     pet.ready = Infinity;
-    f.until(() => {
-      const out = zs(f).filter((z) => f.t >= z.riseUntil);
-      return out.some((z) => z.kind === 'comum') && out.some((z) => z.kind === 'corredor');
-    });
+    f.step(0.5);
+    // A Fiscal (corredor, 1.6) at 2 m beats a plain one at 1.5 m (1.6 / 2 > 1 / 1.5)...
+    const plain = put(f, 'comum', [1.5, 0.1, 0], true);
+    const runner = put(f, 'corredor', [0, 0.1, 2]);
+    const score = (z: Z) => (PET_ABILITIES.bruxinha.peso[z.kind] ?? 1) / Math.max(1, Math.hypot(z.pos[0] - YARD[0], z.pos[2] - YARD[2]));
+    expect(score(runner)).toBeGreaterThan(score(plain));
     pet.ready = 0;
     f.step(0.05);
     const ev = f.pet(1, 'duck')[0];
-    const z = zs(f).find((o) => o.id === ev.z)!;
-    expect(z.kind).toBe('corredor');
-    expect(z.act).toBeNull();
-    expect(f.match.snapshot().z.find((n) => n[0] === z.id)![6] & ZF.duck).toBe(ZF.duck);
+    expect(ev.z).toBe(runner.id);
+    expect(runner.act).toBeNull();
+    expect(f.match.snapshot().z.find((n) => n[0] === runner.id)![6] & ZF.duck).toBe(ZF.duck);
     // It still takes shots (no hitbox lost).
-    expect(f.match.damage(z.id, 1, 1, 'head')).toBe(true);
+    expect(f.match.damage(runner.id, 1, 1, 'head')).toBe(true);
+    // ...but one far off loses to the plain one at the owner's feet (no longer "any variant first").
+    const g = fakeMatch([[YARD, 'bruxinha']], 3);
+    const gpet = (g.match.parts.get(1) as unknown as { pet: { ready: number } }).pet;
+    gpet.ready = Infinity;
+    g.step(0.5);
+    const near = put(g, 'comum', [1.2, 0.1, 0], true);
+    put(g, 'corredor', [0, 0.1, 6]);
+    gpet.ready = 0;
+    g.step(0.05);
+    expect(g.pet(1, 'duck')[0].z).toBe(near.id);
+  });
+
+  it('Feitiço do Pato: numa onda só de comuns ela age; chefes são imunes', () => {
+    quick();
+    for (const w of ZOMBIE.ondas) Object.assign(w, { tipos: {} });
+    for (const t of Object.values(ZOMBIE.tipos)) t.dano = 0;
+    Object.assign(PET_ABILITIES.bruxinha, { alcance: 60 });
+    const f = fakeMatch([[YARD, 'bruxinha']]);
+    f.until(() => f.pet(1, 'duck').length > 0);
+    expect(zs(f).find((o) => o.id === f.pet(1, 'duck')[0].z)!.kind).toBe('comum');
     // Bosses are immune: a boss wave with only the boss gets no duck.
     for (const w of ZOMBIE.ondas) w.zumbis = 0;
     const g = fakeMatch([[YARD, 'bruxinha']]);
@@ -270,6 +330,25 @@ describe('habilidades dos pets no motor do zumbi', () => {
     expect(f.of('zfx').filter((e) => e.fx === 'boom' && e.id === z.id)).toHaveLength(0);
   });
 
+  it('Pedrada: o Tio murcho só volta a inchar depois de lontra.murcha, mais que o tonto (P32)', () => {
+    quick();
+    for (const t of Object.values(ZOMBIE.tipos)) t.dano = 0;
+    const f = fakeMatch([[YARD, 'lontra']]);
+    f.step(0.5);
+    const bloat = put(f, 'inchado', [1, 0.1, 0], true);
+    engine(f).startAct(bloat, 'fuse', f.t + 5000);
+    f.step(0.05);
+    const ev = f.pet(1, 'stone')[0];
+    expect(ev.z).toBe(bloat.id);
+    expect(bloat.cd.fuse).toBe(f.t + PET_ABILITIES.lontra.murcha * 1000);
+    expect(PET_ABILITIES.lontra.murcha).toBeGreaterThan(PET_ABILITIES.lontra.tonto);
+    // Dizzy, then awake by the owner, but no swelling until murcha is over.
+    f.until(() => f.t >= bloat.cd.fuse - 100, () => expect(bloat.act).not.toBe('fuse'));
+    // Then it swells again (the otter is still on her cooldown).
+    f.until(() => bloat.act === 'fuse', undefined, 5);
+    expect(f.t).toBeGreaterThanOrEqual(bloat.cd.fuse);
+  });
+
   it('Rabo de Isca: um golpe deixa o dono com pouca vida e os zumbis em volta vão atrás do rabo', () => {
     quick();
     const f = fakeMatch([[YARD, 'iguana']]);
@@ -282,6 +361,22 @@ describe('habilidades dos pets no motor do zumbi', () => {
     expect(lured.length).toBeGreaterThan(0);
     for (const z of lured) expect(z.lureAt).toEqual(YARD);
     expect(f.hp.get(1)! / 100).toBeLessThanOrEqual(PET_ABILITIES.iguana.vida);
+  });
+
+  it('Rabo de Isca: o golpe de um fantasma também solta o rabo (P33)', () => {
+    quick();
+    for (const t of Object.values(ZOMBIE.tipos)) t.dano = 0;
+    const f = fakeMatch([[YARD, 'iguana']]);
+    f.step(0.5);
+    const z = put(f, 'comum', [3, 0.1, 0], true);
+    f.hp.set(1, 30);
+    // A ghost of the haunted graves right at the owner's chest, ready to strike.
+    engine(f).ghosts.set(999, { id: 999, target: 1, pos: [YARD[0], YARD[1] + 1.1, YARD[2]], until: f.t + 10_000, nextHit: 0, phase: 0 });
+    f.step(0.05);
+    expect(f.hp.get(1)).toBe(30 - ZOMBIE.fantasmas.dano);
+    const ev = f.pet(1, 'tail')[0];
+    expect(ev).toBeDefined();
+    expect(z.lureUntil).toBe(ev.until);
   });
 
   it('Sétima Vida sozinho: caído com carga não é derrota; a gata levanta o dono, e sem cargas cair é perder', () => {
@@ -413,13 +508,36 @@ describe('pets no servidor', () => {
     const r = await b.req('PATCH', '/api/perfil', { pet: { id: 'gato', pvp: false, cfg: { gato: { nome: 'Mingau', cor: 'laranja', coleira: 'rosa' }, amora: { nome: 'Rex' } } } });
     expect(r.status).toBe(200);
     expect(r.body.pet).toEqual({ id: 'gato', pvp: false, pve: true, cfg: { gato: { nome: 'Mingau', cor: 'laranja', coleira: 'rosa' } } });
-    // Anything unknown falls back.
-    const bad = await b.req('PATCH', '/api/perfil', { pet: { id: 'dragao' } });
-    expect(bad.status).toBe(200);
-    expect(bad.body.pet.id).toBeNull();
     // Left in the yard: no pet, the looks kept.
     const yard = await b.req('PATCH', '/api/perfil', { pet: { id: null, cfg: r.body.pet.cfg } });
     expect(yard.body.pet).toMatchObject({ id: null, cfg: { gato: { nome: 'Mingau' } } });
+  });
+
+  it('migração 009_pets: registrada com esse nome e roda de novo sem erro num banco que já tinha a coluna (P30)', async () => {
+    const { rows } = await game.deps.db.query<{ name: string }>("SELECT name FROM schema_migrations WHERE name LIKE '%_pets.sql'");
+    expect(rows.map((r) => r.name)).toContain('009_pets.sql');
+    // A database that ran it as 007_pets.sql already has the column: running it again changes nothing.
+    const sql = await Bun.file(new URL('../migrations/009_pets.sql', import.meta.url)).text();
+    await game.deps.db.query(sql);
+    const col = await game.deps.db.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'player_profile' AND column_name = 'pet'");
+    expect(col.rows).toHaveLength(1);
+  });
+
+  it('PATCH /api/perfil {pet}: espécie desconhecida é 400 pet_invalido; cor e nome fora do formato são limpos (P36)', async () => {
+    const b = new Browser(game);
+    await b.register('Dono do Dragao');
+    await b.req('PATCH', '/api/perfil', { pet: { id: 'lontra' } });
+    const bad = await b.req('PATCH', '/api/perfil', { pet: { id: 'dragao' } });
+    expect(bad.status).toBe(400);
+    expect(bad.body.erro).toBe('pet_invalido');
+    // Nothing changed: the otter still goes along.
+    expect((await b.req('GET', '/api/perfil')).body.pet.id).toBe('lontra');
+    // An unknown coat or collar and a long name: saved silently as valid, like the appearance.
+    const r = await b.req('PATCH', '/api/perfil', { pet: { id: 'lontra', cfg: { lontra: { nome: 'Nome comprido demais para pet', cor: 'neon', coleira: 'xadrez' } } } });
+    expect(r.status).toBe(200);
+    expect(r.body.pet).toMatchObject({ id: 'lontra', cfg: { lontra: { nome: 'Nome comprid' } } });
+    expect(r.body.pet.cfg.lontra.cor).toBeUndefined();
+    expect(r.body.pet.cfg.lontra.coleira).toBeUndefined();
   });
 
   it('PlayerInfo.pet: no PvP só com o interruptor de PvP, no zumbi com o de PvE; nunca o nome', async () => {

@@ -6,7 +6,8 @@
 // - Zumbi (PvE): it follows its owner's path out of the cone in front of them, fades within 1 m of the camera, and
 //   acts when the match says so: it runs to the zombie (the Amora biting a shin with her body outside the zombie's,
 //   the Bruxinha's spell, the otter's stone flying, the weasel at the boards, the iguana's colorful tail left behind,
-//   the cat pushing its owner up), a paw in the collar's color over the target for up to 1.5 s, and a short sound under
+//   the cat pushing its owner up), a paw in the collar's color following the target for up to 1.5 s (paw.ts), the
+//   potion's pop on the Bruxinha's duck, and a short sound under
 //   the mode's warnings (one bark or meow every 2 s at most, for the whole game).
 import * as THREE from 'three';
 import { collarOf, type PetId, type PlayerPet } from '@shared/pets';
@@ -15,6 +16,7 @@ import type { Sfx } from '../audio/sfx';
 import type { Effects } from '../render/effects';
 import { PetAnimator, restPose, type Gesture, type PetPose } from './anim';
 import { inSightLine, newFollow, stepFollow, type FollowState } from './follow';
+import { PawMarks } from './paw';
 import { PET_LIGHT_FROM, type PetModel } from './rig';
 import { makePet } from './species';
 
@@ -58,32 +60,6 @@ const SIGHT_EVERY = 0.1;
 
 /** What a pet's ability looks like in its gesture. */
 const ACT_GESTURE: Partial<Record<PetEvent['act'], Gesture>> = { hold: 'bite', nudge: 'bite', duck: 'cast', lift: 'push', nail: 'hammer', stone: 'throw', tail: 'tail' };
-
-let pawTexture: THREE.CanvasTexture | null = null;
-/** A paw print (white, tinted with the collar's color): a big pad and four toes, with a dark outline to read over anything. */
-export function pawTex(): THREE.CanvasTexture {
-  if (pawTexture) return pawTexture;
-  const c = document.createElement('canvas');
-  c.width = c.height = 64;
-  const g = c.getContext('2d')!;
-  const blob = (x: number, y: number, rx: number, ry: number) => {
-    g.beginPath();
-    g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-    g.fill();
-    g.stroke();
-  };
-  g.fillStyle = '#ffffff';
-  g.strokeStyle = 'rgba(20,16,24,0.85)';
-  g.lineWidth = 3;
-  blob(32, 41, 14, 12);
-  blob(15, 25, 6, 8);
-  blob(26, 15, 6, 8);
-  blob(38, 15, 6, 8);
-  blob(49, 25, 6, 8);
-  pawTexture = new THREE.CanvasTexture(c);
-  pawTexture.colorSpace = THREE.SRGBColorSpace;
-  return pawTexture;
-}
 
 let spiralTexture: THREE.CanvasTexture | null = null;
 /** A dizzy spiral (the otter's stone: never stars). */
@@ -172,6 +148,8 @@ class PetActor {
 export class PetManager {
   private actors = new Map<number, PetActor>();
   private flashes: Flash[] = [];
+  /** The paws in the collar's color over the targets (client/pets/paw.ts). */
+  private paws: PawMarks;
   private voiceAt = -Infinity;
   private time = 0;
   /** Others' pets hidden (Settings, PvP only). */
@@ -182,7 +160,9 @@ export class PetManager {
     /** 'pvp': a look; 'pve': the zumbi mode's abilities. */
     readonly mode: 'pvp' | 'pve',
     private me: number,
-  ) {}
+  ) {
+    this.paws = new PawMarks(h.scene);
+  }
 
   /** A player's pet in this match (null: none). */
   set(owner: number, pet: PlayerPet | null | undefined) {
@@ -313,6 +293,7 @@ export class PetManager {
       root.visible = this.shown(a, o, camPos, dt);
     }
     this.renderFlashes(now);
+    this.paws.update(now);
   }
 
   /** PvP: never another's pet with the option on, nor one whose owner the camera can't see. */
@@ -387,13 +368,16 @@ export class PetManager {
     switch (e.act) {
       case 'hold':
       case 'nudge':
-        if (zombie) this.paw(over(zombie.feet, 2.1 * zombie.scale), color, Math.min(e.until, now + PAW_TIME * 1000));
+        if (zombie) this.pawOn(e.z!, 2.1, color, now, Math.min(e.until, now + PAW_TIME * 1000));
         this.voice(a, () => a.model.root.position, (s) => s.bark());
         sfx.at(a.model.root.position, 'normal', (s) => s.bite());
         break;
       case 'duck':
-        if (zombie) this.paw(over(zombie.feet, 2.2 * zombie.scale), color, now + PAW_TIME * 1000);
-        // (the quack comes from the float itself: client/zombies/view.ts)
+        if (zombie) {
+          this.pawOn(e.z!, 2.2, color, now, now + PAW_TIME * 1000);
+          // The potion bursts into the float (the float and its quacks are client/zombies/view.ts's).
+          sfx.at(over(zombie.feet, 1.1 * zombie.scale), 'normal', (s) => s.potionPop());
+        }
         sfx.at(a.model.root.position, 'normal', (s) => s.witchSpell());
         break;
       case 'stone':
@@ -402,7 +386,7 @@ export class PetManager {
         break;
       case 'nail': {
         const g = e.i !== undefined ? this.h.gap?.(e.i) : null;
-        if (g) this.paw(over(g, 2.2), color, now + PAW_TIME * 1000);
+        if (g) this.paws.add(color, () => over(g, 2.2), now, now + PAW_TIME * 1000);
         break;
       }
       case 'tail':
@@ -422,14 +406,17 @@ export class PetManager {
     this.h.sfx.at(at().clone().setY(at().y + 0.4), 'normal', play);
   }
 
-  private paw(at: THREE.Vector3, color: number, until: number) {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: pawTex(), color, depthTest: false, transparent: true }));
-    s.scale.setScalar(0.42);
-    s.renderOrder = 10;
-    s.position.copy(at);
-    this.h.scene.add(s);
-    const y0 = at.y;
-    this.flashes.push({ obj: s, until, update: (now, f) => (s.position.y = y0 + Math.sin(now / 180) * 0.04 + Math.max(0, 1 - (f.until - now) / 300) * 0.2) });
+  /** A paw over zombie `z`'s head (`h`: times its size), following it while it lasts or until it's gone. */
+  private pawOn(z: number, h: number, color: number, now: number, until: number) {
+    this.paws.add(
+      color,
+      () => {
+        const o = this.h.zombie?.(z);
+        return o ? o.feet.clone().setY(o.feet.y + h * o.scale) : null;
+      },
+      now,
+      until,
+    );
   }
 
   /** The otter's stone: from her paws to the zombie's head in an arc, a knock, a dizzy spiral (and the bloater's "pfff"). */
@@ -458,7 +445,7 @@ export class PetManager {
       this.h.sfx.at(to, 'normal', (s) => s.stoneHit());
       this.h.effects.burst('debris', to, new THREE.Vector3(0, 1, 0), 6, 0xbab4a8);
     }, 350);
-    this.paw(to.clone().setY(to.y + 0.45), color, Math.min(e.until, now + PAW_TIME * 1000));
+    this.pawOn(e.z!, 1.7 + 0.45 / z.scale, color, now, Math.min(e.until, now + PAW_TIME * 1000));
     // Dizzy until the match says so: a spiral turning over its head.
     const spin = new THREE.Sprite(new THREE.SpriteMaterial({ map: spiralTex(), color: 0xfff4d8, depthTest: true, transparent: true }));
     spin.scale.setScalar(0.38);
@@ -490,7 +477,8 @@ export class PetManager {
     g.position.copy(at).setY(at.y + 0.04);
     this.h.scene.add(g);
     this.flashes.push({ obj: g, until, update: (n) => g.children.forEach((c, i) => (c.position.x = Math.sin(n / 70 + i) * 0.03 * i)) });
-    this.paw(at.clone().setY(at.y + 0.6), color, now + PAW_TIME * 1000);
+    const over = at.clone().setY(at.y + 0.6);
+    this.paws.add(color, () => over, now, now + PAW_TIME * 1000);
     a.tailBack = until + 4000;
   }
 
@@ -505,7 +493,7 @@ export class PetManager {
         if (o instanceof THREE.Mesh || o instanceof THREE.Sprite) {
           if (o instanceof THREE.Mesh) o.geometry.dispose();
           const m = o.material as THREE.Material & { map?: THREE.Texture | null };
-          if (m.map && m.map !== pawTexture && m.map !== spiralTexture) m.map.dispose();
+          if (m.map && m.map !== spiralTexture) m.map.dispose();
           m.dispose();
         }
       });
@@ -517,5 +505,6 @@ export class PetManager {
   dispose() {
     for (const id of [...this.actors.keys()]) this.remove(id);
     this.renderFlashes(Infinity);
+    this.paws.clear();
   }
 }

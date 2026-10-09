@@ -1,16 +1,20 @@
 // Pets on screen (PF-29): every pet fits the triangle budget (at most 2,000, the light version about a third: 10
 // players with a pet stay around 20 thousand), the Amora is the map's Chow Chow builder (the map's own unchanged),
 // and where a pet walks: the PvP leash (at most 0.7 m from the edge of its owner's body, always behind on its side)
-// and the zumbi's path behind and beside its owner, out of the cone in front of them.
+// and the zumbi's path behind and beside its owner (the breadcrumbs it follows), out of the cone in front of them; and
+// no pet has a collider or a hit target (only bones, groups and meshes); the ability's paw is one texture per collar
+// color.
 import { describe, expect, it } from 'bun:test';
 import { PET_IDS, PETS } from '@shared/pets';
-import { behindSpot, BODY_RADIUS, FRONT_RANGE, inFrontCone, inSightLine, newFollow, PVP_LEASH, routeAround, stepFollow, type Owner } from '../pets/follow';
-import { loadClient } from '../../tools/headless';
+import * as THREE from 'three';
+import { behindSpot, BODY_RADIUS, followTarget, FRONT_RANGE, inFrontCone, inSightLine, newFollow, PVE_SIDE, PVP_LEASH, routeAround, stepFollow, type Owner } from '../pets/follow';
+import { installCanvasStandIn, loadClient } from '../../tools/headless';
 
 const { makePet } = await loadClient('client/pets/species.ts');
 const { PET_MAX_TRIS } = await loadClient('client/pets/rig.ts');
 const { chowParts } = await loadClient('client/world/dog.ts');
 const { PetAnimator, restPose, STATION_GESTURE, GESTURE_TIME } = await loadClient('client/pets/anim.ts');
+const { pawTexture, pawSprite } = await loadClient('client/pets/paw.ts');
 
 const coats = (id: (typeof PET_IDS)[number]) => (PETS[id].pelagens.length ? PETS[id].pelagens.map((p) => p.id) : ['']);
 
@@ -59,6 +63,42 @@ describe('modelos dos pets', () => {
       m.dispose();
     }
   });
+
+  it('nenhum pet tem colisor nem alvo: só ossos, grupos e malhas (e todo gesto posa sem erro)', () => {
+    for (const id of PET_IDS) {
+      const m = makePet(id, coats(id)[0], 0xd8352a, 'match');
+      m.root.traverse((o: THREE.Object3D) => {
+        expect({ id, ok: o instanceof THREE.Mesh || o instanceof THREE.Group || o instanceof THREE.Bone }).toEqual({ id, ok: true });
+        // Nothing the game's hit tests or the zombies' picks could take for a body.
+        expect(Object.keys(o.userData)).toHaveLength(0);
+      });
+      const anim = new PetAnimator(m);
+      for (const g of Object.keys(GESTURE_TIME)) anim.update(0.05, { ...restPose(), gesture: g, gestureT: 0.3 });
+      anim.update(0.05, { ...restPose(), speed: 5 });
+      anim.update(0.05, { ...restPose(), dance: true, tailGone: 1, sit: 1 });
+      m.dispose();
+    }
+  });
+});
+
+describe('a pata da assinatura', () => {
+  it('na cor da coleira, uma textura por cor (compartilhada pelos sprites, nunca uma por pata)', () => {
+    // The paw is drawn on a canvas: a stand-in for the browser's.
+    const restore = installCanvasStandIn();
+    try {
+      const red = pawTexture(0xd8352a);
+      expect(pawTexture('#d8352a')).toBe(red);
+      expect(pawTexture(0x2f7fe0)).not.toBe(red);
+      const a = pawSprite(0xd8352a);
+      const b = pawSprite(0xd8352a);
+      expect(a.material.map).toBe(red);
+      expect(b.material.map).toBe(red);
+      // Seen through walls, over the scene.
+      expect(a.material.depthTest).toBe(false);
+    } finally {
+      restore();
+    }
+  });
 });
 
 describe('onde o pet anda', () => {
@@ -101,6 +141,29 @@ describe('onde o pet anda', () => {
     for (let i = 0; i < 240; i++) stepFollow(f, o, 1 / 60, 'pve', -1);
     expect(inFrontCone(o, f)).toBe(false);
     expect(Math.hypot(f.x - o.x, f.z - o.z)).toBeLessThan(FRONT_RANGE);
+  });
+
+  it('o rastro do dono: um ponto a cada 25 cm, no máximo 24, e o pet vai atrás pelo caminho (não corta a esquina)', () => {
+    const o = { ...owner, z: 3 };
+    const f = newFollow(o, 1);
+    // 3 m along -Z, then a turn to +X for 0.6 m.
+    for (let i = 0; i < 60; i++) {
+      o.z = 3 - (i + 1) * 0.05;
+      stepFollow(f, o, 1 / 60, 'pve', 1);
+    }
+    o.yaw = -Math.PI / 2;
+    for (let i = 0; i < 12; i++) {
+      o.x = (i + 1) * 0.05;
+      stepFollow(f, o, 1 / 60, 'pve', 1);
+    }
+    expect(f.trail.length).toBeLessThanOrEqual(24);
+    for (let i = 1; i < f.trail.length; i++) expect(Math.hypot(f.trail[i].x - f.trail[i - 1].x, f.trail[i].z - f.trail[i - 1].z)).toBeGreaterThan(0.25);
+    // 1.2 m back along the path is ~(0, 0.6), on the first leg: the target is PVE_SIDE to the side of it, not on the
+    // straight line to the owner.
+    const t = followTarget(f, o, 'pve', 1);
+    expect(Math.abs(Math.hypot(t.x, t.z - 0.6) - PVE_SIDE)).toBeLessThan(0.15);
+    for (let i = 0; i < 200; i++) stepFollow(f, o, 1 / 60, 'pve', 1);
+    expect(f.trail.length).toBeLessThanOrEqual(24);
   });
 
   it('agindo, vai até o alvo em vez de seguir', () => {

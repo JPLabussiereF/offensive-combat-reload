@@ -25,7 +25,7 @@ import { BarricadeView } from './barricades';
 import { flawText } from './ambience';
 import type { ZombieLink } from './link';
 import { PET_ABILITIES, petCooldown, type PetId } from '@shared/pets';
-import { pawTex } from '../pets/manager';
+import { pawSprite } from '../pets/paw';
 
 /** How the zombie side talks to its match (link.ts): the server's connection online, the local match solo. */
 export type { ZombieLink };
@@ -916,9 +916,8 @@ export class ZombieClient {
         pawed.add(p.id);
         let paw = this.paws.get(p.id);
         if (!paw) {
-          paw = new THREE.Sprite(new THREE.SpriteMaterial({ map: pawTex(), color, depthTest: false, depthWrite: false, transparent: true }));
+          paw = pawSprite(color);
           paw.scale.set(0.4, 0.4, 1);
-          paw.renderOrder = 11;
           this.game.scene.add(paw);
           this.paws.set(p.id, paw);
         }

@@ -288,12 +288,12 @@ Cada jogador pode trazer o seu pet ([[Pets]], com o interruptor **Junto no zumbi
 
 | Pet | Habilidade | Resumo | Recarga |
 |---|---|---|---|
-| Amora | Segura, Amora! | segura pela canela, por 3 s, o zumbi mais perto do dono (até 7 m); o Segurança e os chefes só levam um tranco de 0,6 s (`ZF.held`) | 18 s |
-| Bruxinha | Feitiço do Pato | boia de patinho por 4 s no zumbi perigoso mais perto (até 10 m; variante antes de comum; chefes imunes): parado e levando tiro (`ZF.duck`) | 25 s |
+| Amora | Segura, Amora! | segura pela canela, por 3 s, o zumbi mais perto do dono (até 7 m, sem o muro no meio), **cancelando o golpe que ele tinha começado**; o Segurança e os chefes só levam um tranco de 0,6 s, que não cancela (`ZF.held`) | 18 s |
+| Bruxinha | Feitiço do Pato | boia de patinho por 4 s no zumbi a até 10 m com o maior peso do tipo ÷ distância (Segurança 3, Tio 2,4, Tia 2, Fiscal 1,6, comum 1; chefes imunes): parado e levando tiro (`ZF.duck`) | 25 s |
 | Gata | Sétima Vida | levanta o dono caído em 6 s (começa 2 s depois da queda), 2 vezes por partida; **cede a vez a um colega** que comece a reanimar e nunca entra nas reanimações | cargas |
 | Fuinha | Mão na Massa | prega 1 tábua a cada 2,5 s, até 2, na barricada erguida mais danificada perto do dono (até 6 m), sem dinheiro | 15 s |
-| Lontra | Pedrada | cancela o cuspe da Tia ou o inchaço do Tio perto do dono (até 9 m) e deixa o zumbi tonto 1,5 s | 12 s |
-| Iguana | Rabo de Isca | um golpe deixa o dono com 35% da vida ou menos: os zumbis a até 8 m (não os chefes) vão atrás do rabo por 5 s | 40 s |
+| Lontra | Pedrada | cancela o cuspe da Tia ou o inchaço do Tio perto do dono (até 9 m) e deixa o zumbi tonto 1,5 s; o Tio só volta a inchar 3 s depois | 12 s |
+| Iguana | Rabo de Isca | um golpe de zumbi ou de fantasma (não espinhos nem corvos) deixa o dono com 35% da vida ou menos: os zumbis a até 8 m (não os chefes) vão atrás do rabo por 5 s | 40 s |
 
 Decidido pelo motor (`ZombieMatch.tickPets`): no servidor online, no navegador no solo. Evento `zpet` para a sala ([[Remote Calls]]); o dono vê o ícone do pet com a recarga no [[HUD]].
 

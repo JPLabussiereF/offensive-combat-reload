@@ -1,6 +1,7 @@
-// The API under /api: accounts (here), maps (mapRoutes.ts) and management (gestao.ts). JSON in and out unless a
-// route says otherwise; every state-changing request must come from this site (Origin check) and carries the
-// session cookie. Errors are { erro: code }.
+// The API under /api: accounts (here), maps (mapRoutes.ts), management (gestao.ts) and remote deploy (deploy.ts).
+// JSON in and out unless a route says otherwise; every state-changing request must come from this site (Origin
+// check) and carries the session cookie, except the deploy routes, which scripts call with a key instead.
+// Errors are { erro: code }.
 //
 // Routes are "METHOD /path"; a segment ":name" matches any one segment and reaches the handler in ctx.params.
 // An exact route wins over one with parameters.
@@ -10,6 +11,7 @@ import { audit, cancelDeletion, changeName, fullProfile, getAccount, me, request
 import { discordAvailable, discordCallback, startDiscord, unlinkDiscord } from './auth/discord';
 import { login, register, requestReset, resetPassword } from './auth/password';
 import { authenticate, clearSessionCookie, revokeSession, type Deps } from './auth/sessions';
+import { deployRoutes, isDeployPath } from './deploy';
 import { gestaoRoutes } from './gestao';
 import { HttpError, json, originAllowed, randomToken, readJson, sha256hex } from './http';
 import { mapRoutes } from './mapRoutes';
@@ -24,6 +26,9 @@ export const ticketKey = (ticket: string) => `ws:ticket:${sha256hex(ticket)}`;
 const MUTATING = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 
 const accountRoutes: Record<string, Handler> = {
+  // Health with the running version (the image's APP_VERSION): the deploy program checks it after each swap.
+  'GET /api/saude': async (ctx) => reply(ctx, 200, { status: 'ok', version: process.env.APP_VERSION ?? 'dev' }),
+
   'GET /api/me': async (ctx) => {
     const s = await requireSession(ctx);
     const [mine, papeis] = await Promise.all([me(ctx.deps.db, s.accountId), rolesOf(ctx.deps.db, s.accountId)]);
@@ -87,7 +92,7 @@ const accountRoutes: Record<string, Handler> = {
     if (body.aparencia !== undefined) await setAppearance(ctx.deps.db, s.accountId, body.aparencia);
     if (body.arsenal !== undefined) await setArsenal(ctx.deps.db, s.accountId, body.arsenal);
     if (body.destaque !== undefined || body.titulo !== undefined) await setShowcase(ctx.deps.db, s.accountId, body.destaque, body.titulo);
-    // The pet (shared/pets.ts: sanitizePet); every pet is free for now.
+    // The pet (shared/pets.ts: sanitizePet; a pet that does not exist is 400 pet_invalido); every pet is free for now.
     if (body.pet !== undefined) await setPet(ctx.deps.db, s.accountId, body.pet);
     return reply(ctx, 200, await fullProfile(ctx.deps.db, s.accountId));
   },
@@ -140,7 +145,7 @@ function compile(all: Record<string, Handler>) {
   return { exact, patterns };
 }
 
-const ROUTES = compile({ ...accountRoutes, ...mapRoutes, ...gestaoRoutes });
+const ROUTES = compile({ ...accountRoutes, ...mapRoutes, ...gestaoRoutes, ...deployRoutes });
 
 /** The handler of a request and its parameters, or null. */
 function route(method: string, path: string): { handler: Handler; params: Record<string, string> } | null {
@@ -174,7 +179,9 @@ export async function handleApi(deps: Deps, req: Request, url: URL): Promise<Res
   try {
     const found = route(req.method, url.pathname);
     if (!found) throw new HttpError(404, 'nao_encontrado');
-    if (MUTATING.has(req.method) && !originAllowed(req)) throw new HttpError(403, 'origem_invalida');
+    // The Origin check guards the session cookie against other sites (CSRF). The deploy routes don't use the
+    // cookie: they authenticate with X-Deploy-Key, and their callers (CI, curl) send no Origin at all.
+    if (MUTATING.has(req.method) && !isDeployPath(url.pathname) && !originAllowed(req)) throw new HttpError(403, 'origem_invalida');
     ctx.params = found.params;
     return await found.handler(ctx);
   } catch (err) {

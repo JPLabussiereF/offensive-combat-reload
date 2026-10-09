@@ -19,7 +19,7 @@ source_paths:
   - server/migrations/004_estatisticas_zumbi.sql
   - server/migrations/005_figurinhas.sql
   - server/migrations/006_destaque.sql
-  - server/migrations/007_pets.sql
+  - server/migrations/009_pets.sql
   - server/maps.ts
   - server/mapRoutes.ts
   - server/gestao.ts
@@ -42,7 +42,7 @@ updated: 2026-10-08
 - Consultas **sempre parametrizadas** (`$1, $2...`). A única interpolação de string em SQL é o nome/datas de partição em `server/jobs.ts`, gerados pelo próprio código a partir da data.
 - `transaction(db, fn)` — `BEGIN`/`COMMIT`/`ROLLBACK` com um cliente do pool.
 
-## Tabelas (migrations `001_contas.sql` a `007_pets.sql`, mais `004_mapas.sql`)
+## Tabelas (migrations `001_contas.sql` a `006_destaque.sql`, mais `004_mapas.sql` e `009_pets.sql`)
 
 > [!info] Duas migrations 004 (merge da main na sandbox-gregory, 07/10/2026)
 > `004_mapas.sql` (mapas, sandbox) e `004_estatisticas_zumbi.sql` (`zombie_stats`, main) mexem em tabelas diferentes. `migrate()` (`server/db.ts`) guarda cada uma pelo **nome do arquivo** em `schema_migrations` e aplica as que faltam em ordem alfabética: num banco novo, `004_estatisticas_zumbi`, `004_mapas`, `005_figurinhas`, `006_destaque`; num banco que já tinha 001 a 006 da main, a `004_mapas` entra depois. Nenhuma depende da outra, então a ordem não muda o resultado. Os nomes ficaram como estão: renomear a `004_mapas` faria os bancos que já a aplicaram tentar de novo.

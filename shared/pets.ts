@@ -245,10 +245,12 @@ export const petName = (id: PetId, lang: keyof PetText, c?: PetChoice | null) =>
 /** What each pet does in the zumbi mode (data/pets.json; the tests shorten them). */
 export const PET_ABILITIES = structuredClone(data.habilidades) as {
   amora: { alcance: number; segura: number; tranco: number; recarga: number };
-  bruxinha: { alcance: number; duracao: number; recarga: number };
+  /** `peso`: how much each zombie type is worth to the float (divided by its distance: the dangerous ones first). */
+  bruxinha: { alcance: number; duracao: number; recarga: number; peso: Record<string, number> };
   gato: { cargas: number; espera: number; segundos: number; vida: number };
   fuinha: { alcance: number; tabuaSegundos: number; tabuas: number; recarga: number };
-  lontra: { alcance: number; tonto: number; recarga: number };
+  /** `murcha`: a Tio do Churrasco hit while swelling can't swell again for that long. */
+  lontra: { alcance: number; tonto: number; murcha: number; recarga: number };
   iguana: { vida: number; raio: number; duracao: number; recarga: number };
 };
 
@@ -264,7 +266,7 @@ export function petProblems(): string[] {
     if (d.fixo ? d.pelagens.length !== 0 : d.pelagens.length < 2 || d.pelagens.length > 3) out.push(`${id}: 2 ou 3 pelagens (nenhuma se fixo)`);
     if (new Set(d.pelagens.map((c) => c.id)).size !== d.pelagens.length) out.push(`${id}: pelagem repetida`);
     if (!d.nome['pt-BR'] || !d.nome.en) out.push(`${id}: sem nome`);
-    const nums = Object.values(PET_ABILITIES[id] ?? {});
+    const nums = Object.values(PET_ABILITIES[id] ?? {}).flatMap((n) => (typeof n === 'object' && n !== null ? Object.values(n) : [n]));
     if (!nums.length || !nums.every((n) => typeof n === 'number' && n > 0)) out.push(`${id}: números da habilidade`);
   }
   if (new Set(COLLARS.map((c) => c.id)).size !== COLLARS.length) out.push('coleira repetida');

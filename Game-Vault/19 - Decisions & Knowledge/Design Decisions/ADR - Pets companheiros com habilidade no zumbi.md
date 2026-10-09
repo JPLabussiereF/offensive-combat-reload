@@ -12,12 +12,15 @@ source_paths:
   - server/accounts.ts
   - server/session.ts
   - server/modes.ts
-  - server/migrations/007_pets.sql
+  - server/migrations/009_pets.sql
   - client/pets/rig.ts
   - client/pets/species.ts
   - client/pets/manager.ts
+  - client/pets/paw.ts
+  - client/zombies/view.ts
   - client/world/dog.ts
   - client/ui/galpao/petStage.ts
+  - client/ui/galpao/galpaoRules.ts
   - client/ui/pets.ts
 tags:
   - game
@@ -29,7 +32,7 @@ updated: 2026-10-08
 
 # ADR - Pets companheiros com habilidade no zumbi
 
-> Origem: PF-29 (plano aprovado na versão 2 da página "PF-29 PLANO", com o parecer de UI/UX e câmera da PF-36 e as respostas P23 a P27 do dev). A versão anterior do plano (pets só com o pacote de apoio, mordida com dano, seção no Personalizar, nome visível para todos) foi **substituída** por esta.
+> Origem: PF-29 (plano aprovado na versão 2 da página "PF-29 PLANO", com o parecer de UI/UX e câmera da PF-36 e as respostas P23 a P27 do dev). A versão anterior do plano (pets só com o pacote de apoio, mordida com dano, seção no Personalizar, nome visível para todos) foi **substituída** por esta. Em 08/10/2026 as **duas implementações** da PF-29 (feitas em paralelo) foram **juntadas** na branch `feature/PF-29/Pets-companheiros`, com as decisões P28–P37 (seção "Junção das duas implementações" abaixo).
 
 ## Contexto
 
@@ -60,6 +63,18 @@ Dar identidade e um motivo para ter um pet sem vender vantagem agora, sem atrapa
 9. **Galpão: estação 07 · PETS na porta da frente** com quintal de verdade ("os pets moram lá fora"; um por vez entra), escolher não é equipar ("Levar este"), troca curta e interrompível; o Gerenciamento passa a 08. Ver [[ADR - Tela inicial em galpão 3D]] (revisão).
 10. **Nenhum pet atravessa o muro** (P27): a Amora, que corre até o zumbi e morde, só escolhe um sem o muro no meio (ou por um vão aberto), com o mesmo teste do golpe do zumbi (`wallBetween`); a Bruxinha voa e sobe a 2,4 m para lançar o feitiço por cima da grade; a pedra da lontra passa por cima do muro.
 
+11. **Junção das duas implementações (P28–P37, 08/10/2026).** A implementação desta branch é a **base** (formato de dados, modelos, estação do galpão, números e P23–P27); da outra vieram, **à mão** (os formatos não eram compatíveis), só estes itens:
+    - **P29:** os números são os desta base; os únicos novos são `lontra.murcha` e `bruxinha.peso`.
+    - **P30:** a migration passou a **`009_pets.sql`** (007 é o `007_album_colado` da PF-26 e 008 será da PF-28), com `ADD COLUMN IF NOT EXISTS`/`DROP COLUMN IF EXISTS`: um banco que já rodou `007_pets.sql` registra a 009 sem erro (o controle é pelo nome do arquivo em `schema_migrations`). Ver [[Data Migrations]].
+    - **P31:** a **boia de patinho com peças compartilhadas** (antes cada zumbi criava a sua geometria e ela nunca era liberada), a **pata desenhada na cor da coleira** (`client/pets/paw.ts`, seguindo o alvo), os sons **`softQuack`** (a boia) e **`potionPop`** (a poção estoura no zumbi); `HERO_HANDS`/`PET_CLEARANCE` e o pet da visão geral em x 0,27 (nunca a menos de 0,25 m das mãos do personagem); e os testes "sem pet nada age", o rastro do dono, "sem colisor nem alvo" e a folga das mãos.
+    - **P32 (Pedrada):** além do tonto de 1,5 s, o Tio do Churrasco **só volta a inchar 3 s depois** da pedrada (`cd.fuse`, `lontra.murcha`).
+    - **P33 (Rabo de Isca):** o **golpe de fantasma** também solta o rabo; espinhos e corvos continuam fora.
+    - **P34 (Amora):** segurar **cancela o golpe que o zumbi já tinha começado**; o tranco no Segurança e nos chefes não cancela. O teste do muro (P27) e os números ficam.
+    - **P35 (Bruxinha):** o alvo é o maior **peso do tipo ÷ distância** (Segurança 3, Tio 2,4, Tia 2, Fiscal 1,6, comum 1; em `pets.json`); alcance, duração e recarga ficam.
+    - **P36:** `PATCH /api/perfil` com um `pet.id` que não existe responde **400 `pet_invalido`** (corpo `{ erro }`, como o resto da API); pelagem, coleira e nome fora do formato continuam limpos em silêncio.
+    - **P37:** a fuinha continua trabalhando também na contagem antes da partida (sem mudança).
+    - Nada mais da outra implementação foi trazido.
+
 ## Motivo
 
 - Ninguém paga por vantagem agora e o modo não ganha dinheiro novo; o equilíbrio vem da recarga, fácil de ajustar.
@@ -69,7 +84,7 @@ Dar identidade e um motivo para ter um pet sem vender vantagem agora, sem atrapa
 
 ## Consequências
 
-- Mais um campo no perfil (`player_profile.pet`, migration `007_pets.sql`) e no `PATCH /api/perfil`.
+- Mais um campo no perfil (`player_profile.pet`, migration `009_pets.sql`) e no `PATCH /api/perfil`. Um banco que rodou a antiga `007_pets.sql` fica com essa linha a mais em `schema_migrations` (inofensiva; o rollback manual apaga as duas).
 - O motor do zumbi ganhou estados por zumbi (`heldUntil`, `duckUntil`, `dazeUntil`, `lureUntil`) e um gancho opcional `ZombieHost.health` (a iguana).
 - Dez pets na tela custam até ~20 mil triângulos e uma chamada de desenho cada.
 - Equilíbrio sem teste com jogadores reais, somado às vantagens da PF-19.
@@ -77,6 +92,6 @@ Dar identidade e um motivo para ter um pet sem vender vantagem agora, sem atrapa
 
 ## Código afetado
 
-`shared/pets.ts`, `shared/data/pets.json`, `shared/modes.ts`, `shared/protocol.ts`, `shared/zombies.ts`, `shared/zombieMatch.ts`, `shared/account.ts`, `server/migrations/007_pets.sql`, `server/accounts.ts`, `server/api.ts`, `server/session.ts`, `server/modes.ts`, `client/pets/*`, `client/world/dog.ts`, `client/zombies/{client,view,local}.ts`, `client/character/animator.ts`, `client/ui/{pets,hud,home,menu}.ts`, `client/ui/galpao/{petStage,petBoard,scene,galpao,galpaoRules}.ts`, `client/core/settings.ts`, `client/audio/sfx.ts`, `client/main.ts`, `index.html`, `client/styles.css`.
+`shared/pets.ts`, `shared/data/pets.json`, `shared/modes.ts`, `shared/protocol.ts`, `shared/zombies.ts`, `shared/zombieMatch.ts`, `shared/account.ts`, `server/migrations/009_pets.sql`, `server/accounts.ts`, `server/api.ts`, `server/session.ts`, `server/modes.ts`, `client/pets/*`, `client/world/dog.ts`, `client/zombies/{client,view,local}.ts`, `client/character/animator.ts`, `client/ui/{pets,hud,home,menu}.ts`, `client/ui/galpao/{petStage,petBoard,scene,galpao,galpaoRules}.ts`, `client/core/settings.ts`, `client/audio/sfx.ts`, `client/main.ts`, `index.html`, `client/styles.css`.
 
-Relacionado: [[Pets]] · [[Zombie]] · [[Menus]] · [[HUD]] · [[Player Data]] · [[Remote Calls]]
+Relacionado: [[Pets]] · [[Zombie]] · [[Menus]] · [[HUD]] · [[Player Data]] · [[Remote Calls]] · [[Data Migrations]] · [[APIs]]

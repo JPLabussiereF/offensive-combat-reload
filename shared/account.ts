@@ -147,6 +147,12 @@ export type ApiErrorCode =
   | 'cota_excedida'
   /** One of the four original official maps (OFFICIAL_MAPS): never deleted (P44) nor hidden (P45). */
   | 'mapa_protegido'
+  /** Remote deploy (server/deploy.ts, called by scripts, not by the game). */
+  | 'ambiente_invalido'
+  | 'acao_invalida'
+  | 'versao_invalida'
+  | 'versao_incompativel'
+  | 'fila_cheia'
   | 'erro_interno';
 
 // --- Management (admin and moderator, PF-6) ----------------------------------------------------------------

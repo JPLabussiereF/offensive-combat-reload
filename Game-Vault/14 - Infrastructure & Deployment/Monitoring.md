@@ -4,6 +4,8 @@ type: infrastructure
 status: partial
 area: infrastructure
 source_paths:
+  - Dockerfile
+  - server/api.ts
   - docker-compose.yml
   - tools/offensive.ts
   - client/main.ts
@@ -13,14 +15,14 @@ source_paths:
 tags:
   - infra
   - monitoramento
-updated: 2026-10-05
+updated: 2026-10-08
 ---
 
 # Monitoring
 
 ## Monitoramento de produção — não existe
 
-Não existe no código atual (verificado em `package.json` — sem bibliotecas de métricas/APM/telemetria —, em `server/` — nenhum endpoint de health, métricas ou status — e em `docker-compose.yml`). Não há Prometheus, Grafana, Sentry, alertas, uptime check externo ou painel de jogadores online.
+Não existe no código atual (verificado em `package.json` — sem bibliotecas de métricas/APM/telemetria —, em `server/` — nenhum endpoint de métricas; o único de saúde é `GET /api/saude`, abaixo — e em `docker-compose.yml`). Não há Prometheus, Grafana, Sentry, alertas, uptime check externo ou painel de jogadores online.
 
 Ver [[Problem - Sem monitoramento nem métricas de servidor]].
 
@@ -29,6 +31,7 @@ Ver [[Problem - Sem monitoramento nem métricas de servidor]].
 | Recurso | Onde | O que mostra |
 | --- | --- | --- |
 | Healthcheck do Postgres | `docker-compose.yml` (`pg_isready` a cada 2 s, 30 tentativas) | O `jogo` só sobe com o banco saudável. Não há healthcheck para `jogo`, `web` ou `redis`. |
+| `GET /api/saude` | `server/api.ts` | `{ status: "ok", version }` com a versão da imagem (`APP_VERSION`, `dev` sem ela), sem auth e sem cache. Usado pelo programa de deploy para conferir a versão depois de cada troca; não toca banco nem Redis. Ver [[APIs]]. |
 | `restart: unless-stopped` | todos os serviços do compose | Reinício automático se o processo cair. |
 | `Restart=on-failure` | `deploy/offensive-combat.service` | Idem no systemd. |
 | Teste de prontidão | `tools/offensive.ts` → `gameAnswers()` | Após subir, espera `GET /api/me` responder **401** pelo nginx (sinal de que nginx + jogo + banco respondem). Só na subida. |
