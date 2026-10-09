@@ -90,9 +90,9 @@ Cada pet age **sozinho**, sem tecla, quando a habilidade está pronta e há o qu
 Assinatura comum, sem cores ou formas reservadas aos avisos do modo (nada de anéis ou faixas no chão, disco ou feixe verde, cruz vermelha, caveira em disco vermelho, estrelas):
 
 - **Pata na cor da coleira** sobre o alvo por até 1,5 s.
-- O pet **corre até o alvo** e faz o gesto: a Amora morde a canela com o corpo para fora do zumbi (o zumbi olha para baixo e se debate); a Bruxinha voa perto e **sobe a 2,4 m** para lançar o feitiço (por cima da grade, se o zumbi estiver do lado de fora) (a boia amarela com cabeça de pato aparece na barriga; só a boia balança, a cabeça do zumbi fica parada; um **quá** baixo na captura e a cada ~1,5 s); a lontra fica de pé e joga a pedra, que voa em arco até a cabeça, e uma **espiral** gira sobre o zumbi tonto (o Tio murcha com um **"pfff"** escrito e ar saindo); a fuinha vai até a barricada e martela (**martelada aguda**, três por gesto); a iguana larga um **rabo colorido** que se remexe no chão (o dela volta a crescer); a gata empurra o dono caído.
+- O pet **corre até o alvo** e faz o gesto: a Amora morde a canela com o corpo para fora do zumbi (o zumbi olha para baixo e se debate); a Bruxinha voa perto e **sobe a 2,4 m** para lançar o feitiço (por cima da grade, se o zumbi estiver do lado de fora) (a boia amarela com cabeça de pato aparece na barriga; só a boia balança, a cabeça do zumbi fica parada; um **quá** baixo na captura e a cada ~1,5 s); a lontra fica de pé e joga a pedra, que voa em arco até a cabeça, e uma **espiral** gira sobre o zumbi tonto (o Tio murcha com um **"pfff"** escrito e ar saindo); a fuinha vai até a barricada e martela (**martelada aguda**, três por gesto); a iguana larga um **rabo colorido** que se remexe no chão (o dela volta a crescer); a gata vai para **0,9 m à frente do dono caído, de frente para ele**, e o empurra: quem está caído a vê na própria câmera baixa (ela não fica apagada ali).
 - **Som curto, abaixo dos avisos do modo**, no máximo **um latido ou miado a cada 2 s** por cliente.
-- **Para o dono:** o ícone do pet no HUD pisca com um texto curto ("Segurou!", "Pato!", "Pedrada!", "Tábua!", "Rabo!", "Levantando…", "De pé!") e, caído com a gata, a tela diz **"A gata está te levantando · Ns"** (com nome: "{nome} está te levantando · Ns"). Os colegas veem uma **pata sobre a cruz vermelha** de quem a gata está levantando. Ver [[HUD]].
+- **Para o dono:** o ícone do pet no HUD pisca com um texto curto **em branco** (a cor da coleira fica só no anel: um roxo some à noite e um vermelho parece alerta) por 1,5 s — no celular, uma palavra ao lado do rosto por ~1,2 s e o anel pulsando — ("Segurou!", "Pato!", "Pedrada!", "Tábua!", "Rabo!", "Levantando…", "De pé!") e, caído com a gata, a tela diz **"A gata está te levantando · Ns"** (com nome: "{nome} está te levantando · Ns"). Os colegas veem uma **pata sobre a cruz vermelha** de quem a gata está levantando. Ver [[HUD]].
 
 ## No PvP (enfeite)
 
@@ -109,13 +109,13 @@ Mata-mata, corrida armada, contra bots e campo de tiro (`MODE_RULES[m].pets = 'c
 
 Nada da posição do pet trafega: cada jogo desenha cada pet a partir da posição do dono, que já é replicada.
 
-- **Zumbi:** segue o **caminho do dono** (migalhas a cada 0,25 m) ~1,2 m atrás e ~0,8 m ao lado, **fora do cone de 60° à frente do dono a menos de 3 m** (onde ele mira), salvo quando está agindo; fica **semitransparente a menos de 1 m da câmera**.
+- **Zumbi:** segue o **caminho do dono** (migalhas a cada 0,25 m) ~1,2 m atrás e ~0,8 m ao lado, **fora do cone de 60° à frente do dono a menos de 3 m** (onde ele mira). Indo agir e voltando, **nunca corta esse cone**: dentro dele, sai primeiro para o lado; um caminho que o cruzaria passa por um ponto ao lado e à frente (2,6 m à frente, 1,75 m ao lado), fora do cone, e só então segue (`routeAround`); um alvo dentro do próprio cone (um zumbi bem na frente) é ido direto. O seu pet fica **semitransparente a menos de 1 m da câmera e nos 30° do meio da sua visão a menos de 3 m** (agindo e voltando também; a gata levantando você, não).
 - **PvP:** a coleira curta acima.
 - Longe da câmera (mais de 14 m) usa a versão leve do modelo.
 
 ## Escolher e personalizar
 
-- **Galpão — estação 07 · PETS** (a porta da frente com quintal): ver [[Menus]]. Os pets "moram lá fora": um por vez entra pela porta. **Escolher não é equipar**: clicar num gancho chama o pet ao capacho; só **"Levar este"** troca o que vai junto.
+- **Galpão — estação 07 · PETS** (a porta da frente com quintal): ver [[Menus]]. Os pets "moram lá fora": um por vez entra pela porta. **Escolher não é equipar**: clicar num gancho (no celular e no retrato, num rosto da fileira no topo da ficha) chama o pet ao capacho; só **"Levar este"** troca o que vai junto.
 - **Home clássica — aba Pets** (`#tab-pets`): lista com o retrato 2D de cada pet, o retrato grande e a mesma ficha (`client/ui/pets.ts`).
 - A ficha: espécie e nome, Levar este / Vai com você + Deixar no quintal (ou APOIO bloqueado, sem uso agora), a habilidade com os números, nome, pelagem (ou robe), coleira e os dois interruptores. Cada mudança salva na conta (`PATCH /api/perfil {pet}`) e aparece na hora; se o servidor recusar, volta e avisa "Não foi possível salvar o pet".
 
@@ -126,7 +126,7 @@ Nada da posição do pet trafega: cada jogo desenha cada pet a partir da posiç�
 - A **Amora pet usa o mesmo construtor da Amora do mapa** (`chowParts` em `client/world/dog.ts`) com a opção `pet`: em pé, com pernas próprias, cabeça 12% e olhos 15% maiores, menos triângulos. A Amora do mapa não muda (a mesma geometria, conferida) e o pet não herda o colisor sólido nem o alvo de tiro dela.
 - A **Bruxinha** é a mini da bruxa do mapa: robe `0x3a2a48`, pele `0x7aa040`, chapéu `0x1a1420` com faixa `0x6a3a8a`, nariz adunco, verruga, olhos desiguais, cabeça com 40–45% da altura, numa vassoura.
 - Material: no galpão o do personagem (padrão facetado, rugoso); na partida o toon do mapa. Pets **sem colisão de tiro** (nem colisor nem hitbox).
-- Animação em código (`anim.ts`): trote em pares diagonais, sentar, respirar, abanar, olhar; a iguana rasteja e rebola; a Bruxinha flutua e se inclina. Gestos da estação: Amora puxa um brinquedo de corda, Bruxinha joga uma poção e surge um patinho, Gata se espreguiça e levanta, Lontra faz malabarismo com pedras, Fuinha dá 3 marteladas, Iguana mexe o rabo.
+- Animação em código (`anim.ts`): trote em pares diagonais, sentar (a gata senta fundo, sobre ancas largas ao lado das patas da frente e com o rabo no chão, para não parecer em pé de pernas retas), respirar, abanar, olhar; a iguana rasteja e rebola e, "sentada", ergue o peito nas patas da frente (no capacho, de perfil, ela ainda balança a cabeça a cada ~2,6 s, como as iguanas); a Bruxinha flutua e se inclina; o cachorro na mesa fica em pé atrás dela só com a cabeça e as patas por cima do tampo (o queixo ~0,14 m acima). Gestos da estação: Amora puxa um brinquedo de corda, Bruxinha joga uma poção e surge um patinho, Gata se espreguiça e levanta, Lontra faz malabarismo com pedras, Fuinha dá 3 marteladas, Iguana mexe o rabo.
 
 ## Dados e rede
 
@@ -146,7 +146,7 @@ Nada da posição do pet trafega: cada jogo desenha cada pet a partir da posiç�
 ## Testes
 
 - `server/tests/pets.test.ts`: catálogo e `sanitizePet`; quem vê o quê e em que modo; cada habilidade no motor com relógio falso (incluindo a Amora sem atravessar o muro, a Sétima Vida cedendo ao colega e fora das reanimações, e o solo com a gata); PATCH, `PlayerInfo.pet` por modo e interruptor (nunca o nome) e a Amora agindo numa partida zumbi no servidor de verdade.
-- `client/tests/pets.test.ts`: triângulos de cada pet e pelagem (e da versão leve), a Amora pelo construtor do mapa, os gestos, a coleira curta do PvP e o caminho e o cone do zumbi.
+- `client/tests/pets.test.ts`: triângulos de cada pet e pelagem (e da versão leve), a Amora pelo construtor do mapa, os gestos, a coleira curta do PvP, o caminho e o cone do zumbi, a volta em torno da mira do dono ao agir e voltar, e o meio da visão onde o pet fica apagado.
 - `client/tests/galpaoRules.test.ts`: ordem das estações, `petSpot` e `flightDuration`.
 
 ## Limites e próximos passos
