@@ -69,15 +69,19 @@ export type V3 = [number, number, number];
  * Where the pet taken along shows on the overview (PF-29, the PF-36 review), by the window's size and the pet's
  * size: a small pet (and the Bruxinha) sits on the hero table's top, by the magazine on a computer and at its left
  * end on a phone lying down (the menu covers the right there); a dog stands behind the table with its front paws
- * on the top. In portrait, none (the menu takes the screen). The scene still checks the projected box against the
- * menu and keeps 0.25 m from the character.
+ * on the top, right of the character on a computer (0.6 m from their right hand) and at the table's left end on a
+ * phone lying down. In portrait, none (the menu takes the screen). The scene still checks the projected box against
+ * the menu and keeps 0.25 m from the character.
  */
 export function petSpot(width: number, height: number, porte: 'pequeno' | 'cachorro'): { at: V3; pose: 'sit' | 'table' } | null {
   if (width < height) return null;
-  if (porte === 'cachorro') return { at: [0.42, 0, -0.05], pose: 'table' };
   const compact = width < 1000 || height < 600;
+  if (porte === 'cachorro') return { at: compact ? [-1.0, 0, -0.05] : [0.57, 0, -0.05], pose: 'table' };
   return { at: compact ? [-0.9, 0.92, 0.45] : [0.22, 0.92, 0.3], pose: 'sit' };
 }
+
+/** The Galpão's small layout (the root's `compact` class): a phone lying down, portrait, a small window. */
+export const compactGalpao = (width: number, height: number): boolean => height < 560 || width < 700;
 
 /**
  * How long a flight between two stations lasts (s), by how far the camera turns (degrees): a second up to 60°,

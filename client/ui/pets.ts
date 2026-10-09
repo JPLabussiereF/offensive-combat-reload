@@ -50,7 +50,34 @@ export function abilityOf(id: PetId) {
 /** The pet's name for its owner (theirs for it, or the catalog's). */
 export const displayName = (id: PetId, c: PetChoice | null) => petName(id, getLang(), c);
 
-/** The card of one pet, in `root`. */
+/** The six pets' faces (2D portraits), by look, made once and kept. */
+const faceCache = new Map<string, string>();
+const faceKey = (id: PetId, c: PetChoice | null) => {
+  const look = petLook(c, id);
+  return `${id}|${look.cor}|${look.coleira}`;
+};
+
+/** Fills every `img[data-face]` under `root` with its face, making the missing ones. */
+function fillFaces(root: HTMLElement, c: PetChoice | null) {
+  const set = () => {
+    for (const img of root.querySelectorAll<HTMLImageElement>('img[data-face]')) {
+      const url = faceCache.get(img.dataset.face!);
+      if (url && img.getAttribute('src') !== url) img.src = url;
+    }
+  };
+  set();
+  const reqs = PET_IDS.filter((id) => !faceCache.has(faceKey(id, c))).map((id) => ({ id, cor: petLook(c, id).cor, coleira: petLook(c, id).coleira }));
+  if (!reqs.length) return;
+  void petPortraits(reqs, 128).then((urls) => {
+    reqs.forEach((r, i) => faceCache.set(`${r.id}|${r.cor}|${r.coleira}`, urls[i]));
+    set();
+  });
+}
+
+/**
+ * The card of one pet, in `root`. `call`: the Galpão's small layout (a phone, portrait) has no tags under the
+ * hooks: a row of the six faces on top of the card calls a pet in instead (CSS shows it only there).
+ */
 export class PetCard {
   private id: PetId | null = null;
   private nameTimer = 0;
@@ -58,6 +85,7 @@ export class PetCard {
   constructor(
     private root: HTMLElement,
     private hooks: PetCardHooks,
+    private call?: (id: PetId) => void,
   ) {
     root.addEventListener('click', (e) => this.onClick(e));
     root.addEventListener('input', (e) => {
@@ -108,7 +136,14 @@ export class PetCard {
     const collars = COLLARS.map((k) => `<button type="button" class="pc-swatch dot${look.coleira === k.id ? ' on' : ''}" data-collar="${k.id}" aria-pressed="${look.coleira === k.id}" title="${esc(k.nome[lang])}" aria-label="${esc(k.nome[lang])}" style="--sw:${hex(k.cor)}"><i></i></button>`).join('');
     const sw = (key: 'pvp' | 'pve', label: StringKey, sub: StringKey) =>
       `<button type="button" class="pc-switch${c[key] ? ' on' : ''}" data-switch="${key}" aria-pressed="${c[key]}"><span><b>${esc(t(label))}</b><small>${esc(t(sub))}</small></span><em>${esc(t(c[key] ? 'pmOn' : 'pmOff'))}</em></button>`;
-    this.root.innerHTML = `
+    const faces = this.call
+      ? `<div class="pc-faces" role="listbox" aria-label="${esc(t('petsTitle'))}">${PET_IDS.map((p) => {
+          const on = p === id;
+          const name = displayName(p, c);
+          return `<button type="button" class="pc-face${on ? ' on' : ''}${c.id === p ? ' along' : ''}" data-call="${p}" role="option" aria-selected="${on}" aria-label="${esc(c.id === p ? `${name} · ${t('petTagWith')}` : name)}"><img alt="" data-face="${faceKey(p, c)}" /><span>${esc(name)}</span></button>`;
+        }).join('')}</div>`
+      : '';
+    this.root.innerHTML = `${faces}
       <div class="gp-card-head pc-head">
         <span><small class="gp-kicker">${esc(def.especie[lang])}</small><b>${esc(displayName(id, c))}</b></span>
       </div>
@@ -122,6 +157,7 @@ export class PetCard {
       ${coats ? `<div class="pc-row"><small class="gp-kicker">${esc(t(id === 'bruxinha' ? 'petRobe' : 'petCoat'))}</small><div class="pc-swatches">${coats}</div></div>` : ''}
       <div class="pc-row"><small class="gp-kicker">${esc(t('petCollar'))}</small><div class="pc-swatches">${collars}</div></div>
       <div class="pc-switches">${sw('pvp', 'petPvp', 'petPvpSub')}${sw('pve', 'petPve', 'petPveSub')}</div>`;
+    if (this.call) fillFaces(this.root, c);
     if (focused !== null) {
       const input = this.root.querySelector<HTMLInputElement>('[data-name]');
       if (input) {
@@ -158,6 +194,8 @@ export class PetCard {
     const el = e.target as HTMLElement;
     const id = this.id;
     if (!id) return;
+    const called = el.closest<HTMLElement>('[data-call]')?.dataset.call as PetId | undefined;
+    if (called && this.call) return this.call(called);
     if (el.closest('[data-take]')) return this.change((c) => (c.id = id));
     if (el.closest('[data-leave]')) return this.change((c) => (c.id = null));
     const coat = el.closest<HTMLElement>('[data-coat]')?.dataset.coat;
@@ -176,7 +214,6 @@ export class PetCard {
 export class PetsTab {
   private card: PetCard;
   private shown: PetId;
-  private faces = new Map<string, string>();
 
   constructor(
     private root: HTMLElement,
@@ -204,24 +241,14 @@ export class PetsTab {
     const c = this.hooks.choice();
     const list = this.root.querySelector<HTMLElement>('.pets-list')!;
     list.innerHTML = PET_IDS.map((id) => {
-      const look = petLook(c, id);
-      const key = `${id}|${look.cor}|${look.coleira}`;
+      const key = faceKey(id, c);
       const tag = !petAllowed(id) ? `<span class="gp-chip red">${esc(t('petLocked'))}</span>` : c.id === id ? `<span class="gp-chip green">${esc(t('petTagWith'))}</span>` : '';
       return `<button type="button" class="pets-item${this.shown === id ? ' on' : ''}" data-pet="${id}" role="option" aria-selected="${this.shown === id}">
-        <img alt="" data-face="${key}" src="${this.faces.get(key) ?? ''}" /><span><b>${esc(displayName(id, c))}</b><small>${esc(t(`petAbility_${id}` as StringKey))}</small></span>${tag}</button>`;
+        <img alt="" data-face="${key}" src="${faceCache.get(key) ?? ''}" /><span><b>${esc(displayName(id, c))}</b><small>${esc(t(`petAbility_${id}` as StringKey))}</small></span>${tag}</button>`;
     }).join('');
     this.card.show(this.shown);
-    const reqs = PET_IDS.map((id) => ({ id, cor: petLook(c, id).cor, coleira: petLook(c, id).coleira }));
-    void petPortraits(reqs, 128).then((urls) => {
-      reqs.forEach((r, i) => this.faces.set(`${r.id}|${r.cor}|${r.coleira}`, urls[i]));
-      for (const img of this.root.querySelectorAll<HTMLImageElement>('[data-face]')) {
-        const url = this.faces.get(img.dataset.face!);
-        if (url && img.getAttribute('src') !== url) img.src = url;
-      }
-      const big = this.root.querySelector<HTMLImageElement>('.pets-portrait img')!;
-      const look = petLook(this.hooks.choice(), this.shown);
-      const url = this.faces.get(`${this.shown}|${look.cor}|${look.coleira}`);
-      if (url) big.src = url;
-    });
+    const big = this.root.querySelector<HTMLImageElement>('.pets-portrait img')!;
+    big.dataset.face = faceKey(this.shown, c);
+    fillFaces(this.root, c);
   }
 }

@@ -29,7 +29,8 @@ export class PetBoard {
       tagsRoot.appendChild(b);
       this.tags.set(id, b);
     }
-    this.card = new PetCard(cardRoot, hooks);
+    // (on a phone and in portrait the tags are hidden: the card's row of faces calls a pet in)
+    this.card = new PetCard(cardRoot, hooks, (id) => this.onCall(id));
   }
 
   /** The pet whose card is open (the one on the mat). */

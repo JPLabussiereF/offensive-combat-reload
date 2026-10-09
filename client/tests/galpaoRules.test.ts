@@ -2,7 +2,7 @@
 // staff), which tab each station holds, what each key does on the overview and at a station, and who gets the 3D
 // home at all.
 import { describe, expect, it } from 'bun:test';
-import { flightDuration, galpaoWanted, hop, keyAction, lightScene, petSpot, STATION_ORDER, stationOf, stationOrder, tabOf } from '../ui/galpao/galpaoRules';
+import { compactGalpao, flightDuration, galpaoWanted, hop, keyAction, lightScene, petSpot, STATION_ORDER, stationOf, stationOrder, tabOf } from '../ui/galpao/galpaoRules';
 
 describe('estações do galpão', () => {
   it('oito estações na ordem do menu: os pets antes do Gerenciamento, que é só da equipe', () => {
@@ -75,10 +75,19 @@ describe('o pet na visão geral e o voo entre as estações', () => {
     expect(petSpot(1600, 900, 'pequeno')).toEqual({ at: [0.22, 0.92, 0.3], pose: 'sit' });
     expect(petSpot(1920, 1080, 'pequeno')!.at).toEqual([0.22, 0.92, 0.3]);
     expect(petSpot(844, 390, 'pequeno')).toEqual({ at: [-0.9, 0.92, 0.45], pose: 'sit' });
-    expect(petSpot(1600, 900, 'cachorro')).toEqual({ at: [0.42, 0, -0.05], pose: 'table' });
-    expect(petSpot(844, 390, 'cachorro')!.pose).toBe('table');
+    expect(petSpot(1600, 900, 'cachorro')).toEqual({ at: [0.57, 0, -0.05], pose: 'table' });
+    // On a phone lying down the menu covers the right: the dog at the table's left end, like the small ones.
+    expect(petSpot(844, 390, 'cachorro')).toEqual({ at: [-1.0, 0, -0.05], pose: 'table' });
     expect(petSpot(390, 844, 'pequeno')).toBeNull();
     expect(petSpot(390, 844, 'cachorro')).toBeNull();
+  });
+
+  it('o layout pequeno (sem etiquetas sob os ganchos, a fileira de rostos na ficha): celular deitado, retrato e janela pequena', () => {
+    expect(compactGalpao(844, 390)).toBe(true);
+    expect(compactGalpao(390, 844)).toBe(true);
+    expect(compactGalpao(1000, 540)).toBe(true);
+    expect(compactGalpao(1366, 768)).toBe(false);
+    expect(compactGalpao(1600, 900)).toBe(false);
   });
 
   it('a duração do voo cresce com o giro: 1 s até 60°, 1,2 s a 120°, 1,4 s a 180°; movimento reduzido corta em 0,2 s', () => {

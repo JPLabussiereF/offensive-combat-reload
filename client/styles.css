@@ -522,7 +522,8 @@ body {
   font: 900 13px var(--body);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--c);
+  /* White: the collar's color is only on the ring (a purple vanishes at night, a red reads as an alarm). */
+  color: #fff;
   text-shadow: var(--hud-shadow);
   white-space: nowrap;
   opacity: 0;
@@ -5952,7 +5953,7 @@ html:not(.mobile) #tab-arsenal .hint-touch {
 .mobile .buff-icon {
   font-size: 15px;
 }
-/* The pet's chip: the first of the row, its face in the ring, no text (the ring blinks when it acts). */
+/* The pet's chip: the first of the row, its face in the ring (a word beside it and the ring blinking when it acts). */
 .mobile #zpet.buff {
   display: inline-flex;
   margin: 0;
@@ -5968,8 +5969,16 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   height: 24px;
   padding: 2px;
 }
+/* Acting, a short word beside the face for a moment (~1.2 s, zombies/client.ts), and the ring's pulse. */
 .mobile #zpet-text {
-  display: none;
+  display: inline-block;
+  max-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  transition: max-width 0.2s, opacity 0.2s;
+}
+.mobile #zpet.flash #zpet-text {
+  max-width: 96px;
 }
 .mobile #zpet-n {
   position: static;
@@ -7632,7 +7641,7 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   min-width: 44px;
   min-height: 44px;
   justify-content: center;
-  padding: 4px 8px 5px;
+  padding: 4px 6px 5px;
   border-radius: 2px;
 }
 .gp-pettag::before {
@@ -7644,20 +7653,18 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   height: var(--drop, 6px);
   background: rgba(230, 224, 210, 0.55);
 }
+/* (no status dot: the name only, so the six fit in one row; the one taken along is the green tag) */
 .gp-pettag .gp-tag-line i {
-  background: #9a917e;
+  display: none;
 }
 .gp-pettag small {
-  font: 700 10px 'JetBrains Mono', ui-monospace, monospace;
-  letter-spacing: 0.06em;
+  font: 700 9px 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: 0.02em;
 }
 .gp-pettag.along {
   background: #3f8a4a;
   border-color: #2c6a36;
   color: #f4f8f2;
-}
-.gp-pettag.along .gp-tag-line i {
-  background: #c8f0cc;
 }
 .gp-pettag.locked {
   background: #9b2a21;
@@ -7687,7 +7694,69 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   gap: 8px;
   padding: 10px 12px;
 }
-/* In portrait the card is a sheet along the bottom: the rack, its tags and the doormat are framed above it. */
+/* A phone (lying down or in portrait) and small windows: no tags under the hooks (too close together there); the
+   card's row of faces calls a pet in instead, like the classic tab's list. */
+.pc-faces {
+  display: none;
+}
+.galpao.compact .gp-pettag {
+  display: none;
+}
+.galpao.compact .pc-faces {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+  margin: -2px -4px 2px;
+  padding: 0 0 6px;
+  border-bottom: 1px dashed #b9b09c;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pc-face {
+  position: relative;
+  display: flex;
+  flex: 1 0 44px;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 3px 2px 2px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #3d3930;
+  cursor: pointer;
+}
+.pc-face img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #2a2826;
+}
+.pc-face span {
+  max-width: 52px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 10px / 1.1 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  text-transform: uppercase;
+}
+.pc-face.on {
+  border-color: #f07a2a;
+  background: rgba(240, 122, 42, 0.12);
+}
+.pc-face.along::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid #ece6d7;
+  border-radius: 50%;
+  background: #3f8a4a;
+}
+/* In portrait the card is a sheet along the bottom: the doormat and the pet on it are framed above it. */
 @media (orientation: portrait) {
   .galpao .gp-petcard,
   .galpao.compact .gp-petcard {
@@ -7901,6 +7970,33 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   max-height: none;
   box-shadow: none;
   border: 1px solid #d8cfba;
+}
+/* The classic home's Pets tab: the card in the home's own type (Lilita One for titles, Nunito for the rest), not
+   the Galpão's (Barlow, the mono). */
+.pets-card.gp-card,
+.pets-card.gp-card p,
+.pets-card .gp-kicker,
+.pets-card .gp-mono,
+.pets-card .pc-leave,
+.pets-card .pc-name input,
+.pets-card .pc-swatch,
+.pets-card .pc-switch b,
+.pets-card .pc-switch small,
+.pets-card .pc-switch em {
+  font-family: var(--body);
+}
+.pets-card .gp-kicker {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.pets-card .gp-card-head b,
+.pets-card .pc-ability b,
+.pets-card .gp-chip,
+.pets-card .gp-equip,
+.pets-item .gp-chip {
+  font-family: var(--display);
+  font-weight: 400;
+  letter-spacing: 0.02em;
 }
 @media (max-width: 700px) {
   .pets-body {

@@ -22,13 +22,15 @@ export type Gesture =
   | 'push'
   | 'throw'
   /** A hello: a head tilt and a wag (the overview's idle, the menu's hover). */
-  | 'hello';
+  | 'hello'
+  /** The iguana's head bob (up on her front legs, the head nodding): her wait on the doormat. */
+  | 'bob';
 
 /** The gesture each pet makes on the doormat (the plan's: rope toy, potion and duck, stretch, juggling, three blows, tail). */
 export const STATION_GESTURE: Record<PetId, Gesture> = { amora: 'rope', bruxinha: 'potion', gato: 'stretch', fuinha: 'hammer', lontra: 'juggle', iguana: 'tail' };
 
 /** How long each gesture takes (s). The station's fit in the swap: on the mat by 0.8 s, done within 2 s. */
-export const GESTURE_TIME: Record<Gesture, number> = { rope: 0.95, potion: 0.95, stretch: 0.95, juggle: 0.95, hammer: 0.95, tail: 0.9, bite: 0.7, cast: 0.8, push: 0.9, throw: 0.6, hello: 0.9 };
+export const GESTURE_TIME: Record<Gesture, number> = { rope: 0.95, potion: 0.95, stretch: 0.95, juggle: 0.95, hammer: 0.95, tail: 0.9, bite: 0.7, cast: 0.8, push: 0.9, throw: 0.6, hello: 0.9, bob: 1.1 };
 
 /** What the pet is doing this frame. */
 export interface PetPose {
@@ -124,8 +126,17 @@ export class PetAnimator {
       const k = 1 - p.tailGone * 0.85;
       tail.scale.setScalar(Math.max(0.15, k));
     }
-    // Sitting: nose up around the hips, the hind legs folded under, the front legs straight.
+    // Sitting: nose up around the hips, the hind legs folded under, the front legs straight. The iguana "sits" up on
+    // her front legs, chest and head raised (flat on the floor she'd only be a green blot from above).
     const sit = smooth(clamp01(p.sit));
+    if (sit > 0 && lizard) {
+      const a = sit * 0.3;
+      body.rotation.x += a;
+      body.position.y += sit * 0.03;
+      legs[0].rotation.x -= a;
+      legs[1].rotation.x -= a;
+      head.rotation.x -= a * 0.7;
+    }
     if (sit > 0 && !lizard) {
       const a = sit * (id === 'amora' ? 0.55 : id === 'gato' ? 0.75 : 0.5);
       body.rotation.x += a;
@@ -136,16 +147,33 @@ export class PetAnimator {
       legs[2].rotation.x -= a - sit * 1.2;
       legs[3].rotation.x -= a - sit * 1.2;
       head.rotation.x -= a * 0.6;
+      if (id === 'gato') {
+        // A cat sits deep (else from the front she reads as standing on straight legs): more upright, the rump down
+        // on wide haunches beside the front paws, the tail down along the floor.
+        const x = sit * 0.15;
+        body.rotation.x += x;
+        body.position.y -= sit * 0.04;
+        legs[0].rotation.x -= x;
+        legs[1].rotation.x -= x;
+        legs[2].rotation.x += sit * 0.35 - x;
+        legs[3].rotation.x += sit * 0.35 - x;
+        const k = 1 + sit * 0.7;
+        legs[2].scale.set(k, 1, k);
+        legs[3].scale.set(k, 1, k);
+        tail.rotation.x += sit * 0.6;
+        if (tail2) tail2.rotation.y += sit * 0.5;
+      }
     }
-    // Up at the table: on the hind legs, the front paws forward on the top.
+    // Up at the table: on the hind legs, only the head and the front paws over the top (the chin ~0.14 m above it),
+    // the paws reaching up onto it.
     const up = smooth(clamp01(p.table));
     if (up > 0) {
       const a = up * 1.05;
       body.rotation.x += a;
-      body.position.y += up * 0.32;
+      body.position.y += up * 0.23;
       body.position.z += up * 0.16;
-      legs[0].rotation.x += up * 0.35 - a + up * 1.3;
-      legs[1].rotation.x += up * 0.35 - a + up * 1.3;
+      legs[0].rotation.x += up * 1.9 - a;
+      legs[1].rotation.x += up * 1.9 - a;
       legs[2].rotation.x -= a;
       legs[3].rotation.x -= a;
       head.rotation.x -= a * 0.85;
@@ -275,6 +303,17 @@ export class PetAnimator {
         const on = bump(k, 0, 1);
         b.head.rotation.z += 0.28 * on;
         b.tail.rotation.y += Math.sin(t * 16) * 0.4 * on;
+        break;
+      }
+      case 'bob': {
+        // Up on the front legs and three quick nods of the head, as iguanas do.
+        const on = smooth(clamp01(k / 0.15)) * (1 - smooth(clamp01((k - 0.85) / 0.15)));
+        const nod = Math.max(0, Math.sin(k * Math.PI * 6));
+        b.body.rotation.x += on * (0.2 + nod * 0.12);
+        b.body.position.y += on * 0.025;
+        b.legs[0].rotation.x -= on * (0.2 + nod * 0.12);
+        b.legs[1].rotation.x -= on * (0.2 + nod * 0.12);
+        b.head.rotation.x -= on * nod * 0.35;
         break;
       }
     }

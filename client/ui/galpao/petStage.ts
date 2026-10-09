@@ -10,7 +10,7 @@ import { COLLARS, PET_IDS, petLook, PETS, type PetChoice, type PetId } from '@sh
 import { GESTURE_TIME, PetAnimator, restPose, STATION_GESTURE, type Gesture, type PetPose } from '../../pets/anim';
 import type { PetModel } from '../../pets/rig';
 import { makePet } from '../../pets/species';
-import { petSpot, type CamStation, type StationId } from './galpaoRules';
+import { compactGalpao, petSpot, type CamStation, type StationId } from './galpaoRules';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const smooth = (t: number) => t * t * (3 - 2 * t);
@@ -22,25 +22,30 @@ export const PET_MAT = V(-0.2, 0, 7.3);
 /** Where a pet comes in from (the yard, out of the door's light) and where one leaving goes. */
 const YARD_IN = V(-0.15, 0, 9.6);
 const YARD_OUT = V(0.75, 0, 10.4);
-/** The rack of hooks on the wall left of the door: x from -1.0 to -2.5, the hooks at 1.45 m. */
-export const RACK = { x0: -1.0, x1: -2.5, y: 1.45, z: 7.93 };
+/** The rack of hooks on the wall left of the door: x from -0.95 to -3.65, the hooks at 1.45 m. */
+export const RACK = { x0: -0.95, x1: -3.65, y: 1.45, z: 7.93 };
+/** The first hook's distance from the rack's door end, then the gaps between hooks (m): wider and wider away from the
+ * door, as the station's camera sees the wall at an angle (farther, smaller), so the tags of the six catalog names
+ * hang in one row on a computer (a long custom name can still drop one to a second row, never on top of another). */
+const HOOK_FIRST = 0.22;
+const HOOK_GAPS = [0.39, 0.42, 0.46, 0.51, 0.59];
 /** The station's camera (the PF-36 framing) looks from here: the pets on the mat turn to it. */
 const STATION_EYE = V(2.2, 1.3, 4.8);
-/** The roll-up door's threshold (the launch runs out through it, on the door's left, clear of the play table and of
- * the drums), crossed RUN_DOOR s in (the white starts at 1.6 s), after a RUN_HOP s jump down. */
-const LAUNCH_DOOR = V(4.0, 0, -7.9);
-const LAUNCH_OUT = V(4.2, 0, -10.8);
+/** The roll-up door's threshold (the launch runs out through it, on the door's left, well clear of the play table's
+ * end and its mug, and of the drums), crossed RUN_DOOR s in (the white starts at 1.6 s), after a RUN_HOP s jump down. */
+const LAUNCH_DOOR = V(3.55, 0, -7.9);
+const LAUNCH_OUT = V(3.7, 0, -10.8);
 const RUN_DOOR = 1.3;
 const RUN_HOP = 0.35;
 const RUN_AHEAD = 3.6;
-/** The play table (scene.ts tableAt 5.2, -4.5, 3.0 x 1.7) with some room: the run keeps to its left. */
-const PLAY_TABLE = { x: 3.35, z0: -5.7, z1: -3.3 };
+/** The play table (scene.ts tableAt 5.2, -4.5, 3.0 x 1.7) with room: the run keeps 0.75 m left of its end. */
+const PLAY_TABLE = { x: 2.95, z0: -5.9, z1: -3.1 };
 /** The character's hands on the hero table (heroCharacter.ts WRIST): a small pet keeps 0.25 m from them. */
 const HERO_HANDS = [V(-0.66, 0.975, 0.36), V(-0.02, 0.975, 0.33)];
 const HERO_ROOM = 0.25;
 /** How far apart (px) the tags' rows hang, at most three of them, and the room (px) between two tags of a row. */
 const TAG_ROW = 48;
-const TAG_GAP = 4;
+const TAG_GAP = 3;
 /** The swap's timings (s): on the mat by ENTER, the gesture from GESTURE_AT. */
 const ENTER = 0.7;
 const GESTURE_AT = 0.75;
@@ -53,7 +58,32 @@ export interface PetRef {
 
 const collarHex = (id: string) => (COLLARS.find((c) => c.id === id) ?? COLLARS[0]).cor;
 const yawTo = (from: THREE.Vector3, to: THREE.Vector3) => Math.atan2(-(to.x - from.x), -(to.z - from.z));
+/** Turned from whoever looks: the Bruxinha ~35° (her broom side on, not end on like a spike), the iguana ~65° (a
+ * lizard reads by its profile and tail; head on she's a green blot). */
+const WITCH_TURN = 0.6;
+const IGUANA_TURN = 1.15;
+const turnOf = (id: PetId) => (id === 'bruxinha' ? WITCH_TURN : id === 'iguana' ? IGUANA_TURN : 0);
+/** Facing the station's camera from the mat. */
+const matYaw = (id: PetId) => yawTo(PET_MAT, STATION_EYE) + turnOf(id);
+/** The iguana waits on the mat with a head bob (a flat lizard seen from above is a green blot) every this many s. */
+const BOB_EVERY = 2.6;
+/** The Bruxinha's broom height on the hero table: down on its top (her broom is 0.1 m under her body's pivot). */
+const WITCH_ON_TABLE = -0.1;
 const sameRef = (a: PetRef | null, b: PetRef | null) => !!a && !!b && a.id === b.id && a.cor === b.cor && a.coleira === b.coleira;
+/** Early in a flight (or before a cut's black): the camera hasn't turned away yet. */
+const lingers = (f: PetStageFrame) => f.fly !== null && f.fly < TURNED;
+const frustum = new THREE.Frustum();
+const viewProj = new THREE.Matrix4();
+const sphere = new THREE.Sphere();
+/** Whether any of the pet is in the camera's view. */
+function inView(m: PetModel, cam: THREE.PerspectiveCamera): boolean {
+  cam.updateMatrixWorld();
+  viewProj.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+  frustum.setFromProjectionMatrix(viewProj);
+  sphere.center.copy(m.root.position).setY(m.root.position.y + m.height / 2);
+  sphere.radius = Math.max(m.height, m.length) * 0.6;
+  return frustum.intersectsSphere(sphere);
+}
 
 /** A pet in the Galpão: its model, its animator and pose, where it's going. */
 class Actor {
@@ -66,6 +96,8 @@ class Actor {
   /** Seconds since it was called (the station's swap). */
   age = 0;
   leaving = false;
+  /** 0..1: fading in (the overview's pet coming into view during a flight). */
+  fade = 1;
 
   constructor(readonly ref: PetRef) {
     this.model = makePet(ref.id, ref.cor, collarHex(ref.coleira), 'galpao');
@@ -95,7 +127,14 @@ export interface PetStageFrame {
   launch: number | null;
   /** The overview menu's box on screen (the pet must stay clear of it). */
   menuRect: DOMRect | null;
+  /** How far into the camera's flight to `station` (0..1; a reduced-motion cut: 0 then 1 at the black), null: still. */
+  fly: number | null;
 }
+
+/** Where the overview's pet shows (the camera at the table, or turned from it only a little). */
+const OVERVIEW_AT = new Set<CamStation>(['home', 'intro', 'profile', 'album', 'play']);
+/** Leaving a place, a pet stays drawn until the camera has turned away: this far into the flight, or out of view. */
+const TURNED = 0.4;
 
 export class PetStage {
   readonly root = new THREE.Group();
@@ -142,8 +181,9 @@ export class PetStage {
   /** Where each hook is (the tags hang under them). */
   hookAt(id: PetId): THREE.Vector3 {
     const i = PET_IDS.indexOf(id);
-    const step = (RACK.x0 - RACK.x1) / PET_IDS.length;
-    return V(RACK.x0 - step * (i + 0.5), RACK.y, RACK.z);
+    let x = RACK.x0 - HOOK_FIRST;
+    for (let k = 0; k < i; k++) x -= HOOK_GAPS[k];
+    return V(x, RACK.y, RACK.z);
   }
 
   bindTags(tags: Map<PetId, HTMLElement>) {
@@ -194,7 +234,7 @@ export class PetStage {
     this.root.add(a.model.root);
     this.visitor = a;
     if (this.o.reduceMotion) {
-      this.place(a, PET_MAT, yawTo(PET_MAT, STATION_EYE));
+      this.place(a, PET_MAT, matYaw(id));
       a.pose.sit = 1;
       return;
     }
@@ -211,7 +251,7 @@ export class PetStage {
     const a = new Actor(ref);
     this.root.add(a.model.root);
     this.visitor = a;
-    this.place(a, PET_MAT, yawTo(PET_MAT, STATION_EYE));
+    this.place(a, PET_MAT, matYaw(id));
     a.pose.sit = 1;
     a.age = 10;
   }
@@ -305,14 +345,25 @@ export class PetStage {
       this.findSpot(a, f);
     }
     const s = this.spot;
-    root.visible = !!s && (f.station === 'home' || f.station === 'intro' || f.station === 'profile' || f.station === 'album' || f.station === 'play');
+    // Never gone in front of the camera: off to a station without it, it's still drawn until the camera has turned
+    // away (TURNED into the flight, or out of view); coming back into view mid-flight, it fades in.
+    const wanted = !!s && OVERVIEW_AT.has(f.station);
+    const was = root.visible;
+    root.visible = wanted || (was && !!s && lingers(f) && inView(a.model, f.camera));
+    if (wanted && !was) a.fade = f.fly !== null && inView(a.model, f.camera) ? 0 : 1;
+    a.fade = Math.min(1, a.fade + f.dt / 0.3);
+    a.model.setOpacity(a.fade);
     if (!s) return;
     root.position.copy(s.at);
-    // Facing the overview's camera (a dog behind the table faces it straight).
-    root.rotation.y = s.pose === 'table' ? Math.PI : yawTo(s.at, V(0.45, 0, 3.25));
+    // Facing the overview's camera (a dog behind the table faces it straight; the Bruxinha a little turned).
+    // (the iguana the other way round there: her tail away from the character's hands)
+    const turn = a.ref.id === 'iguana' ? -IGUANA_TURN : turnOf(a.ref.id);
+    root.rotation.y = s.pose === 'table' ? Math.PI : yawTo(s.at, V(0.45, 0, 3.25)) + turn;
     a.pose.table = s.pose === 'table' ? 1 : 0;
     a.pose.sit = s.pose === 'sit' ? 1 : 0;
-    a.pose.hover = a.ref.id === 'bruxinha' ? 0.06 : 0;
+    // The Bruxinha sits on her broom on the table top (the broom on it, not over it): the hat's brim under the
+    // character's shoulder.
+    a.pose.hover = a.ref.id === 'bruxinha' ? WITCH_ON_TABLE : 0;
     // Still: breathing only, and a gesture every 8 to 15 s; the PETS item hovered: a hello at once.
     if (f.peek === 'pets' && this.peekWas !== 'pets') a.gesture('hello');
     this.peekWas = f.peek;
@@ -343,11 +394,13 @@ export class PetStage {
       return;
     }
     const at = V(...s.at);
-    // Room from the character's hands (on the table top): slid outward along the table if it's too close.
+    // Room from the character's hands (on the table top): slid outward along the table if it's too close (the iguana,
+    // turned side on with her head toward them, a little more).
+    const room = HERO_ROOM + (a.ref.id === 'iguana' ? 0.12 : 0);
     if (s.pose === 'sit')
       for (const h of HERO_HANDS) {
         const d = Math.hypot(at.x - h.x, at.z - h.z);
-        if (d < HERO_ROOM) at.x += Math.sign(at.x - h.x || 1) * Math.sqrt(Math.max(0, HERO_ROOM * HERO_ROOM - (at.z - h.z) ** 2)) - (at.x - h.x);
+        if (d < room) at.x += Math.sign(at.x - h.x || 1) * Math.sqrt(Math.max(0, room * room - (at.z - h.z) ** 2)) - (at.x - h.x);
       }
     this.spot = { at, pose: s.pose };
     const menu = f.menuRect;
@@ -395,9 +448,11 @@ export class PetStage {
   private updateStation(f: PetStageFrame) {
     const here = f.station === 'pets';
     if (here && !this.visitor) this.arriveAt();
+    // Leaving the station, the pets there stay until the camera has turned away from them.
+    const stay = (a: Actor) => here || (a.model.root.visible && lingers(f) && inView(a.model, f.camera));
     for (const a of [this.visitor, ...this.leaving]) {
       if (!a) continue;
-      a.model.root.visible = here;
+      a.model.root.visible = stay(a);
       a.age += f.dt;
       if (a.path) {
         a.pathT = Math.min(1, a.pathT + f.dt / a.pathDur);
@@ -412,7 +467,7 @@ export class PetStage {
           a.path = null;
           if (!a.leaving) {
             // On the mat: turned to the camera, sitting.
-            a.model.root.rotation.y = yawTo(PET_MAT, STATION_EYE);
+            a.model.root.rotation.y = matYaw(a.ref.id);
             a.pose.speed = 0;
           }
         }
@@ -421,6 +476,8 @@ export class PetStage {
         if (!a.path) a.pose.sit = Math.min(1, a.pose.sit + f.dt * 6);
         // Its gesture, once on the mat (and only once per call).
         if (a.age >= GESTURE_AT && a.age - f.dt < GESTURE_AT && !this.o.reduceMotion) a.gesture(STATION_GESTURE[a.ref.id]);
+        // The iguana, waiting: a head bob now and then (up on her front legs: she reads from above).
+        else if (a.ref.id === 'iguana' && !a.path && !a.pose.gesture && !this.o.reduceMotion && a.age > GESTURE_AT + 1 && (a.age % BOB_EVERY) < f.dt) a.gesture('bob');
         // The witch hovers low over the mat.
         a.pose.hover = a.ref.id === 'bruxinha' ? 0.08 : 0;
       }
@@ -433,7 +490,7 @@ export class PetStage {
       a.dispose();
       return false;
     });
-    if (!here && f.station !== 'intro' && this.visitor && !this.launching) {
+    if (!here && f.station !== 'intro' && this.visitor && !this.launching && !this.visitor.model.root.visible) {
       // Away from the station: the visitor goes; the one taken along will be there next time.
       this.visitor.dispose();
       this.visitor = null;
@@ -443,7 +500,8 @@ export class PetStage {
   // ---- the tags under the hooks
 
   private updateTags(f: PetStageFrame) {
-    const want = f.station === 'pets' && f.arrived ? 1 : 0;
+    // On a phone and in portrait there are no tags (the card's row of faces instead).
+    const want = f.station === 'pets' && f.arrived && !compactGalpao(f.vw, f.vh) ? 1 : 0;
     this.tagReveal = Math.max(0, Math.min(1, this.tagReveal + (want ? f.dt / 0.35 : -f.dt / 0.16)));
     const r = smooth(this.tagReveal);
     const v = V();
@@ -464,10 +522,12 @@ export class PetStage {
     // The hooks are close together (closer still on a phone): left to right, each tag hangs on the highest of three
     // rows where it clears the one before it, or, with no room in any, a little to the right of its hook, its string
     // still straight up to the hook. Never on top of each other.
+    // The tags scale with the window (as the rack does, 900 px tall = 1): one row on a smaller computer screen too.
+    const k = Math.min(1, Math.max(0.75, f.vh / 900));
     shown.sort((a, b) => a.x - b.x);
     const right = [-Infinity, -Infinity, -Infinity];
     for (const { el, x, y } of shown) {
-      const w = el.offsetWidth || 60;
+      const w = (el.offsetWidth || 60) * k;
       let row = right.findIndex((edge) => x - w / 2 >= edge + TAG_GAP);
       let at = x;
       if (row < 0) {
@@ -475,16 +535,16 @@ export class PetStage {
         at = right[row] + TAG_GAP + w / 2;
       }
       right[row] = at + w / 2;
-      const drop = row * TAG_ROW;
       el.style.visibility = 'visible';
       el.style.opacity = r.toFixed(3);
       el.style.pointerEvents = r > 0.9 ? 'auto' : 'none';
-      el.style.setProperty('--drop', `${drop + 6}px`);
-      el.style.setProperty('--sx', `${(x - at).toFixed(1)}px`);
-      el.style.transform = `translate(${at.toFixed(1)}px,${(y + drop).toFixed(1)}px) translate(-50%,0)`;
+      // (the string up to the hook is inside the scaled tag: its length and offset unscaled)
+      el.style.setProperty('--drop', `${row * TAG_ROW + 6}px`);
+      el.style.setProperty('--sx', `${((x - at) / k).toFixed(1)}px`);
+      el.style.transformOrigin = '50% 0';
+      el.style.transform = `translate(${at.toFixed(1)}px,${(y + row * TAG_ROW * k).toFixed(1)}px) translate(-50%,0) scale(${k.toFixed(3)})`;
     }
   }
-
 
   // ---- the launch
 
@@ -515,7 +575,7 @@ export class PetStage {
     const p = V();
     if (u < 1) {
       const ahead = Math.min(far, RUN_AHEAD + (far - Math.min(far, RUN_AHEAD)) * smooth(u));
-      p.copy(c).addScaledVector(dir, ahead).add(V(dir.z, 0, -dir.x).multiplyScalar(0.4 * (1 - smooth(u))));
+      p.copy(c).addScaledVector(dir, ahead).add(V(dir.z, 0, -dir.x).multiplyScalar(0.6 * (1 - smooth(u))));
       if (p.z > PLAY_TABLE.z0 && p.z < PLAY_TABLE.z1) p.x = Math.min(p.x, PLAY_TABLE.x);
     } else {
       const out = LAUNCH_OUT.clone().sub(LAUNCH_DOOR);
@@ -539,7 +599,6 @@ export class PetStage {
     a.anim.update(f.dt, a.pose);
     this.rim.intensity = 0;
   }
-
 
   /** Back from a launch that didn't happen (the home stays). */
   resetLaunch() {

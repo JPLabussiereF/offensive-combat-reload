@@ -1050,8 +1050,18 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   for (let i = 0; i < 5; i++) { const a = (i / 5) * TAU; bo.box(M.poly, 0.3, 0.03, 0.04, 10.35 + Math.cos(a) * 0.15, 0.06, 5.95 + Math.sin(a) * 0.15, 0, -a, 0); }
   bo.cyl(M.galv, 0.025, 0.025, 0.4, 10, 10.35, 0.25, 5.95); bo.box(M.poly, 0.48, 0.08, 0.46, 10.35, 0.48, 5.95); bo.box(M.poly, 0.06, 0.55, 0.44, 10.1, 0.82, 5.95, 0, 0, -0.12);
   bo.flush(world);
-  const exitS = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.16), new THREE.MeshBasicMaterial({ map: textTex([{ t: labels.yard }], { w: 256, h: 96, bg: '#0d7a3a', fg: '#eafff0', font: '800 64px "Barlow Condensed", Arial Narrow, sans-serif' }), color: new THREE.Color(1.8, 1.8, 1.8) }));
-  exitS.position.set(-0.55, 2.6, 7.94); exitS.rotation.y = Math.PI; world.add(exitS);
+  // The yard door's sign (PF-29, the PF-36 review): a warm painted wooden plank, lit by the sconce, not a glowing exit sign.
+  const yardTex = canvasTex(320, 112, (g, w, h) => {
+    g.fillStyle = '#7a4b28'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(48, 26, 12, 0.45)'; g.lineWidth = 2;
+    for (let y = 10; y < h; y += 17) { g.beginPath(); g.moveTo(0, y); g.bezierCurveTo(w * 0.3, y + 4, w * 0.6, y - 4, w, y + 1); g.stroke(); }
+    g.strokeStyle = '#4a2a14'; g.lineWidth = 8; g.strokeRect(4, 4, w - 8, h - 8);
+    g.fillStyle = '#f1dfbd'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '800 66px "Barlow Condensed", Arial Narrow, sans-serif';
+    g.fillText(labels.yard, w / 2, h / 2 + 3);
+  });
+  const yardSign = new THREE.Group(); yardSign.position.set(-0.55, 2.6, 7.95); yardSign.rotation.y = Math.PI; world.add(yardSign);
+  mesh(new THREE.BoxGeometry(0.52, 0.2, 0.025), std({ color: 0x5a361c, roughness: 0.9 }), yardSign, 0, 0, -0.0125, 0, 0, 0, false);
+  mesh(new THREE.PlaneGeometry(0.5, 0.18), std({ map: yardTex, roughness: 0.8 }), yardSign, 0, 0, 0.002, 0, 0, 0, false);
   // monitors
   const monG = new THREE.Group(); world.add(monG);
   const feeds: { rt: THREE.WebGLRenderTarget; cam: THREE.PerspectiveCamera }[] = [];
@@ -1180,8 +1190,9 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   const surfOf = (id: CamStation): Surf | undefined => (id === 'home' || id === 'intro' ? undefined : SURF[id]);
   /** The 07 · PETS pose (the PF-36 framing): 3/4 from the right of the door, the card's room on the right. */
   const PETS_POSE = { pos: V(2.2, 1.3, 4.8), target: V(-1.0, 0.8, 7.9), fov: 40, film: 6 };
-  /** In portrait the card is a sheet along the bottom: from farther back and looking down, wide, the rack and the mat in the top half. */
-  const PETS_PORTRAIT = { pos: V(-1.1, 1.5, 3.8), target: V(-1.2, -0.5, 7.6), fov: 84 };
+  /** In portrait the card is a sheet along the bottom (with the row of faces: no tags there): the pet on the doormat
+   * in the middle of the top half (the camera looks below it), from the right of the door, 60°. */
+  const PETS_PORTRAIT = { pos: V(0.6, 1.2, 5.0), target: V(-0.3, -0.66, 7.3), fov: 60 };
 
   // ---------- post chain ----------
   const rtOpts = { type: THREE.HalfFloatType, depthBuffer: true };
@@ -1546,7 +1557,7 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     fadeIn = Math.min(1, fadeIn + dt / 1.2); postU.black.value = 1 - smoother(fadeIn);
     if (cut) postU.black.value = Math.max(postU.black.value, Math.sin(clamp(cut.t / 0.2, 0, 1) * Math.PI));
     if (petStage) {
-      petStage.update({ dt, time, camera: cam, station, arrived, peek: peekId, vw, vh, launch: launchState ? launchState.t : null, menuRect: menuRect() });
+      petStage.update({ dt, time, camera: cam, station, arrived, peek: peekId, vw, vh, launch: launchState ? launchState.t : null, menuRect: menuRect(), fly: move ? move.t : cut ? (cut.swapped ? 1 : 0) : null });
     }
     for (let i = tweens.length - 1; i >= 0; i--) {
       const tw = tweens[i]; tw.t = Math.min(1, tw.t + dt / tw.dur); tw.obj[tw.key] = lerp(tw.from, tw.to, smoother(tw.t));

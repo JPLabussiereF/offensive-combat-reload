@@ -15,7 +15,7 @@ import { IS_MOBILE } from '../../core/device';
 import type { Progress } from '../../gameplay/progress';
 import { t, type StringKey } from '../strings';
 import { ArsenalBoard, BOARD, cardWeapon } from './arsenalBoard';
-import { hop, keyAction, lightScene, STATION_ORDER, stationOf, stationOrder, tabOf, type CamStation, type HomeTab, type StationId } from './galpaoRules';
+import { compactGalpao, hop, keyAction, lightScene, STATION_ORDER, stationOf, stationOrder, tabOf, type CamStation, type HomeTab, type StationId } from './galpaoRules';
 import { heroCharacter } from './heroCharacter';
 import { createGalpao, type Galpao, type GalpaoLabels } from './scene';
 import { PetBoard } from './petBoard';
@@ -96,7 +96,7 @@ export class GalpaoHome {
   private readonly reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly touch = IS_MOBILE;
   private onKey = (e: KeyboardEvent) => this.key(e);
-  private onResize = () => this.root.classList.toggle('compact', innerHeight < 560 || innerWidth < 700);
+  private onResize = () => this.root.classList.toggle('compact', compactGalpao(innerWidth, innerHeight));
 
   private constructor(private o: GalpaoStart) {
     this.staff = o.staff;
