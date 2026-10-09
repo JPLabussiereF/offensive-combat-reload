@@ -17,6 +17,8 @@ export const isPetId = (v: unknown): v is PetId => PET_IDS.includes(v as PetId);
 export interface PetText {
   'pt-BR': string;
   en: string;
+  es: string;
+  de: string;
 }
 
 /** One of a pet's coats (the Bruxinha's: her robe). The first is the default. */
@@ -46,8 +48,8 @@ export interface PetDef {
 export const PETS: Record<PetId, PetDef> = {
   amora: {
     id: 'amora',
-    nome: { 'pt-BR': 'Amora', en: 'Amora' },
-    especie: { 'pt-BR': 'Chow Chow da Rua dos Vizinhos', en: 'Chow Chow from Neighbors Street' },
+    nome: { 'pt-BR': 'Amora', en: 'Amora', es: 'Amora', de: 'Amora' },
+    especie: { 'pt-BR': 'Chow Chow da Rua dos Vizinhos', en: 'Chow Chow from Neighbors Street', es: 'Chow Chow de la Calle de los Vecinos', de: 'Chow-Chow aus der Nachbarstraße' },
     pelagens: [],
     fixo: true,
     porte: 'cachorro',
@@ -55,12 +57,12 @@ export const PETS: Record<PetId, PetDef> = {
   },
   bruxinha: {
     id: 'bruxinha',
-    nome: { 'pt-BR': 'Bruxinha', en: 'Little Witch' },
-    especie: { 'pt-BR': 'Bruxa da Vila Assombrada, versão mini', en: "The Haunted Village's witch, mini" },
+    nome: { 'pt-BR': 'Bruxinha', en: 'Little Witch', es: 'Bruxinha', de: 'Bruxinha' },
+    especie: { 'pt-BR': 'Bruxa da Vila Assombrada, versão mini', en: "The Haunted Village's witch, mini", es: 'La bruja del Pueblo Embrujado, versión mini', de: 'Die Hexe aus dem Spukdorf, in Mini' },
     pelagens: [
-      { id: 'roxo', nome: { 'pt-BR': 'Robe roxo', en: 'Purple robe' } },
-      { id: 'musgo', nome: { 'pt-BR': 'Robe verde-musgo', en: 'Moss-green robe' } },
-      { id: 'vinho', nome: { 'pt-BR': 'Robe vinho', en: 'Wine robe' } },
+      { id: 'roxo', nome: { 'pt-BR': 'Robe roxo', en: 'Purple robe', es: 'Túnica morada', de: 'Lila Umhang' } },
+      { id: 'musgo', nome: { 'pt-BR': 'Robe verde-musgo', en: 'Moss-green robe', es: 'Túnica verde musgo', de: 'Moosgrüner Umhang' } },
+      { id: 'vinho', nome: { 'pt-BR': 'Robe vinho', en: 'Wine robe', es: 'Túnica vino', de: 'Weinroter Umhang' } },
     ],
     voa: true,
     porte: 'pequeno',
@@ -68,48 +70,48 @@ export const PETS: Record<PetId, PetDef> = {
   },
   gato: {
     id: 'gato',
-    nome: { 'pt-BR': 'Gata', en: 'Cat' },
-    especie: { 'pt-BR': 'Gata', en: 'Cat' },
+    nome: { 'pt-BR': 'Gata', en: 'Cat', es: 'Gata', de: 'Katze' },
+    especie: { 'pt-BR': 'Gata', en: 'Cat', es: 'Gata', de: 'Katze' },
     pelagens: [
-      { id: 'rajada', nome: { 'pt-BR': 'Cinza rajada', en: 'Grey tabby' } },
-      { id: 'laranja', nome: { 'pt-BR': 'Laranja', en: 'Orange' } },
-      { id: 'preta', nome: { 'pt-BR': 'Preta', en: 'Black' } },
+      { id: 'rajada', nome: { 'pt-BR': 'Cinza rajada', en: 'Grey tabby', es: 'Gris atigrada', de: 'Grau getigert' } },
+      { id: 'laranja', nome: { 'pt-BR': 'Laranja', en: 'Orange', es: 'Naranja', de: 'Orange' } },
+      { id: 'preta', nome: { 'pt-BR': 'Preta', en: 'Black', es: 'Negra', de: 'Schwarz' } },
     ],
     porte: 'pequeno',
     libera: 'livre',
   },
   fuinha: {
     id: 'fuinha',
-    nome: { 'pt-BR': 'Fuinha', en: 'Weasel' },
-    especie: { 'pt-BR': 'Fuinha', en: 'Weasel' },
+    nome: { 'pt-BR': 'Fuinha', en: 'Weasel', es: 'Comadreja', de: 'Wiesel' },
+    especie: { 'pt-BR': 'Fuinha', en: 'Weasel', es: 'Comadreja', de: 'Wiesel' },
     pelagens: [
-      { id: 'marrom', nome: { 'pt-BR': 'Marrom', en: 'Brown' } },
-      { id: 'canela', nome: { 'pt-BR': 'Canela', en: 'Cinnamon' } },
-      { id: 'branca', nome: { 'pt-BR': 'Branca', en: 'White' } },
+      { id: 'marrom', nome: { 'pt-BR': 'Marrom', en: 'Brown', es: 'Café', de: 'Braun' } },
+      { id: 'canela', nome: { 'pt-BR': 'Canela', en: 'Cinnamon', es: 'Canela', de: 'Zimtbraun' } },
+      { id: 'branca', nome: { 'pt-BR': 'Branca', en: 'White', es: 'Blanca', de: 'Weiß' } },
     ],
     porte: 'pequeno',
     libera: 'livre',
   },
   lontra: {
     id: 'lontra',
-    nome: { 'pt-BR': 'Lontra', en: 'Otter' },
-    especie: { 'pt-BR': 'Lontra', en: 'Otter' },
+    nome: { 'pt-BR': 'Lontra', en: 'Otter', es: 'Nutria', de: 'Otter' },
+    especie: { 'pt-BR': 'Lontra', en: 'Otter', es: 'Nutria', de: 'Otter' },
     pelagens: [
-      { id: 'marrom', nome: { 'pt-BR': 'Marrom', en: 'Brown' } },
-      { id: 'chocolate', nome: { 'pt-BR': 'Chocolate', en: 'Chocolate' } },
-      { id: 'caramelo', nome: { 'pt-BR': 'Caramelo', en: 'Caramel' } },
+      { id: 'marrom', nome: { 'pt-BR': 'Marrom', en: 'Brown', es: 'Café', de: 'Braun' } },
+      { id: 'chocolate', nome: { 'pt-BR': 'Chocolate', en: 'Chocolate', es: 'Chocolate', de: 'Schokobraun' } },
+      { id: 'caramelo', nome: { 'pt-BR': 'Caramelo', en: 'Caramel', es: 'Caramelo', de: 'Karamell' } },
     ],
     porte: 'pequeno',
     libera: 'livre',
   },
   iguana: {
     id: 'iguana',
-    nome: { 'pt-BR': 'Iguana', en: 'Iguana' },
-    especie: { 'pt-BR': 'Iguana', en: 'Iguana' },
+    nome: { 'pt-BR': 'Iguana', en: 'Iguana', es: 'Iguana', de: 'Leguan' },
+    especie: { 'pt-BR': 'Iguana', en: 'Iguana', es: 'Iguana', de: 'Leguan' },
     pelagens: [
-      { id: 'verde', nome: { 'pt-BR': 'Verde', en: 'Green' } },
-      { id: 'laranja', nome: { 'pt-BR': 'Laranja', en: 'Orange' } },
-      { id: 'turquesa', nome: { 'pt-BR': 'Turquesa', en: 'Turquoise' } },
+      { id: 'verde', nome: { 'pt-BR': 'Verde', en: 'Green', es: 'Verde', de: 'Grün' } },
+      { id: 'laranja', nome: { 'pt-BR': 'Laranja', en: 'Orange', es: 'Naranja', de: 'Orange' } },
+      { id: 'turquesa', nome: { 'pt-BR': 'Turquesa', en: 'Turquoise', es: 'Turquesa', de: 'Türkis' } },
     ],
     porte: 'pequeno',
     libera: 'livre',
@@ -118,14 +120,14 @@ export const PETS: Record<PetId, PetDef> = {
 
 /** The collar colors (any pet, the Amora too). The first is the default. */
 export const COLLARS = [
-  { id: 'vermelha', cor: 0xd8352a, nome: { 'pt-BR': 'Vermelha', en: 'Red' } },
-  { id: 'azul', cor: 0x2f7fe0, nome: { 'pt-BR': 'Azul', en: 'Blue' } },
-  { id: 'verde', cor: 0x2fa84f, nome: { 'pt-BR': 'Verde', en: 'Green' } },
-  { id: 'amarela', cor: 0xf2c230, nome: { 'pt-BR': 'Amarela', en: 'Yellow' } },
-  { id: 'rosa', cor: 0xec6fb0, nome: { 'pt-BR': 'Rosa', en: 'Pink' } },
-  { id: 'roxa', cor: 0x8a4fd8, nome: { 'pt-BR': 'Roxa', en: 'Purple' } },
-  { id: 'laranja', cor: 0xf07a1e, nome: { 'pt-BR': 'Laranja', en: 'Orange' } },
-  { id: 'branca', cor: 0xf2efe6, nome: { 'pt-BR': 'Branca', en: 'White' } },
+  { id: 'vermelha', cor: 0xd8352a, nome: { 'pt-BR': 'Vermelha', en: 'Red', es: 'Roja', de: 'Rot' } },
+  { id: 'azul', cor: 0x2f7fe0, nome: { 'pt-BR': 'Azul', en: 'Blue', es: 'Azul', de: 'Blau' } },
+  { id: 'verde', cor: 0x2fa84f, nome: { 'pt-BR': 'Verde', en: 'Green', es: 'Verde', de: 'Grün' } },
+  { id: 'amarela', cor: 0xf2c230, nome: { 'pt-BR': 'Amarela', en: 'Yellow', es: 'Amarilla', de: 'Gelb' } },
+  { id: 'rosa', cor: 0xec6fb0, nome: { 'pt-BR': 'Rosa', en: 'Pink', es: 'Rosa', de: 'Rosa' } },
+  { id: 'roxa', cor: 0x8a4fd8, nome: { 'pt-BR': 'Roxa', en: 'Purple', es: 'Morada', de: 'Lila' } },
+  { id: 'laranja', cor: 0xf07a1e, nome: { 'pt-BR': 'Laranja', en: 'Orange', es: 'Naranja', de: 'Orange' } },
+  { id: 'branca', cor: 0xf2efe6, nome: { 'pt-BR': 'Branca', en: 'White', es: 'Blanca', de: 'Weiß' } },
 ] as const;
 export type CollarId = (typeof COLLARS)[number]['id'];
 export const collarOf = (id: string | undefined) => COLLARS.find((c) => c.id === id) ?? COLLARS[0];
@@ -264,7 +266,7 @@ export function petProblems(): string[] {
     if (d.id !== id) out.push(`${id}: id diferente da chave`);
     if (d.fixo ? d.pelagens.length !== 0 : d.pelagens.length < 2 || d.pelagens.length > 3) out.push(`${id}: 2 ou 3 pelagens (nenhuma se fixo)`);
     if (new Set(d.pelagens.map((c) => c.id)).size !== d.pelagens.length) out.push(`${id}: pelagem repetida`);
-    if (!d.nome['pt-BR'] || !d.nome.en) out.push(`${id}: sem nome`);
+    if (!d.nome['pt-BR'] || !d.nome.en || !d.nome.es || !d.nome.de) out.push(`${id}: sem nome`);
     const nums = Object.values(PET_ABILITIES[id] ?? {}).flatMap((n) => (typeof n === 'object' && n !== null ? Object.values(n) : [n]));
     if (!nums.length || !nums.every((n) => typeof n === 'number' && n > 0)) out.push(`${id}: números da habilidade`);
   }

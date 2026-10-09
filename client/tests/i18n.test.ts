@@ -35,6 +35,8 @@ const SAME_AS_EN: Record<'es' | 'de', StringKey[]> = {
     'mgRoles', 'pmSubVideo', 'pmSubAudio', 'gpSt_arsenal', 'gpSign_arsenal', 'gpTagOn', 'gpTagOff', 'gpCtaLine',
     // Keys of the branches merged after PF-30 (sprint): PF-35's detail and PF-32's Play tab.
     'detailNormal', 'modeBotsShort', 'playBotsN', 'playCtaOnline', 'playCtaBots',
+    // PF-29: the pet's collar is a collar in Spanish too.
+    'petCollar',
   ],
   de: [
     'title', 'arsenal', 'level', 'knifePassive', 'fx_zoom', 'cvUpgRow_resto', 'cvUpgrades', 'cvOptional', 'touchPause', 'botCount', 'skillNormal',
