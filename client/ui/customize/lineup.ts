@@ -4,6 +4,7 @@
 // holds the plate with its name and height. Each silhouette is a real button over the picture (mouse, touch,
 // keyboard and controller). Height and build are only looks (ADR "Altura e biotipo apenas visuais").
 import { BUILDS, HEIGHTS, type Build, type Height } from '@shared/appearance';
+import type { Lang } from '@shared/langs';
 import { heightMeters, metersText, WALL_FROM, WALL_TO } from './rules';
 
 const W = 480;
@@ -39,7 +40,8 @@ function figure(cx: number, meters: number, wf: number): string {
 export interface LineupText {
   /** A choice's name ('Pequeno', 'Magro'…). */
   name(v: Height | Build): string;
-  lang: 'pt' | 'en';
+  /** The game's language (the decimal sign of the ruler and the plate). */
+  lang: Lang;
 }
 
 /**

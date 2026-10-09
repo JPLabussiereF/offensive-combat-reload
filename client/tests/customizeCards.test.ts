@@ -80,11 +80,14 @@ describe('parede de altura e biotipo', () => {
   it('as alturas são 1,73 / 1,80 / 1,87 m, calculadas de EFFECTS.heightScale × 1,80 m', () => {
     expect(HEIGHTS.map((h) => metersText(heightMeters(h)))).toEqual(['1,73 m', '1,80 m', '1,87 m']);
     expect(metersText(heightMeters('alto'), 'en')).toBe('1.87 m');
+    // Spanish (es-419) writes a decimal point, German a comma (PF-30's four languages).
+    expect(metersText(heightMeters('alto'), 'es')).toBe('1.87 m');
+    expect(metersText(heightMeters('alto'), 'de')).toBe('1,87 m');
     for (const h of HEIGHTS) expect(heightMeters(h)).toBeCloseTo(RIG_HEIGHT * EFFECTS.heightScale[h], 10);
   });
 
   it('a parede mostra as três alturas, destaca a escolhida e tem um botão por silhueta', () => {
-    const html = lineupHtml('height', 'alto', 'alto', { name: (v) => v, lang: 'pt' });
+    const html = lineupHtml('height', 'alto', 'alto', { name: (v) => v, lang: 'pt-BR' });
     for (const m of ['1,73 m', '1,80 m', '1,87 m']) expect(html).toContain(m);
     expect(html.match(/class="cz-fig on"/g)).toHaveLength(1);
     expect(html).toContain('ALTO · 1,87 m');
@@ -94,7 +97,7 @@ describe('parede de altura e biotipo', () => {
     // The ruler is cut: from 1,40 m.
     expect(html).toContain('>1,40<');
     // The build wall: the three builds at the player's height.
-    const build = lineupHtml('build', 'gordo', 'pequeno', { name: (v) => v, lang: 'pt' });
+    const build = lineupHtml('build', 'gordo', 'pequeno', { name: (v) => v, lang: 'pt-BR' });
     expect(build).toContain('GORDO · 1,73 m');
     expect(build.match(/<button/g)).toHaveLength(3);
   });

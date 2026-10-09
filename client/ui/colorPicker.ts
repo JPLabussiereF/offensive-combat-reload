@@ -11,67 +11,69 @@
 // goes to the look and to the recent ones (`onChange`).
 import type { Slot } from '@shared/catalog';
 import { clampItemColor, colorLimit, hexToHsv, hsvToHex, isBigMain, MAX_CHROMA, MIN_VALUE, normalizeHex } from '@shared/color';
+import { LANGS, type Lang } from '@shared/langs';
 import { clamp01, houseGroups, limitSv, matchingColors, parseRecent, pushRecent, RECENT_KEY } from './colorPickerRules';
 
-type Lang = 'pt' | 'en';
-const T: Record<string, [string, string]> = {
-  sv: ['Saturação e brilho', 'Saturation and brightness'],
-  svText: ['Saturação {s}%, brilho {v}%', 'Saturation {s}%, brightness {v}%'],
-  hue: ['Tom da cor', 'Hue'],
-  before: ['Antes (toque para desfazer)', 'Before (tap to undo)'],
-  now: ['Agora', 'Now'],
-  hex: ['Código da cor', 'Color code'],
-  neon: ['Tecido não fica neon nas peças grandes', "Fabric doesn't go neon on the big pieces"],
-  dark: ['Preto puro não vale: o mais escuro é o preto da casa', 'No pure black: the darkest is the house black'],
-  badHex: ['Código inválido (use #rrggbb)', 'Invalid code (use #rrggbb)'],
-  combina: ['Combina', 'Goes with'],
-  recent: ['Recentes', 'Recent'],
-  house: ['Paleta da casa', 'House palette'],
-  fabricNeutral: ['Neutros', 'Neutrals'],
-  fabricEarth: ['Terrosos', 'Earth'],
-  fabricCold: ['Frios', 'Cool'],
-  leather: ['Couros', 'Leathers'],
-  metal: ['Metais', 'Metals'],
-  accent: ['Acentos', 'Accents'],
+// The picker's texts and the house palette's names in the game's four languages (pt-BR, en, es, de: the order of LANGS).
+type Lang4 = [string, string, string, string];
+const T: Record<string, Lang4> = {
+  sv: ['Saturação e brilho', 'Saturation and brightness', 'Saturación y brillo', 'Sättigung und Helligkeit'],
+  svText: ['Saturação {s}%, brilho {v}%', 'Saturation {s}%, brightness {v}%', 'Saturación {s}%, brillo {v}%', 'Sättigung {s} %, Helligkeit {v} %'],
+  hue: ['Tom da cor', 'Hue', 'Tono del color', 'Farbton'],
+  before: ['Antes (toque para desfazer)', 'Before (tap to undo)', 'Antes (toca para deshacer)', 'Vorher (antippen zum Rückgängigmachen)'],
+  now: ['Agora', 'Now', 'Ahora', 'Jetzt'],
+  hex: ['Código da cor', 'Color code', 'Código del color', 'Farbcode'],
+  neon: ['Tecido não fica neon nas peças grandes', "Fabric doesn't go neon on the big pieces", 'La tela no se pone neón en las piezas grandes', 'Stoff wird bei den großen Teilen nicht neon'],
+  dark: ['Preto puro não vale: o mais escuro é o preto da casa', 'No pure black: the darkest is the house black', 'Nada de negro puro: el más oscuro es el negro de la casa', 'Kein reines Schwarz: Am dunkelsten ist das Hausschwarz'],
+  badHex: ['Código inválido (use #rrggbb)', 'Invalid code (use #rrggbb)', 'Código inválido (usa #rrggbb)', 'Ungültiger Code (nutze #rrggbb)'],
+  combina: ['Combina', 'Goes with', 'Combina con', 'Passt zu'],
+  recent: ['Recentes', 'Recent', 'Recientes', 'Zuletzt benutzt'],
+  house: ['Paleta da casa', 'House palette', 'Paleta de la casa', 'Hauspalette'],
+  fabricNeutral: ['Neutros', 'Neutrals', 'Neutros', 'Neutrale'],
+  fabricEarth: ['Terrosos', 'Earth', 'Terrosos', 'Erdtöne'],
+  fabricCold: ['Frios', 'Cool', 'Fríos', 'Kühle'],
+  leather: ['Couros', 'Leathers', 'Cueros', 'Leder'],
+  metal: ['Metais', 'Metals', 'Metales', 'Metalle'],
+  accent: ['Acentos', 'Accents', 'Acentos', 'Akzente'],
 };
 
 /** The palette's colors by name (style guide), for the house palette's tooltips. */
-const NAMES: Record<string, [string, string]> = {
-  black: ['Preto', 'Black'],
-  graphite: ['Grafite', 'Graphite'],
-  gray: ['Cinza', 'Gray'],
-  offWhite: ['Branco gelo', 'Off-white'],
-  beige: ['Bege', 'Beige'],
-  khaki: ['Cáqui', 'Khaki'],
-  olive: ['Oliva', 'Olive'],
-  moss: ['Musgo', 'Moss'],
-  brown: ['Marrom', 'Brown'],
-  caramel: ['Caramelo', 'Caramel'],
-  rust: ['Ferrugem', 'Rust'],
-  mustard: ['Mostarda', 'Mustard'],
-  navy: ['Marinho', 'Navy'],
-  denim: ['Jeans', 'Denim'],
-  petrol: ['Petróleo', 'Petrol'],
-  wine: ['Vinho', 'Wine'],
-  darkPurple: ['Roxo escuro', 'Dark purple'],
-  leather1: ['Couro escuro', 'Dark leather'],
-  leather2: ['Couro café', 'Coffee leather'],
-  leather3: ['Couro médio', 'Medium leather'],
-  leather4: ['Couro conhaque', 'Cognac leather'],
-  leather5: ['Couro claro', 'Light leather'],
-  rubber: ['Borracha', 'Rubber'],
-  rubberGray: ['Borracha cinza', 'Gray rubber'],
-  steel: ['Aço', 'Steel'],
-  brass: ['Latão', 'Brass'],
-  bronze: ['Bronze', 'Bronze'],
-  paintedMetal: ['Metal pintado', 'Painted metal'],
-  darkSteel: ['Aço escuro', 'Dark steel'],
-  gunmetal: ['Cinza-chumbo', 'Gunmetal'],
-  orange: ['Laranja', 'Orange'],
-  yellow: ['Amarelo', 'Yellow'],
-  red: ['Vermelho', 'Red'],
-  turquoise: ['Turquesa', 'Turquoise'],
-  lime: ['Lima', 'Lime'],
+const NAMES: Record<string, Lang4> = {
+  black: ['Preto', 'Black', 'Negro', 'Schwarz'],
+  graphite: ['Grafite', 'Graphite', 'Grafito', 'Graphit'],
+  gray: ['Cinza', 'Gray', 'Gris', 'Grau'],
+  offWhite: ['Branco gelo', 'Off-white', 'Blanco hueso', 'Altweiß'],
+  beige: ['Bege', 'Beige', 'Beige', 'Beige'],
+  khaki: ['Cáqui', 'Khaki', 'Caqui', 'Khaki'],
+  olive: ['Oliva', 'Olive', 'Oliva', 'Oliv'],
+  moss: ['Musgo', 'Moss', 'Musgo', 'Moosgrün'],
+  brown: ['Marrom', 'Brown', 'Café', 'Braun'],
+  caramel: ['Caramelo', 'Caramel', 'Caramelo', 'Karamell'],
+  rust: ['Ferrugem', 'Rust', 'Óxido', 'Rost'],
+  mustard: ['Mostarda', 'Mustard', 'Mostaza', 'Senf'],
+  navy: ['Marinho', 'Navy', 'Azul marino', 'Marineblau'],
+  denim: ['Jeans', 'Denim', 'Mezclilla', 'Jeansblau'],
+  petrol: ['Petróleo', 'Petrol', 'Petróleo', 'Petrol'],
+  wine: ['Vinho', 'Wine', 'Vino', 'Weinrot'],
+  darkPurple: ['Roxo escuro', 'Dark purple', 'Morado oscuro', 'Dunkelviolett'],
+  leather1: ['Couro escuro', 'Dark leather', 'Cuero oscuro', 'Dunkles Leder'],
+  leather2: ['Couro café', 'Coffee leather', 'Cuero café', 'Kaffeebraunes Leder'],
+  leather3: ['Couro médio', 'Medium leather', 'Cuero medio', 'Mittleres Leder'],
+  leather4: ['Couro conhaque', 'Cognac leather', 'Cuero coñac', 'Cognacleder'],
+  leather5: ['Couro claro', 'Light leather', 'Cuero claro', 'Helles Leder'],
+  rubber: ['Borracha', 'Rubber', 'Goma', 'Gummi'],
+  rubberGray: ['Borracha cinza', 'Gray rubber', 'Goma gris', 'Graues Gummi'],
+  steel: ['Aço', 'Steel', 'Acero', 'Stahl'],
+  brass: ['Latão', 'Brass', 'Latón', 'Messing'],
+  bronze: ['Bronze', 'Bronze', 'Bronce', 'Bronze'],
+  paintedMetal: ['Metal pintado', 'Painted metal', 'Metal pintado', 'Lackiertes Metall'],
+  darkSteel: ['Aço escuro', 'Dark steel', 'Acero oscuro', 'Dunkler Stahl'],
+  gunmetal: ['Cinza-chumbo', 'Gunmetal', 'Gris plomo', 'Anthrazit'],
+  orange: ['Laranja', 'Orange', 'Naranja', 'Orange'],
+  yellow: ['Amarelo', 'Yellow', 'Amarillo', 'Gelb'],
+  red: ['Vermelho', 'Red', 'Rojo', 'Rot'],
+  turquoise: ['Turquesa', 'Turquoise', 'Turquesa', 'Türkis'],
+  lime: ['Lima', 'Lime', 'Lima', 'Limette'],
 };
 
 
@@ -126,7 +128,7 @@ export class ColorPicker {
   private readonly warn: HTMLElement;
 
   constructor(host: HTMLElement, private readonly o: ColorPickerOptions) {
-    const t = (k: string) => (T[k] ?? [k, k])[o.lang === 'en' ? 1 : 0];
+    const t = (k: string) => T[k]?.[LANGS.indexOf(o.lang)] ?? k;
     this.hex = this.before = clampItemColor(o.value, o.slot, o.channel) ?? '#7a7e83';
     this.fromHex(this.hex);
     const neon = isBigMain(o.slot, o.channel);
@@ -213,7 +215,7 @@ export class ColorPicker {
   }
 
   private t(k: string) {
-    return (T[k] ?? [k, k])[this.o.lang === 'en' ? 1 : 0];
+    return T[k]?.[LANGS.indexOf(this.o.lang)] ?? k;
   }
 
   /** The color as hue, saturation and value (a gray keeps the hue it had: the square doesn't jump). */
@@ -354,7 +356,7 @@ export class ColorPicker {
       `<button type="button" class="cp-swatch" data-c="${hex}" style="background:${hex}" title="${esc(name ?? hex)}" aria-label="${esc(name ?? hex)}" aria-pressed="${hex === this.hex}"></button>`;
     const match = matchingColors(this.hex, o.used(), o.slot, o.channel);
     const recent = [...new Set(readRecent().map((c) => clampItemColor(c, o.slot, o.channel)!))];
-    const lang = o.lang === 'en' ? 1 : 0;
+    const lang = LANGS.indexOf(o.lang);
     this.el.querySelector('.cp-lists')!.innerHTML = `
       ${match.length ? `<h5>${esc(this.t('combina'))}</h5><div class="cp-swatches">${match.map((c) => sw(c)).join('')}</div>` : ''}
       ${recent.length ? `<h5>${esc(this.t('recent'))}</h5><div class="cp-swatches">${recent.map((c) => sw(c)).join('')}</div>` : ''}

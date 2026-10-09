@@ -55,7 +55,8 @@ import { getLang, textOf } from './strings';
 
 export { setupScene };
 
-const lang = (): 'pt' | 'en' => (getLang() === 'en' ? 'en' : 'pt');
+/** The color picker's and the line-up wall's language: the game's (PF-30). */
+const lang = getLang;
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const clone = (a: Appearance): Appearance => JSON.parse(JSON.stringify(a));
 

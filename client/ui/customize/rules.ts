@@ -8,6 +8,7 @@
 // icons. The PCD tab is the one with the player's own character on its cards.
 import { DEFAULT_COLORS, EFFECTS, type Appearance, type ArmLoss, type Face, type Height, type LegLoss } from '@shared/appearance';
 import { catalogItem } from '@shared/catalog';
+import type { Lang } from '@shared/langs';
 import type { Sex } from '@shared/protocol';
 import { RIG_HEIGHT } from '../../character/rig';
 import { gameVersion, hashText, stableJson } from '../../editor/thumbCache';
@@ -97,8 +98,8 @@ export const WALL_TO = 2.0;
 /** How tall a height choice is drawn: the standard body's height times its visual scale (only a look). */
 export const heightMeters = (h: Height): number => RIG_HEIGHT * EFFECTS.heightScale[h];
 
-/** '1,73 m' (pt) or '1.73 m' (en). */
-export function metersText(m: number, lang: 'pt' | 'en' = 'pt'): string {
+/** '1,73 m' (pt-BR and de: decimal comma) or '1.73 m' (en, and es: es-419 writes a decimal point). */
+export function metersText(m: number, lang: Lang = 'pt-BR'): string {
   const s = m.toFixed(2);
-  return `${lang === 'en' ? s : s.replace('.', ',')} m`;
+  return `${lang === 'pt-BR' || lang === 'de' ? s.replace('.', ',') : s} m`;
 }
