@@ -70,14 +70,26 @@ export type V3 = [number, number, number];
  * size: a small pet (and the Bruxinha) sits on the hero table's top, by the magazine on a computer and at its left
  * end on a phone lying down (the menu covers the right there); a dog stands behind the table with its front paws
  * on the top. In portrait, none (the menu takes the screen). The scene still checks the projected box against the
- * menu and keeps 0.25 m from the character.
+ * menu, never sliding a small pet within PET_CLEARANCE of the character's hands.
  */
 export function petSpot(width: number, height: number, porte: 'pequeno' | 'cachorro'): { at: V3; pose: 'sit' | 'table' } | null {
   if (width < height) return null;
   if (porte === 'cachorro') return { at: [0.42, 0, -0.05], pose: 'table' };
   const compact = width < 1000 || height < 600;
-  return { at: compact ? [-0.9, 0.92, 0.45] : [0.22, 0.92, 0.3], pose: 'sit' };
+  // (x 0.27 rather than the review's ~0.22: PET_CLEARANCE from the character's left hand, P31.)
+  return { at: compact ? [-0.9, 0.92, 0.45] : [0.27, 0.92, 0.3], pose: 'sit' };
 }
+
+/** The character's hands on the hero table (heroCharacter.ts WRIST), to keep a small pet clear of them. */
+export const HERO_HANDS: readonly V3[] = [
+  [-0.66, 0.975, 0.36],
+  [-0.02, 0.975, 0.33],
+];
+/** The least room (m, on the table top) between a small pet and the character's hands. */
+export const PET_CLEARANCE = 0.25;
+
+/** Whether a small pet at (x, z) on the table top keeps PET_CLEARANCE from both hands. */
+export const clearOfHands = (x: number, z: number): boolean => HERO_HANDS.every((h) => Math.hypot(x - h[0], z - h[2]) >= PET_CLEARANCE);
 
 /**
  * How long a flight between two stations lasts (s), by how far the camera turns (degrees): a second up to 60°,

@@ -10,7 +10,7 @@ import { COLLARS, PET_IDS, petLook, PETS, type PetChoice, type PetId } from '@sh
 import { GESTURE_TIME, PetAnimator, restPose, STATION_GESTURE, type Gesture, type PetPose } from '../../pets/anim';
 import type { PetModel } from '../../pets/rig';
 import { makePet } from '../../pets/species';
-import { petSpot, type CamStation, type StationId } from './galpaoRules';
+import { clearOfHands, petSpot, type CamStation, type StationId } from './galpaoRules';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const smooth = (t: number) => t * t * (3 - 2 * t);
@@ -35,9 +35,6 @@ const RUN_HOP = 0.35;
 const RUN_AHEAD = 3.6;
 /** The play table (scene.ts tableAt 5.2, -4.5, 3.0 x 1.7) with some room: the run keeps to its left. */
 const PLAY_TABLE = { x: 3.35, z0: -5.7, z1: -3.3 };
-/** The character's hands on the hero table (heroCharacter.ts WRIST): a small pet keeps 0.25 m from them. */
-const HERO_HANDS = [V(-0.66, 0.975, 0.36), V(-0.02, 0.975, 0.33)];
-const HERO_ROOM = 0.25;
 /** How far apart (px) the tags' rows hang, at most three of them, and the room (px) between two tags of a row. */
 const TAG_ROW = 48;
 const TAG_GAP = 4;
@@ -334,7 +331,8 @@ export class PetStage {
 
   /**
    * The spot by the window's size (galpaoRules.petSpot), then its box projected on the screen: it must not cross the
-   * menu. A small pet slides left along the table top until it's clear; one that can't be cleared is hidden.
+   * menu. A small pet slides left along the table top until it's clear (skipping the spots by the character's hands);
+   * one that can't be cleared is hidden.
    */
   private findSpot(a: Actor, f: PetStageFrame) {
     const s = petSpot(f.vw, f.vh, PETS[a.ref.id].porte);
@@ -342,13 +340,8 @@ export class PetStage {
       this.spot = null;
       return;
     }
+    // (The spot itself keeps PET_CLEARANCE from the character's hands: galpaoRules.test.ts checks it.)
     const at = V(...s.at);
-    // Room from the character's hands (on the table top): slid outward along the table if it's too close.
-    if (s.pose === 'sit')
-      for (const h of HERO_HANDS) {
-        const d = Math.hypot(at.x - h.x, at.z - h.z);
-        if (d < HERO_ROOM) at.x += Math.sign(at.x - h.x || 1) * Math.sqrt(Math.max(0, HERO_ROOM * HERO_ROOM - (at.z - h.z) ** 2)) - (at.x - h.x);
-      }
     this.spot = { at, pose: s.pose };
     const menu = f.menuRect;
     if (!menu || f.station !== 'home' || !f.arrived) return;
@@ -358,6 +351,8 @@ export class PetStage {
     cam.updateMatrixWorld();
     for (let k = 0; k <= 6; k++) {
       const p = at.clone().add(V(-0.12 * k, 0, 0));
+      // Sliding left crosses the character's hands: never a spot within PET_CLEARANCE of them.
+      if (s.pose === 'sit' && !clearOfHands(p.x, p.z)) continue;
       const hgt = a.model.height * (s.pose === 'table' ? 1.3 : 1);
       box.set(p.clone().add(V(-0.2, 0, -0.2)), p.clone().add(V(0.2, hgt, 0.2)));
       let minX = Infinity;

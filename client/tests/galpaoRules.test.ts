@@ -1,8 +1,8 @@
 // The Galpão's rules (client/ui/galpao/galpaoRules.ts): the stations in menu order (Gerenciamento only for the
-// staff), which tab each station holds, what each key does on the overview and at a station, and who gets the 3D
-// home at all.
+// staff), which tab each station holds, what each key does on the overview and at a station, who gets the 3D
+// home at all, and (PF-29) where the overview's pet sits, clear of the character's hands, and how long a flight lasts.
 import { describe, expect, it } from 'bun:test';
-import { flightDuration, galpaoWanted, hop, keyAction, lightScene, petSpot, STATION_ORDER, stationOf, stationOrder, tabOf } from '../ui/galpao/galpaoRules';
+import { clearOfHands, flightDuration, galpaoWanted, HERO_HANDS, hop, keyAction, lightScene, PET_CLEARANCE, petSpot, STATION_ORDER, stationOf, stationOrder, tabOf } from '../ui/galpao/galpaoRules';
 
 describe('estações do galpão', () => {
   it('oito estações na ordem do menu: os pets antes do Gerenciamento, que é só da equipe', () => {
@@ -72,13 +72,24 @@ describe('teclas do galpão', () => {
 
 describe('o pet na visão geral e o voo entre as estações', () => {
   it('pequeno no tampo da mesa (no celular deitado, na ponta esquerda); cachorro em pé atrás dela; nada no retrato', () => {
-    expect(petSpot(1600, 900, 'pequeno')).toEqual({ at: [0.22, 0.92, 0.3], pose: 'sit' });
-    expect(petSpot(1920, 1080, 'pequeno')!.at).toEqual([0.22, 0.92, 0.3]);
+    expect(petSpot(1600, 900, 'pequeno')).toEqual({ at: [0.27, 0.92, 0.3], pose: 'sit' });
+    expect(petSpot(1920, 1080, 'pequeno')!.at).toEqual([0.27, 0.92, 0.3]);
     expect(petSpot(844, 390, 'pequeno')).toEqual({ at: [-0.9, 0.92, 0.45], pose: 'sit' });
     expect(petSpot(1600, 900, 'cachorro')).toEqual({ at: [0.42, 0, -0.05], pose: 'table' });
     expect(petSpot(844, 390, 'cachorro')!.pose).toBe('table');
     expect(petSpot(390, 844, 'pequeno')).toBeNull();
     expect(petSpot(390, 844, 'cachorro')).toBeNull();
+  });
+
+  it('o pet pequeno fica a pelo menos 0,25 m das mãos do personagem, em toda janela deitada', () => {
+    for (const [w, h] of [[1920, 1080], [1600, 900], [1280, 720], [999, 700], [844, 390], [700, 400]]) {
+      const p = petSpot(w, h, 'pequeno')!.at;
+      for (const hand of HERO_HANDS) expect(Math.hypot(p[0] - hand[0], p[2] - hand[2])).toBeGreaterThanOrEqual(PET_CLEARANCE);
+      expect(clearOfHands(p[0], p[2])).toBe(true);
+    }
+    // Sliding left to clear the menu would cross the left hand (x -0.02): those spots are skipped.
+    expect(clearOfHands(0.15, 0.3)).toBe(false);
+    expect(clearOfHands(-0.3, 0.3)).toBe(true);
   });
 
   it('a duração do voo cresce com o giro: 1 s até 60°, 1,2 s a 120°, 1,4 s a 180°; movimento reduzido corta em 0,2 s', () => {
