@@ -4,6 +4,7 @@ type: system
 status: documented
 area: data
 source_paths:
+  - server/deploy.ts
   - server/redis.ts
   - server/api.ts
   - server/app.ts
@@ -18,7 +19,7 @@ tags:
   - data
   - redis
   - cache
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Cache
@@ -44,10 +45,17 @@ updated: 2026-10-06
 | `rl:recuperar:ip:<ip>` | contador | 60 s | pedido de redefinição | limite 5/min por IP |
 | `rl:login:conta:<id>` | falhas seguidas | 900 s (renovado a cada falha) | login com senha errada | bloqueio com ≥ 10; apagada no login certo e na redefinição |
 | `rl:rec:conta:<id>` | contador | 3600 s | pedido de redefinição | máx. 3 e-mails/hora por conta |
+| `deploy:fila` | lista de ids de pedidos | — | `POST /api/deploy` (`RPUSH`) | programa de deploy (`LPOP`); a rota recusa com ≥ 20 |
+| `deploy:pedido:<id>` | JSON do pedido | **30 dias** | `POST /api/deploy` (`SET ... EX`); programa de deploy (`SET ... KEEPTTL`) | `GET /api/deploy/:id`, programa de deploy |
+| `deploy:estado` | JSON do estado de prd/hml | sem TTL | programa de deploy | `GET /api/deploy` |
+| `deploy:falhas:<ip>` | falhas de chave | 900 s (janela fixa, `hit()`) | `/api/deploy` com chave ausente/errada | bloqueio (429) com ≥ 10 |
 
 Contadores de limite usam **janela fixa**: `hit()` faz `INCR` + `EXPIRE NX` numa transação (`MULTI`), então a janela começa no primeiro acesso.
 
 Tokens nunca são guardados em claro: a chave é o SHA-256 do token ([[Sensitive Data]]).
+
+> [!warning] Deploy e Redis sem persistência
+> As chaves `deploy:*` (contrato do deploy remoto, ver [[APIs]]) moram neste Redis, que não persiste ([[ADR - Redis efêmero sem persistência]]): reiniciar o container `redis` apaga a fila, os pedidos (apesar do TTL de 30 dias) e o `deploy:estado`, que o programa de deploy reescreve.
 
 ### Canais pub/sub
 

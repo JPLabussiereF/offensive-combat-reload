@@ -1,0 +1,81 @@
+name: release
+
+# Versão automática por tag, no mesmo modelo da TryBest (scripts/versao.py):
+#
+# - push na main    → versão final (alpha-0.1.0) + GitHub Release → produção
+# - push na homolog → rc (alpha-0.1.0.rc.001), sem Release          → homologação
+#
+# Quem consome as tags é o OffensiveTunel.exe (deploy/local): ele vê a tag nova
+# com `git ls-remote --tags` e oferece "Atualizar" na bandeja — ou um dev pede
+# o deploy pelo workflow `deploy`.
+#
+# O número sai do TÍTULO dos commits desde a última versão final: `fix:` (ou
+# sem tipo) sobe o último, `feat:` o do meio, `feat!:`/`BREAKING CHANGE:` o do
+# meio em alpha/beta. A fase (alpha, beta, vazio a partir da 1.0.0) está em
+# VERSAO_FASE.
+#
+# Primeira vez (sem nenhuma tag final): o push na main cria `<fase>-0.0.1` no
+# HEAD — é a versão inicial da produção.
+
+on:
+  push:
+    branches: [main, homolog]
+
+# Uma execução por branch de cada vez, na fila (nunca cancelada no meio).
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # criar a tag e o Release (só neste repositório: o GITHUB_TOKEN basta)
+
+jobs:
+  versao:
+    runs-on: ubuntu-latest
+    env:
+      BRANCH: ${{ github.ref_name }}
+    steps:
+      - name: Baixar o código (histórico e tags inteiros)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Calcular a versão
+        id: calc
+        run: |
+          set -euo pipefail
+          git fetch --quiet --tags --force
+          fase=$(tr -d '[:space:]' < VERSAO_FASE)
+          if ! git tag --list | grep -Eq '^([a-z]+-)?[0-9]+\.[0-9]+\.[0-9]+$'; then
+            if [ "$BRANCH" != main ]; then
+              echo "::error::ainda não há versão final: faça o primeiro merge na main antes da homolog"
+              exit 1
+            fi
+            tag="${fase:+$fase-}0.0.1"
+          else
+            tag=$(python3 scripts/versao.py proxima --branch "$BRANCH" --fase-arquivo VERSAO_FASE --repo .)
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [ -z "$tag" ]; then
+            echo "O HEAD já tem versão — nada a fazer."
+          else
+            echo "### Versão $tag ($BRANCH, \`$(git rev-parse --short HEAD)\`)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Criar a tag
+        if: steps.calc.outputs.tag != ''
+        env:
+          TAG: ${{ steps.calc.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "offensive-release"
+          git config user.email "offensive-release@users.noreply.github.com"
+          git tag -a "$TAG" -m "Offensive Combat $TAG ($BRANCH)" HEAD
+          git push --quiet origin "refs/tags/$TAG"
+
+      - name: GitHub Release (só main)
+        if: steps.calc.outputs.tag != '' && env.BRANCH == 'main'
+        env:
+          TAG: ${{ steps.calc.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$TAG" --title "$TAG" --generate-notes --verify-tag

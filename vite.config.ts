@@ -4,10 +4,13 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /**
- * The game's version, for what the browser keeps across visits (the map editor's thumbnails): the commit it's
- * built from, or (no git: the Docker build) the package's version and the build's time.
+ * The game's version, for what the browser keeps across visits (the map editor's thumbnails): the release tag
+ * when the build has one (APP_VERSION, given by the deploy program), else the commit it's built from, or (no
+ * git: a Docker build without the tag) the package's version and the build's time.
  */
 function buildId(): string {
+  const release = process.env.APP_VERSION?.trim();
+  if (release && release !== 'dev') return release;
   try {
     return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
   } catch {

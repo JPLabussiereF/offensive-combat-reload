@@ -1,0 +1,137 @@
+# Produção LOCAL do Offensive Combat — Docker desta máquina, exposta pelo
+# Cloudflare Tunnel em offensive-combat.trybest.com.br (o jogo) e
+# games.trybest.com.br (a lista de jogos da TryBest).
+#
+# Quem sobe isto é o OffensiveTunel.exe; à mão, do diretório deploy/local:
+#   docker compose -f docker-compose.prd.yml --env-file <PRD_DIR>/.env.prd up -d
+# com PRD_DIR, JOGO_CONTEXT e VERSAO no ambiente (ver README.md, "Operação").
+#
+# ⚠️ **Imagem com a versão no nome.** `offensive-prd-jogo:alpha-0.0.2`, não
+# `:latest`: o "Voltar" sobe a imagem da versão anterior que continua no disco.
+#
+# ⚠️ **Nada da aplicação roda com o usuário do Windows e nenhuma porta é
+# publicada no host.** O único caminho de fora é o cloudflared; banco e Redis
+# ficam na rede `interna`, sem saída para a internet.
+#
+# ⚠️ **Volumes externos** (`offensive-prd-*`): nem `docker compose down -v`
+# apaga as contas e os mapas. Quem os cria é o .exe.
+#
+# As migrations rodam sozinhas quando o servidor do jogo sobe (server/db.ts),
+# cada uma numa transação: se uma falha, o servidor não sobe e o banco fica
+# como estava — o .exe percebe pelo /api/saude e não troca a versão.
+
+name: offensive-prd
+
+x-log: &log
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  banco:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: oc
+      POSTGRES_PASSWORD: ${PG_SENHA:?defina PG_SENHA no .env.prd}
+      POSTGRES_DB: oc
+      TZ: America/Sao_Paulo
+    volumes:
+      # Postgres 18: o volume vai na pasta-mãe (o PGDATA é /var/lib/postgresql/18/docker).
+      - pgdata:/var/lib/postgresql
+    networks: [interna]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oc -d oc"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    <<: *log
+
+  # Limites de tentativas, tickets do WebSocket, links de troca de senha e a
+  # fila de deploy (deploy:*): nada que precise sobreviver a um restart.
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--requirepass", "${REDIS_PASSWORD}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?defina REDIS_PASSWORD no .env.prd}
+    networks: [interna]
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    <<: *log
+
+  jogo:
+    image: offensive-prd-jogo:${VERSAO:-latest}
+    build:
+      context: ${JOGO_CONTEXT:?defina JOGO_CONTEXT}
+      target: server
+      args:
+        APP_VERSION: ${VERSAO:-dev}
+    restart: unless-stopped
+    depends_on:
+      banco: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    env_file: ["${PRD_DIR:?defina PRD_DIR}/.env.prd"]
+    environment:
+      # Reafirma a versão da imagem: um APP_VERSION no .env.prd (env_file)
+      # venceria o ENV do Dockerfile e o /api/saude mentiria.
+      APP_VERSION: ${VERSAO:-dev}
+      MAPAS_DIR: /app/dados/mapas
+    volumes:
+      - mapas:/app/dados/mapas
+    # `borda` porque o servidor fala com fora (SMTP, Discord); `interna` é sem saída.
+    networks: [borda, interna]
+    <<: *log
+
+  # O nginx do jogo: estáticos + /api e /ws para o `jogo` (deploy/nginx/docker.conf).
+  web:
+    image: offensive-prd-web:${VERSAO:-latest}
+    build:
+      context: ${JOGO_CONTEXT}
+      target: web
+      args:
+        APP_VERSION: ${VERSAO:-dev}
+    restart: unless-stopped
+    depends_on: [jogo]
+    volumes:
+      # IP do jogador atrás do cloudflared (ver o arquivo). Configuração, só leitura.
+      - ./realip.conf:/etc/nginx/conf.d/00-realip.conf:ro
+    networks: [borda]
+    <<: *log
+
+  # games.trybest.com.br: a lista de jogos (estática, ./portal).
+  portal:
+    image: offensive-prd-portal:latest
+    build: { context: ./portal }
+    restart: unless-stopped
+    networks: [borda]
+    <<: *log
+
+  cloudflared:
+    image: cloudflare/cloudflared:2025.8.1
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "--config", "/etc/cloudflared/config.yml", "run"]
+    # Só a credencial DESTE túnel (o JSON), em modo leitura. O `cert.pem` da
+    # conta fica no host: com ele dá para criar e apagar túneis.
+    volumes:
+      - ${PRD_DIR}/cloudflared.yml:/etc/cloudflared/config.yml:ro
+      - ${PRD_DIR}/credentials.json:/etc/cloudflared/credentials.json:ro
+    depends_on: [web, portal]
+    networks: [borda]
+    <<: *log
+
+networks:
+  borda: {}
+  interna:
+    internal: true
+
+volumes:
+  pgdata:
+    external: true
+    name: offensive-prd-pgdata
+  mapas:
+    external: true
+    name: offensive-prd-mapas
