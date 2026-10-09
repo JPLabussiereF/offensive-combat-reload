@@ -9,6 +9,7 @@
         "@gltf-transform/core": "^4.5.1",
         "arctic": "^3.7.0",
         "ioredis": "^6.0.0",
+        "meshoptimizer": "^1.1.1",
         "nodemailer": "^10.0.13",
         "pg": "^8.23.1",
         "recast-navigation": "^0.43.1",

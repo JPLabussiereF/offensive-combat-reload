@@ -11,18 +11,19 @@ import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, ideal
 import { eyeHeight, type MoveInput } from '@shared/movement';
 import { CLOSE, FLAG, NET, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
 import { startLoop } from './core/loop';
-import { applyKeybinds, Input } from './core/input';
+import { applyKeybinds, Input, wheelSwapAllowed } from './core/input';
 import { CAN_KEEP_ESCAPE, enterFullscreen, escapeIsKept, IS_MOBILE, isFullscreen, keepEscape } from './core/device';
 import { TouchControls } from './ui/touch';
 import { gamepad } from './core/gamepad';
 import { PadNav } from './ui/padNav';
 import { AimAssist } from './gameplay/aimAssist';
-import { loadSettings, saveSettings, spatialMode } from './core/settings';
+import { loadSettings, objectDetail, saveSettings, setSoftwareRenderer, spatialMode } from './core/settings';
 import { applyAtmosphere, createRenderContext } from './render/renderer';
 import { Effects } from './render/effects';
 import { Viewmodel, VM_FEEL } from './render/viewmodel';
 import { holdOf } from './render/weaponModels';
 import { ANIM } from './character/animator';
+import { setCharacterDetail } from './character/character';
 import { TuningPanel } from './ui/tuning';
 import { QualityManager } from './render/quality';
 import { createPhysics, type SurfaceMaterial } from './world/physics';
@@ -72,13 +73,17 @@ import { MODE_RULES, type GameModeId } from '@shared/modes';
 import { FINAL_STEP, killsForStep, ladderLoadout, type LadderPos } from '@shared/gunGame';
 import { ladderTabSub, renderLadderTab, stepName } from './ui/ladder';
 import { Scoreboard } from './ui/scoreboard';
-import { DEATH_MESSAGES, getLang, pick, t, type StringKey } from './ui/strings';
+import { DEATH_MESSAGES, getLang, pick, resolveLang, setLang, systemLang, t, type StringKey } from './ui/strings';
+import { LANG_LOCALE } from '@shared/langs';
 import { itemOf, startItems, ZOMBIE, zombieGunData, zombieLoadout, zombieMapOf, type ZItems } from '@shared/zombies';
 import { gateAreas } from '@shared/barricades';
 import { ZombieClient, type ZombieLink } from './zombies/client';
 import { DOWNED_EYE, pickSpectate, SPECTATE_DELAY, spectateEye } from './zombies/spectate';
 import { LocalZombies } from './zombies/local';
 import { renderCoffinTab, tintFog, zombieAtmosphere } from './zombies/ambience';
+import { collarOf, petAlong, petLook, playerPet, type PlayerPet } from '@shared/pets';
+import { PetManager, type PetOwner } from './pets/manager';
+import { petPortrait } from './pets/portrait';
 
 const DEG = Math.PI / 180;
 const MOUSE_DEG_PER_COUNT = 0.022;
@@ -103,6 +108,12 @@ async function boot() {
   const bootT0 = performance.now();
   const boot: Record<string, number> = {};
   const mark = (name: string) => (boot[name] = Math.round(performance.now() - bootT0));
+  // The language comes first (PF-30): every screen below builds its texts once, in the language set now (the one
+  // saved on this device, else the browser's).
+  const settings = loadSettings();
+  setLang(resolveLang(settings.idioma, systemLang()));
+  document.documentElement.lang = LANG_LOCALE[getLang()];
+  document.title = t('docTitle');
   const screens = new Screens();
   screens.setProgress(0.1);
   // Controllers drive the menus from the start (home, editor), and the match once it begins.
@@ -118,7 +129,9 @@ async function boot() {
   const sfx = new Sfx();
   const textures = loadTextureOverrides(ctx.renderer);
   screens.setProgress(1);
-  const settings = loadSettings();
+  // The object detail's default (PF-35): Leve with software rendering too, as on phones (the settings were loaded
+  // first, for the language: PF-30).
+  setSoftwareRenderer(quality.software);
   applyKeybinds(settings.keybinds);
   quality.set(settings.quality);
   if (quality.software) screens.showGpuWarning(quality.gpu);
@@ -141,13 +154,15 @@ async function boot() {
   // The map editor comes in through the home's choice (the Mapas tab's Editar and Novo mapa) or, between
   // reloads, its handoff (client/editor/launch.ts: opening a map's current version again after a 409).
   const handoff = embed ? null : takeHandoff();
-  const picked: HomeChoice = embed ? await embed.choice() : handoff ? handoffChoice(handoff) : await showHome({ software: quality.software });
+  const picked: HomeChoice = embed ? await embed.choice() : handoff ? handoffChoice(handoff) : await showHome({ software: quality.software, onLanguage: (l) => screens.chooseLanguage(l) });
   if (picked.mode === 'editor') {
     // The editor runs on its own loop: no input, player or HUD; leaving it reloads the page.
     await runEditor({ ctx, quality, physics, mapa: picked.mapa, rascunho: picked.rascunho });
     return;
   }
   const choice = picked;
+  // From here on a match runs: a language chosen in the pause is saved and applies back at the start.
+  screens.inMatch = true;
   /** The editor's map played in its Game tab: the document being edited (not saved). */
   const tested = embed ? { data: embed.data } : null;
   const online = choice.mode === 'online' ? choice : null;
@@ -175,7 +190,10 @@ async function boot() {
           : await loadOfficialMap(choice.map);
   // An offline match counts as a play of the map (the server counts the online ones itself); a Play in the editor doesn't.
   if (!online && !mapUrl && !tested) api('POST', `/api/mapas/${encodeURIComponent(choice.map)}/jogadas`).catch(() => {});
-  const buildMap = mapData ? buildMapFromData(mapData, { physics, scene: ctx.scene, renderer: ctx.renderer, sfx, modo: 'jogo' }) : buildGltfMap(mapUrl!, new MapBuilder(physics, ctx.scene), ctx.renderer);
+  // The object detail (PF-35) as set now: changing it during the match takes effect with the next map.
+  const detalhe = objectDetail(settings);
+  setCharacterDetail(detalhe);
+  const buildMap = mapData ? buildMapFromData(mapData, { physics, scene: ctx.scene, renderer: ctx.renderer, sfx, modo: 'jogo', detalhe }) : buildGltfMap(mapUrl!, new MapBuilder(physics, ctx.scene), ctx.renderer);
   const [map] = await Promise.all([buildMap, textures]);
   const mapBuildMs = performance.now() - tMap;
   if (map.atmosphere) applyAtmosphere(ctx, map.atmosphere);
@@ -194,7 +212,7 @@ async function boot() {
   const registry: HitboxRegistry = new Map();
   const dummies = new DummyManager(physics.world, ctx.scene, choice.mode === 'offline' ? map.dummies : [], registry);
   const net = online ? new RemoteWorld(physics.world, ctx.scene, registry, conn!, me) : null;
-  const effects = new Effects(ctx.scene);
+  const effects = new Effects(ctx.scene, detalhe);
   const viewmodel = new Viewmodel(ctx.vmScene);
   // Weapon progression from the account (level 1 without one) and our land mines (a grenade upgrade).
   const progress = new Progress(choice.account);
@@ -358,10 +376,22 @@ async function boot() {
   const playerRig = botMode && !zombieMode ? new CharacterRig(physics.world, playerTarget, registry, body.missing) : null;
   if (playerRig) player.mb.ignoreBody = playerRig.body;
 
+  // --- Pets (PF-29): ours, if it comes along in this mode (its PvP switch, or its PvE one in the zumbi mode). Online
+  // the server says (our own PlayerInfo); offline, the account's profile. A look in PvP, its ability in the zumbi.
+  const petMode: 'pvp' | 'pve' = zombieMode ? 'pve' : 'pvp';
+  const myPet: PlayerPet | null = online
+    ? (online.joined.players.find((p) => p.id === me)?.pet ?? null)
+    : (() => {
+        const p = playerPet(choice.account?.pet);
+        return p && petAlong(p, rules) ? p : null;
+      })();
+
   // --- Zumbi: the match's zombies, the Mystery Coffin and revives. Online the server runs the match; solo it
   // runs here (client/zombies/local.ts) on the same navmesh the bots use. Either way, the same messages.
   let zombies: ZombieClient | null = null;
   let localZombies: LocalZombies | null = null;
+  /** The pets of the match (created below, after the zombie side: it draws them around their owners). */
+  let pets: PetManager | null = null;
   if (zombieMode) {
     const zmap = zombieNavMap!;
     let link: ZombieLink | null = null;
@@ -372,6 +402,17 @@ async function boot() {
         me,
         name: choice.name,
         hurt: (amount, _from, kind) => {
+          if (zombies?.downed) return;
+          const lz = localZombies!;
+          // Alone, running out of health is the end, unless the cat is there to get us up (Sétima Vida): down.
+          if (amount >= player.health && !player.dead && lz.match.petCanLift(me)) {
+            const dealt = player.health;
+            player.health = 0;
+            player.lastDamageAt = simTime;
+            hud.damageFlash(dealt);
+            lz.match.lethal(me);
+            return;
+          }
           const dealt = player.damage(amount, simTime, kind ?? 'zombie');
           if (dealt > 0) {
             hud.damageFlash(dealt);
@@ -380,6 +421,12 @@ async function boot() {
         },
         setLoadout: (lo) => takeLadderWeapons(lo),
         newMatch: () => startRound(),
+        pet: myPet?.id ?? null,
+        health: () => player.health / Math.max(1, player.maxHealth),
+        revive: (h) => {
+          player.health = Math.max(1, Math.round(player.maxHealth * h));
+          player.lastDamageAt = simTime;
+        },
       });
       link = localZombies;
     }
@@ -421,6 +468,15 @@ async function boot() {
             killFx(at);
             if (head) effects.burst('star', at, UP, 12);
           },
+          pet: myPet
+            ? {
+                id: myPet.id,
+                name: petLook(choice.account?.pet, myPet.id).nome,
+                color: `#${collarOf(myPet.coleira).cor.toString(16).padStart(6, '0')}`,
+                face: petPortrait({ id: myPet.id, cor: myPet.cor, coleira: myPet.coleira }, 96),
+              }
+            : null,
+          petColor: (id) => (pets?.has(id) ? pets.collarOf(id) : null),
         },
         zmap,
         online?.joined.zumbi ?? localZombies?.match.sync(),
@@ -430,6 +486,50 @@ async function boot() {
       mark('zombies');
     }
   }
+
+  // The pets: everyone's, drawn around their owners (client/pets). PvP: no sound, hidden while their owner can't be
+  // seen (a ray from the camera); the zumbi mode: their abilities, as the match tells ('zpet').
+  const sightRay = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 1, z: 0 });
+  pets = new PetManager(
+    {
+      scene: ctx.scene,
+      sfx,
+      effects,
+      camera: () => ctx.camera,
+      clearLine: (a, b) => {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dz = b.z - a.z;
+        const len = Math.hypot(dx, dy, dz);
+        if (len < 0.2) return true;
+        sightRay.origin = a;
+        sightRay.dir = { x: dx / len, y: dy / len, z: dz / len };
+        return !physics.world.castRay(sightRay, len - 0.1, true, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, WORLD_ONLY);
+      },
+      zombie: (id) => {
+        const z = zombies?.view.get(id);
+        return z ? { feet: z.position, scale: z.scale, kind: z.kind } : null;
+      },
+      gap: (i) => {
+        const g = zombieNavMap?.barricadas[i];
+        return g ? new THREE.Vector3(g.centro[0], g.centro[1], g.centro[2]) : null;
+      },
+    },
+    petMode,
+    me,
+  );
+  if (myPet) pets.set(me, myPet);
+  if (zombies) {
+    const link = zombies.link;
+    link.on('zpet', (m) => pets?.onEvent(m, link.now()));
+  }
+  /** Who walks a pet this frame: us and the other players. */
+  const petOwners = (alpha: number): PetOwner[] => {
+    const list: PetOwner[] = [];
+    if (pets?.has(me)) list.push({ id: me, feet: playerFeet(new THREE.Vector3(), alpha), yaw: player.yaw, alive: !player.dead, downed: !!zombies?.downed, dancing: taunt.active });
+    for (const p of net?.players.values() ?? []) if (pets?.has(p.id)) list.push({ id: p.id, feet: p.position, yaw: p.yaw, alive: p.alive, downed: p.downed, dancing: !!(p.flags & FLAG.dance) });
+    return list;
+  };
 
   /** Everything that can currently be shot / stabbed / blown up (in co-op: only the enemies). */
   const targets = (): Target[] => (zombies ? zombies.view.targets() : net ? net.targets() : [...dummies.list, ...(bots?.bots ?? [])]);
@@ -952,6 +1052,8 @@ async function boot() {
   const switchTo = (next: GunSlot) => {
     if (!bladeOnly && next !== slot && gunIn(loadout, next)) holdSlot(next, true);
   };
+  /** When (performance.now) the mouse wheel last switched guns: see wheelSwapAllowed. */
+  let lastWheelSwap = -Infinity;
 
   // --- Weapon progression: each kill's points level up only the weapon that made it ------------------
   let knifeForm: KnifeId = 'faca';
@@ -979,6 +1081,8 @@ async function boot() {
       // the coffin holds fewer rounds (its damage penalty is the server's, on every hit).
       if (g) guns[s].setData(zombieMode ? zombieGunData(g, lo.danificadas?.[progOf(g.arma)]) : g);
       guns[s].reloadMul = body.reloadMul;
+      // Both guns' models built now: a switch only shows the other one (PF-34).
+      if (g) viewmodel.prepare(guns[s].data);
     }
     const knife = loadoutKnife(lo);
     melee.setData(knife);
@@ -1047,6 +1151,9 @@ async function boot() {
       hud.notice(t('arsenalSaveFailed'));
     });
   applyLoadout(startLoadout);
+  // The first switch, stab and throw shouldn't stutter (PF-34): the guns, the knife and the grenade are shown for
+  // an instant and their shaders compiled now, then hidden again as they were.
+  viewmodel.warmup(() => ctx.renderer.compile(ctx.vmScene, ctx.vmCamera));
   // Zumbi: the bigger reserve from the start.
   if (zombieMode) for (const g of Object.values(guns)) g.refill();
   const scopeEl = document.getElementById('scope')!;
@@ -1435,7 +1542,11 @@ async function boot() {
 
   // --- Online: server messages ----------------------------------------------------------------------
   if (net && online && conn) {
-    for (const p of online.joined.players) net.upsertInfo(p);
+    for (const p of online.joined.players) {
+      net.upsertInfo(p);
+      // Their pet, if it comes along in this mode (the server only sends it then).
+      if (p.id !== me) pets?.set(p.id, p.pet);
+    }
     zombies?.syncInfo(online.joined.players);
     for (const c of online.joined.corpses) net.addCorpse(c);
     /** The map alone (no players, no hitboxes) around the end of someone else's shot (weapons/remoteImpact.ts). */
@@ -1461,6 +1572,7 @@ async function boot() {
     });
     conn.on('playerJoined', (m) => {
       net.upsertInfo(m.player);
+      pets?.set(m.player.id, m.player.pet);
       hud.notice(t('playerJoined', { name: m.player.name }));
     });
     // A player came back: the mines of their previous life go away.
@@ -1469,6 +1581,7 @@ async function boot() {
       mines.clearOwner(m.id);
       const name = net.info.get(m.id)?.name;
       net.remove(m.id);
+      pets?.remove(m.id);
       if (name) hud.notice(t('playerLeft', { name }));
     });
     conn.on('scores', (m) => {
@@ -1907,6 +2020,11 @@ async function boot() {
       // Zumbi: down (waiting for a revive) we can't move, shoot or throw; reviving someone, we don't shoot.
       const downed = !!zombies?.downed;
       player.eyeScale = downed ? DOWNED_EYE : 1;
+      // Solo, down waiting for the cat (PF-29): no health comes back by itself meanwhile (online the server's says so).
+      if (downed && localZombies) {
+        player.health = 0;
+        player.lastDamageAt = simTime;
+      }
       // Shots have priority over the sprint (dropped the same tick, see `move.sprint`) and over a grenade
       // in hand (the pin goes back in). They never interrupt a reload (no shooting until it ends; the knife
       // and grenades do cancel it), a knife swing (too quick: cancelling it would be an exploit) or a dance
@@ -2051,14 +2169,23 @@ async function boot() {
         const done = taunt.update(dt, simTime);
         if (done) finishTaunt(done);
         // Switching guns: 1 and 2 pick a slot, the wheel (or the swap button) goes to the other one. Not with
-        // the hands busy (knife, dance, a grenade in hand): those presses are dropped.
-        const pick1 = input.consume('weapon1');
-        const pick2 = input.consume('weapon2');
-        const swap = input.consume('swapWeapon');
+        // the hands busy (knife, dance, a grenade in hand): those presses are dropped. A switch from the mouse
+        // wheel goes through at most once per WHEEL_SWAP_MS (PF-34: one click, one switch; a spinning wheel or a
+        // trackpad no longer flips the gun at random); keys, the controller and touch switch at once.
+        const pick1 = input.consumeFrom('weapon1');
+        const pick2 = input.consumeFrom('weapon2');
+        const swap = input.consumeFrom('swapWeapon');
         if (!taunt.active && !melee.swinging && !thrower.busy) {
-          if (pick1) switchTo('primaria');
-          if (pick2) switchTo('secundaria');
-          if (swap) switchTo(slot === 'primaria' ? 'secundaria' : 'primaria');
+          const now = performance.now();
+          const go = (from: 'press' | 'wheel' | null) => {
+            if (from !== 'wheel') return from === 'press';
+            if (!wheelSwapAllowed(now, lastWheelSwap)) return false;
+            lastWheelSwap = now;
+            return true;
+          };
+          if (go(pick1)) switchTo('primaria');
+          if (go(pick2)) switchTo('secundaria');
+          if (go(swap)) switchTo(slot === 'primaria' ? 'secundaria' : 'primaria');
         }
         drawT = Math.max(0, drawT - dt);
         const busy = taunt.active || melee.swinging || thrower.busy || drawT > 0 || downed || !!zombies?.busyHands;
@@ -2421,6 +2548,13 @@ async function boot() {
       if (watched.id !== specArms) {
         specArms = watched.id;
         specVm.setBody(watched.look, watched.sex);
+        // Their two guns built and every shader compiled as the view comes to them, so their switches don't
+        // stutter here (PF-34; then everything is hidden again as it was).
+        for (const s of ['primaria', 'secundaria'] as const) {
+          const g = slotStats(watched.loadout, s);
+          if (g) specVm.prepare(g);
+        }
+        specVm.warmup(() => ctx.renderer.compile(ctx.vmScene, ctx.vmCamera));
       }
       specVm.setGun(watched.gun);
       const f = watched.flags;
@@ -2454,6 +2588,11 @@ async function boot() {
     if (zombies) {
       zombies.update(frameDt);
       tintFog(ctx, zombies.bossWave, frameDt);
+    }
+    if (pets) {
+      // "Hide other players' pets" (Settings > Video) only in PvP.
+      pets.hideOthers = settings.hidePets && petMode === 'pvp';
+      pets.update(frameDt, petOwners(alpha), zombies ? zombies.link.now() : performance.now());
     }
     for (const b of bots?.bots ?? []) {
       const m = b.move;
@@ -2589,7 +2728,7 @@ async function boot() {
     Object.assign(window, {
       __oc: {
         player, guns, melee, taunt, thrower, grenades, input, dummies, net, conn, me, ctx, physics, quality, map, effects, bots, nav, RAPIER,
-        mines, progress, zombies, localZombies, sfx,
+        mines, progress, zombies, localZombies, sfx, pets,
         get weapon() {
           return weapon;
         },
@@ -2667,7 +2806,9 @@ async function boot() {
 
 /** The map editor's game (its Game tab), if this page is one: it's told when the game can't start. */
 const editorGame = editorPlay();
-boot().catch((err) => {
+/** Dev only: `?bench=<map>` draws an official map alone from fixed points (client/dev/bench.ts, PF-35). */
+const benchMap = import.meta.env.DEV ? new URLSearchParams(location.search).get('bench') : null;
+(benchMap ? import('./dev/bench').then((b) => b.runBench(benchMap)) : boot()).catch((err) => {
   console.error(err);
   editorGame?.failed(err);
   const tip = document.getElementById('loading-tip');

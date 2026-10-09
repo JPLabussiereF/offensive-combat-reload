@@ -18,6 +18,7 @@ source_paths:
   - client/world/dog.ts
   - client/world/hydrant.ts
   - client/net/remote.ts
+  - client/pets/manager.ts
   - client/zombies/view.ts
   - client/zombies/coffin.ts
   - client/zombies/client.ts
@@ -26,7 +27,7 @@ tags:
   - game
   - audio
   - sfx
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # SFX
@@ -123,6 +124,22 @@ Todos via `at(...)` no lugar do zumbi, do chefe, do caixão ou da barricada, exc
 | `cashRegister()` | "ka-ching" (barramento `ui`) | dinheiro ganho |
 | `heartbeat()` | batimento lento | caído, a cada 1,1 s |
 | `reviveDone()` | arpejo subindo | reanimado |
+
+#### Pets no zumbi (PF-29)
+
+Curtos e abaixo dos avisos do modo; no máximo um latido ou miado a cada 2 s por cliente (`client/pets/manager.ts`). Ver [[Pets]].
+
+| Método | Som | Quando |
+| --- | --- | --- |
+| `bark()` / `bite()` | latido / mordida | a Amora segura um zumbi |
+| `witchSpell()` | brilho subindo a escala | a Bruxinha lança o Feitiço do Pato |
+| `potionPop()` | estalo de vidro e três notas brilhantes | a poção estoura no zumbi e vira a boia |
+| `softQuack()` | quá baixinho | a boia prende o zumbi e a cada ~1,5 s enquanto ele está preso (`client/zombies/view.ts`) |
+| `meow(feliz)` | miado (subindo no fim depois de levantar o dono) | a gata começa a levantar / levantou o dono |
+| `petHammer()` | toque agudo e leve (mais que o do jogador) | cada martelada da fuinha |
+| `otterChirp()` / `stoneThrow()` / `stoneHit()` | dois piados / whoosh / baque surdo | a pedrada da lontra |
+| `deflate()` | "pfff", ar saindo | o Tio do Churrasco murcha com a pedrada |
+| `tailPop()` | estalo e guincho | a iguana solta o rabo |
 
 ### Interface
 

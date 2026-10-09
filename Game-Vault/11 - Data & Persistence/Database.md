@@ -19,6 +19,7 @@ source_paths:
   - server/migrations/004_estatisticas_zumbi.sql
   - server/migrations/005_figurinhas.sql
   - server/migrations/006_destaque.sql
+  - server/migrations/009_pets.sql
   - server/maps.ts
   - server/mapRoutes.ts
   - server/gestao.ts
@@ -27,7 +28,7 @@ tags:
   - data
   - database
   - postgres
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Database
@@ -41,7 +42,7 @@ updated: 2026-10-06
 - Consultas **sempre parametrizadas** (`$1, $2...`). A única interpolação de string em SQL é o nome/datas de partição em `server/jobs.ts`, gerados pelo próprio código a partir da data.
 - `transaction(db, fn)` — `BEGIN`/`COMMIT`/`ROLLBACK` com um cliente do pool.
 
-## Tabelas (migrations `001_contas.sql` a `006_destaque.sql`, mais `004_mapas.sql`)
+## Tabelas (migrations `001_contas.sql` a `006_destaque.sql`, mais `004_mapas.sql` e `009_pets.sql`)
 
 > [!info] Duas migrations 004 (merge da main na sandbox-gregory, 07/10/2026)
 > `004_mapas.sql` (mapas, sandbox) e `004_estatisticas_zumbi.sql` (`zombie_stats`, main) mexem em tabelas diferentes. `migrate()` (`server/db.ts`) guarda cada uma pelo **nome do arquivo** em `schema_migrations` e aplica as que faltam em ordem alfabética: num banco novo, `004_estatisticas_zumbi`, `004_mapas`, `005_figurinhas`, `006_destaque`; num banco que já tinha 001 a 006 da main, a `004_mapas` entra depois. Nenhuma depende da outra, então a ordem não muda o resultado. Os nomes ficaram como estão: renomear a `004_mapas` faria os bancos que já a aplicaram tentar de novo.
@@ -52,7 +53,7 @@ updated: 2026-10-06
 | `password_credential` | `account_id` | `password_hash` (Argon2id), `updated_at` | Separada para que nenhuma consulta de conta carregue o hash |
 | `auth_identity` | `id` | `account_id`, `provider` (CHECK `discord`), `provider_subject`, `linked_at` | UNIQUE (`provider`, `provider_subject`) e (`account_id`, `provider`) |
 | `session` | `id` | `account_id`, `token_hash bytea UNIQUE`, `device_label`, `ip inet`, `created_at`, `last_used_at`, `expires_at`, `revoked_at` | Índice parcial `session_account_idx` onde não revogada |
-| `player_profile` | `id` | `account_id`, `display_name`, `discriminator smallint` (1–9999), `sex` (`m`/`f`), `avatar_url`, `bio`, `name_changed_at`, `created_at`, `appearance jsonb` (002), `loadout jsonb` (003: a escolha do Arsenal, `ArsenalChoice`; `NULL` = ainda não escolheu), `featured_sticker text` e `title text` (006: figurinha em destaque e título do [[Achievements\|álbum]], conferidos pelo servidor; `NULL` = nenhum) | Índice único `(lower(display_name), discriminator)` |
+| `player_profile` | `id` | `account_id`, `display_name`, `discriminator smallint` (1–9999), `sex` (`m`/`f`), `avatar_url`, `bio`, `name_changed_at`, `created_at`, `appearance jsonb` (002), `loadout jsonb` (003: a escolha do Arsenal, `ArsenalChoice`; `NULL` = ainda não escolheu), `featured_sticker text` e `title text` (006: figurinha em destaque e título do [[Achievements\|álbum]], conferidos pelo servidor; `NULL` = nenhum), `pet jsonb` (007: o pet levado, os interruptores e a personalização de cada pet, conferido por `sanitizePet`; `NULL` = sem pet; ver [[Pets]]) | Índice único `(lower(display_name), discriminator)` |
 | `display_name_history` | `id` | `profile_id`, `display_name`, `discriminator`, `changed_at` | Índice `(profile_id, changed_at DESC)` |
 | `player_stats` | `profile_id` | `level`, `xp bigint`, `mmr` (não usado), `matches_played`, `kills`, `deaths`, `headshots`, `groin_kills`, `knife_kills`, `backstabs`, `grenade_kills`, `humiliations`, `seconds_played bigint`, `updated_at` | "Linha quente" estreita, separada do perfil |
 | `zombie_stats` | `profile_id` | `matches`, `wins`, `best_wave` (a maior onda alcançada), `waves` (ondas sobrevividas), `kills`, `headshots`, `groin_kills`, `knife_kills`, `grenade_kills`, `bosses`, `coveiro_kills`, `noiva_kills`, `prefeito_kills`, `downs`, `revives`, `deaths`, `coffin_rolls`, `updated_at` (004) | Totais do [[Zombie\|modo zumbi]], à parte de `player_stats`. Criada na primeira gravação (*upsert*), sem linha no cadastro |

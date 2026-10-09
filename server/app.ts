@@ -7,7 +7,7 @@
 // with to the end; players who come after a save get the new one.
 import type { Server } from 'bun';
 import { join, normalize } from 'node:path';
-import { CLOSE, NET, sanitizeName, type ClientMsg, type ServerMsg } from '@shared/protocol';
+import { CLOSE, NET, sanitizeName, WS_ERRORS, type ClientMsg, type ServerMsg, type WsErrorCode } from '@shared/protocol';
 import { isMapId } from '@shared/maps';
 import { DEFAULT_GAME_MODE, isGameModeId, type GameModeId } from '@shared/modes';
 import { PROG_WEAPONS } from '@shared/progression';
@@ -31,8 +31,15 @@ const MAX_MSGS_PER_SEC = 150;
 const FLUSH_EVERY_MS = 60_000;
 const now = () => performance.now();
 
-/** Why a 'play', 'create' or 'join' was refused, for the player. */
-class EnterError extends Error {}
+/** Why a 'play', 'create' or 'join' was refused: a code the client tells in the player's language (PF-30). */
+class EnterError extends Error {
+  constructor(readonly code: WsErrorCode) {
+    super(WS_ERRORS[code]);
+  }
+}
+
+/** The refusal sent to the client: the code, and the pt-BR text for clients cached from before the code. */
+const refusal = (code: WsErrorCode): ServerMsg => ({ t: 'error', code, message: WS_ERRORS[code] });
 
 /** What Bun keeps on each game socket (ws.data), from the handshake on. */
 interface Peer {
@@ -146,7 +153,7 @@ export async function startServer(opts: Options): Promise<GameServer> {
       const s = await p;
       if (!s.full && sessions.has(s.id)) return s;
     }
-    throw new EnterError('Sessão lotada.');
+    throw new EnterError('sessao_lotada');
   }
 
   /** Answers 'play', 'create' and 'join': finds or opens the session, then puts the player in it. */
@@ -155,13 +162,13 @@ export async function startServer(opts: Options): Promise<GameServer> {
     let s: Session | undefined;
     if (msg.t === 'join') {
       s = sessions.get(String(msg.session));
-      if (!s) throw new EnterError('Essa sessão não existe mais.');
+      if (!s) throw new EnterError('sessao_inexistente');
     } else if (msg.t === 'play') {
       const mode = isGameModeId(msg.mode) ? msg.mode : DEFAULT_GAME_MODE;
       const row = isMapId(msg.map) ? await mapRow(db, msg.map) : null;
       // Hidden or deleted maps open no new session (the ones already playing go on).
-      if (!playable(row)) throw new EnterError('Esse mapa não está disponível.');
-      if (!allows(row, mode)) throw new EnterError('Esse modo não é jogado nesse mapa.');
+      if (!playable(row)) throw new EnterError('mapa_indisponivel');
+      if (!allows(row, mode)) throw new EnterError('modo_fora_do_mapa');
       s = await sessionFor(row, mode);
     } else {
       const name = sanitizeName(msg.name, NET.sessionNameMax) || `Sala de ${profile.tag.split('#')[0]}`;
@@ -169,14 +176,14 @@ export async function startServer(opts: Options): Promise<GameServer> {
       // A map that isn't there, or where the mode isn't played, falls back to the mode's first official map.
       let row = isMapId(msg.map) ? await mapRow(db, msg.map) : null;
       if (!playable(row) || !allows(row, mode)) row = await defaultMapFor(db, mode);
-      if (!row) throw new EnterError('Nenhum mapa disponível para esse modo.');
+      if (!row) throw new EnterError('sem_mapa');
       s = createSession(name, await maps.runtime(row.id, row.current_version), mode);
     }
     // Gone while the database answered: an empty session it may have opened closes with the next check.
     if (conn.ws.readyState !== WebSocket.OPEN) return sessionsChanged();
     if (s.full) {
       sessionsChanged();
-      throw new EnterError('Sessão lotada.');
+      throw new EnterError('sessao_lotada');
     }
     void leaveSession(conn);
     s.join(conn);
@@ -372,13 +379,13 @@ export async function startServer(opts: Options): Promise<GameServer> {
           case 'play':
           case 'create':
           case 'join': {
-            if (!conn.name) return conn.send({ t: 'error', message: 'Diga olá primeiro.' });
+            if (!conn.name) return conn.send(refusal('sem_ola'));
             if (peer.entering) return;
             peer.entering = true;
             enter(conn, msg)
               .catch((err) => {
                 if (!(err instanceof EnterError)) console.error('[sessões] entrada:', (err as Error).message);
-                conn.send({ t: 'error', message: err instanceof EnterError ? err.message : 'Não deu para entrar agora.' });
+                conn.send(refusal(err instanceof EnterError ? err.code : 'entrada_falhou'));
               })
               .finally(() => (peer.entering = false));
             return;

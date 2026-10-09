@@ -96,7 +96,6 @@ export function nightSky(scene: THREE.Scene): (camera: THREE.Vector3) => void {
   };
 }
 
-const SKY_N = 650;
 const SKY_TOP = 170;
 
 /**
@@ -107,10 +106,10 @@ const SKY_TOP = 170;
 export class SkyLanterns {
   private mesh: THREE.InstancedMesh;
   private halos: THREE.Points;
-  private pos = new Float32Array(SKY_N * 3);
-  private speed = new Float32Array(SKY_N);
-  private size = new Float32Array(SKY_N);
-  private phase = new Float32Array(SKY_N);
+  private pos: Float32Array;
+  private speed: Float32Array;
+  private size: Float32Array;
+  private phase: Float32Array;
   private m = new THREE.Matrix4();
   private q = new THREE.Quaternion();
   private e = new THREE.Euler();
@@ -118,10 +117,19 @@ export class SkyLanterns {
   private s = new THREE.Vector3();
   private t = 0;
 
-  constructor(scene: THREE.Scene) {
+  /** `count`: how many float (650; 250 in the light detail, PF-35). */
+  constructor(
+    scene: THREE.Scene,
+    readonly count = 650,
+  ) {
+    this.pos = new Float32Array(count * 3);
+    this.speed = new Float32Array(count);
+    this.size = new Float32Array(count);
+    this.phase = new Float32Array(count);
     // A paper tube, wider at the top, lit from inside: brightest toward its open bottom where the candle
     // burns (the flame shows there), the paper deepening to orange toward the top.
-    const bodyGeo = new THREE.CylinderGeometry(0.42, 0.33, 0.95, 10, 4, true).toNonIndexed();
+    // 34 triangles (PF-35): six sides, the flame 4 × 3 (they float tens of meters up, by the hundred).
+    const bodyGeo = new THREE.CylinderGeometry(0.42, 0.33, 0.95, 6, 1, true).toNonIndexed();
     const p = bodyGeo.getAttribute('position');
     const top = new THREE.Color(0xd8742c);
     const bottom = new THREE.Color(0xffe0a0);
@@ -130,11 +138,11 @@ export class SkyLanterns {
     for (let i = 0; i < p.count; i++) colArr.set(c.copy(bottom).lerp(top, Math.pow((p.getY(i) + 0.475) / 0.95, 0.8)).toArray(), i * 3);
     bodyGeo.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
     const rim = mergeColoredParts([
-      { geo: new THREE.CircleGeometry(0.42, 10).rotateX(-Math.PI / 2), color: 0x8a3a12, pos: [0, 0.475, 0] },
-      { geo: new THREE.SphereGeometry(0.09, 6, 4), color: 0xfff6d8, pos: [0, -0.4, 0], scale: [1, 1.4, 1] },
+      { geo: new THREE.CircleGeometry(0.42, 6).rotateX(-Math.PI / 2), color: 0x8a3a12, pos: [0, 0.475, 0] },
+      { geo: new THREE.SphereGeometry(0.09, 4, 3), color: 0xfff6d8, pos: [0, -0.4, 0], scale: [1, 1.4, 1] },
     ]);
     const geo = mergeGeometriesSafe([bodyGeo, rim]);
-    this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false }), SKY_N);
+    this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false }), count);
     this.mesh.frustumCulled = false;
     this.halos = new THREE.Points(
       new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(this.pos, 3)),
@@ -142,7 +150,7 @@ export class SkyLanterns {
     );
     this.halos.frustumCulled = false;
     scene.add(this.mesh, this.halos);
-    for (let i = 0; i < SKY_N; i++) this.spawn(i, 6 + Math.random() * (SKY_TOP - 6));
+    for (let i = 0; i < count; i++) this.spawn(i, 6 + Math.random() * (SKY_TOP - 6));
     this.update(0);
   }
 
@@ -159,7 +167,7 @@ export class SkyLanterns {
 
   update(dt: number) {
     this.t += dt;
-    for (let i = 0; i < SKY_N; i++) {
+    for (let i = 0; i < this.count; i++) {
       const k = i * 3;
       const ph = this.phase[i];
       this.pos[k] += (0.35 + 0.25 * Math.sin(this.t * 0.2 + ph)) * dt;

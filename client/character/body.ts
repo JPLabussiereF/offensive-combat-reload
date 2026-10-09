@@ -475,14 +475,18 @@ export interface ShellOptions {
 }
 
 export function headShell(b: FacetBuilder, h: HeadShape, o0: ShellOptions) {
-  // Far LODs: ¾ of the rows at 1; half the rows and ¾ of the columns at 2 (fewer columns closer up would let
-  // the head through thin shells). Shells with a hole (the mouth in a beard) keep their rows at 1: fewer rows
-  // would move the hole off the mouth.
+  // Far LODs: ¾ of the rows at 1, half at 2. Columns: a closed shell of 16 or more gets the head's own 12, at the
+  // head's angles (its faces then run parallel to the head's facets: no head vertex comes through, however thin
+  // the shell); any other one ¾ of its columns (at 1 never under the head's 12: fewer, unaligned, closer up, would
+  // let the head through thin shells). Shells with a hole (the mouth in a beard) keep their rows at 1: fewer would
+  // move the hole off the mouth (fewer columns only narrow it a little).
+  const cols0 = o0.cols ?? HEAD_SEGMENTS;
+  const aligned = o0.arc === undefined && (o0.a0 ?? HEAD_A0) === HEAD_A0 && cols0 >= 16;
   const o =
     b.lod >= 2
-      ? { ...o0, rows: Math.max(1, Math.ceil(o0.rows / 2)), cols: lodSegments(o0.cols ?? HEAD_SEGMENTS, 1) }
-      : b.lod === 1 && !o0.skip
-        ? { ...o0, rows: Math.max(1, Math.ceil(o0.rows * 0.75)) }
+      ? { ...o0, rows: Math.max(1, Math.ceil(o0.rows / 2)), cols: aligned ? HEAD_SEGMENTS : lodSegments(cols0, 1) }
+      : b.lod === 1
+        ? { ...o0, rows: o0.skip ? o0.rows : Math.max(1, Math.ceil(o0.rows * 0.75)), cols: aligned ? HEAD_SEGMENTS : Math.max(Math.min(cols0, HEAD_SEGMENTS), Math.round(cols0 * 0.75)) }
         : o0;
   const cols = o.cols ?? HEAD_SEGMENTS;
   const closed = o.arc === undefined;

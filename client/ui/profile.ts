@@ -3,7 +3,7 @@
 import { NAME_MAX, type ProfileResponse } from '@shared/account';
 import { api, fetchProfile } from '../net/api';
 import { errorText, formatDate } from './auth';
-import { showCustomizer } from './customize';
+import { showCustomizer, type CustomizerHandle } from './customize';
 import { album, sourcesFromProfile } from '@shared/achievements';
 import { stickerBadge, titleText } from './album';
 import { t, type StringKey } from './strings';
@@ -24,7 +24,12 @@ interface Options {
   onBack(): void;
 }
 
+/** The character editor opened from this tab, freed before the tab's content changes (PF-33). */
+let editor: CustomizerHandle | null = null;
+
 export async function showProfile(root: HTMLElement, o: Options) {
+  editor?.dispose();
+  editor = null;
   let p: ProfileResponse;
   try {
     p = await fetchProfile();
@@ -126,8 +131,10 @@ export async function showProfile(root: HTMLElement, o: Options) {
   $('pf-back')!.onclick = () => o.onBack();
   // A saved look reloads the account: the home's character (the warehouse's table, the chip's portrait) changes
   // with it, and the home shows this tab again.
-  $('pf-customize')!.onclick = () =>
-    showCustomizer(root, { look: p.aparencia, sex: p.sexo, setStatus: o.setStatus, onClose: (saved) => (saved ? o.onAccountChanged() : void showProfile(root, o)) });
+  $('pf-customize')!.onclick = () => {
+    editor?.dispose();
+    editor = showCustomizer(root, { look: p.aparencia, sex: p.sexo, setStatus: o.setStatus, onClose: (saved) => (saved ? o.onAccountChanged() : void showProfile(root, o)) });
+  };
   root.querySelectorAll<HTMLButtonElement>('.sex-btn').forEach((b) => {
     b.onclick = () => {
       if (b.getAttribute('aria-checked') === 'true') return;

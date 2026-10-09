@@ -12,7 +12,8 @@ import { isOfficialMap, type OfficialMapId } from '@shared/maps';
 import type { Atmosphere } from '../render/renderer';
 import { skySpot } from '../audio/spatial';
 import type { Physics } from './physics';
-import { MapBuilder } from './mapBuilder';
+import { MapBuilder, type ObjectDetail } from './mapBuilder';
+import { SCULPTED_PROPS, simplifierReady, simplifyGathered, simplifyObject } from './simplify';
 import { PropBus } from './props';
 import { seeded } from './oriental';
 import { gltfLoader } from './gltfMap';
@@ -34,6 +35,11 @@ export interface LoadOptions {
   renderer: THREE.WebGLRenderer;
   sfx: MapSfx;
   modo: 'jogo' | 'editor';
+  /**
+   * The object detail (PF-35, MapBuilder's ObjectDetail): the player's setting in the game. Absent: 'normal' (the
+   * map editor and the server never pass it; tools/orcamento.ts measures pieces with it).
+   */
+  detalhe?: ObjectDetail;
 }
 
 /** A piece as the editor sees it: its group in the scene and the colliders it made. */
@@ -104,6 +110,7 @@ export interface MapBuild {
 export function startBuild(data: MapData, o: LoadOptions): MapBuild {
   const { physics, scene, renderer, sfx, modo } = o;
   const b = new MapBuilder(physics, scene, data.ambiente.celula);
+  b.detalhe = o.detalhe ?? 'normal';
   const animated: ((dt: number, frame: MapFrame) => void)[] = [];
   const clock = { now: 0 };
   animated.push((dt) => (clock.now += dt));
@@ -114,6 +121,8 @@ export function startBuild(data: MapData, o: LoadOptions): MapBuild {
   const s = new Services(host);
   const ctx: BuildCtx = {
     modo,
+    detalhe: b.detalhe,
+    seg: (normal, leve) => b.seg(normal, leve),
     b,
     scene,
     physics,
@@ -157,7 +166,7 @@ export function startBuild(data: MapData, o: LoadOptions): MapBuild {
     if (!pieces && peca.tipo === 'grupo') return;
     // The piece's pose, inside its groups' frame (Revisions 01): a piece without groups has just its own.
     const pose = worldPoseMatrix(peca, find);
-    if (!pieces && !pose) return runPiece(ctx, peca);
+    if (!pieces && !pose) return sculpted(peca, scene, () => runPiece(ctx, peca));
     // A posed piece (P32) builds in its own frame: its objects in a group the pose carries, its colliders,
     // rooms and holes carried after it (see pose.ts). In the editor, every piece builds in its own group, with
     // its own collections and batches, finished with it.
@@ -182,7 +191,7 @@ export function startBuild(data: MapData, o: LoadOptions): MapBuild {
     const mark = { rooms: b.rooms.length, openings: b.openings.length };
     b.pose = pose;
     try {
-      await runPiece(view.ctx, peca);
+      await sculpted(peca, root, () => runPiece(view.ctx, peca));
       view.collections.finish(root);
       view.settle();
       if (pieces) b.finish();
@@ -202,6 +211,25 @@ export function startBuild(data: MapData, o: LoadOptions): MapBuild {
       pieces.set(peca.id, { group, colliders });
       traces.set(peca.id, { trace: view.trace, rooms, openings });
     }
+  };
+
+  /**
+   * Builds a piece; a sculpted prop with the light detail (PF-35 L5) comes out simplified: its static geometry as
+   * one mesh per material (gathered while it builds), the objects it put under `root` one by one. Its colliders are
+   * made from the full geometry by then.
+   */
+  const sculpted = async (peca: Peca, root: THREE.Object3D, build: () => Promise<void>) => {
+    const error = SCULPTED_PROPS.get(peca.tipo);
+    if (b.detalhe !== 'leve' || error === undefined) return build();
+    await simplifierReady();
+    const before = new Set(root.children);
+    b.gather();
+    try {
+      await build();
+    } finally {
+      b.releaseGathered(simplifyGathered(error));
+    }
+    for (const o of root.children) if (!before.has(o)) simplifyObject(o, error);
   };
 
   /** Editor: takes a piece's group, colliders, updates, light spots, rooms and holes away (to rebuild or delete it). */
@@ -246,7 +274,8 @@ export function startBuild(data: MapData, o: LoadOptions): MapBuild {
     } else if (cupula?.tipo === 'lua') nightSky(scene, new THREE.Vector3(...cupula.lua));
     else if (cupula?.tipo === 'oriental') {
       const sky = gardenSky(scene);
-      const floating = new SkyLanterns(scene);
+      // Fewer in the light detail (PF-35 L3).
+      const floating = new SkyLanterns(scene, b.seg(650, 250));
       // Every paper lantern's light, a posed piece's where its pose takes it (P42).
       const lights = new LanternLights(scene, () => s.lanternSpots(), s.all.cores);
       animate((dt, { listener }) => {

@@ -57,7 +57,11 @@
         <div class="zwave-row"><b id="zwave-title"></b><span id="zwave-sub"></span></div>
         <div id="zboss" class="hidden"><span id="zboss-name"></span><div class="zboss-bar"><div id="zboss-fill"></div></div></div>
       </div>
-      <div id="zmoney" class="hidden"><span class="zmoney-sign">$</span><b id="zmoney-num">0</b></div>
+      <div id="zmoney" class="hidden">
+        <span class="zmoney-sign">$</span><b id="zmoney-num">0</b>
+        <!-- Zumbi: the pet's face with its cooldown ring (PF-29), only for its owner; on phones the first chip of #buffs. Not a button. -->
+        <span id="zpet" class="hidden" aria-hidden="true"><span class="zpet-ring"><img id="zpet-face" alt="" /></span><b id="zpet-n"></b><span id="zpet-text"></span></span>
+      </div>
       <div id="zsummary" class="hidden">
         <div class="zsum-card sticker">
           <div id="zsum-title"></div>
@@ -166,6 +170,9 @@
             <div class="gp-surf gp-dark" data-station="admin" data-pad-scroll></div>
             <div id="gp-tags"></div>
             <div id="gp-card" class="gp-card" data-pad-scroll></div>
+            <!-- 07 · PETS (PF-29): a tag under each hook of the collar rack, and the card of the pet on the doormat. -->
+            <div id="gp-pettags"></div>
+            <div id="gp-petcard" class="gp-card gp-petcard" data-pad-scroll></div>
           </div>
           <div class="gp-scrim"></div>
           <div class="gp-shade"></div>
@@ -208,6 +215,7 @@
             <button type="button" role="tab" data-tab="album" data-t="tabAlbum"></button>
             <button type="button" role="tab" data-tab="profile" data-t="tabProfile"></button>
             <button type="button" role="tab" data-tab="settings" data-t="tabSettings"></button>
+            <button type="button" role="tab" data-tab="pets" data-t="tabPets"></button>
             <!-- Only for admins and moderators (shown from /api/me's roles). -->
             <button type="button" role="tab" data-tab="management" data-t="tabManagement" class="hidden"></button>
           </nav>
@@ -230,54 +238,70 @@
               <div class="char-name"><b id="char-tag"></b><span id="char-stats"></span></div>
               <button id="char-customize" type="button" class="small-btn alt" data-t="customizeShort"></button>
             </div>
+            <!-- Classic home: the quick join beside the character, on the other tabs (the Play tab has its orange button). -->
             <div id="home-quick-box">
               <button id="home-quick" type="button" class="big-btn" data-t="playOnline"></button>
-              <p class="home-hint" data-t="quickJoinHint"></p>
+              <p id="home-quick-sub" class="home-hint"></p>
             </div>
           </aside>
           <section class="home-panel home-card sticker">
-            <!-- In the warehouse the three .play-col are the tactical table's columns (on the classic home they don't box anything). -->
-            <div id="tab-play" class="home-pane">
-              <div class="gp-sheet-head gp-only">
-                <span><small class="gp-kicker" data-t="gpSign_play"></small><b data-t="gpSt_play"></b></span>
-                <span id="home-play-hint"></span>
-              </div>
-              <div class="play-col">
-                <div>
-                  <h3 data-t="modeTitle"></h3>
-                  <div id="home-modes" class="mode-grid"></div>
-                </div>
-              </div>
-              <div class="play-col">
-                <div id="home-game-box">
-                  <div class="pane-head"><h3 data-t="gameModeTitle"></h3><span id="home-game-hint" class="hint"></span></div>
+            <!-- Play (PF-32): where to play, the match type and one map, the side panel (sessions, bot options, the range) and the
+                 orange button. In the warehouse it fills the tactical table's sheet (compact on a phone); on the classic home, two
+                 columns or stacked (container queries in client/styles.css). -->
+            <div id="tab-play" class="home-pane play">
+              <header class="play-head">
+                <span class="play-title gp-only"><small class="gp-kicker" data-t="gpSign_play"></small><b data-t="gpSt_play"></b></span>
+                <div id="home-modes" class="seg play-where"></div>
+                <span id="home-play-hint" class="play-hint"></span>
+              </header>
+              <section class="play-main">
+                <div id="home-game-box" class="play-type">
+                  <h3 data-t="gameModeTitle"></h3>
                   <div id="home-game" class="seg"></div>
+                  <p id="home-game-hint" class="play-desc"></p>
                 </div>
-                <div>
-                  <div class="pane-head"><h3 id="home-map-title"></h3><span id="home-map-hint" class="hint"></span></div>
-                  <div id="home-maps" class="map-row"></div>
-                </div>
-                <div id="home-bot-opts" class="bot-opts">
-                  <div><h4 data-t="botSkill"></h4><div id="home-skills" class="seg"></div></div>
-                  <div><h4 data-t="botCount"></h4><div id="home-counts" class="seg"></div></div>
-                  <button id="home-bots" type="button" class="big-btn alt"></button>
-                </div>
-              </div>
-              <div class="play-col">
-                <div id="home-lobby">
-                  <h4 id="home-lobby-title"></h4>
-                  <ul id="session-list"></ul>
-                  <button id="home-more" type="button" class="small-btn alt hidden"></button>
-                  <div id="session-create" class="session-create">
-                    <input id="session-new-name" type="text" spellcheck="false" />
-                    <select id="session-new-map"></select>
-                    <select id="session-new-mode"></select>
-                    <button id="session-create-btn" type="button" class="small-btn" data-t="createSession"></button>
+                <div class="play-maps">
+                  <div class="pane-head">
+                    <h3 id="home-map-title"></h3><span id="home-map-hint" class="hint"></span>
+                    <button id="home-all-maps" type="button" class="link-btn" data-t="playAllMaps"></button>
                   </div>
+                  <div id="home-maps" class="map-grid"></div>
                 </div>
-                <!-- The table's orange button: the quick join online, the match against bots, or the range on the chosen map. -->
-                <button id="home-play-cta" type="button" class="gp-cta gp-only"><b></b><span></span></button>
-              </div>
+              </section>
+              <aside class="play-side">
+                <div class="play-panel">
+                  <div id="home-lobby">
+                    <div class="lobby-head">
+                      <button id="home-maps-back" type="button" class="small-btn alt" data-t="playBackMaps"></button>
+                      <h4 id="home-lobby-title"></h4>
+                    </div>
+                    <ul id="session-list"></ul>
+                    <button id="home-more" type="button" class="small-btn alt hidden"></button>
+                    <button id="home-create-toggle" type="button" class="link-btn"></button>
+                    <small id="home-create-pick" class="hint"></small>
+                    <div id="session-create" class="session-create hidden">
+                      <input id="session-new-name" type="text" spellcheck="false" />
+                      <button id="session-create-btn" type="button" class="small-btn" data-t="createSession"></button>
+                      <small id="home-create-where"></small>
+                    </div>
+                  </div>
+                  <div id="home-bot-opts" class="bot-opts">
+                    <h4 id="home-bot-title"></h4>
+                    <div><h4 data-t="botSkill"></h4><div id="home-skills" class="seg"></div></div>
+                    <div><h4 data-t="botCount"></h4><div id="home-counts" class="seg"></div></div>
+                    <p id="home-horde-info" class="hint"></p>
+                  </div>
+                  <div id="home-range-info" class="range-info"></div>
+                </div>
+                <div class="play-foot">
+                  <button id="home-sessions-toggle" type="button" class="small-btn alt"></button>
+                  <select id="home-skill-sel"></select>
+                  <select id="home-count-sel"></select>
+                  <span id="home-horde-short" class="hint"></span>
+                  <!-- The orange button: online (one map or any), against bots, or the range on the chosen map. -->
+                  <button id="home-play-cta" type="button" class="play-cta"><b></b><span></span></button>
+                </div>
+              </aside>
             </div>
             <div id="tab-arsenal" class="home-pane hidden">
               <!-- The Arsenal as a canvas (client/ui/arsenalCanvas.ts): the touch hint replaces the mouse one on phones. -->
@@ -302,6 +326,8 @@
             <div id="tab-profile" class="home-pane hidden"></div>
             <!-- The menu's controls and settings (#menu-settings) are lent to this tab while the home is open. -->
             <div id="tab-settings" class="home-pane hidden"></div>
+            <!-- Pets (PF-29, client/ui/pets.ts PetsTab): the list with their faces and the card; in the Galpão, 07 · PETS. -->
+            <div id="tab-pets" class="home-pane hidden"></div>
             <div id="tab-auth" class="home-pane hidden"></div>
           </section>
         </div>
@@ -314,6 +340,11 @@
             <nav class="land-nav">
               <a href="#land-game" data-t="navGame"></a><a href="#land-maps" data-t="navMaps"></a><a href="#land-modes" data-t="navModes"></a><a href="#land-account" data-t="navAccount"></a>
             </nav>
+            <!-- The language before signing up (PF-30): the same list as the settings' row (client/ui/home.ts). -->
+            <div class="land-lang">
+              <button id="land-lang" type="button" class="small-btn alt" aria-haspopup="menu" aria-expanded="false"><span aria-hidden="true">🌐</span> <span id="land-lang-code"></span></button>
+              <div id="land-lang-menu" class="land-lang-menu sticker hidden" role="menu"></div>
+            </div>
             <button id="land-signin" type="button" class="small-btn" data-t="signIn"></button>
           </div>
         </header>
@@ -444,7 +475,11 @@
               <div class="pm-sub" data-sub="video">
                 <label class="pm-row"><span class="pm-row-text"><span id="lbl-fov"></span><small id="desc-fov"></small></span><input id="set-fov" type="range" min="55" max="95" step="1" /><output id="out-fov"></output></label>
                 <div class="pm-row pm-row-toggle"><span class="pm-row-text"><span id="lbl-quality"></span><small id="desc-quality"></small></span><div id="set-quality" class="pm-seg"></div></div>
+                <div class="pm-row pm-row-toggle"><span class="pm-row-text"><span id="lbl-detail"></span><small id="desc-detail"></small></span><div id="set-detail" class="pm-seg"></div></div>
+                <div class="pm-row pm-row-toggle"><span class="pm-row-text"><span id="lbl-hide-pets"></span><small id="desc-hide-pets"></small></span><button id="set-hide-pets" type="button" class="pm-toggle"></button></div>
                 <div id="fs-desktop" class="pm-row pm-row-toggle desktop-only"><span class="pm-row-text"><span id="lbl-fullscreen-desktop"></span><small id="desc-fullscreen-desktop"></small></span><button id="set-fullscreen-desktop" type="button" class="pm-toggle"></button></div>
+                <!-- The language (PF-30): each button is the language's name in itself (shared/langs.ts LANG_NAMES). -->
+                <div class="pm-row pm-row-toggle pm-row-lang"><span class="pm-row-text"><span id="lbl-lang"></span><small id="desc-lang" role="status"></small></span><div id="set-lang" class="pm-seg"></div></div>
               </div>
               <div class="pm-sub" data-sub="audio">
                 <label class="pm-row"><span class="pm-row-text"><span id="lbl-vol"></span><small id="desc-vol"></small></span><input id="set-vol" type="range" min="0" max="1" step="0.05" /><output id="out-vol"></output></label>

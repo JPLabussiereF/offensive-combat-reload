@@ -310,8 +310,12 @@ export function rockingHorse(b: MapBuilder, x: number, y: number, z: number, yaw
 /**
  * Freestanding bookshelf, `w` wide, open on both faces (+Z and -Z), facing +Z at yaw 0. Its rows are full of
  * books of every height and thickness, some leaning, with gilt bands on the spines. `rand`: seeded.
+ *
+ * With the light object detail (PF-35 L6) the books of a row are one dark block with their spines painted on its
+ * face (the same books, colors and heights, upright, without the bands): two triangles a book instead of 12 to 36.
  */
 export function bookshelf(b: MapBuilder, x: number, z: number, w: number, rand: () => number, yaw = 0, h = 2.2, both = true) {
+  const light = b.detalhe === 'leve';
   const p = new Place(b, x, 0, z, yaw);
   const D = 0.55;
   const wood = 0x4a2a1a;
@@ -326,6 +330,7 @@ export function bookshelf(b: MapBuilder, x: number, z: number, w: number, rand: 
     const y0 = 0.12 + r * gap;
     if (r > 0) p.box([0, y0 - 0.015, 0], [w - 0.06, 0.03, D], 'madeira', shade(wood, 0.95));
     for (const side of both ? [-1, 1] : [1]) {
+      const row: { cx: number; bw: number; bh: number; c: number }[] = [];
       let cx = -w / 2 + 0.08;
       while (cx < w / 2 - 0.1) {
         if (rand() < 0.08) {
@@ -339,14 +344,34 @@ export function bookshelf(b: MapBuilder, x: number, z: number, w: number, rand: 
         const lean = rand() < 0.1 ? (rand() - 0.5) * 0.4 : 0;
         const c = colors[Math.floor(rand() * colors.length)];
         const bz = side * (D / 2 - bd / 2 - 0.02);
-        p.box([cx + bw / 2, y0 + bh / 2, bz], [bw, bh, bd], 'pintura', c, [0, 0, lean], false);
-        // Gilt bands on the spine.
-        for (const by of rand() < 0.5 ? [0.2, 0.8] : [0.75]) p.box([cx + bw / 2, y0 + bh * by, bz + (side * bd) / 2], [bw * 0.9, 0.012, 0.004], 'pintura', 0xc8a050, [0, 0, lean], false);
+        if (light) {
+          row.push({ cx, bw, bh, c });
+          rand();
+        } else {
+          p.box([cx + bw / 2, y0 + bh / 2, bz], [bw, bh, bd], 'pintura', c, [0, 0, lean], false);
+          // Gilt bands on the spine.
+          for (const by of rand() < 0.5 ? [0.2, 0.8] : [0.75]) p.box([cx + bw / 2, y0 + bh * by, bz + (side * bd) / 2], [bw * 0.9, 0.012, 0.004], 'pintura', 0xc8a050, [0, 0, lean], false);
+        }
         cx += bw + 0.004;
       }
+      if (row.length) bookRow(p, row, y0, side * (D / 2 - 0.02), 0.19);
     }
   }
   p.solid([0, h / 2, 0], [w / 2, h / 2, D / 2]);
+}
+
+/**
+ * The light detail's row of books (PF-35 L6): one dark block from the first book to the last, as tall as the
+ * tallest and `depth` deep behind the spines' plane (`front`: its z, the sign the side it faces), and each book's
+ * spine painted on it.
+ */
+function bookRow(p: Place, row: { cx: number; bw: number; bh: number; c: number }[], y0: number, front: number, depth: number) {
+  const x0 = row[0].cx;
+  const x1 = row[row.length - 1].cx + row[row.length - 1].bw;
+  const top = Math.max(...row.map((k) => k.bh));
+  const side = Math.sign(front);
+  p.box([(x0 + x1) / 2, y0 + top / 2, front - (side * depth) / 2], [x1 - x0, top, depth], 'pintura', 0x241a16, undefined, false);
+  for (const k of row) p.put(new THREE.PlaneGeometry(k.bw, k.bh), [k.cx + k.bw / 2, y0 + k.bh / 2, front + side * 0.003], 'pintura', k.c, [0, side < 0 ? Math.PI : 0, 0], false);
 }
 
 /**

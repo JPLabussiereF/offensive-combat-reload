@@ -14,7 +14,7 @@ tags:
   - rendering
   - performance
   - gpu
-updated: 2026-10-05
+updated: 2026-10-08
 ---
 
 # ADR - Qualidade automática com resolução dinâmica
@@ -58,3 +58,6 @@ Comentários em `quality.ts` e em `renderer.ts` ("Integrated GPUs choke on 2x+ D
 - `client/main.ts` (`quality.beforeRender`, `quality.update`)
 
 Ver [[Performance Rendering]], [[Settings]] e [[Problem - Renderização por software sem GPU]].
+
+> [!info] Extensão (PF-35)
+> Os presets continuam só com resolução e sombras. O quanto de geometria o mapa monta virou uma opção à parte, "Detalhe dos objetos: Normal / Leve" (Leve por padrão no celular e com renderização por software, lida ao montar o mapa): [[ADR - Detalhe geométrico Normal e Leve]].

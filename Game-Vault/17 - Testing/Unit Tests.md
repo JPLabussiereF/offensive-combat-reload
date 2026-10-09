@@ -4,6 +4,7 @@ type: system
 status: documented
 area: testing
 source_paths:
+  - client/tests/playRules.test.ts
   - client/tests/galpaoRules.test.ts
   - client/tests/weapon.test.ts
   - server/tests/secondaries.test.ts
@@ -14,6 +15,9 @@ source_paths:
   - client/tests/heldKnife.test.ts
   - client/tests/spatial.test.ts
   - server/tests/appearance.test.ts
+  - server/tests/color.test.ts
+  - client/tests/customizeCards.test.ts
+  - client/tests/colorPicker.test.ts
   - server/tsconfig.json
   - client/tests/arsenalText.test.ts
   - server/tests/arsenal.test.ts
@@ -62,6 +66,12 @@ source_paths:
   - client/ui/arsenalStats.ts
   - client/ui/pauseMenu.ts
   - client/ui/arsenalTree.ts
+  - client/tests/viewmodelSwitch.test.ts
+  - client/tests/i18n.test.ts
+  - client/tests/settingsLang.test.ts
+  - client/ui/strings.ts
+  - client/ui/customizeLabels.ts
+  - shared/langs.ts
 tags:
   - testes
   - unitarios
@@ -81,14 +91,15 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 
 ## `client/tests/keybinds.test.ts` → [[Input & Controls]]
 
-29 casos em grupos:
+32 casos em grupos:
 
 - **Atribuir teclas:** tecla livre vai ao espaço escolhido sem alterar o original; tecla usada sai da outra ação e informa o espaço que ficou vazio; aceita botões laterais do mouse; recusa `Ctrl` e as teclas fixas, dizendo o motivo.
-- **Roda do mouse:** vale em ações de um toque; recusada em ações de segurar e no chat; descartada ao carregar se salva numa ação de segurar; tem nome nos dois idiomas.
+- **Roda do mouse:** vale em ações de um toque; recusada em ações de segurar e no chat; descartada ao carregar se salva numa ação de segurar; tem nome nos idiomas.
 - **Esvaziar um espaço (×)** e **teclas proibidas** (`Ctrl` dos dois lados, `F3`, `F4`, `F6`).
 - **Carregar o salvo:** sem nada volta o padrão (cópia); ação nova recebe o padrão; respeita espaço vazio de propósito; descarta lixo; tecla duplicada fica só na primeira.
 - **Teclas do caixão no modo zumbi:** `Z` doa e `X` recusa por padrão, e um save antigo (sem essas ações) as ganha.
-- **Tabela do Input** e **nome das teclas** (QWERTY, AZERTY via mapa do navegador, fallback do Firefox, código desconhecido).
+- **Tabela do Input** e **nome das teclas** (QWERTY, AZERTY via mapa do navegador, fallback do Firefox, código desconhecido); nomes nos quatro idiomas (Espacio, Leertaste, Clic izquierdo, Rechtsklick…) e espanhol e alemão nunca com o nome em inglês (PF-30: antes, tudo que não era pt-BR virava en).
+- **Troca de arma pela roda (PF-34, `wheelSwapAllowed`):** aceita a primeira troca, recusa dentro de 150 ms e aceita a partir de 150 ms; girando sem parar (um passo a cada 16 ms por 1 s) troca 6 ou 7 vezes, sempre com 150 ms ou mais entre elas.
 
 ## `client/tests/heldKnife.test.ts` → [[Weapon Models]]
 
@@ -104,10 +115,24 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 
 ## `client/tests/arsenalText.test.ts` → [[Inventory UI]]
 
-- Um caso por idioma (pt-BR e en) — e mais um por idioma para as secundárias da PF-10: o nome do plano, o começo da descrição, o item do caixão (`zitem_`) e os degraus `ladder_garrucha`/`ladder_grampeador` —: toda arma e toda melhoria de `progression.json` tem nome e descrição (`arma_*`, `armaDesc_*`, `upg_<arma>_<id>`, `upgDesc_*`), todo efeito tem o seu rótulo (`fx_*`) e toda linha da árvore do Arsenal o seu (`treeRow_*`) em `client/ui/strings.ts`.
-- **Textos do menu de pausa** (PF-11), 3 casos: em cada idioma, todo texto do menu (`pm*`, `keyGroup*`) existe e preenche os seus parâmetros (nenhum `{…}` sobrando); e nenhum ficou igual nos dois idiomas (nada sem tradução).
+- Um caso por idioma (os quatro de `LANGS` desde a PF-30) — e mais um por idioma para as secundárias da PF-10: o nome do plano, o começo da descrição, o item do caixão (`zitem_`) e os degraus `ladder_garrucha`/`ladder_grampeador` —: toda arma e toda melhoria de `progression.json` tem nome e descrição (`arma_*`, `armaDesc_*`, `upg_<arma>_<id>`, `upgDesc_*`), todo efeito tem o seu rótulo (`fx_*`) e toda linha da árvore do Arsenal o seu (`treeRow_*`) em `client/ui/strings.ts`.
+- **Textos do menu de pausa** (PF-11), 3 casos: em cada idioma, todo texto do menu (`pm*`, `keyGroup*`) existe e preenche os seus parâmetros (nenhum `{…}` sobrando); nenhum ficou igual em pt-BR e en; e espanhol e alemão dizem coisas diferentes do inglês (salvo "Video"/"Audio" em espanhol e "Controller" em alemão).
 
-- **Passivas das facas** (2026-10-07): em cada idioma, toda faca tem passiva com nome e descrição preenchidos (sem `{…}` sobrando) e com os números (colher 50; frango 15 e 3; peixe 100 e `SCORE.backstab`); os textos `knifePassive`, `knifePassiveWhere` e os quatro rótulos das barras existem; nenhuma passiva se repete e pt-BR e en são diferentes.
+- **Passivas das facas** (2026-10-07): em cada idioma, toda faca tem passiva com nome e descrição preenchidos (sem `{…}` sobrando) e com os números (colher 50; frango 15 e 3; peixe 100 e `SCORE.backstab`); os textos `knifePassive`, `knifePassiveWhere` e os quatro rótulos das barras existem; nenhuma passiva se repete e os quatro idiomas dizem coisas diferentes.
+
+## `client/tests/i18n.test.ts` → [[UI Overview]], [[Settings]], [[ADR - Seletor de idioma por aparelho]]
+
+Os idiomas do jogo (PF-30), em grupos:
+
+- **Idioma do navegador e salvo:** tabela de `detectLang` (pt-PT e pt → pt-BR, es-MX, es_419, de-AT, en-GB, maiúsculas, francês → en, `['fr-FR', 'de']` → de, lista vazia ou ausente → en); `resolveLang` usa o salvo válido e cai no do sistema com valor inválido (`fr`, `pt`, `PT-BR`, `es-MX`, vazio, nulo, número, objeto); `LANGS`, `LANG_NAMES` e `LANG_LOCALE` (es-419); números no formato de cada idioma (1.234,5 em pt-BR e de; 1,234.5 em en e es).
+- **Textos do jogo:** os quatro dicionários com as mesmas chaves (mais de mil); em cada idioma todo texto existe e tem os mesmos `{params}` do pt-BR; espanhol e alemão não deixaram texto em inglês, salvo uma lista fixa de iguais de verdade (marcas, "Arsenal", "Bots", "Zoom"…; desde a integração da sprint `sprint/outubro-semana-2` também Normal, BOTS, ONLINE, SESSIONS, as linhas só com `{params}` das branches integradas e "Collar" no espanhol); dicas, frases rápidas e mensagens de morte em todos os idiomas, com piadas próprias em es e de; a palavra da capa da revista dividida em duas linhas curtas; as recusas de entrada e a linha do idioma nos quatro.
+- **Voltar com o controle:** todo botão cujo inglês começa com Back/Cancel/Close começa, em cada idioma, com uma palavra de `BACK_WORDS` (jogo e editor); os voltar comuns (Voltar, Volver, Zurück, Cancelar, Abbrechen, Fechar, Cerrar, Schließen…) são reconhecidos; espanhol e alemão não criam botão de voltar que o português não tem; palavras que só começam igual (Zurücksetzen, Cerrarse) não contam.
+- **Editor de mapas:** os quatro dicionários com as mesmas chaves e `{params}`; es e de sem texto em inglês esquecido (lista fixa); o nome da peça vem no idioma escolhido.
+- **Dados:** álbum sem problemas (`albumProblems` confere os quatro textos) e com os quatro textos em páginas, figurinhas, itens e dicas; o "como" mostra a meta em todo idioma e, em es e de, escolhe a palavra pelo número como o pt-BR; roupas e peças do mapa com os quatro nomes (e a tabela de roupas com as colunas no lugar); `textOf` no idioma escolhido; rótulos do editor de personagem com quatro textos.
+
+## `client/tests/settingsLang.test.ts` → [[Settings]]
+
+3 casos: `loadSettings` guarda um dos quatro idiomas; descarta um idioma inválido (`fr`, `pt`, `PT-BR`, `es-MX`, vazio, número, nulo, objeto) e mantém o resto; sem idioma salvo fica sem (vale o do navegador). O teste dá ao `settings.ts` um navegador mínimo (`document`, `location`, `matchMedia`, `localStorage`) só durante o import e o devolve depois; o import é por variável para o typecheck do servidor (sem DOM) não segui-lo.
 
 ## `client/tests/arsenalKnifeStats.test.ts` → [[Inventory UI]], [[Melee]]
 
@@ -175,10 +200,23 @@ Testa funções de `shared/appearance.ts` (puras):
 - Escolhas inválidas viram padrão; nada fora do catálogo é aceito.
 - Conversão da aparência versão 1 e da versão 2 sem rosto.
 - Item que ocupa vários slots remove o que estava neles.
-- Acentos de cor só em peças pequenas.
+- Cor principal das peças grandes limitada (nada de neon; um acento da paleta desce até o limite), peças pequenas e canais secundários livres (qualquer cor, não só a da paleta), nada de preto puro (`#000000` → `#1f1f1f`); toda cor de tecido continua valendo (PF-33).
+- 500 cores aleatórias em quatro peças: validar de novo não muda nada, e a principal das peças grandes fica dentro do limite.
 - Altura e biotipo só visuais; sem mão recarrega 30% mais devagar, sem perna anda 25% mais devagar.
 - Dano por zona da hitbox: cabeça 2,5×, pescoço 1,5×, mãos 0,5×, virilha mata (ver [[Damage System]]).
 - Aparência aleatória dos bots sempre válida.
+
+## `server/tests/color.test.ts` → [[Character Customization]], [[Material Palette]], [[Validation]]
+
+Testa `shared/color.ts` (puro, PF-33): `normalizeHex` (`#abc`, maiúsculas, sem `#`, espaços; o resto não é cor); ida e volta código ↔ HSV com 500 cores; as 22 cores de tecido valem na principal das peças grandes e as 33 de item em qualquer outro canal, sem mudar; o neon na principal de `tronco` fica com croma ≤ 0,55, mesmo brilho e mesmo tom, e é livre no secundário e nas peças pequenas; o piso de brilho em todos os canais (preto puro vira `#1f1f1f`, um azul quase preto sobe mantendo o tom); 2000 cores em slots e canais aleatórios: ajustar de novo não muda nada.
+
+## `client/tests/customizeCards.test.ts` → [[Character Customization]], [[UI Assets]]
+
+Testa `client/ui/customize/rules.ts` e `lineup.ts` (PF-33): o cartão de uma peça tem a mesma chave (`item:<id>:<sexo>`) e a mesma assinatura (só formato e versão do jogo) para qualquer visual; a peça vestida nas cores do catálogo usa a figura guardada e, em outras cores, uma só dela em memória; penteado e barba vestidos seguem a cor do cabelo (P13); "Nenhum" e "Descalço" são ícones; traço do rosto igual para todos; o cartão do Modo PCD só muda quando o visual sem o PCD muda; as alturas 1,73 / 1,80 / 1,87 m saem de `EFFECTS.heightScale` × `RIG_HEIGHT`; a parede marca a escolhida, tem a placa e um botão por silhueta, e a régua começa em 1,40.
+
+## `client/tests/colorPicker.test.ts` → [[Character Customization]], [[Menus]]
+
+Testa `client/ui/colorPickerRules.ts` e `client/ui/padNavRules.ts` (PF-33): Recentes (a última primeiro, no máximo 10, sem repetir; o guardado é lido de volta limpo); "Combina" (tom sobre tom ×0,72, as cores já usadas, a vizinha de matiz dessaturada, dentro do limite, sem a atual e sem repetir); o cursor do quadrado para na borda do neon (só na principal das peças grandes) e no piso de brilho; a paleta da casa (4 grupos e 22 cores na principal das peças grandes, 6 grupos e 33 no resto); no controle, `[role="slider"]` entra na navegação, o quadrado entra em modo ajuste com ✕, o direcional manda as setas, ✕ confirma e ◯ desfaz, e a faixa de matiz anda pelo direcional ao longo dela.
 
 ## `server/tests/arsenal.test.ts` → [[Weapons]], [[Progression]]
 
@@ -219,6 +257,17 @@ O personagem completo (`Character`, sem WebGL) e o `CharacterAnimator` com o mod
 
 O `Viewmodel` de verdade com um `document` mínimo (só o canvas do clarão do tiro): mirando, o ponto da mira fica no centro (x ≈ 0, y ≈ 0) com e sem a mão direita; sem a mão direita, a arma fica do lado esquerdo da tela. O arquivo carrega `viewmodel.ts` por caminho, porque a checagem de tipos do servidor (que cobre `client/tests`) não tem os tipos do DOM.
 
+## `client/tests/viewmodelSwitch.test.ts` → [[Weapon Models]], [[Known Bottlenecks]]
+
+O `Viewmodel` de verdade, no mesmo molde do anterior (PF-34), 7 casos:
+
+- depois do `setBody`, 50 trocas entre rifle, pistola, submetralhadora e revólver: os materiais, as geometrias e os braços em `vm.root` são os mesmos da primeira volta, nenhum `dispose` é disparado e os braços têm um material só;
+- sem PCD, `maoEsq`, `maoDir` e `bracoEsq`: o braço esquerdo visível fica no pulso de `pistolLeft` com a pistola e no de `left` com o rifle e a submetralhadora (sem mão de apoio quando a arma está espelhada ou falta o braço esquerdo), e a mão da arma está sempre lá;
+- `setBody` duas vezes mantém a mesma instância de material, com a pele nova nas cores;
+- o aquecimento (`warmup`) põe na cena as armas preparadas e mostra tudo (armas, as duas poses da mão de apoio, faca e granada) durante o compile, e depois devolve cada objeto à visibilidade de antes (com o viewmodel escondido).
+
+Sem a correção da PF-34, falham o das 50 trocas, o do `setBody` e o do aquecimento; os de PCD já passavam (as poses continuam as mesmas de antes).
+
 ## `server/tests/progression-modes.test.ts` → [[Weapons]], [[Progression]], [[Game Modes Index]]
 
 A matriz progressão × modos (descrita em [[Integration Tests]]) também é, em parte, unitária: toda combinação de melhorias de toda arma de fogo (os sete rifles com as melhorias do rifle), de cada uma das sete facas e da granada dá atributos finitos e positivos, e todo equipamento que um modo entrega no meio da partida (degraus da escada, combinações de itens do caixão) é válido.
@@ -230,7 +279,8 @@ Os mapas são montados **sem tela** no Bun (`tools/headless.ts`: canvas falso, `
 - `client/tests/mapConversion.test.ts`: cada um dos 4 mapas oficiais, montado a partir do JSON pelo carregador, é igual ao seu golden (`shared/data/mapas/<id>.golden.json`, gravado do código original antes da conversão), com tolerância de 1e-6: colisores (forma, posição, giro, tamanho, material, oclusor, `onShot`), ids do `PropBus`, vãos, salas, spawns, bonecos, `killY`, sombra, céu, luzes, lotes e objetos da cena (hash dos triângulos, independente da ordem). E o modo editor: uma peça por grupo, os colisores repartidos entre as peças, nenhum lote fora delas.
 - `client/tests/mapData.test.ts`: `validateMapData` (os oficiais passam; mapas quebrados são recusados com o motivo: tipo desconhecido, parâmetro fora do esquema, id repetido, id do `PropBus` inválido ou repetido, limite por mapa, bruxa sem posição, coletável, rato e arquivo sem par, mapa zumbi sem dados), o esquema do catálogo, um adaptador para cada tipo, as superfícies iguais às do cliente, as peças da bruxa, do rato e do armário batendo com `objetos`, os dados de zumbi do cemitério iguais aos do modo, e o nome, o cartão e o `exclusivo` dos oficiais iguais a `OFFICIAL_INFO` (os seletores da tela inicial).
 - `client/tests/roles.test.ts`: as regras de `shared/roles.ts` (agir sobre, punir, conceder, promover, rebaixar; o último admin fica; ninguém se pune).
-- `client/tests/budget.test.ts`: contagem de chamadas e triângulos (câmera, sombra, grupos de material, instâncias) e os 4 oficiais dentro de 400 chamadas e 750 mil triângulos (o teste imprime os números).
+- `client/tests/budget.test.ts`: contagem de chamadas e triângulos (câmera, sombra, grupos de material, instâncias, geometria sem sombra no lote que projeta sombra) e os 4 oficiais dentro de 400 chamadas e 750 mil triângulos (o teste imprime os números).
+- `client/tests/polyBudget.test.ts` (PF-35): cada mapa oficial nos dois níveis de detalhe (pior câmera, mediana, sombra, chamadas) dentro do orçamento do plano e do último medido, com 5% de folga em cada; nenhuma instância em escala zero; os mesmos colisores no Normal e no Leve; personagens (200 visuais com semente fixa: p90 de cada LOD e as razões entre níveis), armas em 3ª pessoa, viewmodel, efeitos em repouso e no pico e o quadro inteiro de cada mapa. Mede com `tools/orcamento.ts`; ao baixar um número de propósito, escreva o novo no teste.
 - `client/tests/seeded.test.ts`: `seeded()` dá os mesmos números de antes e `seeded(r.state)` continua a sequência de `r`.
 - `client/tests/mapPose.test.ts` (P32, [[ADR - Editor de mapas no jogo]]): a pose vira matriz e volta igual; `validateMapData` aceita a pose e recusa uma quebrada; peça sem pose (ou com pose nula) monta idêntica; uma parede girada em ângulo livre nos três eixos tem cada colisor no lugar da pose, os lotes levados, o vão com o centro certo e a porta continua passagem (raio pela porta não bate, a 2 m dela bate); uma sala girada acha o ponto dentro da caixa girada e não o canto da caixa alinhada em volta; `ROOM_` girado guarda o referencial (sem giro, a caixa de sempre); o biscoito de um armário girado fica onde o servidor espera; a luz de uma lanterna de papel girada sai de onde a pose a leva e o recorte de um lago girado vai com a pose (P42); no modo editor, tirar a peça leva colisores, sala e vão, e ela monta de novo igual.
 - `client/tests/shadowMap.test.ts` (`client/render/shadows.ts`, PF-6 Revisions 01): o mapa de sombra do sol é pedido quando ainda não existe (o primeiro quadro, ou um laço que não o agenda, como era o do editor de mapas), um laço só de render fica com ele depois do primeiro quadro, e nada é forçado quando ele já existe, com as sombras desligadas ou sem sol que projete sombra ([[Problem - Editor sem mapa de sombra com aceleração de hardware]]).
@@ -244,6 +294,7 @@ Os mapas são montados **sem tela** no Bun (`tools/headless.ts`: canvas falso, `
 - `client/tests/editorBatches.test.ts` (P46, `client/editor/batches.ts`): no Jardim, o editor com lotes desenha em chamadas próximas às do jogo (o teste imprime: jogo 233, editor sem lotes 1.682, com lotes 142, sem recorte); a peça selecionada sai do lote e volta; as cópias seguem a malha que se move e o raio da seleção acerta a malha da peça, nunca o lote; materiais iguais de peças diferentes dividem um lote e o material que muda sai dele; peça remontada ou apagada troca ou leva as cópias.
 - `client/tests/editorCamera.test.ts` (`client/editor/cameraMath.ts`, etapa 3): frente, direita e cima batem com a câmera do three; olhar para um ponto; olhar em volta e voar; órbita em volta do pivô (a distância fica e ele continua no centro) e em volta do meio da seleção fora do centro (ele fica no mesmo lugar da tela), parando no topo; arrastar leva o ponto do pivô pixel por pixel; a roda aproxima do pivô no meio da tela, vai na direção do cursor fora dele e, na ortográfica, deixa parado o ponto sob o cursor; F põe a caixa inteira na tela; as vistas pelos eixos; a transição gira pelo lado curto.
 - `client/tests/editorTools.test.ts` (`client/editor/tools.ts`): encaixe livre, com Ctrl, com o botão de grade e com passos escolhidos (vírgula aceita, faixas); as escolhas voltam do navegador e o que estiver quebrado volta ao padrão (Pivô, Global); Pivô e Centro (posição, giro e escala do gizmo); eixos Local e Global; girar com o Centro gira em volta do meio da seleção e com o Pivô em volta da ativa; escalar com o Centro espalha e aumenta o que tem escala.
+- `client/tests/playRules.test.ts` (`client/ui/playRules.ts`, PF-32): o filtro antigo vira um mapa (um só marcado pelo `fora` ou pelo `filtro`) ou Qualquer mapa (vários, nenhum), e quem já tem `onlineMap` fica com ele; zumbi força o Cemitério; um mapa da comunidade que sumiu da lista vira Qualquer mapa e volta se reaparecer; o Cemitério nunca vale fora do zumbi; sessões e "N jogando" por mapa e tipo; o mapa do `play` (o escolhido; com Qualquer mapa, o da sessão mais cheia não lotada, ou um oficial ao acaso); os textos do botão laranja por estado e nenhum prometendo "mais cheia".
 - `client/tests/galpaoRules.test.ts` (`client/ui/galpao/galpaoRules.ts`): as sete estações na ordem do menu e o Gerenciamento só para a equipe; anterior e próxima dando a volta; a aba de cada estação e a estação de cada aba (os formulários da conta no Perfil); as teclas na visão geral (1–7, Enter só depois de chegar), numa estação (Q/E, setas, Esc fechando antes a ficha da arma) e nada no voo de abertura; quem recebe o galpão (não em renderização por software nem com `oc.galpao` = 'off') e a cena leve.
 - `client/tests/editorBoxSelect.test.ts` (`client/editor/boxSelect.ts`): o retângulo em pixels vira coordenadas da vista; polígono por dentro, por cima, cruzando e a lasca que só tem a caixa por perto; recorte no plano de perto; numa cena com caixotes, chão, uma peça atrás da câmera, uma oculta e uma malha instanciada: o que encosta entra (o chão também), atrás da câmera e oculto não, em perspectiva e na ortográfica de cima; Shift soma, Ctrl alterna.
 - `client/tests/editorClipboard.test.ts` (`client/editor/clipboard.ts`): colar um grupo dá ids novos, os filhos penduram no grupo novo, tudo deslocado, e um desfazer tira tudo; a peça de dentro de um grupo volta para ele ou, com ele apagado, para o topo no mesmo lugar do mundo; a cópia não muda com edições depois; colar duas vezes não repete id nem id de piada, cada rato ganha o seu lugar, a bruxa (uma só) fica de fora; o ponto de colar.

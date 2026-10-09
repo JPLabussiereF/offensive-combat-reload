@@ -9,10 +9,11 @@ source_paths:
   - tools/lab-personagens.html
   - client/main.ts
   - README.md
+  - client/tests/viewmodelSwitch.test.ts
 tags:
   - testes
   - performance
-updated: 2026-10-05
+updated: 2026-10-08
 ---
 
 # Performance Tests
@@ -39,6 +40,11 @@ Saída: tabela HTML com problemas (vermelho) e notas (âmbar) e um resumo por ca
 - Overlay **F3** e `window.__oc.perf()` (dev) — ver [[Performance Overview]].
 - O `README.md` cita uma varredura de 260 mil ticks de movimento (3.374 travas → 0); a ferramenta não está no repositório (`unknown`).
 - O comentário de `client/main.ts` diz que `window.__oc` existe "para testes de fumaça automatizados", mas nenhum script desses testes está no repositório (`unknown`).
+- **Troca de arma (PF-34):** medição feita com Chrome headless (playwright-core, GPU real) no campo de tiro: 50 trocas por `__oc.input.press('swapWeapon', …)`, maior `id` de `__oc.ctx.renderer.info.programs` antes e depois (programas WebGL novos) e p95/máximo dos intervalos de `requestAnimationFrame`, parado e trocando; controle com a submetralhadora de secundária (trocada por `__oc.guns.secundaria.setData`). O script ficou fora do repositório; o procedimento e os números estão em [[Known Bottlenecks]].
+
+### Guarda estrutural sem navegador
+
+`client/tests/viewmodelSwitch.test.ts` ([[Unit Tests]]) não mede tempo, mas garante a causa da PF-34: 50 trocas entre rifle, pistola, submetralhadora e revólver não criam nem descartam material ou geometria no viewmodel, então não há shader a recompilar numa troca.
 
 ## Sugestão de medição repetível (inferência)
 

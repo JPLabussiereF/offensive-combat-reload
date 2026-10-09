@@ -38,6 +38,11 @@ export interface CharacterConfig {
   face?: Face;
   build: { height: Height; build: Build };
   pcd: { braco: ArmLoss; perna: LegLoss };
+  /**
+   * No body: only the pieces, on the skeleton (the editor's item cards, client/ui/customize/itemThumbs.ts, show a
+   * piece on its own). Not saved: a look always has a body.
+   */
+  bodyless?: boolean;
 }
 
 const DEFAULT_COLORS: Record<string, string> = { skin: '#e8bfa0', hair: '#45301f', eyes: '#4a6fa5', team: '#e8e2d6' };
@@ -57,6 +62,14 @@ function layerOf(slot: CharSlot): number {
 /** Levels of detail baked for the game, and the distance (m) each one starts at. */
 const LOD_LEVELS = [0, 1, 2] as const;
 const LOD_DISTANCES = [0, 20, 45];
+/** The light object detail (PF-35 L7): the far levels from 10 and 25 m. */
+const LOD_DISTANCES_LIGHT = [0, 10, 25];
+let lodDistances = LOD_DISTANCES;
+
+/** The object detail the characters baked from now on use (the game sets it when a match's map is built). */
+export function setCharacterDetail(detail: 'normal' | 'leve') {
+  lodDistances = detail === 'leve' ? LOD_DISTANCES_LIGHT : LOD_DISTANCES;
+}
 
 /** Morph targets that survive the bake (they change at runtime): the closed hands. */
 const LIVE_MORPHS = ['punho_L', 'punho_R'] as const;
@@ -216,7 +229,7 @@ export class Character {
   }
 
   private itemFor(slot: CharSlot): string | null {
-    if (slot === 'body') return this.config.items.body ?? (this.config.sex === 'f' ? 'corpo_f' : 'corpo_m');
+    if (slot === 'body') return this.config.bodyless ? null : (this.config.items.body ?? (this.config.sex === 'f' ? 'corpo_f' : 'corpo_m'));
     return this.config.items[slot] ?? null;
   }
 
@@ -541,6 +554,19 @@ export class Character {
     return out;
   }
 
+  /** Body regions hidden on top of what the pieces and the PCD mode hide (hideBody). */
+  private bodyHidden = 0;
+
+  /**
+   * Hides parts of the body, whatever is worn (the editor's cards: a clay head shows only the head and the neck).
+   * An empty list shows the whole body again.
+   */
+  hideBody(regions: readonly RegionName[]) {
+    this.bodyHidden = regionBits(regions);
+    this.unbake();
+    this.refresh();
+  }
+
   /** Recomputes hidden regions, build morphs and stumps after any change of equipment. */
   private refresh() {
     const pcd = regionBits(this.pcdRegions());
@@ -559,7 +585,7 @@ export class Character {
       let others = 0;
       // Only on pieces in a lower layer: a jacket hides the shirt's sleeves, not the elbow pads worn over it.
       for (const [s2, p2] of this.pieces) if (s2 !== slot && s2 !== 'body' && layerOf(s2) > layerOf(slot)) others |= regionBits(p2.item.over ?? []);
-      const mask = p.kind === 'body' ? cover | pcd : p.kind === 'hair' ? pcd | hairTop | others : pcd | others;
+      const mask = p.kind === 'body' ? cover | pcd | this.bodyHidden : p.kind === 'hair' ? pcd | hairTop | others : pcd | others;
       for (const m of p.materials) m.userData.uniforms.uHidden.value = mask;
     }
     this.refreshStumps();
@@ -613,7 +639,7 @@ export class Character {
    * in vertex colors (palette cell × tint × occlusion) and hidden regions removed (one shared material). The
    * weapons stay separate (visibility toggled by the game). The closed-hand morphs survive the bake. Any
    * later change unbakes automatically. Three levels of detail are baked (the pieces rebuilt with less
-   * detail) and switched by distance (LOD_DISTANCES).
+   * detail) and switched by distance (LOD_DISTANCES, or LOD_DISTANCES_LIGHT with the light object detail).
    */
   bake() {
     if (this.baked) return;
@@ -770,7 +796,7 @@ export class Character {
       // Level 0 until the renderer picks by distance.
       mesh.visible = i === 0;
       // 10% hysteresis: no flicker at the boundary.
-      lodObj.addLevel(mesh, LOD_DISTANCES[i] ?? 0, 0.1);
+      lodObj.addLevel(mesh, lodDistances[i] ?? 0, 0.1);
     });
     this.body.add(lodObj);
     this.baked = lodObj;
@@ -861,7 +887,8 @@ export class Character {
     for (const m of this.stumpMaterials) m.dispose();
     this.mixer?.stopAllAction();
     this.root.removeFromParent();
-    // Geometries are shared caches: they stay.
+    // The bone texture (GPU skinning) is this character's own; geometries are shared caches: they stay.
+    this.skeleton.dispose();
   }
 }
 

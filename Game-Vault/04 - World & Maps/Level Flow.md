@@ -14,7 +14,7 @@ tags:
   - world
   - maps
   - flow
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Level Flow
@@ -25,10 +25,10 @@ Como um mapa é escolhido, montado e entra em jogo, e o que acontece com o mapa 
 
 | Modo | Quem decide o mapa | Detalhe |
 | --- | --- | --- |
-| Treino offline ([[Training]]) | seletor **Mapa** da home | valor salvo em `localStorage` (`oc.bots`, campo `map`); padrão `rua` |
-| Contra bots ([[Versus Bots]]) | o mesmo seletor da home | mesma preferência salva |
-| Online ([[Free For All]]) | **a sessão** | o servidor guarda o id do mapa da sessão; o cliente usa `joined.session.map` |
-| Criar sessão online | seletor de mapa da criação de sessão | mensagem `create` com `map`; o servidor aceita só ids válidos (`isMapId`), senão usa `rua` |
+| Treino offline ([[Training]]) | cartão de mapa escolhido na aba Jogar | valor salvo em `localStorage` (`oc.bots`, campo `map`); padrão `rua`; o clique só escolhe, o botão laranja começa |
+| Contra bots ([[Versus Bots]]) | o mesmo cartão da aba Jogar | mesma preferência salva (zumbi: o Cemitério) |
+| Online ([[Free For All]]) | **a sessão** | o cartão escolhido (ou Qualquer mapa) decide o mapa do `play`; o servidor guarda o id do mapa da sessão e o cliente usa `joined.session.map` |
+| Criar sessão online | o mapa escolhido na aba Jogar ("+ Criar sessão com nome"; desabilitado com Qualquer mapa) | mensagem `create` com `map`; o servidor aceita só ids válidos (`isMapId`), senão usa `rua` |
 | Prévia de mapa Blender | parâmetro de URL `?mapa=/maps/arquivo.glb` | **sobrepõe** qualquer escolha acima (ver abaixo) |
 
 As salas online abrem sob demanda (`play {map, mode}`), cada uma presa à versão do mapa com que abriu; o cliente baixa os dados dessa versão antes de montar o mapa. Não há rotação de mapas, votação nem fim de partida: o README do projeto lista "fim de partida (limite de abates e tempo) e votação de mapa" como ainda não feitos. Ver [[Sessions]] e [[Matchmaking]].

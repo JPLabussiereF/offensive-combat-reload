@@ -17,12 +17,14 @@ source_paths:
   - client/character/animator.ts
   - shared/arsenal.ts
   - shared/weapons.ts
+  - client/main.ts
+  - client/tests/viewmodelSwitch.test.ts
 tags:
   - game
   - art
   - weapons
   - assets
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Weapon Models
@@ -103,10 +105,12 @@ Ver [[Grenades]], [[Land Mines]] e [[Buffs & Debuffs]].
 
 ## Primeira pessoa x terceira pessoa
 
+**Modelo de longe (PF-35, T8 e P11):** a terceira pessoa usa o mesmo construtor com `farModel` ligado (`gunParts(g, true)`, `knifeModel(form, true)`): cilindros e cones com até 8 lados, esferas 6 × 4, aros 4 × 12, sem as letras de pixel ("RH", "NO PAIN NO GAIN") e sem as peças cuja maior medida fica abaixo de 1,5 cm ou aros de tubo fino (aros e ponto do ponto vermelho, bolinhas da batata, tachinhas, miras de ferro miúdas). Toda arma cabe em 800 triângulos (a mais pesada, o fuzil da tia, 580; o pistolão caiu de 2.786 para 252); o viewmodel continua com todo o detalhe (até 3.414). Medido por `bun tools/orcamento.ts` e travado em `client/tests/polyBudget.test.ts`.
+
 | | Primeira pessoa (`Viewmodel`) | Terceira pessoa (`heldWeapons.ts`) |
 | --- | --- | --- |
 | Cena | `vmScene`, câmera própria ([[ADR - Viewmodel em cena e câmera próprias]]) | cena do mundo, presa a sockets do personagem |
-| Armas de fogo | um *kit* por visual (`gunModelKey`), montado uma vez e guardado: trocar de arma não custa nada; partes rígidas + braços fundidos num mesh toon (`bakeStaticParts`); carregador, clarão e brilhos separados. `setGun` põe a arma na mão (e refaz os braços quando a mão de apoio muda entre guarda-mão e punho de pistola); `draw(s)` faz a arma subir de baixo durante o tempo de saque | `heldGun(g)`: um mesh por visual, cache `gun|<gunModelKey>`. Na mão (`hand_R`) ficam as duas armas, só a que está na mão aparece; a primária fica nas costas (`back`), inclusive enquanto a secundária está na mão |
+| Armas de fogo | um *kit* por visual (`gunModelKey`), montado uma vez e guardado; partes rígidas fundidas num mesh toon (`bakeStaticParts`; os braços ficam à parte, ver abaixo); carregador, clarão e brilhos separados. `prepare(g)` monta o kit antes (as duas armas do equipamento, em `applyLoadout`). `setGun` põe a arma na mão e **só troca o que aparece**: nada é criado nem descartado, e a mão de apoio, já montada nas duas poses (guarda-mão e punho de pistola), só alterna qual aparece (PF-34). Trocar de arma não custa nada. `draw(s)` faz a arma subir de baixo durante o tempo de saque | `heldGun(g)`: um mesh por visual, cache `gun|<gunModelKey>`, montado com o **modelo de longe** (`gunParts(g, true)`, PF-35 T8). Na mão (`hand_R`) ficam as duas armas, só a que está na mão aparece; a primária fica nas costas (`back`), inclusive enquanto a secundária está na mão |
 | Faca | aparece só durante o golpe, na mão direita (ou espelhada para a esquerda sem mão direita) | `heldKnife(form)`, na mão durante o golpe; a arma de fogo vai para as costas |
 | Granada | mão esquerda, tremendo enquanto "cozinha" | mão esquerda, com o arremesso animado |
 | Material | `MeshToonMaterial` com cor por vértice | **um** material toon compartilhado por todas as armas de todos |
@@ -116,13 +120,22 @@ Em primeira pessoa a arma tem origem no receptor; em terceira, no punho (`RIFLE_
 
 ### Braços em primeira pessoa
 
-Antebraço e mão do próprio personagem, gerados com o mesmo corpo facetado (`viewmodelArms.ts`), com o punho fechado pelo morph (direita 0,92, esquerda 0,42), manga longa ou braço nu, luvas, e PCD. Geometria em cache por combinação. Ver [[Character Customization]].
+Antebraço e mão do próprio personagem, gerados com o mesmo corpo facetado (`viewmodelArms.ts`), com o punho fechado pelo morph (direita 0,92, esquerda 0,42, esquerda no punho da pistola 0,75), manga longa ou braço nu, luvas, e PCD. Geometria em cache por combinação. Ver [[Character Customization]].
+
+- **Um material só** para os quatro braços (mão da arma, mão de apoio, mão da faca, mão da granada): `armMaterial` (o `paintedMaterial` do personagem), criado na primeira montagem e nunca descartado durante o jogo. `setBody` repinta pele, manga e luvas no próprio material (`paintArms` → `setChannels`/`setTints`). Como é compartilhado, um braço que precise de outra cor ou máscara precisaria de um material próprio (comentário no código).
+- **Mão de apoio nas duas poses:** sem PCD e com `maoEsq` (antebraço sem mão), o braço esquerdo é montado no guarda-mão (`VM_FEEL.arms.left`, também a empunhadura da submetralhadora) e no punho da pistola (`pistolLeft`); a arma na mão mostra uma e esconde a outra. Sem a mão direita (arma espelhada) ou sem o braço esquerdo não há mão de apoio, como antes.
+- **Quando os braços são remontados:** só em `setBody` e `retune` (painel F6). A troca de arma não toca neles. Antes da PF-34, a troca entre um rifle (ou a submetralhadora) e uma secundária de pistola refazia os quatro braços e descartava o material, o que apagava e recompilava o shader a cada troca (o engasgo da rodinha; ver [[Known Bottlenecks]]).
+
+### Aquecimento no começo da partida
+
+Logo depois do equipamento inicial (`client/main.ts`), `viewmodel.warmup` põe na cena as armas preparadas e deixa visíveis por um instante as armas, a faca, a granada, o clarão e as duas poses da mão de apoio enquanto roda `renderer.compile(vmScene, vmCamera)`; depois tudo volta como estava (as armas fora da mão saem da cena de novo). Assim a primeira troca, a primeira facada e o primeiro arremesso não compilam shader. O viewmodel do espectador do modo zumbi faz o mesmo quando passa a assistir um colega (a primeira vez e a cada troca de quem assiste), com as duas armas do equipamento dele ([[Zombie]]). Testes em `client/tests/viewmodelSwitch.test.ts` ([[Unit Tests]]).
 
 ## Código relacionado
 
 - `client/render/weaponModels.ts` (`gunParts`, `GUN_MODELS`, `gunModelKey`, `holdOf`, `sight`, `isScope`, `LOOKS`, `pixelText`, `potato`, `knifeModel`, `mineModel`, `glowMat`)
-- `client/render/viewmodel.ts` (`setGun`, `draw`, `kick(mul)`, `setKnife`, `setGrenadeKind`, `bakeStaticParts`, `flashTexture`)
-- `client/render/viewmodelArms.ts` (`armMesh`, `placeArm`)
+- `client/render/viewmodel.ts` (`setGun`, `prepare`, `warmup`, `draw`, `kick(mul)`, `setKnife`, `setGrenadeKind`, `bakeStaticParts`, `flashTexture`)
+- `client/render/viewmodelArms.ts` (`armMaterial`, `paintArms`, `armMesh`, `placeArm`)
+- `client/main.ts` (`applyLoadout` chama `prepare`; `warmup` no começo da partida e no viewmodel do espectador do modo zumbi)
 - `client/entities/heldWeapons.ts` (`heldGun`, `heldKnife`, `heldGrenade`)
 - `client/entities/avatar.ts` (`setLoadout`: as duas armas na mão, a primária nas costas)
 - `client/character/animator.ts` (`GunHold`, `ANIM.leftGrip`)

@@ -1,4 +1,9 @@
-// Every user-facing string lives here (section 5: pt-BR and en at minimum).
+// Every user-facing string lives here (section 5): pt-BR and en in this file, Spanish and German in their own
+// (strings.es.ts, strings.de.ts), typed by these keys so the typecheck flags a missing one (PF-30).
+import { isLang, LANG_LOCALE, textIn, type Lang, type Text } from '@shared/langs';
+import * as DE from './strings.de';
+import * as ES from './strings.es';
+
 const ptBR = {
   title: 'OFFENSIVE COMBAT',
   subtitle: 'Protótipo de tiro · Fase 1',
@@ -315,6 +320,9 @@ const ptBR = {
   dancing: 'Oprimindo {name}…',
   quality: 'Qualidade gráfica',
   qualityAuto: 'Automática',
+  objectDetail: 'Detalhe dos objetos',
+  detailNormal: 'Normal',
+  detailLight: 'Leve',
   spatialAudio: 'Som',
   spatialAuto: 'Automático',
   spatialHeadphones: 'Fone (3D)',
@@ -369,7 +377,7 @@ const ptBR = {
   createSession: 'CRIAR',
   sessionNamePlaceholder: 'Nome da nova sessão',
   back: 'Voltar',
-  noSessions: 'Nenhuma sessão aberta. Crie a primeira!',
+  noSessions: 'Nenhuma sessão aberta. JOGAR ONLINE abre a primeira.',
   join: 'ENTRAR',
   full: 'LOTADA',
   joining: 'Entrando…',
@@ -430,22 +438,16 @@ const ptBR = {
   profileLine: '{kills} abates · {matches} partidas',
   modeTitle: 'Modo',
   modeOnline: 'Online',
-  modeOnlineDesc: 'Mata-mata, corrida armada ou zumbi em equipe, com até 9 pessoas. Vale XP para a conta.',
   modeBots: 'Contra bots',
-  modeBotsDesc: 'Você e 3 a 9 bots, do jeito que você escolher, ou sozinho contra a horda.',
   modeRange: 'Campo de tiro',
-  modeRangeDesc: 'Bonecos de treino para testar a mira e as armas.',
-  mapFilterTitle: 'Filtrar por mapa',
-  mapFilterHint: 'Marque os mapas que quer ver',
-  mapHintBots: 'Depois escolha dificuldade e bots',
   // Game modes (shared/modes.ts): gameMode_<id> and gameModeDesc_<id>.
   gameModeTitle: 'Tipo de partida',
   'gameMode_mata-mata': 'Mata-mata',
   'gameModeDesc_mata-mata': 'Todos contra todos com o seu Arsenal, escolhido antes de entrar.',
   'gameMode_corrida-armada': 'Corrida armada',
-  'gameModeDesc_corrida-armada': '3 abates sobem de arma, facada tira um abate. Vence quem matar com o Sabre de Luz.',
+  'gameModeDesc_corrida-armada': 'Todos sobem a mesma escada de armas. Vence o abate com o Sabre de Luz.',
   'gameMode_zumbi': 'Zumbi',
-  'gameModeDesc_zumbi': 'Em equipe contra 12 ondas de zumbis e 3 chefes no Cemitério da Capela. Cada abate dá XP e dinheiro; gaste no Caixão Misterioso e em barricadas que decidem por onde a horda entra.',
+  'gameModeDesc_zumbi': 'Em equipe contra 12 ondas de zumbis e 3 chefes, com caixão e barricadas.',
   // Zumbi (shared/zombies.ts): zombies (ztype_<kind>), bosses (zboss_<id>), the coffin's items (zitem_<id>),
   // rarities (rar_<id>), the HUD, the coffin, revives and the end-of-match summary.
   ztype_comum: 'Zumbi',
@@ -613,15 +615,40 @@ const ptBR = {
   roundNext: 'Nova rodada em {s}…',
   roundStart: 'Nova rodada: todos de volta à primeira arma!',
   ladderShort: 'Arma',
-  mapHintRange: 'Clique num mapa e o treino começa na hora',
-  sessionsOne: '1 sessão',
-  sessionsMany: '{n} sessões',
-  quickJoinHint: 'Entra direto na sessão mais cheia dos mapas filtrados',
   openSessions: 'Sessões abertas ({n})',
   moreSessions: 'VER MAIS ({n})',
-  noSessionsFiltered: 'Nenhuma sessão aberta nos mapas selecionados.',
-  pickAMap: 'Marque pelo menos um mapa.',
   versusBots: 'CONTRA {n} BOTS',
+  // Aba Jogar (PF-32, client/ui/home.ts e client/ui/playRules.ts): um mapa escolhido, o painel lateral e o botão laranja.
+  playAnyMap: 'Qualquer mapa',
+  playAnyMapSub: 'Onde tiver mais gente',
+  playPlayers: '{n} jogando',
+  playNobody: 'ninguém agora',
+  playAllMaps: 'Todos os mapas ›',
+  playSessionsOn: 'Sessões em {map} ({n})',
+  noSessionsMap: 'Ninguém em {map} agora. JOGAR ONLINE abre uma sessão nova.',
+  playSessionsLoading: 'Buscando sessões…',
+  playSessionsOffline: 'Sem servidor agora. Bots e treino funcionam offline.',
+  playCreateToggle: '+ Criar sessão com nome',
+  playCreateShort: '+ CRIAR',
+  playCreateWhere: 'em {map} · {mode}',
+  playCreatePickMap: 'Escolha um mapa para criar uma sessão com nome.',
+  playSessionsBtn: 'SESSÕES ({n})',
+  playBackMaps: '‹ MAPAS',
+  modeOnlineShort: 'ONLINE',
+  modeBotsShort: 'BOTS',
+  modeRangeShort: 'TREINO',
+  'gameModeShort_corrida-armada': 'Corrida',
+  playBotsTitle: 'Partida contra bots',
+  playBotsN: '{n} bots',
+  playHordeTitle: 'Sozinho contra a horda',
+  playHordeInfo: '12 ondas e 3 chefes. Cair é perder; o dinheiro da partida não fica.',
+  playHordeShort: 'Sozinho · 12 ondas',
+  playRangeTitle: 'Campo de tiro',
+  playRangeInfo: 'Bonecos parados para testar a mira e as armas. O Arsenal pode ser trocado na pausa.',
+  playRangeType: 'Treino livre: sem tipo de partida e sem placar.',
+  playCtaOnline: '{mode} · {map} · {players}',
+  playCtaNew: 'abre uma sessão nova',
+  playCtaBots: '{mode} · {map} · {skill}',
   // Home: landing (signed out)
   navGame: 'O jogo',
   navMaps: 'Mapas',
@@ -945,7 +972,21 @@ const ptBR = {
   pmDescInvert: 'Mover para cima olha para baixo',
   pmDescFov: 'Maior vê mais dos lados',
   pmDescQuality: 'Automática ajusta sozinha para manter o FPS',
+  pmDescDetail: 'Leve simplifica árvores, folhagem e enfeites (vale a partir da próxima partida)',
   pmDescFullscreen: 'Em tela cheia, Esc abre e fecha o menu na hora',
+  // The language (PF-30): the row in the settings' Video tab, the landing's button, the page title and the
+  // game server's refusals by code (shared/protocol.ts WsErrorCode).
+  language: 'Idioma',
+  pmDescLanguage: 'Textos, menus e o e-mail de senha. Fora da partida, a tela recarrega na hora',
+  langLater: 'Idioma salvo: vale ao voltar ao início',
+  docTitle: 'Offensive Combat — Protótipo',
+  wsErr_sem_ola: 'Conexão sem apresentação. Tente de novo.',
+  wsErr_sessao_lotada: 'Sessão lotada.',
+  wsErr_sessao_inexistente: 'Essa sessão não existe mais.',
+  wsErr_mapa_indisponivel: 'Esse mapa não está disponível.',
+  wsErr_modo_fora_do_mapa: 'Esse modo não é jogado nesse mapa.',
+  wsErr_sem_mapa: 'Nenhum mapa disponível para esse modo.',
+  wsErr_entrada_falhou: 'Não deu para entrar agora.',
   pmDescVolume: 'Volume geral do jogo',
   pmDescSpatial: 'Automático: 3D no PC, estéreo no celular',
   pmOn: 'Ligado',
@@ -960,8 +1001,7 @@ const ptBR = {
     'Seu navegador está desenhando o jogo sem placa de vídeo (renderizador: {gpu}), por isso fica em ~10 FPS. Ative “Usar aceleração gráfica quando disponível” em chrome://settings/system (no Edge: edge://settings/system) e reinicie o navegador.',
   // Galpão (client/ui/galpao): the 3D home's menu, stations, signs, Arsenal board and launch.
   gpQuick: 'ENTRADA RÁPIDA',
-  gpQuickLine: '{mode} · Online · {maps}',
-  gpNoMapMarked: 'nenhum mapa marcado',
+  gpQuickLine: '{mode} · Online · {map}',
   gpBack: '‹ GALPÃO',
   gpLaunching: 'ENTRANDO NA PARTIDA',
   gpLaunchOnline: '{map} · {mode} · {n}/{max} jogadores',
@@ -982,7 +1022,7 @@ const ptBR = {
   gpStSub_profile: 'Conta, estatísticas e personagem',
   gpStSub_settings: 'Mira, vídeo, áudio e teclas',
   gpStSub_admin: 'Moderação · só para a equipe',
-  gpHint_play: 'Escolha o modo, o tipo de partida e o mapa. O botão laranja começa.',
+  gpHint_play: 'Escolha o mapa e jogue. O botão laranja começa.',
   gpHint_maps: 'Jogue um mapa, duplique um para editar ou crie um do zero.',
   gpHint_arsenal: 'Arraste para navegar, roda do mouse para zoom. Clique numa arma para ver os detalhes. Verde: equipada · vermelha: bloqueada.',
   gpHint_arsenalTouch: 'Arraste para navegar, pinça para zoom. Toque numa arma para ver os detalhes. Verde: equipada · vermelha: bloqueada.',
@@ -995,7 +1035,12 @@ const ptBR = {
   gpSign_arsenal: '03 · ARSENAL',
   gpSign_profile: '05 · VESTIÁRIO',
   gpSign_settings: '06 · OFICINA',
-  gpSign_admin: '07 · SEGURANÇA',
+  gpSign_admin: '08 · SEGURANÇA',
+  gpSign_pets: '07 · PETS',
+  gpSt_pets: 'Pets',
+  gpStSub_pets: 'Companheiros: escolha, nome e coleira',
+  gpHint_pets: 'Clique num gancho para chamar o pet. Só "Levar este" troca o que vai com você.',
+  gpHint_petsTouch: 'Toque num gancho para chamar o pet. Só "Levar este" troca o que vai com você.',
   gpBoard_primaria: 'PRIMÁRIA',
   gpBoard_secundaria: 'SECUNDÁRIA',
   gpBoard_faca: 'FACA',
@@ -1004,7 +1049,7 @@ const ptBR = {
   gpAdminScreenSub: 'ACESSO RESTRITO · EQUIPE',
   gpDanger: 'PERIGO',
   gpHighVoltage: 'ALTA TENSÃO',
-  gpExit: 'SAÍDA',
+  gpYard: 'QUINTAL',
   gpAlbumCover1: 'OFFENSIVE COMBAT · ÁLBUM OFICIAL',
   gpAlbumCover2: 'FIGURI',
   gpAlbumCover3: 'NHAS',
@@ -1017,11 +1062,61 @@ const ptBR = {
   gpSharesProg: 'Usa os pontos e as melhorias de {prog}',
   gpAutoOn: 'Liga sozinha ao liberar',
   gpUpgradesOf: 'MELHORIAS DE {prog}',
-  gpPlayHintOnline: 'Escolha o tipo de partida e os mapas. A lista mostra as sessões abertas agora.',
+  gpPlayHintOnline: 'Online, com outras pessoas. Vale XP para a conta.',
   gpPlayHintBots: 'Partida offline contra bots, com o seu Arsenal e as melhorias da conta.',
-  gpPlayHintRange: 'Clique num mapa (ou no botão laranja) para abrir o campo de tiro com os bonecos.',
+  gpPlayHintRange: 'Treino offline com bonecos parados.',
   gpCtaLine: '{mode} · {map}',
   gpRangeTargets: 'Bonecos parados',
+  // Pets (PF-29)
+  tabPets: 'PETS',
+  petsTitle: 'Pets',
+  petsSub: 'Um pet vai com você: enfeite no PvP, ajuda no modo zumbi. Todos de graça por enquanto.',
+  petTake: 'Levar este',
+  petWithYou: '✓ Vai com você',
+  petLeave: 'Deixar no quintal',
+  petNoneWithYou: 'Nenhum pet vai com você agora.',
+  petTagWith: 'COM VOCÊ',
+  petLocked: 'APOIO',
+  petLockedHow: 'Libera com o pacote de apoio.',
+  petNameLabel: 'Nome (só você vê)',
+  petNameFixed: 'A Amora é a Amora: o nome e a pelagem não mudam, só a coleira.',
+  petCoat: 'Pelagem',
+  petRobe: 'Robe',
+  petCollar: 'Coleira',
+  petPvp: 'Junto no PvP',
+  petPvpSub: 'Só enfeite: colado em você, sem barulho, some quando você não está à vista',
+  petPve: 'Junto no zumbi',
+  petPveSub: 'Age sozinho com a habilidade, sem dano e sem dinheiro',
+  petAbilityTitle: 'NO MODO ZUMBI',
+  petSaveFailed: 'Não foi possível salvar o pet',
+  petSaved: 'Pet salvo',
+  petCooldown: 'Recarga: {s} s',
+  petCharges: '{n} vezes por partida',
+  petAbility_amora: 'Segura, Amora!',
+  petAbility_bruxinha: 'Feitiço do Pato',
+  petAbility_gato: 'Sétima Vida',
+  petAbility_fuinha: 'Mão na Massa',
+  petAbility_lontra: 'Pedrada',
+  petAbility_iguana: 'Rabo de Isca',
+  petAbilityDesc_amora: 'Late, morde a canela do zumbi mais perto (até {r} m) e o segura por {s} s. No Segurança e nos chefes só dá um tranco.',
+  petAbilityDesc_bruxinha: 'Prende o zumbi perigoso mais perto (até {r} m) numa boia de patinho por {s} s: parado, e levando tiro. Chefes são imunes.',
+  petAbilityDesc_gato: 'Quando você cai, ela te levanta sozinha em {s} s (um colega leva menos). Se um colega começa a reanimar, ela cede a vez.',
+  petAbilityDesc_fuinha: 'Prega tábuas devagar, uma a cada {s} s, na barricada mais danificada perto de você (até {r} m).',
+  petAbilityDesc_lontra: 'Uma pedrada interrompe o cuspe da Tia da Fofoca ou o inchaço do Tio do Churrasco perto de você (até {r} m).',
+  petAbilityDesc_iguana: 'Com pouca vida, quando um zumbi te acerta ela solta o rabo: os zumbis em volta (até {r} m) vão atrás dele por {s} s.',
+  petAct_hold: 'Segurou!',
+  petAct_nudge: 'Tranco!',
+  petAct_duck: 'Pato!',
+  petAct_lift: 'Levantando…',
+  petAct_yield: 'Esperando o colega',
+  petAct_up: 'De pé!',
+  petAct_nail: 'Tábua!',
+  petAct_stone: 'Pedrada!',
+  petAct_tail: 'Rabo!',
+  zCatLifting: 'A gata está te levantando · {s}s',
+  zCatLiftingNamed: '{name} está te levantando · {s}s',
+  hidePets: 'Esconder pets dos outros',
+  pmDescHidePets: 'Só no PvP: os pets dos outros somem (o seu continua)',
 } as const;
 
 const en: Record<keyof typeof ptBR, string> = {
@@ -1332,6 +1427,9 @@ const en: Record<keyof typeof ptBR, string> = {
   dancing: 'Humiliating {name}…',
   quality: 'Graphics quality',
   qualityAuto: 'Automatic',
+  objectDetail: 'Object detail',
+  detailNormal: 'Normal',
+  detailLight: 'Light',
   spatialAudio: 'Sound',
   spatialAuto: 'Automatic',
   spatialHeadphones: 'Headphones (3D)',
@@ -1386,7 +1484,7 @@ const en: Record<keyof typeof ptBR, string> = {
   createSession: 'CREATE',
   sessionNamePlaceholder: 'New session name',
   back: 'Back',
-  noSessions: 'No open sessions. Create the first one!',
+  noSessions: 'No open sessions. PLAY ONLINE opens the first one.',
   join: 'JOIN',
   full: 'FULL',
   joining: 'Joining…',
@@ -1446,21 +1544,15 @@ const en: Record<keyof typeof ptBR, string> = {
   profileLine: '{kills} kills · {matches} matches',
   modeTitle: 'Mode',
   modeOnline: 'Online',
-  modeOnlineDesc: 'Deathmatch, gun game or team zombies, with up to 9 people. Earns account XP.',
   modeBots: 'Vs bots',
-  modeBotsDesc: 'You and 3 to 9 bots, your way, or alone against the horde.',
   modeRange: 'Shooting range',
-  modeRangeDesc: 'Training dummies to test your aim and weapons.',
-  mapFilterTitle: 'Filter by map',
-  mapFilterHint: 'Tick the maps you want to see',
-  mapHintBots: 'Then pick difficulty and bots',
   gameModeTitle: 'Match type',
   'gameMode_mata-mata': 'Deathmatch',
   'gameModeDesc_mata-mata': 'Everyone against everyone with your Arsenal, picked before you join.',
   'gameMode_corrida-armada': 'Gun game',
-  'gameModeDesc_corrida-armada': '3 kills move you up a weapon, a stab takes a kill away. A lightsaber kill wins.',
+  'gameModeDesc_corrida-armada': 'Everyone climbs the same weapon ladder. A lightsaber kill wins.',
   'gameMode_zumbi': 'Zombies',
-  'gameModeDesc_zumbi': 'Team up against 12 waves of zombies and 3 bosses in the Chapel Cemetery. Every kill gives XP and money; spend it at the Mystery Coffin and on barricades that decide where the horde gets in.',
+  'gameModeDesc_zumbi': 'As a team against 12 zombie waves and 3 bosses, with the coffin and barricades.',
   ztype_comum: 'Zombie',
   ztype_corredor: 'Jogger',
   ztype_inchado: 'BBQ Uncle',
@@ -1624,15 +1716,39 @@ const en: Record<keyof typeof ptBR, string> = {
   roundNext: 'New round in {s}…',
   roundStart: 'New round: everyone back to the first weapon!',
   ladderShort: 'Weapon',
-  mapHintRange: 'Click a map and training starts right away',
-  sessionsOne: '1 session',
-  sessionsMany: '{n} sessions',
-  quickJoinHint: 'Jumps into the fullest session of the filtered maps',
   openSessions: 'Open sessions ({n})',
   moreSessions: 'SHOW MORE ({n})',
-  noSessionsFiltered: 'No open sessions on the selected maps.',
-  pickAMap: 'Tick at least one map.',
   versusBots: 'VS {n} BOTS',
+  playAnyMap: 'Any map',
+  playAnyMapSub: 'Where most people are',
+  playPlayers: '{n} playing',
+  playNobody: 'nobody now',
+  playAllMaps: 'All maps ›',
+  playSessionsOn: 'Sessions on {map} ({n})',
+  noSessionsMap: 'Nobody on {map} now. PLAY ONLINE opens a new session.',
+  playSessionsLoading: 'Looking for sessions…',
+  playSessionsOffline: 'No server right now. Bots and training work offline.',
+  playCreateToggle: '+ Create a named session',
+  playCreateShort: '+ CREATE',
+  playCreateWhere: 'on {map} · {mode}',
+  playCreatePickMap: 'Pick a map to create a named session.',
+  playSessionsBtn: 'SESSIONS ({n})',
+  playBackMaps: '‹ MAPS',
+  modeOnlineShort: 'ONLINE',
+  modeBotsShort: 'BOTS',
+  modeRangeShort: 'RANGE',
+  'gameModeShort_corrida-armada': 'Gun game',
+  playBotsTitle: 'Match against bots',
+  playBotsN: '{n} bots',
+  playHordeTitle: 'Alone against the horde',
+  playHordeInfo: "12 waves and 3 bosses. Going down loses; the match money isn't kept.",
+  playHordeShort: 'Alone · 12 waves',
+  playRangeTitle: 'Shooting range',
+  playRangeInfo: 'Still dummies to test your aim and weapons. The Arsenal can be changed in the pause menu.',
+  playRangeType: 'Free training: no match type, no score.',
+  playCtaOnline: '{mode} · {map} · {players}',
+  playCtaNew: 'opens a new session',
+  playCtaBots: '{mode} · {map} · {skill}',
   navGame: 'The game',
   navMaps: 'Maps',
   navModes: 'Modes',
@@ -1952,7 +2068,19 @@ const en: Record<keyof typeof ptBR, string> = {
   pmDescInvert: 'Moving up looks down',
   pmDescFov: 'Wider sees more to the sides',
   pmDescQuality: 'Automatic adjusts itself to keep the FPS',
+  pmDescDetail: 'Light simplifies trees, foliage and ornaments (from the next match on)',
   pmDescFullscreen: 'In fullscreen, Esc opens and closes the menu instantly',
+  language: 'Language',
+  pmDescLanguage: 'Texts, menus and the password e-mail. Outside a match, the screen reloads right away',
+  langLater: 'Language saved: it applies when you go back to the start',
+  docTitle: 'Offensive Combat — Prototype',
+  wsErr_sem_ola: 'The connection skipped its hello. Try again.',
+  wsErr_sessao_lotada: 'Session full.',
+  wsErr_sessao_inexistente: 'That session no longer exists.',
+  wsErr_mapa_indisponivel: "That map isn't available.",
+  wsErr_modo_fora_do_mapa: "That mode isn't played on that map.",
+  wsErr_sem_mapa: 'No map available for that mode.',
+  wsErr_entrada_falhou: "Couldn't get in right now.",
   pmDescVolume: "The game's overall volume",
   pmDescSpatial: 'Automatic: 3D on a computer, stereo on a phone',
   pmOn: 'On',
@@ -1967,8 +2095,7 @@ const en: Record<keyof typeof ptBR, string> = {
     'Your browser is rendering the game without a graphics card (renderer: {gpu}), which caps it around 10 FPS. Enable “Use graphics acceleration when available” in chrome://settings/system (Edge: edge://settings/system) and restart the browser.',
   // Galpão (client/ui/galpao)
   gpQuick: 'QUICK JOIN',
-  gpQuickLine: '{mode} · Online · {maps}',
-  gpNoMapMarked: 'no map ticked',
+  gpQuickLine: '{mode} · Online · {map}',
   gpBack: '‹ WAREHOUSE',
   gpLaunching: 'JOINING THE MATCH',
   gpLaunchOnline: '{map} · {mode} · {n}/{max} players',
@@ -1989,7 +2116,7 @@ const en: Record<keyof typeof ptBR, string> = {
   gpStSub_profile: 'Account, stats and character',
   gpStSub_settings: 'Aim, video, audio and keys',
   gpStSub_admin: 'Moderation · staff only',
-  gpHint_play: 'Pick the mode, the match type and the map. The orange button starts.',
+  gpHint_play: 'Pick the map and play. The orange button starts.',
   gpHint_maps: 'Play a map, duplicate one to edit it or create one from scratch.',
   gpHint_arsenal: 'Drag to move around, mouse wheel to zoom. Click a weapon for its details. Green: equipped · red: locked.',
   gpHint_arsenalTouch: 'Drag to move around, pinch to zoom. Tap a weapon for its details. Green: equipped · red: locked.',
@@ -2002,7 +2129,12 @@ const en: Record<keyof typeof ptBR, string> = {
   gpSign_arsenal: '03 · ARSENAL',
   gpSign_profile: '05 · LOCKER ROOM',
   gpSign_settings: '06 · WORKSHOP',
-  gpSign_admin: '07 · SECURITY',
+  gpSign_admin: '08 · SECURITY',
+  gpSign_pets: '07 · PETS',
+  gpSt_pets: 'Pets',
+  gpStSub_pets: 'Companions: pick, name and collar',
+  gpHint_pets: 'Click a hook to call the pet. Only "Take this one" swaps the one going with you.',
+  gpHint_petsTouch: 'Tap a hook to call the pet. Only "Take this one" swaps the one going with you.',
   gpBoard_primaria: 'PRIMARY',
   gpBoard_secundaria: 'SECONDARY',
   gpBoard_faca: 'KNIFE',
@@ -2011,7 +2143,7 @@ const en: Record<keyof typeof ptBR, string> = {
   gpAdminScreenSub: 'RESTRICTED · STAFF',
   gpDanger: 'DANGER',
   gpHighVoltage: 'HIGH VOLTAGE',
-  gpExit: 'EXIT',
+  gpYard: 'YARD',
   gpAlbumCover1: 'OFFENSIVE COMBAT · OFFICIAL ALBUM',
   gpAlbumCover2: 'STICK',
   gpAlbumCover3: 'ERS',
@@ -2024,14 +2156,64 @@ const en: Record<keyof typeof ptBR, string> = {
   gpSharesProg: 'Uses the {prog} points and upgrades',
   gpAutoOn: 'Turns on by itself when unlocked',
   gpUpgradesOf: '{prog} UPGRADES',
-  gpPlayHintOnline: 'Pick the match type and the maps. The list shows the sessions open now.',
+  gpPlayHintOnline: 'Online with other people. Earns account XP.',
   gpPlayHintBots: 'Offline match against bots, with your Arsenal and the account upgrades.',
-  gpPlayHintRange: 'Click a map (or the orange button) to open the shooting range with the dummies.',
+  gpPlayHintRange: 'Offline training with still dummies.',
   gpCtaLine: '{mode} · {map}',
   gpRangeTargets: 'Still dummies',
+  // Pets (PF-29)
+  tabPets: 'PETS',
+  petsTitle: 'Pets',
+  petsSub: 'One pet goes with you: a look in PvP, help in the zombie mode. All free for now.',
+  petTake: 'Take this one',
+  petWithYou: '✓ Going with you',
+  petLeave: 'Leave it in the yard',
+  petNoneWithYou: 'No pet is going with you now.',
+  petTagWith: 'WITH YOU',
+  petLocked: 'SUPPORT',
+  petLockedHow: 'Unlocked with the support pack.',
+  petNameLabel: 'Name (only you see it)',
+  petNameFixed: "Amora is Amora: her name and coat don't change, only the collar.",
+  petCoat: 'Coat',
+  petRobe: 'Robe',
+  petCollar: 'Collar',
+  petPvp: 'Along in PvP',
+  petPvpSub: "Looks only: close to you, silent, gone when you can't be seen",
+  petPve: 'Along in zombie mode',
+  petPveSub: 'Acts on its own with its ability, no damage and no money',
+  petAbilityTitle: 'IN ZOMBIE MODE',
+  petSaveFailed: "Couldn't save the pet",
+  petSaved: 'Pet saved',
+  petCooldown: 'Cooldown: {s} s',
+  petCharges: '{n} times per match',
+  petAbility_amora: 'Hold On, Amora!',
+  petAbility_bruxinha: 'Duck Spell',
+  petAbility_gato: 'Seventh Life',
+  petAbility_fuinha: 'Hands On',
+  petAbility_lontra: 'Stone Throw',
+  petAbility_iguana: 'Bait Tail',
+  petAbilityDesc_amora: 'Barks, bites the shin of the closest zombie (up to {r} m) and holds it for {s} s. The Bouncer and the bosses only get a jolt.',
+  petAbilityDesc_bruxinha: 'Traps the closest dangerous zombie (up to {r} m) in a rubber duck float for {s} s: still, and still taking shots. Bosses are immune.',
+  petAbilityDesc_gato: 'When you go down she gets you up on her own in {s} s (a teammate is quicker). If a teammate starts reviving you, she lets them.',
+  petAbilityDesc_fuinha: 'Slowly nails boards back, one every {s} s, on the most damaged barricade near you (up to {r} m).',
+  petAbilityDesc_lontra: "A stone cancels the Gossip Aunt's spit or the BBQ Uncle's swelling near you (up to {r} m).",
+  petAbilityDesc_iguana: 'Low on health, when a zombie hits you she drops her tail: the zombies around (up to {r} m) go after it for {s} s.',
+  petAct_hold: 'Got it!',
+  petAct_nudge: 'Jolt!',
+  petAct_duck: 'Duck!',
+  petAct_lift: 'Lifting…',
+  petAct_yield: 'Waiting for the teammate',
+  petAct_up: 'Up!',
+  petAct_nail: 'Board!',
+  petAct_stone: 'Stone!',
+  petAct_tail: 'Tail!',
+  zCatLifting: 'The cat is getting you up · {s}s',
+  zCatLiftingNamed: '{name} is getting you up · {s}s',
+  hidePets: "Hide other players' pets",
+  pmDescHidePets: "PvP only: other players' pets are hidden (yours stays)",
 };
 
-export const TIPS = {
+export const TIPS: Record<Lang, string[]> = {
   'pt-BR': [
     'Dica: atirar no inimigo costuma funcionar melhor que atirar na parede.',
     'Dica: o boneco não revida. Ainda.',
@@ -2050,15 +2232,23 @@ export const TIPS = {
     "Tip: the ice cream truck doesn't sell ice cream. It does play music.",
     'Tip: the flamingos are innocent.',
   ],
+  es: ES.tips,
+  de: DE.tips,
 };
 
 /** One-tap chat lines (phones: no keyboard needed mid-fight). */
-export const QUICK_CHAT = {
+export const QUICK_CHAT: Record<Lang, string[]> = {
   'pt-BR': ['GG', 'Boa!', 'Kkkkk', 'Cuidado!', 'Bora x1?', 'Valeu!'],
   en: ['GG', 'Nice!', 'LOL', 'Watch out!', '1v1 me?', 'Thanks!'],
+  es: ES.quickChat,
+  de: DE.quickChat,
 };
 
-export const DEATH_MESSAGES = {
+/** What kills a player with no one to blame (the death screen picks one line). */
+export type DeathCause = 'fall' | 'void' | 'explosion' | 'dog' | 'zombie' | 'thorns' | 'sacrilege' | 'crows';
+export type DeathLines = Record<DeathCause, string[]>;
+
+export const DEATH_MESSAGES: Record<Lang, DeathLines> = {
   'pt-BR': {
     fall: ['Você venceu a gravidade. Brincadeira, ela venceu.', 'Da próxima vez, tente cair de pé.', 'A calçada mandou lembranças.'],
     void: ['Você saiu do mapa. O mapa não sentiu sua falta.', 'Explorador corajoso. Explorador morto.'],
@@ -2079,14 +2269,41 @@ export const DEATH_MESSAGES = {
     sacrilege: ['You climbed the altar. The altar minded.', 'Sacrilege: the chapel charges dearly.', 'The totem is for lighting, not for standing on.'],
     crows: ['The crows found you first.', 'A tree is no hiding place. The crows said so.', 'Pecked to the end.'],
   },
+  es: ES.deathMessages,
+  de: DE.deathMessages,
 };
 
-export type Lang = 'pt-BR' | 'en';
+export type { Lang };
 export type StringKey = keyof typeof ptBR;
 
-// Bun (the tests) has a navigator without a language.
-let lang: Lang = (globalThis.navigator as { language?: string } | undefined)?.language?.toLowerCase().startsWith('pt') ? 'pt-BR' : 'en';
-const dicts: Record<Lang, Record<StringKey, string>> = { 'pt-BR': ptBR, en };
+/**
+ * The language of the browser's list (navigator.languages, in the player's order): the first one the game has
+ * (pt-PT and pt-BR → pt-BR, es-MX → es, de-AT → de, en-GB → en); none of them → English.
+ */
+export function detectLang(languages: readonly string[] | undefined): Lang {
+  for (const l of languages ?? []) {
+    const base = l.toLowerCase().split(/[-_]/)[0];
+    if (base === 'pt') return 'pt-BR';
+    if (base === 'en' || base === 'es' || base === 'de') return base;
+  }
+  return 'en';
+}
+
+/** The language to show: the one saved on this device when it's valid, else the system's (detectLang). */
+export const resolveLang = (saved: unknown, system: Lang): Lang => (isLang(saved) ? saved : system);
+
+/** The browser's languages (Bun, in the tests, has a navigator without any). */
+function systemLanguages(): string[] {
+  const nav = globalThis.navigator as { languages?: readonly string[]; language?: string } | undefined;
+  if (nav?.languages?.length) return [...nav.languages];
+  return nav?.language ? [nav.language] : [];
+}
+
+let lang: Lang = detectLang(systemLanguages());
+const dicts: Record<Lang, Record<StringKey, string>> = { 'pt-BR': ptBR, en, es: ES.es, de: DE.de };
+
+/** The language the browser asks for (no choice saved). */
+export const systemLang = (): Lang => detectLang(systemLanguages());
 
 export function getLang(): Lang {
   return lang;
@@ -2095,6 +2312,19 @@ export function getLang(): Lang {
 export function setLang(l: Lang) {
   lang = l;
 }
+
+/** The locale for numbers and dates in the chosen language (1.234,5 in pt-BR and de; 1,234.5 in en and es-419). */
+export const locale = (): string => LANG_LOCALE[lang];
+
+/** A data file's text (album, catalogs: { pt, en, es, de }) in the chosen language. */
+export const textOf = (x: Text): string => textIn(x, lang);
+
+/**
+ * The first word of a button that goes back, in every language (client/ui/padNav.ts: ◯/B presses it where a screen
+ * doesn't name its back button): voltar/back/volver/zurück, cancelar/cancel/abbrechen, fechar/close/cerrar/schließen,
+ * and pt's sair. The texts keep to it (client/tests/i18n.test.ts).
+ */
+export const BACK_WORDS = /^(voltar|cancelar|fechar|sair|back|cancel|close|volver|cerrar|zurück|abbrechen|schließen)(?![\p{L}\p{N}_])/iu;
 
 export function t(key: StringKey, params: Record<string, string | number> = {}): string {
   return dicts[lang][key].replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ''));

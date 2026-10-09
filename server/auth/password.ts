@@ -1,6 +1,7 @@
 // E-mail and password: sign-up, sign-in (with rate limits and lockout), and password reset by e-mail.
 // Wrong e-mail and wrong password give the same answer, and take about the same time.
 import { cleanName, validEmail, validName, validPassword } from '@shared/account';
+import { isLang, type Lang } from '@shared/langs';
 import { asSex } from '@shared/protocol';
 import { activeBan, audit, createAccount, findAccountByEmail, getAccount, type AuditInfo } from '../accounts';
 import { sendMail } from '../email';
@@ -18,6 +19,36 @@ export const LIMITS = {
   resetsPerHour: 3,
   resetTtlSeconds: 86400,
 };
+
+/** The reset e-mail in each of the game's languages (PF-30): the one the player had on screen when asking. */
+const RESET_MAIL: Record<Lang, { subject: string; text: (link: string) => string }> = {
+  'pt-BR': {
+    subject: 'Offensive Combat: redefinir sua senha',
+    text: (link) =>
+      `Alguém pediu para redefinir a senha da sua conta no Offensive Combat.\n\nPara escolher uma senha nova, abra este link em até 24 horas (ele só funciona uma vez):\n${link}\n\nSe não foi você, ignore este e-mail: sua senha continua a mesma.`,
+  },
+  en: {
+    subject: 'Offensive Combat: reset your password',
+    text: (link) =>
+      `Someone asked to reset the password of your Offensive Combat account.\n\nTo choose a new password, open this link within 24 hours (it only works once):\n${link}\n\nIf it wasn't you, ignore this e-mail: your password stays the same.`,
+  },
+  es: {
+    subject: 'Offensive Combat: restablece tu contraseña',
+    text: (link) =>
+      `Alguien pidió restablecer la contraseña de tu cuenta de Offensive Combat.\n\nPara elegir una contraseña nueva, abre este enlace en las próximas 24 horas (solo funciona una vez):\n${link}\n\nSi no fuiste tú, ignora este correo: tu contraseña sigue siendo la misma.`,
+  },
+  de: {
+    subject: 'Offensive Combat: Passwort zurücksetzen',
+    text: (link) =>
+      `Jemand möchte das Passwort deines Offensive-Combat-Kontos zurücksetzen.\n\nUm ein neues Passwort festzulegen, öffne diesen Link innerhalb von 24 Stunden (er funktioniert nur einmal):\n${link}\n\nWarst du das nicht? Dann ignoriere diese E-Mail: Dein Passwort bleibt, wie es ist.`,
+  },
+};
+
+/** The reset e-mail in `idioma` (the request's field), pt-BR when it's missing or not one of the game's. */
+export function resetMail(idioma: unknown, link: string): { subject: string; text: string } {
+  const m = RESET_MAIL[isLang(idioma) ? idioma : 'pt-BR'];
+  return { subject: m.subject, text: m.text(link) };
+}
 
 /**
  * Argon2id through Bun.password, with the parameters the stored hashes were made with (19 MiB, 2 passes,
@@ -75,7 +106,7 @@ export async function login(deps: Deps, req: Request, body: Record<string, unkno
   return createSession(deps.db, req, account.id);
 }
 
-/** Always answers the same way, whether the e-mail exists or not. */
+/** Always answers the same way, whether the e-mail exists or not. `idioma` (optional) is the e-mail's language. */
 export async function requestReset(deps: Deps, req: Request, body: Record<string, unknown>) {
   await limitIp(deps, req, 'recuperar');
   const email = emailOf(body.email);
@@ -88,11 +119,7 @@ export async function requestReset(deps: Deps, req: Request, body: Record<string
   void audit(deps.db, account.id, 'pwd_reset_request', auditInfo(req));
   const link = `${publicOrigin(req)}/#redefinir=${token}`;
   try {
-    await sendMail({
-      to: email,
-      subject: 'Offensive Combat: redefinir sua senha',
-      text: `Alguém pediu para redefinir a senha da sua conta no Offensive Combat.\n\nPara escolher uma senha nova, abra este link em até 24 horas (ele só funciona uma vez):\n${link}\n\nSe não foi você, ignore este e-mail: sua senha continua a mesma.`,
-    });
+    await sendMail({ to: email, ...resetMail(body.idioma, link) });
   } catch (err) {
     void audit(deps.db, account.id, 'email_fail', auditInfo(req), (err as Error).message.slice(0, 200));
   }

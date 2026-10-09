@@ -529,9 +529,9 @@ describe('modo zumbi no servidor', () => {
     p.send({ t: 'hello' });
     await p.next('welcome');
     p.send({ t: 'play', map: 'rua', mode: 'zumbi' });
-    expect((await p.next('error')).message).toBe('Esse modo não é jogado nesse mapa.');
+    expect(await p.next('error')).toMatchObject({ code: 'modo_fora_do_mapa', message: 'Esse modo não é jogado nesse mapa.' });
     p.send({ t: 'play', map: CEMETERY, mode: 'mata-mata' });
-    expect((await p.next('error')).message).toBe('Esse modo não é jogado nesse mapa.');
+    expect(await p.next('error')).toMatchObject({ code: 'modo_fora_do_mapa', message: 'Esse modo não é jogado nesse mapa.' });
     p.send({ t: 'play', map: CEMETERY, mode: 'zumbi' });
     expect((await p.next('joined')).session).toMatchObject({ map: CEMETERY, versao: 1, mapaNome: 'Cemitério da Capela', mode: 'zumbi' });
     p.close();

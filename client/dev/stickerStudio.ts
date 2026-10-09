@@ -58,8 +58,8 @@ const SMOKE_STICKERS: Sticker[] = SMOKE.map((s, i) => ({
   tipo: i === 1 ? 'recorde' : 'contador',
   fonte: 'propria',
   metas: i === 1 ? [1] : [1, 5, 10, 25],
-  nome: { pt: `Teste: ${s.id.replace('smoke-', '')}`, en: s.id },
-  como: { pt: '', en: '' },
+  nome: { pt: `Teste: ${s.id.replace('smoke-', '')}`, en: s.id, es: s.id, de: s.id },
+  como: { pt: '', en: '', es: '', de: '' },
 }));
 
 interface Chosen {

@@ -268,9 +268,12 @@ export class RemoteWorld {
   ) {}
 
   upsertInfo(p: PlayerInfo) {
-    // The look only comes when the player appears: keep it across later updates.
-    const ap = p.ap ?? this.info.get(p.id)?.ap;
-    this.info.set(p.id, { ...p, ap });
+    // The look (and the pet, PF-29) only come when the player appears: kept across later updates. A message with
+    // the look says the pet too (none when absent).
+    const before = this.info.get(p.id);
+    const ap = p.ap ?? before?.ap;
+    const pet = p.ap ? p.pet : (p.pet ?? before?.pet);
+    this.info.set(p.id, { ...p, ap, ...(pet ? { pet } : {}) });
     if (p.id === this.me) return;
     const rp = this.players.get(p.id);
     const sex = p.sex ?? 'm';

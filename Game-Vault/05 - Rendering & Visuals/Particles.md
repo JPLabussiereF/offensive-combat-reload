@@ -16,14 +16,14 @@ tags:
   - rendering
   - particles
   - vfx
-updated: 2026-10-05
+updated: 2026-10-08
 ---
 
 # Particles
 
 ## Visão geral
 
-Não há sistema de partículas genérico nem sprites de partícula. Cada efeito é um **`InstancedMesh` de primitivas sólidas** (cubos ou icosaedros) com física simples feita na CPU (velocidade, arrasto, gravidade), em **buffer circular de tamanho fixo**. Regra declarada no topo de `effects.ts`: "nunca criar/destruir por tiro" (seção 3 do documento de design). Instâncias mortas recebem matriz de escala zero.
+Não há sistema de partículas genérico nem sprites de partícula. Cada efeito é um **`InstancedMesh` de primitivas sólidas** (cubos ou icosaedros) com física simples feita na CPU (velocidade, arrasto, gravidade), em **buffer circular de tamanho fixo**. Regra declarada no topo de `effects.ts`: "nunca criar/destruir por tiro" (seção 3 do documento de design). Desde a PF-35 (T1) as instâncias mortas não são desenhadas: os slots em uso ficam juntos no começo do `InstancedMesh` e `mesh.count` é quantos são (`PackedInstances`, `client/render/packedInstances.ts`); antes iam à GPU em escala zero (44 mil triângulos invisíveis no Jardim do Dragão em repouso). Com o detalhe Leve, as bolas de fogo e a fumaça das explosões são icosaedros de detalhe 0 (20 triângulos em vez de 80; pico de 8.176 triângulos com todos os pools cheios, 11.776 no Normal).
 
 ## Pools de partículas
 

@@ -1,9 +1,18 @@
 // WebSocket connection to the game server with clock sync (for snapshot interpolation) and ping. It opens
 // with a single-use ticket from the account API (the browser can't send auth headers on a WebSocket).
-import { NET, type ClientMsg, type ServerMsg } from '@shared/protocol';
+import { isWsErrorCode, NET, type ClientMsg, type ServerMsg, type WsErrorCode } from '@shared/protocol';
 import { api } from './api';
 
 type Handler<T extends ServerMsg['t']> = (msg: Extract<ServerMsg, { t: T }>) => void;
+
+/** The server refused an entry ({ t: 'error' }): `code` says why (null from a server without codes). */
+export class Refusal extends Error {
+  readonly code: WsErrorCode | null;
+  constructor(m: { message: string; code?: unknown }) {
+    super(m.message);
+    this.code = isWsErrorCode(m.code) ? m.code : null;
+  }
+}
 
 export class Connection {
   private handlers = new Map<string, ((msg: ServerMsg) => void)[]>();
@@ -103,7 +112,7 @@ export class Connection {
         this.on('error', (m) => {
           if (!done) {
             done = true;
-            reject(new Error(m.message));
+            reject(new Refusal(m));
           }
         });
     });

@@ -4,9 +4,11 @@
 // for hit checks). Every choice that changes the game is in `bodyStats`; cosmetics never do.
 //
 // Version 2 (style guide catalog): `itens` by slot replaces the 6 fixed `roupas` of version 1; a saved v1
-// look is converted by `sanitizeAppearance`. Colors are snapped to the palette (shared/palette.ts). The face's
+// look is converted by `sanitizeAppearance`. Skin, hair and eye colors are snapped to the palette
+// (shared/palette.ts); item colors are free within two limits (shared/color.ts `clampItemColor`, PF-33). The face's
 // features (`rosto`) came later in version 2: a look without them gets the defaults (the face it had).
 import { BIG_SLOTS, CATALOG, catalogItem, catalogOf, REQUIRED_SLOTS, SLOTS, type CatalogItem, type Category, type Slot } from './catalog';
+import { clampItemColor } from './color';
 import { ALL_ITEM_COLORS, CLOTH_COLORS, EYE_COLORS, HAIR_COLORS, SKIN_COLORS, snap } from './palette';
 import type { Sex } from './protocol';
 
@@ -98,13 +100,17 @@ export interface Appearance {
   pcd: { braco: ArmLoss; perna: LegLoss };
 }
 
-/** Colors a channel of a slot can take: no accents on the primary color of the big pieces. */
-export function allowedColors(slot: Slot, channel: number): readonly string[] {
+/**
+ * The palette's suggestions for a channel of a slot (the color picker's house palette, and what bots wear): no
+ * accents on the primary color of the big pieces. Any other color is accepted too, within the limits of
+ * shared/color.ts (`clampItemColor`).
+ */
+export function suggestedColors(slot: Slot, channel: number): readonly string[] {
   return channel === 0 && BIG_SLOTS.includes(slot) ? CLOTH_COLORS : ALL_ITEM_COLORS;
 }
 
 /** Default colors by category (primary, secondary, detail), all from the palette. */
-const DEFAULT_COLORS: Record<Category, [string, string, string]> = {
+export const DEFAULT_COLORS: Record<Category, [string, string, string]> = {
   cabelo: ['#45301f', '#45301f', '#45301f'],
   barba: ['#45301f', '#45301f', '#45301f'],
   camiseta: ['#e8e2d6', '#3a3d42', '#1f2226'],
@@ -118,10 +124,13 @@ const DEFAULT_COLORS: Record<Category, [string, string, string]> = {
   tatico: ['#5c6435', '#3a3d42', '#9aa3aa'],
 };
 
-/** An item choice with valid colors (one per channel, snapped to what the slot allows). */
+/**
+ * An item choice with valid colors: one per channel, within the limits of its slot (shared/color.ts: no neon on the
+ * main color of a big piece, nothing darker than just under the palette's black); what isn't a color gets the default.
+ */
 export function choice(item: CatalogItem, cores: readonly unknown[] = []): ItemChoice {
   const slot = item.slots[0];
-  return { id: item.id, cores: item.channels.map((_, i) => snap(cores[i], allowedColors(slot, i), DEFAULT_COLORS[item.category][i])) };
+  return { id: item.id, cores: item.channels.map((_, i) => clampItemColor(cores[i], slot, i) ?? DEFAULT_COLORS[item.category][i]) };
 }
 
 const item = (id: string) => catalogItem(id)!;
@@ -257,7 +266,7 @@ export function randomAppearance(sex: Sex, rnd: () => number = Math.random): App
     const it = one(options);
     const taken = new Set(Object.values(a.itens).flatMap((c) => catalogItem(c!.id)?.slots ?? []));
     if (it.slots.some((s) => taken.has(s))) continue;
-    a.itens[slot] = choice(it, it.channels.map((_, i) => one(allowedColors(slot, i))));
+    a.itens[slot] = choice(it, it.channels.map((_, i) => one(suggestedColors(slot, i))));
   }
   return sanitizeAppearance(
     {

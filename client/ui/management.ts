@@ -11,7 +11,7 @@ import { accountLevel } from '@shared/accountLevel';
 import { api } from '../net/api';
 import { errorText, formatDate } from './auth';
 import { weaponName } from './arsenal';
-import { showCustomizer } from './customize';
+import { showCustomizer, type CustomizerHandle } from './customize';
 import { accountControls, DURACOES, progressPatch, sanctionBody } from './managementRules';
 import { t, type StringKey } from './strings';
 
@@ -23,6 +23,13 @@ export interface ManagementOptions {
 
 /** The search and the open account, kept while the home is open. */
 const state: { q: string; open: string | null } = { q: '', open: null };
+
+/** The character editor of the open account, freed before the tab's content changes (PF-33). */
+let editor: CustomizerHandle | null = null;
+const closeEditor = () => {
+  editor?.dispose();
+  editor = null;
+};
 
 const roleName = (p: Papel) => t(`mgRole_${p}` as StringKey);
 const roleTags = (papeis: Papel[]) => papeis.map((p) => `<span class="tag mg-role">${esc(roleName(p))}</span>`).join('');
@@ -53,6 +60,7 @@ export function showManagement(root: HTMLElement, o: ManagementOptions) {
 
 /** The search: accounts by name or tag, a page at a time. */
 function showSearch(root: HTMLElement, o: ManagementOptions) {
+  closeEditor();
   state.open = null;
   root.innerHTML = `
     <div class="mgmt">
@@ -111,6 +119,7 @@ function showSearch(root: HTMLElement, o: ManagementOptions) {
 
 /** One account's panel: what the staff member may do to it, and nothing else. */
 async function openAccount(root: HTMLElement, o: ManagementOptions, id: string) {
+  closeEditor();
   let c: ContaGestao;
   try {
     c = await api<ContaGestao>('GET', `/api/gestao/contas/${encodeURIComponent(id)}`);
@@ -227,8 +236,9 @@ async function openAccount(root: HTMLElement, o: ManagementOptions, id: string) 
   }
   const look = $('#mg-look');
   if (look)
-    look.onclick = () =>
-      showCustomizer(root, {
+    look.onclick = () => {
+      closeEditor();
+      editor = showCustomizer(root, {
         look: c.aparencia,
         sex: c.sexo,
         setStatus: o.setStatus,
@@ -241,6 +251,7 @@ async function openAccount(root: HTMLElement, o: ManagementOptions, id: string) 
           void openAccount(root, o, id);
         },
       });
+    };
   const progress = $('#mg-progress');
   if (progress)
     progress.onclick = () => {

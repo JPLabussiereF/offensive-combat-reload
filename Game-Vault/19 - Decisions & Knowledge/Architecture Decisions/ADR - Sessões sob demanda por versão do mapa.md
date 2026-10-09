@@ -22,7 +22,7 @@ tags:
   - networking
   - sessions
   - maps
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # ADR - Sessões sob demanda por versão do mapa
@@ -59,7 +59,7 @@ Escala com qualquer número de mapas, e "uma sala, uma versão" garante que ning
 
 ## Consequências
 
-- `GET /api/sessoes` e `welcome.sessions` podem vir vazios: a tela inicial manda `play` na entrada rápida (o mapa da sala mais cheia entre os filtrados, ou um dos filtrados).
+- `GET /api/sessoes` e `welcome.sessions` podem vir vazios: a tela inicial manda `play` na entrada rápida (o mapa da sala mais cheia entre os filtrados, ou um dos filtrados). *Revisão (2026-10-08, PF-32): o filtro saiu; o botão laranja manda o mapa escolhido ou, com Qualquer mapa, o da sala mais cheia não lotada do tipo, ou um oficial do tipo. O servidor não mudou.*
 - **Incompatível com clientes antigos**: um cliente que não conhece `play` nem `versao` não consegue entrar; o deploy troca cliente e servidor juntos.
 - Sessões e o cache de versões vivem na memória de um processo, como antes ([[Problem - Estado das partidas só em memória de um processo]]).
 - Uma sala zumbi carrega a navmesh da sua versão (`server/navmesh.ts`, uma vez por processo e versão).

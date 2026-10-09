@@ -22,7 +22,7 @@ tags:
   - game
   - modes
   - index
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Game Modes Index
@@ -75,8 +75,8 @@ As diferenças entre modos estão declaradas em `MODE_RULES` e, no servidor, em 
 
 ## Seleção de mapa
 
-- **Online:** o mapa é o da sessão (uma versão salva dele). As salas abrem sob demanda por mapa e modo (`play`); o zumbi só em mapas feitos para ele, como o Cemitério da Capela, que nenhum outro modo usa (`modeAllowsMap`, `MODE_RULES.zumbi.ownMaps`), e quem cria uma sessão escolhe o mapa e o modo (um mapa onde o modo não é jogado cai no primeiro oficial do modo).
-- **Contra bots e treino:** valem o seletor **Mapa** da home (`home-map`), salvo em `localStorage` (`oc.bots`).
+- **Online:** o mapa é o da sessão (uma versão salva dele). As salas abrem sob demanda por mapa e modo (`play`); o zumbi só em mapas feitos para ele, como o Cemitério da Capela, que nenhum outro modo usa (`modeAllowsMap`, `MODE_RULES.zumbi.ownMaps`). Na aba Jogar o jogador escolhe **um mapa** ou **Qualquer mapa** (o mapa da sessão mais cheia não lotada do tipo, ou um oficial quando ninguém joga), e a sessão com nome é criada no mapa e no tipo escolhidos (um mapa onde o modo não é jogado cai no primeiro oficial do modo, no servidor). Ver [[Matchmaking UI]].
+- **Contra bots e treino:** vale o cartão de mapa escolhido na aba Jogar (só os oficiais abertos; zumbi contra bots: o Cemitério), salvo em `localStorage` (`oc.bots.map`). Clicar no cartão só escolhe; o botão laranja começa.
 - **Qualquer modo:** `?mapa=/maps/arquivo.glb` na URL carrega um mapa glTF por cima da escolha ([[Map - Arena Teste (glTF)]]).
 - Mapas: [[Map - Rua dos Vizinhos]], [[Map - Jardim do Dragão]], [[Map - Vila Assombrada]] (versus, bots e treino) e [[Map - Cemitério da Capela]] (só zumbi). Ver [[Maps Index]].
 

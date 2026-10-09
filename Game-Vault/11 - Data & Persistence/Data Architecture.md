@@ -22,7 +22,7 @@ tags:
   - game
   - data
   - persistence
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Data Architecture
@@ -36,7 +36,7 @@ Os dados do jogo vivem em **quatro lugares**:
 | **PostgreSQL 18** (`banco`) | Contas, credenciais, sessões de login, perfil, estatísticas, progresso de armas, participações, sanções, papéis, auditoria | Persistente (volume Docker `oc-pg`) |
 | **Redis 8** (`redis`) | Tickets do WebSocket, links de redefinição de senha, contadores de limite de taxa, bloqueios de login, canais pub/sub de revogação e silêncio | **Efêmero** (sem RDB/AOF: `--save '' --appendonly no`) |
 | **Memória do servidor** | Salas, jogadores, corpos, itens do mapa, `LiveAccount` (perfil + delta de progresso) | Some ao reiniciar |
-| **Navegador** (`localStorage`) | Configurações do jogador (`oc.settings.v1`) e preferências de bots (`oc.bots`) | Por navegador/dispositivo |
+| **Navegador** (`localStorage`) | Configurações do jogador (`oc.settings.v1`) e preferências da aba Jogar (`oc.bots`: lugar, tipo, mapas, bots) | Por navegador/dispositivo |
 
 Dados de **configuração de jogo** (armas, progressão, nível da conta, mapas) são arquivos versionados no repositório (`shared/data/*.json`, `shared/*.ts`), embutidos no build do cliente e do servidor. Ver [[Configuration Data]].
 

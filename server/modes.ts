@@ -13,6 +13,7 @@ import { critRegion, explosionDamage, HIT_REGIONS, minPenetrationKeep, type Gren
 import { afterDeath, afterKill, GUN_GAME, ladderLoadout, ladderStart, type LadderPos } from '@shared/gunGame';
 import { grenadeDamageToZombie, gunDamageToZombie, isBoss, kindScale, knifeDamageToZombie, startItems, weaponMul, ZOMBIE, zombieLoadout, zombieMapOf, type ZKind } from '@shared/zombies';
 import { ZombieMatch, type ZombieHost } from '@shared/zombieMatch';
+import { petAlong, type PetId } from '@shared/pets';
 import { addZombieStat, loadoutOf, stickerAdd } from './progress';
 import { loadNavmesh } from './navmesh';
 import type { MapRuntime } from './maps';
@@ -206,13 +207,19 @@ class ZombieMode implements SessionMode {
         if (this.disposed) return;
         this.match = new ZombieMatch(this.zombieHost(), nav, data);
         // Whoever came in while it loaded.
-        for (const p of host.players.values()) this.match.join(p.id, p.name);
+        for (const p of host.players.values()) this.match.join(p.id, p.name, this.petOf(p));
       })
       .catch((err) => console.error('[zumbi] malha de navegação:', (err as Error).message));
   }
 
   private player(id: number) {
     return this.host.players.get(id);
+  }
+
+  /** The pet a player brings to the horde: theirs, if its PvE switch is on. */
+  private petOf(p: SPlayer): PetId | null {
+    const pet = p.conn.account.profile.pet;
+    return pet?.id && petAlong(pet, this.rules) ? pet.id : null;
   }
 
   private zombieHost(): ZombieHost {
@@ -232,6 +239,10 @@ class ZombieMode implements SessionMode {
       stat: (id, s) => {
         const p = this.player(id);
         if (p) addZombieStat(p.conn.account, s);
+      },
+      health: (id) => {
+        const p = this.player(id);
+        return p ? p.health / Math.max(1, p.body.maxHealth) : 1;
       },
       setLoadout: (id, lo) => {
         const p = this.player(id);
@@ -281,7 +292,7 @@ class ZombieMode implements SessionMode {
   }
 
   onJoin(p: SPlayer) {
-    this.match?.join(p.id, p.name);
+    this.match?.join(p.id, p.name, this.petOf(p));
     // Joined during a wave: in only at the break (the match allows it then, like the dead's).
     if (this.match?.parts.get(p.id)?.waiting) p.deadAt = Number.MAX_SAFE_INTEGER / 2;
   }

@@ -24,6 +24,8 @@ import { CrowView } from './crows';
 import { BarricadeView } from './barricades';
 import { flawText } from './ambience';
 import type { ZombieLink } from './link';
+import { PET_ABILITIES, petCooldown, type PetId } from '@shared/pets';
+import { pawSprite } from '../pets/paw';
 
 /** How the zombie side talks to its match (link.ts): the server's connection online, the local match solo. */
 export type { ZombieLink };
@@ -58,6 +60,10 @@ export interface ZombieGame {
   /** A teammate is down / back up: their avatar lies down or gets up. */
   setDowned(id: number, down: boolean): void;
   killFeedback(at: THREE.Vector3, head: boolean): void;
+  /** Our pet along (PF-29): which, its name for us (null: the catalog's), its collar's color and its face. */
+  pet: { id: PetId; name: string | null; color: string; face: Promise<string> } | null;
+  /** The collar color of a player's pet (the paw over a teammate the cat is lifting), or null without one. */
+  petColor(owner: number): number | null;
 }
 
 const HOW_LABEL: Record<KillHow, StringKey> = { gun: 'kill', head: 'headshot', groin: 'groin', knife: 'knife', grenade: 'kill', blast: 'zBlast' };
@@ -119,6 +125,15 @@ export class ZombieClient {
   /** The dead trees' crows, around whoever they peck. */
   private crows: CrowView;
   private lastRender = 0;
+  /** The cats lifting their owners (by owner): until when, and whether one waits for a teammate's revive. */
+  private catLift = new Map<number, { until: number; paused: boolean }>();
+  /** Our pet (the HUD's icon): when it's ready again, what it's doing until when, the cat's lifts, the last text. */
+  private petReady = 0;
+  private petUntil = 0;
+  private petN: number | null = null;
+  private petFlash: { text: string; until: number } | null = null;
+  private petFace = '';
+  private paws = new Map<number, THREE.Sprite>();
 
   constructor(
     readonly link: ZombieLink,
@@ -138,6 +153,10 @@ export class ZombieClient {
     if (sync) this.applySync(sync);
     // Online, a wave already on: we wait for the break like the dead (the server refuses our respawn till then).
     if (link.online && sync?.phase === 'wave') this.diedInWave = this.joinedInWave = true;
+    if (game.pet) {
+      this.petN = game.pet.id === 'gato' ? PET_ABILITIES.gato.cargas : null;
+      void game.pet.face.then((url) => (this.petFace = url));
+    }
     this.listen();
   }
 
@@ -388,9 +407,25 @@ export class ZombieClient {
         g.hud.notice(`${t('zDamaged')}: ${flawText(flaw)}`);
       } else g.hud.showBanner(t('zBoxGot', names), 'level');
     });
+    L.on('zpet', (m) => {
+      // A cat lifting its owner (everyone: the paw over the cross; its owner: the line on the down card).
+      if (m.act === 'lift') this.catLift.set(m.id, { until: m.until, paused: false });
+      else if (m.act === 'yield') {
+        const c = this.catLift.get(m.id);
+        if (c) c.paused = true;
+      } else if (m.act === 'up') this.catLift.delete(m.id);
+      if (m.id !== this.me) return;
+      this.petReady = m.ready;
+      this.petUntil = m.act === 'yield' || m.act === 'up' ? 0 : m.until;
+      if (m.n !== undefined) this.petN = m.n;
+      // The word by the pet's face: 1.5 s; on a phone, where it pops up beside the small chip, ~1.2 s.
+      const brief = typeof document !== 'undefined' && document.documentElement.classList.contains('mobile');
+      this.petFlash = { text: t(`petAct_${m.act}` as StringKey), until: L.now() + (brief ? 1200 : 1500) };
+    });
     L.on('zup', (m) => {
       this.down.delete(m.id);
       this.revives.delete(m.id);
+      this.catLift.delete(m.id);
       g.setDowned(m.id, false);
       if (m.id === this.me) {
         g.hud.showDeath(null);
@@ -454,6 +489,10 @@ export class ZombieClient {
     this.game.hud.showZombieSummary(null);
     this.down.clear();
     this.revives.clear();
+    this.catLift.clear();
+    // A new match: the pet is ready, the cat with all its lifts.
+    this.petReady = this.petUntil = 0;
+    this.petN = this.game.pet?.id === 'gato' ? PET_ABILITIES.gato.cargas : null;
     this.diedInWave = false;
     this.reviveTarget = null;
     this.workTarget = null;
@@ -834,11 +873,15 @@ export class ZombieClient {
     g.hud.setMoney(this.money);
     g.hud.setEntrances(this.phase === 'wave' && g.alive() && !this.downed ? this.entrances() : []);
     if (this.summary) g.hud.setZombieSummaryNext(t('zSumNext', { s: Math.max(0, Math.ceil((this.summary.restartAt - now) / 1000)) }));
-    // Down: the bleed-out countdown (and a heartbeat), or who's coming to help.
+    this.renderPet(now);
+    // Down: the bleed-out countdown (and a heartbeat), or who's coming to help (a teammate first, then the cat).
     if (this.downed) {
       const r = this.revives.get(this.me);
+      const cat = this.catLift.get(this.me);
       const left = Math.max(0, Math.ceil(((this.down.get(this.me) ?? now) - now) / 1000));
-      g.hud.setDeathText(r ? t('zBeingRevived', { name: g.nameOf(r.by) }) : t('zDownSub', { s: left }));
+      const catLeft = cat ? Math.max(0, Math.ceil((cat.until - now) / 1000)) : 0;
+      const catLine = () => (g.pet?.name ? t('zCatLiftingNamed', { name: g.pet.name, s: catLeft }) : t('zCatLifting', { s: catLeft }));
+      g.hud.setDeathText(r ? t('zBeingRevived', { name: g.nameOf(r.by) }) : cat && !cat.paused ? catLine() : t('zDownSub', { s: left }));
       this.heartbeatIn -= 1 / 15;
       if (this.heartbeatIn <= 0) {
         this.heartbeatIn = 1.1;
@@ -847,14 +890,39 @@ export class ZombieClient {
     } else if (this.diedInWave && !g.alive()) g.hud.setDeathText(t(this.joinedInWave ? 'zJoinWait' : 'zDeadWait'));
   }
 
-  /** A red cross over every teammate who's down, seen through walls. */
+  /** Our pet's icon on the HUD (PF-29): the ring fills up toward ready, pulses while it acts, blinks with a word. */
+  private renderPet(now: number) {
+    const pet = this.game.pet;
+    if (!pet) return this.game.hud.setPet(null);
+    const cd = petCooldown(pet.id) * 1000;
+    const acting = this.petUntil > now;
+    const frac = pet.id === 'gato' ? (this.petN === 0 ? 0 : 1) : acting ? 1 : this.petReady > now && cd > 0 ? 1 - (this.petReady - now) / cd : 1;
+    const flash = this.petFlash && now < this.petFlash.until ? this.petFlash.text : null;
+    this.game.hud.setPet({ face: this.petFace, color: pet.color, frac, acting, n: pet.id === 'gato' ? this.petN : null, flash, label: pet.name ?? '' });
+  }
+
+  /** A red cross over every teammate who's down, seen through walls (with a paw over it while their cat lifts them). */
   private renderMarkers() {
     const seen = new Set<number>();
+    const pawed = new Set<number>();
     for (const p of this.game.teammates()) {
       // Their avatar lies down while they're down (teammates who joined after it happened too).
       this.game.setDowned(p.id, this.down.has(p.id));
       if (!this.down.has(p.id)) continue;
       seen.add(p.id);
+      const cat = this.catLift.get(p.id);
+      const color = cat && !cat.paused ? this.game.petColor(p.id) : null;
+      if (color !== null) {
+        pawed.add(p.id);
+        let paw = this.paws.get(p.id);
+        if (!paw) {
+          paw = pawSprite(color);
+          paw.scale.set(0.4, 0.4, 1);
+          this.game.scene.add(paw);
+          this.paws.set(p.id, paw);
+        }
+        paw.position.copy(p.position).setY(p.position.y + 1.68 + Math.sin(performance.now() / 200) * 0.05);
+      }
       let s = this.markers.get(p.id);
       if (!s) {
         this.markerTex ??= crossTexture();
@@ -870,6 +938,12 @@ export class ZombieClient {
       if (seen.has(id)) continue;
       this.game.scene.remove(s);
       this.markers.delete(id);
+    }
+    for (const [id, s] of this.paws) {
+      if (pawed.has(id)) continue;
+      this.game.scene.remove(s);
+      s.material.dispose();
+      this.paws.delete(id);
     }
   }
 

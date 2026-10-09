@@ -5,16 +5,22 @@
 // An open dialog (aria-modal) keeps the focus inside it. A screen marked data-pad-explicit (the pause menu) names its
 // back button on each level (data-pad-back), so ◯/B never guesses by the text there ("Sair da sessão" is no "back").
 // Sub-tabs (data-pad-subtabs, the settings') switch with L1/R1 only where no other tab bar is on screen.
+// Custom sliders (role="slider", the color picker's) get the keys their keyboard uses (client/ui/padNavRules.ts).
 
 import type { GamepadInput } from '../core/gamepad';
+import { FOCUSABLE, sliderBack, sliderKey, sliderPress, type Dir, type PadSlider } from './padNavRules';
+import { BACK_WORDS } from './strings';
 
-const FOCUSABLE = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"]), .cz-card';
-/** Buttons that go back (◯/B), by attribute or by their text. */
-const BACK_TEXT = /^(voltar|cancelar|fechar|sair|back|cancel|close)\b/i;
+/** Buttons that go back (◯/B), by attribute or by their text (the first word, in any of the game's languages). */
+const BACK_TEXT = BACK_WORDS;
 const REPEAT_DELAY = 0.38;
 const REPEAT_EVERY = 0.11;
 
-type Dir = 'up' | 'down' | 'left' | 'right';
+const sliderOf = (el: Element | null): PadSlider | null =>
+  el?.getAttribute('role') === 'slider' ? { twoD: el.hasAttribute('data-slider-2d'), vertical: el.getAttribute('aria-orientation') === 'vertical' } : null;
+
+/** A key the slider's own keyboard handler takes. */
+const sendKey = (el: HTMLElement, key: string) => el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
 
 /** A control the player can reach now: visible, enabled, and the topmost thing at its center. */
 function reachable(el: HTMLElement): boolean {
@@ -35,6 +41,8 @@ export class PadNav {
   private focused: HTMLElement | null = null;
   private held: Dir | null = null;
   private heldT = 0;
+  /** The two-way slider in adjust mode (the D-pad moves its cursor), if any. */
+  private adjusting: HTMLElement | null = null;
 
   constructor(pad: GamepadInput) {
     pad.onMenu = (p, dt) => this.update(p, dt);
@@ -49,11 +57,20 @@ export class PadNav {
   }
 
   private clear() {
+    this.adjust(null);
     this.focused?.classList.remove('pad-focus');
     this.focused = null;
   }
 
+  /** Enters (or leaves, with null) a two-way slider's adjust mode. */
+  private adjust(el: HTMLElement | null) {
+    this.adjusting?.classList.remove('pad-adjust');
+    this.adjusting = el;
+    el?.classList.add('pad-adjust');
+  }
+
   private focus(el: HTMLElement) {
+    if (el !== this.adjusting) this.adjust(null);
     this.focused?.classList.remove('pad-focus');
     this.focused = el;
     el.classList.add('pad-focus');
@@ -100,7 +117,12 @@ export class PadNav {
   private activate() {
     const el = this.current();
     if (!el) return;
-    if (el instanceof HTMLSelectElement) {
+    const slider = sliderOf(el);
+    if (slider) {
+      const r = sliderPress(slider, this.adjusting === el);
+      this.adjust(r.adjusting ? el : null);
+      if (r.key) sendKey(el, r.key);
+    } else if (el instanceof HTMLSelectElement) {
       el.selectedIndex = (el.selectedIndex + 1) % el.options.length;
       el.dispatchEvent(new Event('change', { bubbles: true }));
     } else if (el instanceof HTMLInputElement && el.type === 'range') {
@@ -122,6 +144,11 @@ export class PadNav {
 
   /** ◯/B: the screen's back/close/cancel button, if any. */
   private back() {
+    const undo = this.adjusting && document.contains(this.adjusting) ? sliderBack(true) : null;
+    if (undo) {
+      sendKey(this.adjusting!, undo);
+      return this.adjust(null);
+    }
     const list = this.candidates();
     const btn =
       list.find((e) => e.hasAttribute('data-pad-back')) ??
@@ -172,7 +199,10 @@ export class PadNav {
 
   private step(dir: Dir) {
     const el = this.current();
-    if (el instanceof HTMLInputElement && el.type === 'range' && (dir === 'left' || dir === 'right')) this.nudge(el, dir === 'left' ? -1 : 1);
+    const slider = sliderOf(el);
+    const key = slider && el ? sliderKey(slider, this.adjusting === el, dir) : null;
+    if (key) sendKey(el!, key);
+    else if (el instanceof HTMLInputElement && el.type === 'range' && (dir === 'left' || dir === 'right')) this.nudge(el, dir === 'left' ? -1 : 1);
     else this.move(dir);
   }
 }

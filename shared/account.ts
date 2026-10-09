@@ -3,6 +3,7 @@ import type { Appearance } from './appearance';
 import type { ArsenalChoice, ProgWeapon } from './progression';
 import type { Sex } from './protocol';
 import type { Papel } from './roles';
+import type { PetChoice } from './pets';
 
 export const NAME_RULE = /^[\p{L}\p{N}][\p{L}\p{N} _.-]{1,14}[\p{L}\p{N}]$/u;
 export const NAME_MIN = 3;
@@ -104,6 +105,8 @@ export interface ProfileResponse {
   /** The sticker the player shows to the others (id) and the title they wear (a page id); null: none. */
   destaque: string | null;
   titulo: string | null;
+  /** The pet taken along (id null: none), the PvP / PvE switches and each pet's look (PATCH /api/perfil {pet}). */
+  pet: PetChoice;
   participacoes: Participation[];
   /** When the name can be changed again (ISO date), null = now. */
   nomeLiberaEm: string | null;

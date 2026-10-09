@@ -499,6 +499,10 @@ export const ZF = {
   run: 64,
   /** A boss past half health: angrier. */
   enraged: 128,
+  /** Held by a pet (the Amora biting its shin, or only a jolt): standing still. */
+  held: 256,
+  /** Caught in the Bruxinha's duck float: standing still, still taking shots. */
+  duck: 512,
 } as const;
 
 /** One zombie in a snapshot: id, kind index (Z_KINDS), feet x y z, yaw, flags (ZF). */

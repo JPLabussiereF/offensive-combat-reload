@@ -1,6 +1,9 @@
-// The map editor's texts (pt-BR and en), apart from the game's (client/ui/strings.ts): the same language the
-// game picked (getLang).
-import { getLang } from '../ui/strings';
+// The map editor's texts (pt-BR and en here, Spanish and German in strings.es.ts and strings.de.ts), apart from
+// the game's (client/ui/strings.ts): the same language the game picked (getLang).
+import type { Lang, Text } from '@shared/langs';
+import { getLang, textOf } from '../ui/strings';
+import { de } from './strings.de';
+import { es } from './strings.es';
 
 const pt = {
   title: 'Editor de mapas',
@@ -111,6 +114,11 @@ const pt = {
   budgetOver: 'Passou do limite: {o}',
   budgetDrawCalls: 'chamadas de desenho',
   budgetTriangles: 'triângulos',
+  budgetLight: 'Aviso: com o detalhe Leve (celulares) passa do recomendado: {o}',
+  budgetWorst: 'pior câmera {v} triângulos (até {max})',
+  budgetMedian: 'câmera mediana {v} triângulos (até {max})',
+  budgetShadow: 'sombra {v} triângulos (até {max})',
+  budgetCalls: '{v} chamadas (até {max})',
   invalid: 'O mapa tem problemas ({n}):',
   saveTitle: 'Salvar o mapa',
   name: 'Nome',
@@ -300,6 +308,11 @@ const en: Record<keyof typeof pt, string> = {
   budgetOver: 'Over the limit: {o}',
   budgetDrawCalls: 'draw calls',
   budgetTriangles: 'triangles',
+  budgetLight: 'Warning: with the Light detail (phones) it goes over the recommended: {o}',
+  budgetWorst: 'worst camera {v} triangles (up to {max})',
+  budgetMedian: 'median camera {v} triangles (up to {max})',
+  budgetShadow: 'shadow {v} triangles (up to {max})',
+  budgetCalls: '{v} draw calls (up to {max})',
   invalid: 'The map has problems ({n}):',
   saveTitle: 'Save the map',
   name: 'Name',
@@ -382,11 +395,12 @@ const en: Record<keyof typeof pt, string> = {
 
 export type EditorKey = keyof typeof pt;
 
+const DICTS: Record<Lang, Record<EditorKey, string>> = { 'pt-BR': pt, en, es, de };
+
 /** An editor text in the game's language, with {params}. */
 export function et(key: EditorKey, params: Record<string, string | number> = {}): string {
-  const dict = getLang() === 'pt-BR' ? pt : en;
-  return dict[key].replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ''));
+  return DICTS[getLang()][key].replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ''));
 }
 
 /** A piece kind's or category's name in the game's language. */
-export const nameOf = (n: { pt: string; en: string }) => (getLang() === 'pt-BR' ? n.pt : n.en);
+export const nameOf = (n: Text) => textOf(n);

@@ -61,7 +61,8 @@ import { showSaveDialog, type MapTarget } from './save';
 import { draftKey, handOff, type EditorMap } from './launch';
 import { draftIsNewer, recoveredBase, type Draft } from './recovery';
 import { injectEditorStyle } from './style';
-import { et, type EditorKey } from './strings';
+import { locale } from '../ui/strings';
+import { et, nameOf, type EditorKey } from './strings';
 import type { MapaResumo, TipoMapa } from '@shared/mapData';
 
 export interface EditorOptions {
@@ -291,7 +292,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
   // --- The map --------------------------------------------------------------------------------------------
   let opened: Awaited<ReturnType<typeof openMap>>;
   const askDraft = (d: Draft, isNew: boolean) => {
-    const quando = new Date(d.em).toLocaleString();
+    const quando = new Date(d.em).toLocaleString(locale());
     return choose(root, et('draftTitle'), et(isNew ? 'draftTextNew' : 'draftText', { quando }), et('draftRecover'), et('draftDiscard'));
   };
   try {
@@ -783,7 +784,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     if (!editable()) return;
     // P53: the catalog's defaults (the same the thumbnails show).
     const made = await dropPiece(doc.data, tipo, spot, { params, probe: (p) => view.probe(p) });
-    if (!made) return status(et('limitReached', { nome: MAP_CATALOG[tipo]?.nome.pt ?? tipo }), true);
+    if (!made) return status(et('limitReached', { nome: MAP_CATALOG[tipo] ? nameOf(MAP_CATALOG[tipo].nome) : tipo }), true);
     if (!editable()) return;
     if (spot.pai) hierarchy.expand(spot.pai);
     const rest = made.rest;
@@ -946,7 +947,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     const made = duplicateTree(doc.data, ids);
     if (made.skipped.length) {
       const p = find(made.skipped[0]);
-      status(et('limitReached', { nome: p ? (MAP_CATALOG[p.tipo]?.nome.pt ?? p.tipo) : made.skipped[0] }), true);
+      status(et('limitReached', { nome: p ? (MAP_CATALOG[p.tipo] ? nameOf(MAP_CATALOG[p.tipo].nome) : p.tipo) : made.skipped[0] }), true);
     }
     if (!made.copies.length) return;
     doc.setPieces(made.pecas, made.rest);
@@ -1002,7 +1003,7 @@ export async function runEditor(o: EditorOptions): Promise<void> {
     const made = pastePieces(doc.data, clip, new THREE.Matrix4().makeTranslation(d.x, d.y, d.z));
     if (made.skipped.length) {
       const p = clip.pecas.find((x) => x.id === made.skipped[0]);
-      status(et('limitReached', { nome: p ? (MAP_CATALOG[p.tipo]?.nome.pt ?? p.tipo) : made.skipped[0] }), true);
+      status(et('limitReached', { nome: p ? (MAP_CATALOG[p.tipo] ? nameOf(MAP_CATALOG[p.tipo].nome) : p.tipo) : made.skipped[0] }), true);
     }
     if (!made.copies.length) return;
     doc.setPieces(made.pecas, made.rest);

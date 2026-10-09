@@ -52,7 +52,7 @@ tags:
   - ux
   - editor
   - maps
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Map Editor UI
@@ -78,7 +78,7 @@ O editor ocupa a página inteira (`#editor`, criado em código; sem HUD nem entr
 
 - **Toolbar**: as ferramentas do Unity (**Mão** Q, **Mover** W, **Girar** E, **Escalar** R, **Retângulo** T); **Pivô/Centro** e **Global/Local** (cada botão alterna e mostra o estado); **▦ Grade** (encaixe sempre ligado) e **▾** com os passos do encaixe; **▶ ❚❚ ■** (Play, Pause, Stop) jogam o mapa dentro do editor, na aba Jogo (ver [[#Play dentro do editor]]); enquanto o jogo roda a toolbar fica azulada e, pausado, âmbar, como no Unity. **Layout ▾** tem "Restaurar layout padrão". Pivô/Centro, Global/Local, a grade e os passos ficam no `localStorage` (`oc.editor.ferramentas.v1`); um valor quebrado volta ao padrão (Pivô, Global, grade desligada, 0,5 m, 15°).
 - **Painéis encaixáveis** (Hierarquia, Cena, Jogo, Inspetor, Projeto; o Jogo é uma aba atrás da Cena no layout padrão, e um layout guardado antes dele ganha a aba ali): cada um é uma aba numa pilha. Arrastar a aba (mais de 6 px) mostra onde ela cai na pilha sob o ponteiro: no **meio**, entra na pilha como mais uma aba; numa **borda** (um quarto de cada lado), divide a pilha e fica à esquerda, à direita, em cima ou embaixo. Esc desiste. Clicar numa aba a traz para a frente. As **bordas** entre painéis se arrastam para redimensionar (cada lado fica com pelo menos 6%). O layout fica no `localStorage` (`oc.editor.layout.v1`); um layout guardado quebrado (sem um painel, com painel repetido, tamanhos inválidos) volta ao padrão. O canvas da cena acompanha o tamanho do painel Cena a cada quadro.
-- **Barra de status**: a barra de orçamento, as mensagens do editor e os atalhos.
+- **Barra de status**: a barra de orçamento, as mensagens do editor e os atalhos. A barra mede o mapa montado como o jogo monta (acima de `MAP_BUDGET` não salva) e, desde a PF-35 (P9), também montado com o detalhe Leve dos celulares: passando do orçamento leve (pior câmera 300 mil, mediana 220 mil, sombra 220 mil, 250 chamadas: `DETAIL_BUDGET`), aparece um aviso em amarelo, sem bloquear o salvamento. O editor em si mostra sempre o detalhe Normal.
 
 ## Hierarquia
 

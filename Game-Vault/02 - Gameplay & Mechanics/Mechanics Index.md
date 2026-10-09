@@ -14,7 +14,7 @@ tags:
   - game
   - gameplay
   - index
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Mechanics Index
@@ -78,6 +78,7 @@ flowchart LR
 | [[Aim Assist]] | só toque/controle, desligado por padrão: desacelera e acompanha |
 | [[Buffs & Debuffs]] | cereja, humanidade, mira afiada, 5 poções da bruxa, modificadores PCD |
 | [[Map Gags]] | piadas ambientais sincronizadas pelo `PropBus` (hidrantes, sinos, abóboras, armário...) |
+| [[Pets]] | seis pets companheiros (Amora, Bruxinha, gata, fuinha, lontra, iguana): enfeite no PvP, uma habilidade automática sem dano e sem dinheiro no zumbi |
 
 ## Mecânicas que não existem
 

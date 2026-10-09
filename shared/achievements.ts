@@ -8,6 +8,9 @@
 import data from './data/conquistas.json';
 import type { ProfileResponse, Totals } from './account';
 import { MAX_LEVELS, PROG_WEAPONS, type Levels } from './progression';
+import { TEXT_FIELD, type Text } from './langs';
+
+export type { Text };
 
 export const FINISHES = ['comum', 'brilhante', 'holografica', 'dourada'] as const;
 export type Finish = (typeof FINISHES)[number];
@@ -38,11 +41,6 @@ export type Source = (typeof SOURCES)[number];
 export type Sources = Record<Source, number>;
 /** The stickers' own counters, by key (the sticker's id, or "id:item" for a collection). */
 export type Own = Record<string, number>;
-
-export interface Text {
-  pt: string;
-  en: string;
-}
 
 export interface AlbumPage {
   id: string;
@@ -203,6 +201,9 @@ export function sourcesFromTotals(level: number, levels: Levels, t: Totals): Sou
   };
 }
 
+/** A text with every language filled in. */
+const filled = (x: Text | undefined) => !!x && Object.values(TEXT_FIELD).every((f) => !!x[f]);
+
 /** What's wrong with the album's data (checked by the tests): empty means fine. */
 export function albumProblems(): string[] {
   const out: string[] = [];
@@ -216,12 +217,12 @@ export function albumProblems(): string[] {
     if (s.fonte !== 'propria' && !(SOURCES as readonly string[]).includes(s.fonte)) out.push(`${s.id}: fonte ${s.fonte} não existe`);
     if (s.itens && (s.fonte !== 'propria' || !s.itens.length || new Set(s.itens.map((i) => i.id)).size !== s.itens.length)) out.push(`${s.id}: itens só em fonte própria, sem repetir`);
     if (s.itens && s.tipo !== 'recorde') out.push(`${s.id}: coleção é recorde (sem repetidas)`);
-    for (const i of s.itens ?? []) if (!i.nome?.pt || !i.nome?.en) out.push(`${s.id}: item ${i.id} sem nome`);
-    if (s.oculta && (!s.dica?.pt || !s.dica?.en)) out.push(`${s.id}: oculta precisa de dica em pt e en`);
+    for (const i of s.itens ?? []) if (!filled(i.nome)) out.push(`${s.id}: item ${i.id} sem nome`);
+    if (s.oculta && !filled(s.dica)) out.push(`${s.id}: oculta precisa de dica nos quatro idiomas`);
     if (s.tipo !== 'contador' && s.tipo !== 'recorde') out.push(`${s.id}: tipo ${s.tipo}`);
     if (s.metas.length < 1 || s.metas.length > FINISHES.length) out.push(`${s.id}: de 1 a ${FINISHES.length} metas`);
     if (s.metas.some((m, i) => !Number.isInteger(m) || m <= 0 || (i > 0 && m <= s.metas[i - 1]))) out.push(`${s.id}: metas devem crescer`);
-    for (const lang of ['pt', 'en'] as const) {
+    for (const lang of Object.values(TEXT_FIELD)) {
       if (!s.nome[lang] || !s.como[lang]) out.push(`${s.id}: falta texto em ${lang}`);
       // One target: the text can say it ("Caia para fora do mapa"); more: it must show the next one.
       if (s.metas.length > 1 && !s.como[lang]?.includes('{meta}')) out.push(`${s.id}: "como" sem {meta} em ${lang}`);
@@ -229,7 +230,7 @@ export function albumProblems(): string[] {
   }
   for (const p of PAGES) {
     if (!STICKERS.some((s) => s.pagina === p.id)) out.push(`página ${p.id} vazia`);
-    if (!p.titulo?.pt || !p.titulo?.en) out.push(`página ${p.id} sem título`);
+    if (!filled(p.titulo) || !filled(p.nome)) out.push(`página ${p.id} sem nome ou título`);
   }
   return out;
 }

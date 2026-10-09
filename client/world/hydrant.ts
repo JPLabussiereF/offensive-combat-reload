@@ -5,6 +5,7 @@ import type { SpatialSfx, Vec } from '../audio/spatial';
 import type { MapBuilder } from './mapBuilder';
 import type { SurfaceInfo } from './physics';
 import { surfaceMaterial } from './surfaces';
+import { PackedInstances } from '../render/packedInstances';
 
 const GUSH_TIME = 3;
 const FADE_TIME = 0.8;
@@ -19,7 +20,7 @@ export interface HydrantSfx extends SpatialSfx {
   splash(): void;
 }
 
-/** Droplets for every hydrant: one InstancedMesh (one draw call). */
+/** Droplets for every hydrant: one InstancedMesh (one draw call), only the ones in the air drawn. */
 export class WaterDrops {
   readonly mesh: THREE.InstancedMesh;
   private pos = new Float32Array(MAX_DROPS * 3);
@@ -28,6 +29,7 @@ export class WaterDrops {
   /** Height each droplet vanishes at (the ground, or a fountain's water surface). */
   private floor = new Float32Array(MAX_DROPS);
   private cursor = 0;
+  private packed: PackedInstances;
   private m = new THREE.Matrix4();
   private q = new THREE.Quaternion();
   private s = new THREE.Vector3();
@@ -40,8 +42,7 @@ export class WaterDrops {
       MAX_DROPS,
     );
     this.mesh.frustumCulled = false;
-    this.m.makeScale(0, 0, 0);
-    for (let i = 0; i < MAX_DROPS; i++) this.mesh.setMatrixAt(i, this.m);
+    this.packed = new PackedInstances(this.mesh);
     scene.add(this.mesh);
   }
 
@@ -62,10 +63,8 @@ export class WaterDrops {
   }
 
   update(dt: number) {
-    let any = false;
     for (let i = 0; i < MAX_DROPS; i++) {
       if (this.life[i] <= 0) continue;
-      any = true;
       const k = i * 3;
       this.life[i] -= dt;
       this.vel[k + 1] -= 16 * dt;
@@ -75,14 +74,13 @@ export class WaterDrops {
       // Droplets vanish on the ground (splash) or when they run out of life.
       if (this.pos[k + 1] < this.floor[i] || this.life[i] <= 0) {
         this.life[i] = 0;
-        this.m.makeScale(0, 0, 0);
+        this.packed.hide(i);
       } else {
         const size = 0.05 + Math.min(0.06, this.life[i] * 0.04);
-        this.m.compose(this.v.set(this.pos[k], this.pos[k + 1], this.pos[k + 2]), this.q, this.s.set(size, size * 1.6, size));
+        this.packed.set(i, this.m.compose(this.v.set(this.pos[k], this.pos[k + 1], this.pos[k + 2]), this.q, this.s.set(size, size * 1.6, size)));
       }
-      this.mesh.setMatrixAt(i, this.m);
     }
-    if (any) this.mesh.instanceMatrix.needsUpdate = true;
+    this.packed.flush();
   }
 }
 

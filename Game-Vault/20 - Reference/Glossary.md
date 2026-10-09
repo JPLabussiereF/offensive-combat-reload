@@ -4,6 +4,9 @@ type: reference
 status: documented
 area: reference
 source_paths:
+  - client/ui/home.ts
+  - client/ui/playRules.ts
+  - shared/pets.ts
   - client/ui/galpao/galpao.ts
   - server/modes.ts
   - shared/gunGame.ts
@@ -49,10 +52,17 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Contra bots | `mode: 'bots'` | Modo offline contra bots (`facil`/`normal`/`dificil`) | [[Versus Bots]] |
 | Cozinhar | `cookT` | Segurar G com o pino tirado; depois de 3 s a granada explode na mão | [[Grenades]] |
 | Dancinha da Vitória | `taunt`, `danceMusic` | A dança da Opressão (3,2 s, funk de 150 bpm) | [[Humiliation]] |
+| Detalhe dos objetos (Normal / Leve) | `Settings.detalhe`, `ObjectDetail`, `objectDetail`, `MapBuilder.seg` | Quanto de geometria o mapa monta: o Leve (padrão no celular e com renderização por software) simplifica folhagem, árvores mortas, lanternas do céu, telhados, props esculpidos e estantes e troca o LOD dos personagens mais cedo; colisão igual. Vale a partir da próxima partida (PF-35) | [[Settings]] · [[ADR - Detalhe geométrico Normal e Leve]] |
+| Entrada rápida | `#gp-quick`, `quickJoin`, `playHooks.quickPlay` | O botão ENTRADA RÁPIDA (e Enter) da visão geral do galpão: sempre online, faz o mesmo que o botão laranja do Online, com o tipo e o mapa do Online ("Mata-mata · Online · Rua dos Vizinhos") | [[Matchmaking UI]] |
+| Botão laranja (aba Jogar) | `#home-play-cta`, `ctaText` | A ação principal da aba Jogar: sempre no pé do painel lateral, com altura fixa, dizendo o que vai acontecer (JOGAR ONLINE, CONTRA N BOTS, ENCARAR A HORDA SOZINHO, CAMPO DE TIRO) | [[Menus]] |
+| Qualquer mapa | `onlineMap = null`, `effectiveOnlineMap`, `quickTarget` | O primeiro cartão de mapa do Online: entra no mapa da sessão mais cheia não lotada do tipo, ou num oficial quando ninguém joga | [[Matchmaking UI]] |
+| Pet / Levar este / Deixar no quintal | `PetId`, `PetChoice` (`shared/pets.ts`), `player_profile.pet` | O companheiro que vai com o jogador (Amora, Bruxinha, gata, fuinha, lontra, iguana): enfeite no PvP, uma habilidade no zumbi. "Levar este" escolhe o que vai junto (chamar um pet na estação só mostra); "Deixar no quintal" fica sem pet | [[Pets]] |
+| Segura, Amora! · Feitiço do Pato · Sétima Vida · Mão na Massa · Pedrada · Rabo de Isca | `zpet` `act`: `hold`/`nudge`, `duck`, `lift`/`yield`/`up`, `nail`, `stone`, `tail` | As habilidades dos pets no zumbi: segurar pela canela, boia de patinho, a gata levantar o dono, pregar tábuas, cancelar o cuspe ou o inchaço, o rabo que atrai a horda | [[Pets]] · [[Zombie]] |
 | Dose Dupla | melhoria opcional da granada (nível 3, grupo `modo`), `tipo: 'dupla'` | Duas granadas por carga, com 0,3 s entre elas | [[Grenades]] |
 | Frases rápidas | `QUICK_CHAT` | Mensagens de chat de um toque no celular | [[Chat]] |
 | Granada de pato | poção `pato` | Visual e som de pato de borracha nas granadas, sem efeito de jogo | [[Buffs & Debuffs]] |
 | Humanidade | `humanity`, `RAT.extraHealth` | +50 de vida máxima até morrer, por derrubar o rato gigante | [[Buffs & Debuffs]] |
+| Idioma | `Settings.idioma`, `LANGS` (`pt-BR`, `en`, `es`, `de`) | O idioma do jogo, escolhido por aparelho nas Configurações (subaba Vídeo) ou no botão da landing; sem escolha, o do navegador. Espanhol = latino-americano neutro (es-419) | [[Settings]], [[ADR - Seletor de idioma por aparelho]] |
 | Investida | `lunge` | Avanço da faca até o alvo próximo | [[Melee]] |
 | Kill feed | `hud.killfeed` | Linhas "Matador [arma] ícone Vítima" | [[HUD]] |
 | Mata-mata (livre) | `'mata-mata'` (`GameModeId`), `DeathmatchMode` | Modo todos contra todos com o Arsenal da conta, escolhido antes e travado durante a partida | [[Free For All]] · [[Versus Bots]] |
@@ -196,13 +206,13 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | `SIM` | Passo fixo da simulação (1/60 s, até 5 passos por quadro) | [[ADR - Simulação em passo fixo com render interpolado]] |
 | `FLAG` | Bits de animação enviados junto com o estado | [[Replication]] |
 | `HttpError` / `ApiError` / `ApiErrorCode` | Códigos de erro estáveis em snake_case português | [[Error Handling]] |
-| `oc.settings.v1` / `oc.bots` | Chaves do `localStorage`: preferências / opções do modo bots | [[Settings]] · [[Save System]] |
+| `oc.settings.v1` / `oc.bots` | Chaves do `localStorage`: preferências / escolhas da aba Jogar (lugar, tipo, mapas, bots) | [[Settings]] · [[Save System]] |
 | `__oc` | Handle de depuração no `window`, só em dev (perf, stats, trace) | [[Troubleshooting]] |
 | F3 / F4 / F6 | Overlay de depuração / hitboxes e navmesh / painel de ajuste | [[Troubleshooting]] |
 | PadNav | Navegação dos menus pelo controle | [[Input & Controls]] |
 | Trilho / painel do menu de pausa | O trilho (`.pm-rail`: onde se está, voltar, as duas abas, a saída) e o painel da aba aberta (`#pm-panel`) do menu de pausa e do cartão de início; `pauseContext` diz o que o trilho mostra em cada lugar × modo | [[Menus]] · [[ADR - Menu de pausa com trilho e abas]] |
 | `data-pad-back` / `data-pad-explicit` / `data-pad-subtabs` | Marcas para o `PadNav`: o botão que ◯/B aperta / tela que marca o seu voltar em cada nível (sem chutar pelo texto) / subabas que L1/R1 só trocam quando não há outra barra | [[Menus]] |
-| Galpão | `GalpaoHome`, `createGalpao`, `#galpao`, `oc.galpao` | A tela inicial logada em 3D: um galpão com sete **estações** (objetos que seguram as abas: mesa, cortiça, painel perfurado, revista, armário, quadro elétrico, monitor); a home clássica fica sem GPU ou com `oc.galpao` = 'off' | [[Menus]] · [[ADR - Tela inicial em galpão 3D]] |
+| Galpão | `GalpaoHome`, `createGalpao`, `#galpao`, `oc.galpao` | A tela inicial logada em 3D: um galpão com oito **estações** (objetos que seguram as abas: mesa, cortiça, painel perfurado, revista, armário, quadro elétrico, a porta do quintal dos pets, monitor); a home clássica fica sem GPU ou com `oc.galpao` = 'off' | [[Menus]] · [[ADR - Tela inicial em galpão 3D]] |
 | Superfície (galpão) | `.gp-surf`, `bindSurface`, homografia | O elemento DOM de uma estação, preso ao objeto 3D por uma `matrix3d` a cada quadro | [[ADR - Tela inicial em galpão 3D]] |
 | Canvas do Arsenal | `ArsenalCanvas`, `canvasLayout`, `data-pad-pan` | A aba Arsenal da tela inicial: quadros por espaço, armas e melhorias ligadas, câmera com arrastar e zoom, painel de detalhes | [[Inventory UI]] · [[ADR - Arsenal da tela inicial em canvas]] |
 | Primária / Alternativa | Os dois espaços de tecla de cada ação | [[ADR - Teclas remapeáveis com primária e alternativa]] |

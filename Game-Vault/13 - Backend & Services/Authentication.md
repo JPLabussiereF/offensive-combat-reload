@@ -19,7 +19,7 @@ tags:
   - backend
   - auth
   - seguranca
-updated: 2026-10-05
+updated: 2026-10-08
 ---
 
 # Authentication
@@ -82,7 +82,7 @@ sequenceDiagram
 ### Recuperação de senha
 
 1. `POST /api/auth/recuperar` sempre responde 204 (não revela se o e-mail existe).
-2. Máximo 3 e-mails por hora por conta. O link vai por [[External Services|SMTP do Gmail]] ou, sem SMTP configurado, aparece no log do servidor.
+2. Máximo 3 e-mails por hora por conta. O link vai por [[External Services|SMTP do Gmail]] ou, sem SMTP configurado, aparece no log do servidor. O e-mail vem no idioma do campo `idioma` do pedido (o da tela do jogador; `resetMail` em `server/auth/password.ts`, quatro modelos; pt-BR se ausente ou inválido — PF-30).
 3. `POST /api/auth/redefinir` consome o token (`GETDEL`), grava o novo hash, marca o e-mail como verificado, zera o bloqueio e **revoga todas as sessões**.
 
 ### Abertura do WebSocket

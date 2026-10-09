@@ -1,4 +1,6 @@
 import type { Quality } from '../render/quality';
+import { pickDetail, type ObjectDetail } from './objectDetail';
+import { isLang, type Lang } from '@shared/langs';
 import { IS_MOBILE } from './device';
 import { mergeKeybinds, type Keybinds } from './keybinds';
 
@@ -13,6 +15,12 @@ export interface Settings {
   /** Spatial sound: 3D for headphones (HRTF), plain stereo for speakers, or automatic by device. */
   spatialAudio: 'auto' | 'hrtf' | 'stereo';
   quality: Quality;
+  /**
+   * Object detail (PF-35): 'leve' builds the maps simpler (foliage, dead trees, sky lanterns, roofs, sculpted
+   * props, shelves) and switches the characters to their far levels sooner. Read when a map is built (the next
+   * match). Absent until the player picks one: the device's default (defaultDetail).
+   */
+  detalhe?: ObjectDetail;
   // Touch (phones and tablets).
   /** Look speed of the touch drag (1 = default, ~0.18° per pixel). */
   touchSensitivity: number;
@@ -40,7 +48,25 @@ export interface Settings {
    * keys on layouts other than QWERTY where the browser has no layout map (Firefox).
    */
   keyLabels: Record<string, string>;
+  /** The language chosen on this device (PF-30); unset: the browser's (client/ui/strings.ts resolveLang). */
+  idioma?: Lang;
+  /** PvP only: other players' pets aren't drawn (PF-29); the own pet stays. Saved on this device. */
+  hidePets: boolean;
 }
+
+export type { ObjectDetail };
+
+/** The renderer runs on the CPU (QualityManager.software): its default object detail is Leve too. */
+let software = false;
+export function setSoftwareRenderer(on: boolean) {
+  software = on;
+}
+
+/** Leve on phones and tablets and with software rendering, Normal elsewhere. */
+export const defaultDetail = (): ObjectDetail => pickDetail(undefined, IS_MOBILE, software);
+
+/** The object detail in effect: the player's choice, else the device's default. */
+export const objectDetail = (s: Settings): ObjectDetail => pickDetail(s.detalhe, IS_MOBILE, software);
 
 const KEY = 'oc.settings.v1';
 const DEFAULTS: Settings = {
@@ -61,6 +87,7 @@ const DEFAULTS: Settings = {
   padSensitivity: 1,
   keybinds: mergeKeybinds(undefined),
   keyLabels: {},
+  hidePets: false,
 };
 
 export function loadSettings(): Settings {
@@ -69,7 +96,10 @@ export function loadSettings(): Settings {
     if (raw) {
       const saved = JSON.parse(raw);
       // Keybinds merge action by action (a plain spread would drop the defaults of actions added later).
-      return { ...DEFAULTS, ...saved, keybinds: mergeKeybinds(saved?.keybinds), keyLabels: cleanLabels(saved?.keyLabels) };
+      // A language that isn't one of the game's is dropped (the browser's applies).
+      const out: Settings = { ...DEFAULTS, ...saved, keybinds: mergeKeybinds(saved?.keybinds), keyLabels: cleanLabels(saved?.keyLabels), idioma: isLang(saved?.idioma) ? saved.idioma : undefined };
+      if (out.detalhe !== 'normal' && out.detalhe !== 'leve') delete out.detalhe;
+      return out;
     }
   } catch {
     /* storage unavailable */

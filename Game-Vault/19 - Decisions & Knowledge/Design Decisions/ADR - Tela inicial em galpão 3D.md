@@ -4,6 +4,7 @@ type: decision
 status: documented
 area: ui
 source_paths:
+  - client/ui/playRules.ts
   - client/ui/galpao/heroCharacter.ts
   - client/ui/galpao/galpao.ts
   - client/ui/galpao/scene.ts
@@ -15,6 +16,9 @@ source_paths:
   - client/styles.css
   - index.html
   - client/tests/galpaoRules.test.ts
+  - client/ui/galpao/petStage.ts
+  - client/ui/galpao/petBoard.ts
+  - client/ui/pets.ts
 tags:
   - game
   - decision
@@ -51,13 +55,21 @@ Trocar a cara da tela inicial sem reescrever as abas (que já têm regras, teste
 2. **Cena** (`client/ui/galpao/scene.ts`, porte fiel do `scene.js` do design para TypeScript estrito): texturas procedurais em canvas, materiais PBR, sombras, cadeia de pós-processamento própria (bloom, ACES, vinheta, grão, aberração), câmera que voa em curva entre as poses e **superfícies DOM** presas nos objetos por homografia (`matrix3d`). Versão leve (texturas menores, sem MSAA, DPR menor) no toque e em janelas estreitas (`lightScene`).
 3. **Navegação:** a visão geral mostra o menu (ENTRADA RÁPIDA e as estações 01–07; Gerenciamento só para a equipe). Numa estação, a barra de baixo tem **‹ GALPÃO (Esc)**, a dica da estação e **anterior/próxima (Q/E ou setas)**. Na visão geral, **1–7** vão às estações e **Enter** é a entrada rápida. As teclas são ignoradas em campos de texto, com modificadores e durante a captura de tecla das Configurações (`keyAction` em `galpaoRules.ts`).
 4. **Abas nas estações:** escolher uma estação chama `showTab` da home (que carrega o perfil, os mapas…) enquanto a câmera voa; quando a home abre uma aba sozinha (um Voltar, um link do e-mail), o galpão vai à estação dela (`follow`). Os formulários de nome e o editor de personagem (`#tab-auth`) abrem no armário do Perfil. Voltar/Cancelar dos formulários levam à visão geral.
-5. **Jogar:** a aba ganhou três colunas de cartões de papel na mesa (`.play-col`, sem efeito na home clássica), um cabeçalho e o **botão laranja** `#home-play-cta`: entrada rápida (Online), a partida contra bots ou o campo de tiro no mapa escolhido.
+5. **Jogar:** a aba ganhou três colunas de cartões de papel na mesa (`.play-col`, sem efeito na home clássica), um cabeçalho e o **botão laranja** `#home-play-cta`: entrada rápida (Online), a partida contra bots ou o campo de tiro no mapa escolhido. *(Revisto na PF-32: ver a revisão abaixo.)*
 6. **Arsenal:** as armas pendem do painel perfurado, uma seção por espaço com os ids do catálogo (`PRIMARIES`, `SECONDARIES`, `KNIVES`, granada e a **mina** como peça da melhoria `granada.mina`). Cada arma tem uma etiqueta (nível, verde equipada, vermelha bloqueada, barra até o próximo nível ou até liberar; o nome aparece de perto, ao passar o mouse ou na selecionada) e o clique abre a **ficha** ao lado: Equipar, progresso, atributos, passiva da faca, descrição e **todas as melhorias da progressão com o interruptor**. Dados de `arsenalTree`, salvamento de `Progress` (mesmas regras do canvas). Arrastar move, a roda e a pinça dão zoom.
 7. **Partida:** ao sair para uma partida (online, bots, campo de tiro), a porta de enrolar sobe, a luz entra e aparece **ENTRANDO NA PARTIDA** com o nome da sessão ou do modo e o mapa (no máximo 4 s se a aba estiver escondida); depois a home some e o jogo carrega como antes. O editor de mapas sai direto. Com `prefers-reduced-motion`, sem voo de abertura e sem a cinemática.
 8. **Visual das abas:** as abas mantêm a marcação; o CSS do galpão (`#galpao .gp-surf …`) troca as variáveis (`--ink`, `--paper`, `--display`, `--body`) e os componentes comuns para papel e tinta (fontes Barlow, Barlow Condensed e JetBrains Mono), e painéis escuros nas Configurações e no Gerenciamento.
 
 > [!info] Revisão (08/10/2026, pedido do dev)
 > A splash ficou **só com o nome do jogo** (saíram a barra e os textos de carga; o HUD e a home clássica ficam escondidos por baixo, `z-index` do `#galpao` e `galpao-on` desde o começo da montagem). O **boneco de argila** da mesa deu lugar ao **personagem da conta** (`client/ui/galpao/heroCharacter.ts`: `Character` com a aparência do perfil, sem armas, posado nos ossos — tronco inclinado, IK de dois ossos nos braços até as mãos no tampo — e a cabeça olhando entre a câmera e a mesa a cada quadro), entregue à cena por `Galpao.setHero`. O boneco continua só como reserva se o personagem não puder ser montado.
+
+> [!info] Revisão (08/10/2026, PF-32: aba Jogar redesenhada, proposta da PF-31)
+> O item 5 mudou. As três colunas (`.play-col`) deram lugar a um caminho só, **onde → tipo → mapa → botão laranja**: **onde jogar** num segmentado no cabeçalho; **tipo de partida** com a descrição embaixo, num espaço de altura fixa (os botões não pulam mais); **um mapa** em cartões de escolha única (no Online, primeiro **Qualquer mapa**; o filtro de vários mapas saiu); um **painel lateral** que muda com o lugar (sessões do mapa escolhido, opções dos bots, a horda, o treino); e o **botão laranja** `#home-play-cta` sempre no pé do painel, com altura fixa e dizendo o que vai acontecer, agora também na home clássica (lá o JOGAR ONLINE do cartão do personagem some com a aba Jogar aberta). O tamanho da própria folha decide a disposição (container query `playsurf`): desktop a partir de 440 px de altura; abaixo disso, um **layout compacto** para o celular deitado (folha de ~550×270 px) que cabe sem rolar, com alvos de 40 px, a lista de sessões como vista (SESSÕES (N) / ‹ MAPAS) e os seletores de bots nativos. No Campo de tiro o clique no mapa só escolhe. A cena (`scene.ts`, inclusive a folha do celular) e o `galpao.ts` não mudaram: a ENTRADA RÁPIDA continua chamando o `quickPlay` da home, que agora usa o mapa do Online (o escolhido ou Qualquer mapa). Regras puras em `client/ui/playRules.ts`. Ver [[Menus]] e [[Matchmaking UI]].
+
+> [!info] Revisão (08/10/2026, PF-29: pets, com o parecer de câmera da PF-36)
+> - **Estação nova, 07 · PETS** (`'pets'` em `STATION_ORDER`, antes do Gerenciamento): a **porta da frente** com um **quintal de verdade** do lado de fora (grama, muro baixo, casinha da Amora com a plaquinha, céu próprio em ~1,2; o céu das outras aberturas não muda), arandela e spot no capacho registrados em `keys` como `pets`, placa **SAÍDA → QUINTAL**, numeral 07 e **07 · PETS** no chão. **Pose de câmera fixa** (não enquadra uma superfície: posição 2,2; 1,3; 4,8, alvo −1; 0,8; 7,9, 40°, `filmOffset` 6, ~4,5 abaixo de 900 px; retrato: posição 0,6; 1,2; 5,0, alvo −0,3; −0,66; 7,3, 60°, sem `filmOffset`, o pet no meio da metade de cima e a ficha como folha no rodapé). Porta-coleiras com **etiquetas DOM** numa fileira no computador (ganchos cada vez mais espaçados longe da porta, etiquetas do tamanho da janela; nunca sobrepostas) e, no celular, no retrato e em janelas pequenas, uma **fileira de rostos** no topo da **ficha** no padrão do Arsenal (`petBoard.ts` no molde de `arsenalBoard.ts`); os pets ficam em `petStage.ts` (`Galpao.setPetStage`). **Escolher ≠ equipar** ("Levar este"); troca cruzando na porta em menos de 2 s, interrompível; o pet levado aparece na visão geral sem cruzar o menu, é clicável (`'pets'` nos objetos de clique) e corre na cinemática de lançamento, à frente da câmera, saindo pela porta antes do branco. Nos voos de e para a estação, os pets só somem depois que a câmera vira (40% do voo ou fora do quadro): `PetStageFrame.fly`. A placa da porta (**QUINTAL**) é uma tábua de madeira iluminada, não uma luz de saída. O **Gerenciamento passa a 08**; as teclas 1 a 6 não mudam. Ver [[Pets]] e [[ADR - Pets companheiros com habilidade no zumbi]].
+> - **Voo pela amplitude** (`flightDuration`): 1 s até 60° de giro, 1,2 s a 120°, 1,4 s a 180°; o horizonte inclina no máximo ~8° no caminho (o slerp entre poses retas podia rolar ~15° de Jogar até a porta); uma curva que passaria pela mesa do personagem ganha um ponto de passagem lateral; do Gerenciamento continua por `WAY.admin`.
+> - **Movimento reduzido**: em vez do voo de 0,6 s, um **corte com mergulho no preto de ~0,2 s** (`postU.black`), em todas as estações (Perfil e Configurações também).
 
 ## Motivo
 

@@ -19,11 +19,13 @@ source_paths:
   - shared/zombieMatch.ts
   - shared/barricades.ts
   - client/zombies/client.ts
+  - shared/pets.ts
+  - client/pets/manager.ts
 tags:
   - game
   - networking
   - protocol
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Remote Calls
@@ -52,10 +54,10 @@ Convenções:
 |---|---|---|---|---|
 | `hello` | — | 1× após abrir | Nome e corpo vêm da conta, nunca da mensagem | `welcome {id, name, sessions}` + `progresso` |
 | `list` | — | sob demanda | — | `sessions {list}` |
-| `play` | `map`, `mode` | sob demanda | Exige `hello` antes. O mapa tem de existir, estar visível (nem oculto nem apagado) e aceitar o modo (`modeAllowsMap`), senão `error` ("Esse mapa não está disponível." / "Esse modo não é jogado nesse mapa."). Entra numa sala da versão atual do mapa nesse modo com vaga, ou abre uma (PF-6) | sai da sala atual e entra → `joined` (com `session.versao`) |
+| `play` | `map`, `mode` | sob demanda | Exige `hello` antes. O mapa tem de existir, estar visível (nem oculto nem apagado) e aceitar o modo (`modeAllowsMap`), senão `error` (`mapa_indisponivel` "Esse mapa não está disponível." / `modo_fora_do_mapa` "Esse modo não é jogado nesse mapa."). Entra numa sala da versão atual do mapa nesse modo com vaga, ou abre uma (PF-6) | sai da sala atual e entra → `joined` (com `session.versao`) |
 | `create` | `name`, `map?`, `mode?` | sob demanda | Exige `hello` antes; `sanitizeName(name, 24)` ou "Sala de <nome>"; modo inválido → `mata-mata`; mapa inexistente, oculto ou onde o modo não é jogado → o primeiro mapa oficial do modo (zumbi: o cemitério; os outros modos: a rua) | sai da sala atual, cria e entra → `joined` |
 | `loadout` | `lo` (`ArsenalChoice {primaria?, secundaria, faca?, ligadas, desligadas?}`) | antes de `join`/`create` (a home sempre manda) | só fora de sessão; `equip` → `sanitizeChoice` com o XP de cada progressão da conta (arma trancada volta à padrão do espaço: Rifle Padrão, pistola, faca de cozinha; sem `primaria`/`faca`/`desligadas`, cliente antigo, valem os padrões e nenhuma comum desligada) | `progresso` (com a `escolha` guardada). A escolha vale para a próxima sessão em que entrar |
-| `join` | `session` | sob demanda | Exige `hello`; sessão existe e não está cheia | `joined`, ou `error` ("Diga olá primeiro.", "Essa sessão não existe mais.", "Sessão lotada.") |
+| `join` | `session` | sob demanda | Exige `hello`; sessão existe e não está cheia | `joined`, ou `error` (`sem_ola` "Diga olá primeiro.", `sessao_inexistente` "Essa sessão não existe mais.", `sessao_lotada` "Sessão lotada.") |
 | `leave` | — | sob demanda | — | `sessions {list}`; grava o progresso |
 | `ping` | `c` (relógio do cliente), `rtt?` | 1 Hz | `Number(c)` | `pong {c, s}` |
 
@@ -99,7 +101,7 @@ Convenções:
 | `welcome` | `id`, `name`, `sessions` | resposta ao `hello` | conexão |
 | `sessions` | `list: SessionInfo[]` | `list`, `leave`, ou mudança no lobby (agrupada em 100 ms) | quem está no lobby |
 | `joined` | `session`, `you`, `players` (com aparência), `corpses`, `time`, `pickups?`, `fish?`, `rats?`, `zumbi?` (`ZombieSync`: fase, onda, fim da fase, total, caixão, caídos, `bars` — as barricadas como estão) | ao entrar numa sala | conexão |
-| `error` | `message` | falha em `create`/`join` | conexão |
+| `error` | `code`, `message` | falha em `play`/`create`/`join` | conexão. `code` (PF-30, `WsErrorCode` de `WS_ERRORS` em `shared/protocol.ts`): `sem_ola`, `sessao_lotada`, `sessao_inexistente`, `mapa_indisponivel`, `modo_fora_do_mapa`, `sem_mapa`, `entrada_falhou` (erro inesperado). O cliente (`Refusal` em `client/net/connection.ts`) mostra o texto `wsErr_<código>` no idioma escolhido; `message` continua em pt-BR para clientes antigos em cache, que ignoram o `code` |
 | `playerJoined` | `player` (com aparência) | alguém entrou | sala, exceto quem entrou |
 | `playerLeft` | `id` | alguém saiu | sala |
 | `snap` | `time`, `players[] {id, s, h, alive}` | **20 Hz** | sala |
@@ -136,8 +138,9 @@ Convenções:
 | `zmoney` | `m: [id, dinheiro][]`, `why` (`assist`/`wave`/`boss`) | ajudas, bônus de onda, prêmio de chefe | sala |
 | `zdown`, `zrevive`, `zup` | `id`, (`until`), (`by`, `money?`) | caiu / reanimando / levantou | sala |
 | `zend` | `won`, `wave`, `secs`, `players: ZSummaryRow[]`, `restartAt` | fim da partida zumbi (resumo) | sala |
+| `zpet` | `id` (o dono), `act` (`hold`/`nudge`/`duck`/`lift`/`yield`/`up`/`nail`/`stone`/`tail`), `z?` (o zumbi), `i?` (a barricada), `at?` (onde caiu o rabo), `until`, `ready` (quando a habilidade volta; 0: agora ou trabalhando), `n?` (as cargas da gata) | o pet de alguém agiu na partida zumbi (PF-29: a Amora segurou ou deu um tranco, a boia da Bruxinha, a gata começou, pausou ou terminou de levantar o dono, a fuinha pregou ou terminou, a pedrada da lontra, o rabo da iguana). O servidor decide (no solo, o motor no navegador); a posição do pet **não trafega**: cada cliente o desenha seguindo o dono. Ver [[Pets]] | sala |
 
-`PlayerInfo` ganhou `fig?: [id, nivel]` e `tit?` (a figurinha do álbum em destaque, com o acabamento de agora, e o título; [[Achievements]]), `ladder?: {step, kills}` (corrida armada) e `zumbi?: {money, kills, downs, revives, state, items}` (zumbi; `items.danificadas` diz quais estão danificadas); `SessionInfo` ganhou `mode`; `KillKind` ganhou `'zombie'` (sangrou caído); `Loadout` ganhou `danificadas?` (por arma: `municao`/`dano`/`ambos`, mantido por `sanitizeLoadout`). Ver [[Gun Game]] e [[Zombie]].
+`PlayerInfo` ganhou `pet?: { id, cor, coleira, pvp, pve }` (PF-29: só em `joined`/`playerJoined`, só se o pet vai junto no modo da sessão pelo interruptor dele, e **nunca o nome**; ver [[Pets]]); o `ZNet` dos zumbis ganhou os bits `ZF.held` (256, segurado pela Amora) e `ZF.duck` (512, na boia da Bruxinha). `PlayerInfo` ganhou também `fig?: [id, nivel]` e `tit?` (a figurinha do álbum em destaque, com o acabamento de agora, e o título; [[Achievements]]), `ladder?: {step, kills}` (corrida armada) e `zumbi?: {money, kills, downs, revives, state, items}` (zumbi; `items.danificadas` diz quais estão danificadas); `SessionInfo` ganhou `mode`; `KillKind` ganhou `'zombie'` (sangrou caído); `Loadout` ganhou `danificadas?` (por arma: `municao`/`dano`/`ambos`, mantido por `sanitizeLoadout`). Ver [[Gun Game]] e [[Zombie]].
 
 `KillKind`: `gun`, `head`, `groin`, `knife`, `grenade`, `fall`, `void`, `explosion`, `dog`. `AwardLabel`: `kill`, `headshot`, `groin`, `knife`, `backstab`, `longShot`, `humiliation`.
 

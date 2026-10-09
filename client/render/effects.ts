@@ -1,5 +1,6 @@
 // Pooled combat effects (section 3: never create/destroy per shot): bullet decals, particles, tracers, muzzle light.
 import * as THREE from 'three';
+import { PackedInstances } from './packedInstances';
 
 const MAX_DECALS = 384;
 /** Marks stay this long, then fade out over DECAL_FADE seconds (bullet holes / explosion scorches). */
@@ -17,14 +18,17 @@ export type ParticleKind = 'debris' | 'spark' | 'confetti' | 'star';
 export const CONFETTI_COLORS = [0xff4f9a, 0xffd23f, 0x3fd3ff, 0x7dff5a, 0xb27dff, 0xff7a1a].map((c) => new THREE.Color(c));
 
 export class Effects {
-  private decals: THREE.InstancedMesh;
+  /** Marks and particles: only the live ones are drawn (packed at the front of their mesh, PF-35). */
+  private decals: PackedInstances;
+  /** The fade attribute's index in `decals`. */
+  private fadeK: number;
   private decalCursor = 0;
   private decalBorn = new Float32Array(MAX_DECALS).fill(-1e9);
   private decalLife = new Float32Array(MAX_DECALS);
-  private decalFade: THREE.InstancedBufferAttribute;
+  private decalFade = new Float32Array(MAX_DECALS);
   private time = 0;
 
-  private particles: THREE.InstancedMesh;
+  private particles: PackedInstances;
   private pPos = new Float32Array(MAX_PARTICLES * 3);
   private pVel = new Float32Array(MAX_PARTICLES * 3);
   private pLife = new Float32Array(MAX_PARTICLES);
@@ -51,12 +55,13 @@ export class Effects {
   private e = new THREE.Euler();
   private zAxis = new THREE.Vector3(0, 0, 1);
 
-  constructor(scene: THREE.Scene) {
+  /** `detail`: with the light object detail (PF-35, P7) the fireballs and the smoke are plain icosahedra (20 triangles, not 80). */
+  constructor(scene: THREE.Scene, detail: 'normal' | 'leve' = 'normal') {
     // Per-instance fade (0..1) multiplies the decal's alpha, so each mark disappears on its own schedule
     // while all of them stay one draw call.
     const decalGeo = new THREE.PlaneGeometry(0.13, 0.13);
-    this.decalFade = new THREE.InstancedBufferAttribute(new Float32Array(MAX_DECALS), 1);
-    decalGeo.setAttribute('aFade', this.decalFade);
+    const fade = new THREE.InstancedBufferAttribute(new Float32Array(MAX_DECALS), 1);
+    decalGeo.setAttribute('aFade', fade);
     const decalMat = new THREE.MeshBasicMaterial({
       map: holeTexture(),
       transparent: true,
@@ -72,19 +77,16 @@ export class Effects {
         .replace('#include <common>', '#include <common>\nvarying float vFade;')
         .replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.a *= vFade;');
     };
-    this.decals = new THREE.InstancedMesh(decalGeo, decalMat, MAX_DECALS);
-    this.decals.frustumCulled = false;
-    this.m.makeScale(0, 0, 0);
-    for (let i = 0; i < MAX_DECALS; i++) this.decals.setMatrixAt(i, this.m);
-    scene.add(this.decals);
+    const decals = new THREE.InstancedMesh(decalGeo, decalMat, MAX_DECALS);
+    decals.frustumCulled = false;
+    this.decals = new PackedInstances(decals);
+    this.fadeK = this.decals.addExtra(fade);
+    scene.add(decals);
 
-    this.particles = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial(), MAX_PARTICLES);
-    this.particles.frustumCulled = false;
-    for (let i = 0; i < MAX_PARTICLES; i++) {
-      this.particles.setMatrixAt(i, this.m);
-      this.particles.setColorAt(i, new THREE.Color(1, 1, 1));
-    }
-    scene.add(this.particles);
+    const particles = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial(), MAX_PARTICLES);
+    particles.frustumCulled = false;
+    this.particles = new PackedInstances(particles);
+    scene.add(particles);
 
     const tracerGeo = new THREE.BoxGeometry(1, 1, 1);
     tracerGeo.translate(0, 0, 0.5);
@@ -100,7 +102,7 @@ export class Effects {
     this.muzzleLight = new THREE.PointLight(0xffc36b, 0, 9, 2);
     scene.add(this.muzzleLight);
 
-    const sphere = new THREE.IcosahedronGeometry(1, 1);
+    const sphere = new THREE.IcosahedronGeometry(1, detail === 'leve' ? 0 : 1);
     // Opaque, flat-shaded puffs read better as cartoon fire than additive glow (which washes out on sky).
     for (let i = 0; i < 12; i++) {
       const mesh = new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, depthWrite: false }));
@@ -174,13 +176,11 @@ export class Effects {
     this.q.multiply(roll);
     const sc = (0.8 + Math.random() * 0.5) * size;
     this.v.copy(point).addScaledVector(normal, 0.004);
-    this.m.compose(this.v, this.q, this.s.set(sc, sc, sc));
-    this.decals.setMatrixAt(this.decalCursor, this.m);
-    this.decals.instanceMatrix.needsUpdate = true;
+    this.decals.set(this.decalCursor, this.m.compose(this.v, this.q, this.s.set(sc, sc, sc)));
     this.decalBorn[this.decalCursor] = this.time;
     this.decalLife[this.decalCursor] = life;
-    this.decalFade.setX(this.decalCursor, 1);
-    this.decalFade.needsUpdate = true;
+    this.decalFade[this.decalCursor] = 1;
+    this.decals.setExtra(this.fadeK, this.decalCursor, 1);
     this.decalCursor = (this.decalCursor + 1) % MAX_DECALS;
   }
 
@@ -236,9 +236,8 @@ export class Effects {
       this.pMaxLife[i] = life;
       this.pSpin[i] = rnd() * 14;
       this.pDrag[i] = drag;
-      this.particles.setColorAt(i, color);
+      this.particles.setColor(i, color);
     }
-    if (this.particles.instanceColor) this.particles.instanceColor.needsUpdate = true;
   }
 
   tracer(from: THREE.Vector3, to: THREE.Vector3) {
@@ -260,37 +259,27 @@ export class Effects {
 
   update(dt: number) {
     this.time += dt;
-    // Fade marks out once they outlive their time; fully faded ones collapse so they cost nothing.
-    let fadeChanged = false;
-    let matrixChanged = false;
+    // Fade marks out once they outlive their time; fully faded ones aren't drawn any more.
     for (let i = 0; i < MAX_DECALS; i++) {
-      const cur = this.decalFade.getX(i);
+      const cur = this.decalFade[i];
       if (cur <= 0) continue;
       const age = this.time - this.decalBorn[i];
       const next = age <= this.decalLife[i] ? 1 : Math.max(0, 1 - (age - this.decalLife[i]) / DECAL_FADE);
       if (next !== cur) {
-        this.decalFade.setX(i, next);
-        fadeChanged = true;
-        if (next <= 0) {
-          this.m.makeScale(0, 0, 0);
-          this.decals.setMatrixAt(i, this.m);
-          matrixChanged = true;
-        }
+        this.decalFade[i] = next;
+        this.decals.setExtra(this.fadeK, i, next);
+        if (next <= 0) this.decals.hide(i);
       }
     }
-    if (fadeChanged) this.decalFade.needsUpdate = true;
-    if (matrixChanged) this.decals.instanceMatrix.needsUpdate = true;
+    this.decals.flush();
 
     // Particles.
-    let any = false;
     for (let i = 0; i < MAX_PARTICLES; i++) {
       if (this.pLife[i] <= 0) continue;
-      any = true;
       this.pLife[i] -= dt;
       const k = i * 3;
       if (this.pLife[i] <= 0) {
-        this.m.makeScale(0, 0, 0);
-        this.particles.setMatrixAt(i, this.m);
+        this.particles.hide(i);
         continue;
       }
       const drag = Math.exp(-this.pDrag[i] * dt);
@@ -305,10 +294,9 @@ export class Effects {
       this.e.set(age * this.pSpin[i], age * this.pSpin[i] * 0.7, age * this.pSpin[i] * 0.3);
       this.q.setFromEuler(this.e);
       this.s.set(this.pSize[k] * fade, this.pSize[k + 1] * fade, this.pSize[k + 2] * fade);
-      this.m.compose(this.v.set(this.pPos[k], this.pPos[k + 1], this.pPos[k + 2]), this.q, this.s);
-      this.particles.setMatrixAt(i, this.m);
+      this.particles.set(i, this.m.compose(this.v.set(this.pPos[k], this.pPos[k + 1], this.pPos[k + 2]), this.q, this.s));
     }
-    if (any) this.particles.instanceMatrix.needsUpdate = true;
+    this.particles.flush();
 
     // Tracers: a short bright segment racing from the muzzle to the impact point.
     for (const t of this.tracers) {

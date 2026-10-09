@@ -4,6 +4,8 @@ type: problem
 status: partial
 area: performance
 source_paths:
+  - client/ui/strings.es.ts
+  - client/ui/strings.de.ts
   - vite.config.ts
   - docs/DEPLOY.md
   - client/main.ts
@@ -11,7 +13,7 @@ tags:
   - problem
   - performance
   - carregamento
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Problem - Bundle JavaScript único de ~5 MB
@@ -28,6 +30,7 @@ O cliente é importado estaticamente a partir de `client/main.ts` (os três mapa
 
 Só a citação de ~5 MB / ~1,8 MB do `docs/DEPLOY.md`; tamanho exato do build atual não medido nesta documentação (`unknown`).
 - Em 2026-10-06, com as secundárias, os modos e o modo zumbi (`client/zombies/*`, `shared/zombieMatch.ts`), o `index-*.js` foi para **~6,2 MB** (2,26 MB com gzip) e passou o aviso de 6.000 kB do Vite (`chunkSizeWarningLimit`). É só aviso: o build não falha. A navmesh pré-gerada do servidor **não** entra no cliente.
+- Em 2026-10-08 (PF-30), o espanhol e o alemão entraram no mesmo bundle: o `index-*.js` foi de 6.766 kB (2.444 kB gzip) para 6.913 kB (2.502 kB gzip). Os dicionários de idioma são candidatos naturais a `import()` sob demanda se o tamanho virar problema ([[ADR - Seletor de idioma por aparelho]]).
 
 ## Mitigação atual
 

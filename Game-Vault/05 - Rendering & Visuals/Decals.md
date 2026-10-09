@@ -12,7 +12,7 @@ tags:
   - rendering
   - decals
   - vfx
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Decals
@@ -35,7 +35,7 @@ Marcas de bala e de explosão nas superfícies do mapa. São quadrados com a tex
 
 - Cada marca recebe uma rotação aleatória em torno da normal (variação visual).
 - **Buffer circular:** o cursor avança a cada marca; a 385ª sobrescreve a mais antiga, mesmo que ainda visível. Com 160, em combate cheio online as marcas sumiam em 1 a 2 s; 384 mantém uma única chamada de desenho.
-- Marcas totalmente apagadas recebem matriz de escala zero e deixam de custar fill-rate.
+- Marcas totalmente apagadas deixam de ser desenhadas: desde a PF-35 (T1) só as marcas vivas vão para a GPU, juntas no começo do `InstancedMesh` com o `aFade` de cada uma (`PackedInstances`, `client/render/packedInstances.ts`); sem marcas, o mesh não desenha nada.
 
 ## Quando aparecem
 
@@ -63,7 +63,7 @@ A mensagem `shot` traz só o cano (`o`) e o ponto final (`e`), que é o ponto de
 
 - Material: `MeshBasicMaterial` com `map: holeTexture()` (canvas 64×64, degradê radial marrom-escuro até transparente), `transparent`, `depthWrite: false`, `polygonOffset` com fator −4.
 - Fade individual: atributo instanciado `aFade` (0..1) injetado no shader por `onBeforeCompile`, que multiplica o alfa. Ver [[Shaders]].
-- `frustumCulled = false`: o mesh de instâncias é sempre enviado à GPU (as instâncias estão espalhadas pelo mapa inteiro).
+- `frustumCulled = false`: o mesh de instâncias é sempre enviado à GPU (as instâncias estão espalhadas pelo mapa inteiro), mas só com as marcas vivas (`mesh.count`).
 
 ## Código relacionado
 

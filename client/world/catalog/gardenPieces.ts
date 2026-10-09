@@ -59,7 +59,7 @@ export const gardenPieces: Record<string, Adapter> = {
     const q = P<{ estilo: 'paisagem' | 'ancestral'; largura: number; altura: number; indice?: number }>(p);
     const [x, y, z] = at(p);
     const paint = q.estilo === 'paisagem' ? inkLandscape : (g: CanvasRenderingContext2D, w: number, h: number) => portrait(g, w, h, q.indice ?? 0);
-    painting(c.scene, x, y, z, yawOf(p), q.largura, q.altura, paint);
+    painting(c.scene, x, y, z, yawOf(p), q.largura, q.altura, paint, c.b);
   },
 
   /** A dragon along a path (a ridge ornament, a relief on a wall): one mesh, or two mirrored ones at ``p``. */

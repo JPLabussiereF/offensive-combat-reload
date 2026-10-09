@@ -37,17 +37,23 @@ export interface ModeRules {
    * gaps and coffin. Without it, a mode is played on every open map (none made for a single mode).
    */
   ownMaps?: boolean;
+  /**
+   * What the players' pets do (shared/pets.ts): only follow their owner as a look ('cosmetic', the PvP modes: no
+   * sound, a short leash, gone when the owner can't be seen) or help with their ability ('ability', the zumbi mode).
+   */
+  pets: 'cosmetic' | 'ability';
 }
 
 export const MODE_RULES: Record<GameModeId, ModeRules> = {
   // Free-for-all: the Arsenal chosen before the match, locked while it lasts.
-  'mata-mata': { weapons: 'arsenal', lockedLoadout: true, grenades: true, weaponXp: true, rounds: false, bots: true },
+  'mata-mata': { weapons: 'arsenal', lockedLoadout: true, grenades: true, weaponXp: true, rounds: false, bots: true, pets: 'cosmetic' },
   // Gun game: everyone climbs the same ladder of weapons (shared/gunGame.ts); a lightsaber kill wins the round.
-  'corrida-armada': { weapons: 'mode', lockedLoadout: true, grenades: false, weaponXp: false, rounds: true, bots: true },
+  'corrida-armada': { weapons: 'mode', lockedLoadout: true, grenades: false, weaponXp: false, rounds: true, bots: true, pets: 'cosmetic' },
   // Zombie waves (shared/zombies.ts): co-op survival in its own walled cemetery (a map no other mode plays);
   // weapons come from the mystery coffin, bought with the match's money; zombie kills give account XP only (the
   // weapons aren't the player's Arsenal).
-  zumbi: { weapons: 'mode', lockedLoadout: true, grenades: true, weaponXp: false, rounds: true, bots: true, coop: true, ownMaps: true },
+  // Pets help here with their abilities (shared/zombieMatch.ts); everywhere else they're a look.
+  zumbi: { weapons: 'mode', lockedLoadout: true, grenades: true, weaponXp: false, rounds: true, bots: true, coop: true, ownMaps: true, pets: 'ability' },
 };
 
 /**

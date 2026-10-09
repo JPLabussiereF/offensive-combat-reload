@@ -2,26 +2,30 @@
 // pieces), measured the way the server measures it on save (client/world/budget.ts measureMapBudget). The editor
 // shows every piece apart, so the map is built again in the game's mode, out of sight in a scene and a physics
 // world of its own, a short while after the last edit. Above MAP_BUDGET (400 draw calls, 750 thousand
-// triangles) the map can't be saved: the bar says what passed the limit.
+// triangles) the map can't be saved: the bar says what passed the limit. It's also built with the light object
+// detail (PF-35, P9: what phones build) and the bar warns, without blocking the save, when that passes the light
+// budget (client/world/budget.ts DETAIL_BUDGET).
 import * as THREE from 'three';
 import { MAP_BUDGET, validateMapData, type MapData } from '@shared/mapData';
 import { createPhysics } from '../world/physics';
 import { buildMapFromData } from '../world/mapLoader';
-import { measureMapBudget, type BudgetReport } from '../world/budget';
+import { measureMapBudget, overDetailBudget, type BudgetReport } from '../world/budget';
+import type { ObjectDetail } from '../world/mapBuilder';
 import { silentSfx } from './view';
+import { locale } from '../ui/strings';
 import { et } from './strings';
 
 /** Waits this long after the last edit before measuring (a drag commits once, but typing may commit a few times). */
 export const BUDGET_DELAY_MS = 600;
 
-export type BudgetState = { kind: 'medindo' } | { kind: 'invalido'; erros: string[] } | { kind: 'erro'; erro: string } | { kind: 'pronto'; report: BudgetReport };
+export type BudgetState = { kind: 'medindo' } | { kind: 'invalido'; erros: string[] } | { kind: 'erro'; erro: string } | { kind: 'pronto'; report: BudgetReport; leve?: BudgetReport };
 
-/** Builds the map as the game does and measures it. */
-export async function measureData(data: MapData, renderer: THREE.WebGLRenderer): Promise<BudgetReport> {
+/** Builds the map as the game does (at an object detail) and measures it. */
+export async function measureData(data: MapData, renderer: THREE.WebGLRenderer, detalhe: ObjectDetail = 'normal'): Promise<BudgetReport> {
   const physics = await createPhysics();
   try {
     const scene = new THREE.Scene();
-    await buildMapFromData(structuredClone(data), { physics, scene, renderer, sfx: silentSfx, modo: 'jogo' });
+    await buildMapFromData(structuredClone(data), { physics, scene, renderer, sfx: silentSfx, modo: 'jogo', detalhe });
     return measureMapBudget(scene, data);
   } finally {
     physics.world.free();
@@ -65,7 +69,10 @@ export class BudgetBar {
     const check = validateMapData(data);
     try {
       if (!check.ok) this.set({ kind: 'invalido', erros: check.erros });
-      else this.set({ kind: 'pronto', report: await measureData(data, this.renderer) });
+      else {
+        const report = await measureData(data, this.renderer);
+        this.set({ kind: 'pronto', report, leve: await measureData(data, this.renderer, 'leve') });
+      }
     } catch (err) {
       this.set({ kind: 'erro', erro: String((err as Error)?.message ?? err) });
     } finally {
@@ -128,13 +135,22 @@ export class BudgetBar {
     el.append(
       bar(r.drawCalls, MAP_BUDGET.drawCalls),
       bar(r.triangulos, MAP_BUDGET.triangulos),
-      et('budgetText', { dc: r.drawCalls, dcMax: MAP_BUDGET.drawCalls, tri: r.triangulos.toLocaleString(), triMax: MAP_BUDGET.triangulos.toLocaleString() }),
+      et('budgetText', { dc: r.drawCalls, dcMax: MAP_BUDGET.drawCalls, tri: r.triangulos.toLocaleString(locale()), triMax: MAP_BUDGET.triangulos.toLocaleString(locale()) }),
     );
     if (r.excedeu.length) {
       el.classList.add('ed-over');
       const over = document.createElement('div');
       over.textContent = et('budgetOver', { o: r.excedeu.map((k) => (k === 'drawCalls' ? et('budgetDrawCalls') : et('budgetTriangles'))).join(', ') });
       el.append(over);
+    }
+    // The light detail only warns (P9 of PF-35): the map still saves.
+    const light = s.leve ? overDetailBudget(s.leve, 'leve') : [];
+    if (light.length) {
+      const warn = document.createElement('div');
+      warn.className = 'ed-budget-warn';
+      const k = (n: number) => n.toLocaleString();
+      warn.textContent = et('budgetLight', { o: light.map((x) => et(x.key === 'pior' ? 'budgetWorst' : x.key === 'mediana' ? 'budgetMedian' : x.key === 'sombra' ? 'budgetShadow' : 'budgetCalls', { v: k(x.value), max: k(x.max) })).join(', ') });
+      el.append(warn);
     }
   }
 

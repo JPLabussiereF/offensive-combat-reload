@@ -4,6 +4,7 @@ type: architecture
 status: documented
 area: code-architecture
 source_paths:
+  - client/ui/playRules.ts
   - client/ui/galpao/galpaoRules.ts
   - client/ui/galpao/arsenalBoard.ts
   - client/ui/galpao/scene.ts
@@ -139,7 +140,7 @@ Em `import.meta.env.DEV`, `window.__oc` expõe jogador, arma, rede, física, map
 
 - `client/main.ts` (`boot`, `step`, `stepInner`, `render`)
 - `client/core/loop.ts` (`startLoop`)
-- `client/ui/home.ts` (`showHome`, `HomeChoice`, `closeReason`)
+- `client/ui/home.ts` (`showHome`, `HomeChoice`, `closeReason`) e `client/ui/playRules.ts` (regras puras da aba Jogar: mapa efetivo do Online, sessões e jogadores por mapa, o mapa do `play`, migração do filtro antigo, textos do botão laranja)
 - `client/ui/galpao/` (a tela inicial logada em 3D: `GalpaoHome` em `galpao.ts`, a cena com câmera e superfícies DOM em `scene.ts`, o Arsenal do painel perfurado em `arsenalBoard.ts`, regras puras em `galpaoRules.ts`; ver [[ADR - Tela inicial em galpão 3D]])
 - `client/net/connection.ts` (`Connection.hold/release`)
 - `client/world/gameMap.ts` (`GameMap`), `client/world/mapLoader.ts` (`loadOfficialMap`, `buildMapFromData`)
