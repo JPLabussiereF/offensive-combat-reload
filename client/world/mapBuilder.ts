@@ -70,6 +70,8 @@ interface Batch {
   material: THREE.Material;
   castShadow: boolean;
   geos: THREE.BufferGeometry[];
+  /** Drawn with the batch but left out of its shadow (addShadowless): at the end of its index, past the shadow's draw range. */
+  shadowless: THREE.BufferGeometry[];
 }
 
 export class MapBuilder {
@@ -129,6 +131,22 @@ export class MapBuilder {
   }
 
   /**
+   * Geometry that casts no shadow but goes in the shadow-casting batch of the cell `at` is in (posed like the
+   * geometry): drawn in the same draw call as the rest, left out of the shadow pass by the batch's draw range
+   * (PF-35, P15: the dead trees' twigs in the light detail, without a batch of their own per cell).
+   */
+  addShadowless(geo: THREE.BufferGeometry, material: THREE.Material, tint: THREE.ColorRepresentation, at: THREE.Vector3) {
+    const g = normalize(geo, tint);
+    const p = at.clone();
+    if (this.pose) {
+      g.applyMatrix4(this.pose);
+      p.applyMatrix4(this.pose);
+    }
+    this.stats.pieces++;
+    this.toBatch(g, material, true, p);
+  }
+
+  /**
    * From now on the static geometry is held back (a sculpted prop being built with the light detail, PF-35 L5)
    * until `releaseGathered`: the whole prop is simplified as one mesh per material, not part by part.
    */
@@ -153,9 +171,11 @@ export class MapBuilder {
     }
   }
 
-  private toBatch(g: THREE.BufferGeometry, material: THREE.Material, castShadow: boolean) {
+  /** `shadowlessAt`: the geometry casts no shadow and goes in the shadow-casting batch of that point's cell. */
+  private toBatch(g: THREE.BufferGeometry, material: THREE.Material, castShadow: boolean, shadowlessAt?: THREE.Vector3) {
     g.computeBoundingBox();
-    this.box3.copy(g.boundingBox!).getCenter(this.center);
+    if (shadowlessAt) this.center.copy(shadowlessAt);
+    else this.box3.copy(g.boundingBox!).getCenter(this.center);
     let id = this.materialIds.get(material);
     if (id === undefined) {
       id = this.materialIds.size;
@@ -164,10 +184,10 @@ export class MapBuilder {
     const key = `${id}|${Math.floor(this.center.x / this.cell)}|${Math.floor(this.center.z / this.cell)}|${castShadow ? 1 : 0}`;
     let batch = this.batches.get(key);
     if (!batch) {
-      batch = { material, castShadow, geos: [] };
+      batch = { material, castShadow, geos: [], shadowless: [] };
       this.batches.set(key, batch);
     }
-    batch.geos.push(g);
+    (shadowlessAt ? batch.shadowless : batch.geos).push(g);
   }
 
   private register(desc: RAPIER.ColliderDesc, physics: SurfaceMaterial, onShot?: SurfaceInfo['onShot'], occluder?: OccluderKind) {
@@ -437,12 +457,20 @@ export class MapBuilder {
   /** Merges every batch into static meshes and adds them to the scene. */
   finish() {
     for (const batch of this.batches.values()) {
-      const merged = mergeGeometries(batch.geos, false);
+      const casting = batch.geos.reduce((n, g) => n + g.index!.count, 0);
+      const merged = mergeGeometries([...batch.geos, ...batch.shadowless], false);
       batch.geos.forEach((g) => g.dispose());
+      batch.shadowless.forEach((g) => g.dispose());
       if (!merged) continue;
       merged.computeBoundingSphere();
       const mesh = new THREE.Mesh(merged, batch.material);
       mesh.castShadow = batch.castShadow;
+      if (batch.shadowless.length) {
+        // The shadow pass draws only the casting part (the start of the index); the camera, all of it.
+        mesh.userData.sombraIndices = casting;
+        mesh.onBeforeShadow = () => merged.setDrawRange(0, casting);
+        mesh.onAfterShadow = () => merged.setDrawRange(0, Infinity);
+      }
       mesh.receiveShadow = true;
       mesh.matrixAutoUpdate = false;
       mesh.name = `static:${batch.material.name}`;

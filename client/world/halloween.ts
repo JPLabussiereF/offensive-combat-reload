@@ -365,6 +365,9 @@ export function deadTree(b: MapBuilder, x: number, z: number, scale: number, ran
   // The light object detail (PF-35 L2): trunk 8 × 5, branches 5 × 4, twigs without a shadow (the collider is the
   // shared trunk's, the same in both).
   const trunkGeo = taperedTube(trunk, b.seg(12, 8), b.seg(7, 5), 0.34 * s, 0.06 * s);
+  // The twigs without a shadow go in the trunk's own batch (P15: no batch of their own per cell, no draw call more).
+  trunkGeo.computeBoundingBox();
+  const trunkAt = trunkGeo.boundingBox!.getCenter(new THREE.Vector3());
   b.addGeometry(trunkGeo, paint, tint);
   trunkGeo.dispose();
   // Roots flaring at the base.
@@ -393,7 +396,8 @@ export function deadTree(b: MapBuilder, x: number, z: number, scale: number, ran
     const ta = a + (rand() < 0.5 ? 1 : -1) * (0.7 + rand() * 0.5);
     const twigTip = twigFrom.clone().add(V(Math.cos(ta) * 0.7 * s, 0.5 * s, Math.sin(ta) * 0.7 * s));
     const tg = taperedTube(new THREE.CatmullRomCurve3([twigFrom, twigFrom.clone().lerp(twigTip, 0.5).add(V(0, 0.12 * s, 0)), twigTip]), 4, 4, 0.045 * s, 0.01 * s);
-    b.addGeometry(tg, paint, tint, b.seg(true, false));
+    if (b.detalhe === 'leve') b.addShadowless(tg, paint, tint, trunkAt);
+    else b.addGeometry(tg, paint, tint);
     tg.dispose();
   }
   if (o.collide !== false) {

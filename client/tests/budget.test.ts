@@ -51,6 +51,28 @@ describe('orçamento de desenho', () => {
     expect(r.camera.triangulos).toBe(12 + 4 * 12);
   });
 
+  it('geometria sem sombra (P15 da PF-35) vai no lote que projeta sombra, sem chamada a mais, e fica fora da passada de sombra', async () => {
+    const { MapBuilder } = await loadClient('client/world/mapBuilder.ts');
+    const { surfaceMaterial } = await loadClient('client/world/surfaces.ts');
+    const scene = new THREE.Scene();
+    const b = new MapBuilder({} as never, scene);
+    const paint = surfaceMaterial('pintura');
+    b.addGeometry(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, -10), paint, 0xffffff);
+    b.addShadowless(new THREE.BoxGeometry(0.2, 0.2, 0.2).translate(0.8, 1.2, -10), paint, 0xffffff, new THREE.Vector3(0, 0.5, -10));
+    b.finish();
+    const meshes = scene.children.filter((o) => o.name.startsWith('static:')) as THREE.Mesh[];
+    expect(meshes).toHaveLength(1);
+    const r = measureBudget(scene, { spawns: [[0, 0, 0]], step: 1000 });
+    expect(r.camera).toMatchObject({ drawCalls: 1, triangulos: 24 });
+    expect(r.sombra).toEqual({ drawCalls: 1, triangulos: 12 });
+    // The shadow pass draws only the casting part, the camera all of it.
+    const geo = meshes[0].geometry;
+    meshes[0].onBeforeShadow(null as never, null as never, null as never, null as never, geo, null as never, null as never);
+    expect(geo.drawRange.count).toBe(36);
+    meshes[0].onAfterShadow(null as never, null as never, null as never, null as never, geo, null as never, null as never);
+    expect(geo.drawRange.count).toBe(Infinity);
+  });
+
   it('acusa o que passa do orçamento', () => {
     const scene = new THREE.Scene();
     const big = new THREE.Mesh(new THREE.SphereGeometry(1, 1024, 512), new THREE.MeshBasicMaterial());

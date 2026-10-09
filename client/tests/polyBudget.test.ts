@@ -49,11 +49,11 @@ const MEDIDO: Record<OfficialMap, Record<Detalhe, MapNumbers>> = {
   },
   halloween: {
     normal: { pior: 322_821, mediana: 188_296, sombra: 228_310, chamadas: 263, fantasmas: 0 },
-    leve: { pior: 266_392, mediana: 154_352, sombra: 169_361, chamadas: 271, fantasmas: 0 },
+    leve: { pior: 266_392, mediana: 154_352, sombra: 169_361, chamadas: 263, fantasmas: 0 },
   },
   cemiterio: {
     normal: { pior: 75_642, mediana: 47_872, sombra: 51_344, chamadas: 82, fantasmas: 0 },
-    leve: { pior: 64_814, mediana: 43_768, sombra: 33_284, chamadas: 90, fantasmas: 0 },
+    leve: { pior: 64_814, mediana: 42_652, sombra: 33_284, chamadas: 82, fantasmas: 0 },
   },
 };
 
@@ -64,12 +64,6 @@ const ARMA_3P = 580;
 const VIEWMODEL = 3_414;
 /** Combat effects: drawn at rest, and with every pool full. */
 const EFEITOS = { normal: { repouso: 0, pico: 11_776 }, leve: { repouso: 0, pico: 8_176 } };
-
-/**
- * Over the light detail's draw calls on purpose (P13 of PF-35): the Vila's are its unique textured objects
- * (epitaphs, signs, animated gags), one draw call each; held to its measure only.
- */
-const CHAMADAS_FORA: Partial<Record<OfficialMap, Detalhe[]>> = { halloween: ['leve'] };
 
 const cap = (n: number) => Math.ceil(n * FOLGA);
 /** Within the budget and within the last measure, each with the slack (a ratio's slack is 0.01). */
@@ -94,8 +88,7 @@ describe('orçamento de polígonos (PF-35)', () => {
         held('pior câmera', m.piorCamera.triangulos, b.pior, e.pior);
         held('mediana', m.mediana.triangulos, b.mediana, e.mediana);
         held('sombra', m.sombra.triangulos, b.sombra, e.sombra);
-        if (CHAMADAS_FORA[slug]?.includes(detalhe)) expect(['chamadas', m.chamadas, m.chamadas <= cap(e.chamadas)]).toEqual(['chamadas', m.chamadas, true]);
-        else held('chamadas', m.chamadas, b.chamadas, e.chamadas);
+        held('chamadas', m.chamadas, b.chamadas, e.chamadas);
         expect(m.fantasmas.triangulos).toBe(0);
       }, 60_000);
     }

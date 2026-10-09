@@ -59,6 +59,8 @@ interface Drawable {
   obj: THREE.Object3D;
   calls: number;
   triangles: number;
+  /** What its shadow pass draws (a static batch with shadowless parts draws only the start of its index). */
+  shadowTriangles: number;
   castShadow: boolean;
   culled: boolean;
   sphere: THREE.Sphere;
@@ -107,7 +109,8 @@ function drawables(scene: THREE.Object3D): Drawable[] {
         sphere = geo.boundingSphere!.clone();
       }
       sphere.applyMatrix4(o.matrixWorld);
-      out.push({ obj: o, ...cost, castShadow: o.castShadow, culled: o.frustumCulled, sphere });
+      const shadowIndices = o.userData.sombraIndices as number | undefined;
+      out.push({ obj: o, ...cost, shadowTriangles: shadowIndices === undefined ? cost.triangles : shadowIndices / 3, castShadow: o.castShadow, culled: o.frustumCulled, sphere });
     }
     for (const c of o.children) visit(c);
   };
@@ -124,7 +127,7 @@ function pass(list: Drawable[], frustum: THREE.Frustum, shadow: boolean): Budget
     if (shadow && ((d.obj as THREE.Sprite).isSprite || (d.obj as THREE.Points).isPoints || (d.obj as THREE.Line).isLine)) continue;
     if (d.culled && !frustum.intersectsSphere(d.sphere)) continue;
     drawCalls += d.calls;
-    triangulos += d.triangles;
+    triangulos += shadow ? d.shadowTriangles : d.triangles;
   }
   return { drawCalls, triangulos };
 }
