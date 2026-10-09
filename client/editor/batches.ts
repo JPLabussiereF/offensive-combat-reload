@@ -89,7 +89,9 @@ const changing = new WeakSet<THREE.Material>();
 export function batchKey(o: THREE.Object3D): string | null {
   const m = o as Drawn;
   if (!m.isMesh || (m as THREE.SkinnedMesh).isSkinnedMesh || (m as unknown as THREE.BatchedMesh).isBatchedMesh) return null;
-  if (o.userData.ajuda) return null;
+  // Pools packed by their own count (render/packedInstances.ts: droplets, puffs, fruit halves) change it every frame:
+  // drawn on their own.
+  if (o.userData.ajuda || o.userData.empacotada) return null;
   const mat = m.material;
   if (!mat || Array.isArray(mat) || (mat as THREE.ShaderMaterial).isShaderMaterial || changing.has(mat)) return null;
   if (mat.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile || m.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender) return null;

@@ -65,7 +65,8 @@ export function dragonCherryTree(c: Ctx, x: number, z: number, seed = 5150): Che
   const Y0 = 3.1;
   const Y1 = 6.3;
   const crown = (p: THREE.Vector3, r: number) => {
-    const cl = foliageCrown(b, p, r, BLOSSOM, { flat: 0.55, y0: Y0, y1: Y1, blossom: true });
+    // Every bump in any detail: the cherries hang from them (the same fruit on every client, PF-35).
+    const cl = foliageCrown(b, p, r, BLOSSOM, { flat: 0.55, y0: Y0, y1: Y1, blossom: true, allBumps: true });
     clumps.push(...cl);
     mains.push(cl[0]);
     crowns.push({ p: p.clone(), r });

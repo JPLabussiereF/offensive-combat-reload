@@ -15,6 +15,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { GROUP, groups, type PotionKind } from '@shared/constants';
 import { mergeColoredParts, toon, toonGradient, type ColoredPart } from '../render/materials';
+import { PackedInstances } from '../render/packedInstances';
 import { MapBuilder, worldUVs } from './mapBuilder';
 import { surfaceMaterial, type SurfaceKey } from './surfaces';
 import { solidIntervals } from './oriental';
@@ -79,9 +80,10 @@ export class Glow {
 
 const MAX_PUFFS = 260;
 
-/** Soft rising puffs (flames, steam, smoke, the ghost's poof): one instanced mesh. */
+/** Soft rising puffs (flames, steam, smoke, the ghost's poof): one instanced mesh, only the live ones drawn. */
 export class Puffs {
   private mesh: THREE.InstancedMesh;
+  private packed: PackedInstances;
   private pos = new Float32Array(MAX_PUFFS * 3);
   private vel = new Float32Array(MAX_PUFFS * 3);
   private life = new Float32Array(MAX_PUFFS);
@@ -96,11 +98,7 @@ export class Puffs {
   constructor(scene: THREE.Scene) {
     this.mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false }), MAX_PUFFS);
     this.mesh.frustumCulled = false;
-    this.m.makeScale(0, 0, 0);
-    for (let i = 0; i < MAX_PUFFS; i++) {
-      this.mesh.setMatrixAt(i, this.m);
-      this.mesh.setColorAt(i, this.c.set(0xffffff));
-    }
+    this.packed = new PackedInstances(this.mesh);
     scene.add(this.mesh);
   }
 
@@ -111,39 +109,36 @@ export class Puffs {
     this.vel.set([vx, vy, vz], i * 3);
     this.life[i] = this.span[i] = life;
     this.size.set([s0, s1], i * 2);
-    this.mesh.setColorAt(i, this.c.set(color));
-    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+    this.packed.setColor(i, this.c.set(color));
   }
 
   update(dt: number) {
-    let any = false;
     const drag = Math.exp(-1.6 * dt);
     for (let i = 0; i < MAX_PUFFS; i++) {
       if (this.life[i] <= 0) continue;
-      any = true;
       const k = i * 3;
       this.life[i] -= dt;
       this.vel[k] *= drag;
       this.vel[k + 2] *= drag;
       this.vel[k + 1] = this.vel[k + 1] * drag + 0.8 * dt;
       for (const a of [0, 1, 2]) this.pos[k + a] += this.vel[k + a] * dt;
-      if (this.life[i] <= 0) this.m.makeScale(0, 0, 0);
+      if (this.life[i] <= 0) this.packed.hide(i);
       else {
         const age = 1 - this.life[i] / this.span[i];
         const sz = (this.size[i * 2] + (this.size[i * 2 + 1] - this.size[i * 2]) * age) * Math.min(1, (1 - age) * 4);
-        this.m.compose(this.v.set(this.pos[k], this.pos[k + 1], this.pos[k + 2]), NO_ROT, this.s.set(sz, sz, sz));
+        this.packed.set(i, this.m.compose(this.v.set(this.pos[k], this.pos[k + 1], this.pos[k + 2]), NO_ROT, this.s.set(sz, sz, sz)));
       }
-      this.mesh.setMatrixAt(i, this.m);
     }
-    if (any) this.mesh.instanceMatrix.needsUpdate = true;
+    this.packed.flush();
   }
 }
 
 const MAX_DEBRIS = 160;
 
-/** Chunks thrown by smashed props (pumpkin bits): fall, bounce once or twice, shrink away. */
+/** Chunks thrown by smashed props (pumpkin bits): fall, bounce once or twice, shrink away. Only the live ones drawn. */
 export class Debris {
   private mesh: THREE.InstancedMesh;
+  private packed: PackedInstances;
   private pos = new Float32Array(MAX_DEBRIS * 3);
   private vel = new Float32Array(MAX_DEBRIS * 3);
   private rot = new Float32Array(MAX_DEBRIS);
@@ -161,11 +156,7 @@ export class Debris {
   constructor(scene: THREE.Scene) {
     this.mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: toonGradient() }), MAX_DEBRIS);
     this.mesh.frustumCulled = false;
-    this.m.makeScale(0, 0, 0);
-    for (let i = 0; i < MAX_DEBRIS; i++) {
-      this.mesh.setMatrixAt(i, this.m);
-      this.mesh.setColorAt(i, this.c.set(0xffffff));
-    }
+    this.packed = new PackedInstances(this.mesh);
     scene.add(this.mesh);
   }
 
@@ -181,16 +172,13 @@ export class Debris {
       this.life[i] = 2.2 + Math.random();
       this.sz[i] = size * (0.5 + Math.random() * 0.7);
       this.floor[i] = floor;
-      this.mesh.setColorAt(i, this.c.set(color).multiplyScalar(0.8 + Math.random() * 0.3));
+      this.packed.setColor(i, this.c.set(color).multiplyScalar(0.8 + Math.random() * 0.3));
     }
-    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
   }
 
   update(dt: number) {
-    let any = false;
     for (let i = 0; i < MAX_DEBRIS; i++) {
       if (this.life[i] <= 0) continue;
-      any = true;
       const k = i * 3;
       this.life[i] -= dt;
       this.vel[k + 1] -= 14 * dt;
@@ -201,15 +189,14 @@ export class Debris {
         this.vel[k] *= 0.6;
         this.vel[k + 2] *= 0.6;
       } else this.rot[i] += dt * 8;
-      if (this.life[i] <= 0) this.m.makeScale(0, 0, 0);
+      if (this.life[i] <= 0) this.packed.hide(i);
       else {
         const sz = this.sz[i] * Math.min(1, this.life[i] * 2);
         this.q.setFromEuler(this.e.set(this.rot[i], this.rot[i] * 0.7, 0));
-        this.m.compose(this.v.set(this.pos[k], this.pos[k + 1], this.pos[k + 2]), this.q, this.s.set(sz, sz * 0.6, sz));
+        this.packed.set(i, this.m.compose(this.v.set(this.pos[k], this.pos[k + 1], this.pos[k + 2]), this.q, this.s.set(sz, sz * 0.6, sz)));
       }
-      this.mesh.setMatrixAt(i, this.m);
     }
-    if (any) this.mesh.instanceMatrix.needsUpdate = true;
+    this.packed.flush();
   }
 }
 
@@ -375,7 +362,12 @@ export function deadTree(b: MapBuilder, x: number, z: number, scale: number, ran
   const { lean, lx, lz, h } = shape;
   const pts = [0, 0.3, 0.6, 0.85, 1].map((t) => V(x + lx * Math.sin(t * 2.4) * 0.55 * s + (rand() - 0.5) * 0.15 * s, y + t * h, z + lz * Math.sin(t * 2.4) * 0.55 * s + (rand() - 0.5) * 0.15 * s));
   const trunk = new THREE.CatmullRomCurve3(pts);
-  const trunkGeo = taperedTube(trunk, 12, 7, 0.34 * s, 0.06 * s);
+  // The light object detail (PF-35 L2): trunk 8 × 5, branches 5 × 4, twigs without a shadow (the collider is the
+  // shared trunk's, the same in both).
+  const trunkGeo = taperedTube(trunk, b.seg(12, 8), b.seg(7, 5), 0.34 * s, 0.06 * s);
+  // The twigs without a shadow go in the trunk's own batch (P15: no batch of their own per cell, no draw call more).
+  trunkGeo.computeBoundingBox();
+  const trunkAt = trunkGeo.boundingBox!.getCenter(new THREE.Vector3());
   b.addGeometry(trunkGeo, paint, tint);
   trunkGeo.dispose();
   // Roots flaring at the base.
@@ -397,14 +389,15 @@ export function deadTree(b: MapBuilder, x: number, z: number, scale: number, ran
     // Clawed end: the tip droops a little.
     const claw = tip.clone().add(V(Math.cos(a) * 0.35 * s, -0.25 * s, Math.sin(a) * 0.35 * s));
     const branch = new THREE.CatmullRomCurve3([from, mid, tip, claw]);
-    const g = taperedTube(branch, 7, 5, 0.11 * s * (1.1 - t * 0.5), 0.015 * s);
+    const g = taperedTube(branch, b.seg(7, 5), b.seg(5, 4), 0.11 * s * (1.1 - t * 0.5), 0.015 * s);
     b.addGeometry(g, paint, tint);
     g.dispose();
     const twigFrom = branch.getPointAt(0.55);
     const ta = a + (rand() < 0.5 ? 1 : -1) * (0.7 + rand() * 0.5);
     const twigTip = twigFrom.clone().add(V(Math.cos(ta) * 0.7 * s, 0.5 * s, Math.sin(ta) * 0.7 * s));
     const tg = taperedTube(new THREE.CatmullRomCurve3([twigFrom, twigFrom.clone().lerp(twigTip, 0.5).add(V(0, 0.12 * s, 0)), twigTip]), 4, 4, 0.045 * s, 0.01 * s);
-    b.addGeometry(tg, paint, tint);
+    if (b.detalhe === 'leve') b.addShadowless(tg, paint, tint, trunkAt);
+    else b.addGeometry(tg, paint, tint);
     tg.dispose();
   }
   if (o.collide !== false) {
@@ -526,13 +519,29 @@ export function blocker(b: MapBuilder, center: THREE.Vector3, half: THREE.Vector
 }
 
 /**
+ * A fence bar: a box without its top and bottom faces (8 triangles, PF-35), hidden anyway: the spear tip sits
+ * on top and the ground, the rail or the wall's coping below.
+ */
+export function fenceBar(w: number, h: number, d: number): THREE.BufferGeometry {
+  const g = new THREE.BoxGeometry(w, h, d);
+  // BoxGeometry's faces in order: +X, -X, +Y, -Y, +Z, -Z, 6 indices each.
+  const idx = Array.from(g.index!.array);
+  g.setIndex([...idx.slice(0, 12), ...idx.slice(24)]);
+  g.clearGroups();
+  return g;
+}
+
+/** A fence bar's spear tip: a four-sided cone without its base (sitting on the bar, unseen), 4 triangles. */
+export const fenceTip = () => new THREE.ConeGeometry(0.045, 0.16, 4, 1, true);
+
+/**
  * Wrought-iron fence along X (at z = fixed) or Z (at x = fixed), with spear-tipped bars and posts with
  * ball caps. Players can't pass; bullets fly between the bars. `gaps` are [from, to] along the fence.
  */
 export function ironFence(b: MapBuilder, axis: 'x' | 'z', fixed: number, a: number, end: number, gaps: [number, number][] = [], h = 1.9) {
   const metal = surfaceMaterial('metal');
-  const bar = new THREE.BoxGeometry(0.035, h - 0.1, 0.035);
-  const tip = new THREE.ConeGeometry(0.045, 0.16, 4);
+  const bar = fenceBar(0.035, h - 0.1, 0.035);
+  const tip = fenceTip();
   const at = (s: number, y: number, depth = 0): [number, number, number] => (axis === 'x' ? [s, y, fixed + depth] : [fixed + depth, y, s]);
   for (const [s0, s1] of solidIntervals(a, end, gaps)) {
     const len = s1 - s0;
@@ -604,7 +613,8 @@ export function hedge(b: MapBuilder, axis: 'x' | 'z', fixed: number, a: number, 
 
 /** Ribbed, flattened pumpkin body and its stem, radius `r`, resting on y=0. */
 function pumpkinParts(r: number): [body: THREE.BufferGeometry, stem: THREE.BufferGeometry] {
-  const geo = new THREE.SphereGeometry(1, 18, 12);
+  // 16 × 8 (PF-35): two segments per rib keep the 8 ribs (the cosine below peaks on every other vertex).
+  const geo = new THREE.SphereGeometry(1, 16, 8);
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
   const v = new THREE.Vector3();
   for (let i = 0; i < pos.count; i++) {
@@ -1987,9 +1997,9 @@ export function bumperCarGeometry(color: THREE.ColorRepresentation, accent: THRE
   return mergeColoredParts([
     { geo: new RoundedBoxGeometry(1.7, 0.22, 1.2, 2, 0.08), color: 0x2a2a30, pos: [0, 0.13, 0] },
     { geo: new THREE.TorusGeometry(1, 0.13, 8, 28), color: 0x18181c, pos: [0, 0.2, 0], rot: [Math.PI / 2, 0, 0], scale: [0.86, 0.6, 1] },
-    { geo: new RoundedBoxGeometry(1.5, 0.42, 1.06, 3, 0.16), color, pos: [0, 0.48, 0] },
-    { geo: new RoundedBoxGeometry(0.5, 0.36, 0.98, 3, 0.14), color, pos: [0.5, 0.78, 0] },
-    { geo: new RoundedBoxGeometry(0.22, 0.78, 1.0, 3, 0.1), color, pos: [-0.62, 0.98, 0] },
+    { geo: new RoundedBoxGeometry(1.5, 0.42, 1.06, 1, 0.16), color, pos: [0, 0.48, 0] },
+    { geo: new RoundedBoxGeometry(0.5, 0.36, 0.98, 1, 0.14), color, pos: [0.5, 0.78, 0] },
+    { geo: new RoundedBoxGeometry(0.22, 0.78, 1.0, 1, 0.1), color, pos: [-0.62, 0.98, 0] },
     { geo: new RoundedBoxGeometry(0.42, 0.14, 0.8, 2, 0.06), color: 0x3a2a3a, pos: [-0.3, 0.74, 0] },
     { geo: new RoundedBoxGeometry(0.12, 0.5, 0.78, 2, 0.05), color: 0x3a2a3a, pos: [-0.47, 0.99, 0] },
     { geo: new THREE.BoxGeometry(1.52, 0.06, 1.08), color: accent, pos: [0, 0.6, 0] },

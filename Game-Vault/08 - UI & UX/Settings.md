@@ -14,7 +14,7 @@ tags:
   - game
   - ui
   - settings
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Settings
@@ -34,6 +34,7 @@ Desde a PF-11 ([[ADR - Menu de pausa com trilho e abas]]) o bloco é dividido em
 | Inverter eixo Y | `invertY` | Ligado/Desligado | Desligado | Mira; todos | — |
 | Campo de visão | `fov` | 55–95° | 75° | Vídeo; todos | FOV vertical. Ver [[Camera]]. |
 | Qualidade gráfica | `quality` | Automática / Baixa / Média / Alta | Automática | Vídeo; todos | Ver [[Performance Rendering]]. |
+| Detalhe dos objetos | `detalhe` | Normal / Leve | Leve no celular e com renderização por software, Normal nos demais (`defaultDetail`; o campo fica vazio até o jogador escolher) | Vídeo; todos | Leve simplifica árvores, folhagem, enfeites e estantes e troca os níveis de detalhe dos personagens mais cedo (PF-35). Lido ao montar o mapa (`objectDetail` em `client/main.ts`): vale a partir da próxima partida, não na que está rolando. Colisão igual nos dois. Ver [[ADR - Detalhe geométrico Normal e Leve]]. |
 | Tela cheia ao jogar | `fullscreen` | Ligado/Desligado | Ligado | Vídeo no computador com Keyboard Lock; Toque no celular (`.fs-only`) | Celular: tela cheia + paisagem. Computador: tela cheia deixa o jogo com o Esc. |
 | Volume | `volume` | 0–100% | 70% | Áudio; todos | Volume master. Ver [[Audio Overview]]. |
 | Som espacial ("Som") | `spatialAudio` | Automático / Fone (3D) / Caixa de som (estéreo) | Automático | Áudio; todos | Ver [[Spatial Audio]]. |
@@ -48,7 +49,7 @@ A subaba **Toque** também tem o botão "Tela cheia" (onde há a API), o aviso d
 
 ## Persistência e carregamento
 
-- `loadSettings()` lê o JSON salvo e o espalha sobre os padrões (`{...DEFAULTS, ...salvo}`), com tratamento especial para teclas (`mergeKeybinds`) e nomes de teclas (só caracteres únicos imprimíveis).
+- `loadSettings()` lê o JSON salvo e o espalha sobre os padrões (`{...DEFAULTS, ...salvo}`), com tratamento especial para teclas (`mergeKeybinds`), nomes de teclas (só caracteres únicos imprimíveis) e o detalhe dos objetos (valor que não seja `normal` ou `leve` é descartado e volta ao padrão do aparelho).
 - `saveSettings()` grava a cada mudança (callback de `screens.bindSettings` em `main.ts`, ligado **antes** da tela inicial), que também reaplica teclas, volume, modo espacial, qualidade e, já na partida, o layout de toque.
 - Sem `localStorage` disponível, tudo funciona com os padrões (erros são ignorados).
 
@@ -62,7 +63,7 @@ A subaba **Toque** também tem o botão "Tela cheia" (onde há a API), o aviso d
 
 ## Código relacionado
 
-- `client/core/settings.ts` — `Settings`, `DEFAULTS`, `loadSettings`, `saveSettings`, `spatialMode`.
+- `client/core/settings.ts` — `Settings`, `DEFAULTS`, `loadSettings`, `saveSettings`, `spatialMode`, `objectDetail`, `defaultDetail`, `setSoftwareRenderer`.
 - `client/ui/menu.ts` — `Screens.bindSettings` (barras, botões Ligado/Desligado, fileiras de opções) e as subabas (`showSub`, `showControls`).
 - `client/main.ts` — aplicação das mudanças.
 - `index.html` — `#menu-settings` com as subabas (`#pm-sub-*`) e os controles `#set-*`.

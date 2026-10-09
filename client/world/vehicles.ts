@@ -76,7 +76,8 @@ class Kit {
   }
 
   box(cx: number, cy: number, cz: number, sx: number, sy: number, sz: number, mat: Mat, tint: THREE.ColorRepresentation, radius = 0, shadow = false) {
-    const geo = radius > 0 ? new RoundedBoxGeometry(sx, sy, sz, 2, radius) : new THREE.BoxGeometry(sx, sy, sz);
+    // One segment: the edge rounded by a single facet (PF-35: more segments add triangles nobody sees at play distance).
+    const geo = radius > 0 ? new RoundedBoxGeometry(sx, sy, sz, 1, radius) : new THREE.BoxGeometry(sx, sy, sz);
     geo.translate(cx, cy, cz);
     this.add(geo, mat, tint, shadow);
   }
@@ -90,7 +91,7 @@ class Kit {
   /** Extruded side silhouette, centered in Z, `width` wide including the rounded bevel. */
   extrude(shape: THREE.Shape, width: number, bevel: number, mat: Mat, tint: THREE.ColorRepresentation) {
     const t = bevel * 1.3;
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: width - 2 * t, bevelEnabled: true, bevelThickness: t, bevelSize: bevel, bevelSegments: 3, curveSegments: 10 });
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: width - 2 * t, bevelEnabled: true, bevelThickness: t, bevelSize: bevel, bevelSegments: 1, curveSegments: 6 });
     geo.translate(0, 0, -(width - 2 * t) / 2);
     this.add(geo, mat, tint, true);
   }
@@ -118,9 +119,9 @@ class Kit {
   wheel(x: number, z: number, r: number, w: number, side: 1 | -1) {
     const axis = (geo: THREE.BufferGeometry, zc: number) => geo.rotateX(Math.PI / 2).translate(x, r, zc);
     const outer = z + (side * w) / 2;
-    this.add(axis(new THREE.CylinderGeometry(r, r, w, 20), z), 'pintura', TIRE, true);
-    this.add(axis(new THREE.CylinderGeometry(r * 0.74, r * 0.74, 0.02, 18), outer), 'pintura', SIDEWALL);
-    this.add(axis(new THREE.CylinderGeometry(r * 0.6, r * 0.6, 0.02, 18), outer + side * 0.012), 'pintura', RIM);
+    this.add(axis(new THREE.CylinderGeometry(r, r, w, 12), z), 'pintura', TIRE, true);
+    this.add(axis(new THREE.CylinderGeometry(r * 0.74, r * 0.74, 0.02, 12), outer), 'pintura', SIDEWALL);
+    this.add(axis(new THREE.CylinderGeometry(r * 0.6, r * 0.6, 0.02, 12), outer + side * 0.012), 'pintura', RIM);
     for (let k = 0; k < 5; k++) {
       const spoke = new THREE.BoxGeometry(0.045, r * 1.1, 0.012).rotateZ((k * Math.PI) / 5);
       this.add(spoke.translate(x, r, outer + side * 0.026), 'pintura', SPOKE);

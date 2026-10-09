@@ -17,12 +17,13 @@ import { TouchControls } from './ui/touch';
 import { gamepad } from './core/gamepad';
 import { PadNav } from './ui/padNav';
 import { AimAssist } from './gameplay/aimAssist';
-import { loadSettings, saveSettings, spatialMode } from './core/settings';
+import { loadSettings, objectDetail, saveSettings, setSoftwareRenderer, spatialMode } from './core/settings';
 import { applyAtmosphere, createRenderContext } from './render/renderer';
 import { Effects } from './render/effects';
 import { Viewmodel, VM_FEEL } from './render/viewmodel';
 import { holdOf } from './render/weaponModels';
 import { ANIM } from './character/animator';
+import { setCharacterDetail } from './character/character';
 import { TuningPanel } from './ui/tuning';
 import { QualityManager } from './render/quality';
 import { createPhysics, type SurfaceMaterial } from './world/physics';
@@ -119,6 +120,8 @@ async function boot() {
   const textures = loadTextureOverrides(ctx.renderer);
   screens.setProgress(1);
   const settings = loadSettings();
+  // The object detail's default (PF-35): Leve with software rendering too, as on phones.
+  setSoftwareRenderer(quality.software);
   applyKeybinds(settings.keybinds);
   quality.set(settings.quality);
   if (quality.software) screens.showGpuWarning(quality.gpu);
@@ -175,7 +178,10 @@ async function boot() {
           : await loadOfficialMap(choice.map);
   // An offline match counts as a play of the map (the server counts the online ones itself); a Play in the editor doesn't.
   if (!online && !mapUrl && !tested) api('POST', `/api/mapas/${encodeURIComponent(choice.map)}/jogadas`).catch(() => {});
-  const buildMap = mapData ? buildMapFromData(mapData, { physics, scene: ctx.scene, renderer: ctx.renderer, sfx, modo: 'jogo' }) : buildGltfMap(mapUrl!, new MapBuilder(physics, ctx.scene), ctx.renderer);
+  // The object detail (PF-35) as set now: changing it during the match takes effect with the next map.
+  const detalhe = objectDetail(settings);
+  setCharacterDetail(detalhe);
+  const buildMap = mapData ? buildMapFromData(mapData, { physics, scene: ctx.scene, renderer: ctx.renderer, sfx, modo: 'jogo', detalhe }) : buildGltfMap(mapUrl!, new MapBuilder(physics, ctx.scene), ctx.renderer);
   const [map] = await Promise.all([buildMap, textures]);
   const mapBuildMs = performance.now() - tMap;
   if (map.atmosphere) applyAtmosphere(ctx, map.atmosphere);
@@ -194,7 +200,7 @@ async function boot() {
   const registry: HitboxRegistry = new Map();
   const dummies = new DummyManager(physics.world, ctx.scene, choice.mode === 'offline' ? map.dummies : [], registry);
   const net = online ? new RemoteWorld(physics.world, ctx.scene, registry, conn!, me) : null;
-  const effects = new Effects(ctx.scene);
+  const effects = new Effects(ctx.scene, detalhe);
   const viewmodel = new Viewmodel(ctx.vmScene);
   // Weapon progression from the account (level 1 without one) and our land mines (a grenade upgrade).
   const progress = new Progress(choice.account);
@@ -2690,7 +2696,9 @@ async function boot() {
 
 /** The map editor's game (its Game tab), if this page is one: it's told when the game can't start. */
 const editorGame = editorPlay();
-boot().catch((err) => {
+/** Dev only: `?bench=<map>` draws an official map alone from fixed points (client/dev/bench.ts, PF-35). */
+const benchMap = import.meta.env.DEV ? new URLSearchParams(location.search).get('bench') : null;
+(benchMap ? import('./dev/bench').then((b) => b.runBench(benchMap)) : boot()).catch((err) => {
   console.error(err);
   editorGame?.failed(err);
   const tip = document.getElementById('loading-tip');

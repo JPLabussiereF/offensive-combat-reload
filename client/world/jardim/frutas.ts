@@ -4,6 +4,7 @@
 // and shrink away; the fruit grows back later. Synchronized through the PropBus, so everyone sees it cut.
 import * as THREE from 'three';
 import { toonGradient } from '../../render/materials';
+import { PackedInstances } from '../../render/packedInstances';
 import type { PropBus } from '../props';
 
 /** Seconds a cut fruit takes to grow back, that its pieces lie there, and that they take to shrink away. */
@@ -76,8 +77,8 @@ abstract class FruitSet {
   private tmp = new THREE.Vector3();
   private tmp2 = new THREE.Vector3();
   private dq = new THREE.Quaternion();
-  protected zero = new THREE.Matrix4().makeScale(0, 0, 0);
-  private dirty = new Set<THREE.InstancedMesh>();
+  /** Every mesh's slots: only what's shown is drawn (a whole fruit, a half flying), packed (PF-35). */
+  private packs = new Map<THREE.InstancedMesh, PackedInstances>();
 
   constructor(
     protected scene: THREE.Scene,
@@ -94,13 +95,29 @@ abstract class FruitSet {
   protected instanced(geo: THREE.BufferGeometry, mat: THREE.Material, n: number) {
     const mesh = new THREE.InstancedMesh(geo, mat, Math.max(1, n));
     mesh.frustumCulled = false;
-    for (let i = 0; i < n; i++) mesh.setMatrixAt(i, this.zero);
+    this.packs.set(mesh, new PackedInstances(mesh));
     this.scene.add(mesh);
     return mesh;
   }
 
+  /** Slot `i` of a mesh shown with matrix `m`, or hidden (null). */
+  private place(mesh: THREE.InstancedMesh, i: number, m: THREE.Matrix4 | null) {
+    const pack = this.packs.get(mesh)!;
+    if (m) pack.set(i, m);
+    else pack.hide(i);
+  }
+
+  protected colorAt(mesh: THREE.InstancedMesh, i: number, c: THREE.Color) {
+    this.packs.get(mesh)!.setColor(i, c);
+  }
+
+  /** Writes what changed to the meshes. */
+  protected flush() {
+    for (const pack of this.packs.values()) pack.flush();
+  }
+
   protected piece(meshes: THREE.InstancedMesh[], idx: number, rest: THREE.Matrix4, size: number, shown: boolean, leaf = false): Piece {
-    for (const mesh of meshes) mesh.setMatrixAt(idx, shown ? rest : this.zero);
+    for (const mesh of meshes) this.place(mesh, idx, shown ? rest : null);
     return { meshes, idx, rest, size, p: new THREE.Vector3(), q: new THREE.Quaternion(), s: new THREE.Vector3(), v: new THREE.Vector3(), w: new THREE.Vector3(), leaf, still: false };
   }
 
@@ -190,8 +207,7 @@ abstract class FruitSet {
 
   private show(p: Piece, on: boolean, m: THREE.Matrix4 = p.rest) {
     for (const mesh of p.meshes) {
-      mesh.setMatrixAt(p.idx, on ? m : this.zero);
-      this.dirty.add(mesh);
+      this.place(mesh, p.idx, on ? m : null);
     }
   }
 
@@ -224,20 +240,15 @@ abstract class FruitSet {
       }
     }
     // Juice: droplets flung out and falling.
-    let juice = false;
     for (let j = 0; j < MAX_JUICE; j++) {
       if (this.juiceLife[j] <= 0) continue;
-      juice = true;
       this.juiceLife[j] -= dt;
       this.juiceV[j * 3 + 1] -= 9.8 * dt;
       for (const a of [0, 1, 2]) this.juiceP[j * 3 + a] += this.juiceV[j * 3 + a] * dt;
-      const r = this.juiceLife[j] > 0 ? 0.016 : 0;
-      this.m.compose(this.tmp.set(this.juiceP[j * 3], this.juiceP[j * 3 + 1], this.juiceP[j * 3 + 2]), this.dq.identity(), this.tmp2.set(r, r, r));
-      this.juice.setMatrixAt(j, this.m);
+      const r = 0.016;
+      this.place(this.juice, j, this.juiceLife[j] > 0 ? this.m.compose(this.tmp.set(this.juiceP[j * 3], this.juiceP[j * 3 + 1], this.juiceP[j * 3 + 2]), this.dq.identity(), this.tmp2.set(r, r, r)) : null);
     }
-    if (juice) this.dirty.add(this.juice);
-    for (const mesh of this.dirty) mesh.instanceMatrix.needsUpdate = true;
-    this.dirty.clear();
+    this.flush();
   }
 
   private fall(p: Piece, t: number, dt: number) {
@@ -314,7 +325,7 @@ export class HangingCherries extends FruitSet {
       loose.push(this.piece([leaves], k, local([0.05, -0.03, 0.02], [0.3, 0.5, -0.5], [0.085, 0.014, 0.04]), 0.015, true, true));
       this.add({ center: new THREE.Vector3(0, -STEM - 0.04, 0).applyMatrix4(frame), radius: 0.17, whole, cut, loose });
     });
-    for (const mesh of [cherries, stems, leaves]) mesh.instanceMatrix.needsUpdate = true;
+    this.flush();
   }
 }
 
@@ -341,11 +352,11 @@ export class StallFruit extends FruitSet {
     const flesh = new THREE.Color();
     fruit.forEach(({ p, r, color }, k) => {
       const skin = new THREE.Color(color);
-      whole.setColorAt(k, skin);
+      this.colorAt(whole, k, skin);
       flesh.copy(skin).lerp(new THREE.Color(0xfff1d0), 0.55);
       for (const h of [0, 1]) {
-        shell.setColorAt(k * 2 + h, skin);
-        cap.setColorAt(k * 2 + h, flesh);
+        this.colorAt(shell, k * 2 + h, skin);
+        this.colorAt(cap, k * 2 + h, flesh);
       }
       const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.random() * Math.PI, Math.PI / 2));
       const rest = new THREE.Matrix4().compose(p, q, new THREE.Vector3(r, r, r));
@@ -357,9 +368,6 @@ export class StallFruit extends FruitSet {
         loose: [],
       });
     });
-    for (const mesh of [whole, shell, cap]) {
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    }
+    this.flush();
   }
 }

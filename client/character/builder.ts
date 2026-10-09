@@ -109,8 +109,9 @@ let currentLod = 0;
 
 /**
  * Builds with a level of detail: every FacetBuilder created inside `fn` has `lod` set. Tubes lose sides
- * (¾ at 1, ½ at 2, never under 4) and every other inner ring, and lose their rims at 2; appended parts smaller than a button (1)
- * or a pocket (2) are dropped; `detail()` blocks run only up to their level.
+ * (¾ at 1, ½ at 2, never under 4) and every other inner ring, their rims' lips at 1 and their rims at 2; appended parts smaller than a button (1)
+ * or a pocket (2) are dropped, and appended spheres, cylinders and tori lose segments (¾, ½); `detail()` blocks run
+ * only up to their level.
  */
 export function withLod<T>(lod: number, fn: () => T): T {
   const prev = currentLod;
@@ -124,6 +125,58 @@ export function withLod<T>(lod: number, fn: () => T): T {
 
 /** Sides of a tube at a level of detail. */
 export const lodSegments = (segments: number, lod: number) => (lod <= 0 ? segments : Math.max(4, Math.round(segments * (lod === 1 ? 0.75 : 0.5))));
+
+/**
+ * Far levels of detail (1 and 2): every other inner entry of a list (rows of a sheet, points of a strap), the ends
+ * always kept; short lists (`keep` entries or fewer) stay whole.
+ */
+export function lodThin<T>(list: readonly T[], lod: number, keep = 3): T[] {
+  if (lod <= 0 || list.length <= keep) return [...list];
+  return list.filter((_, i) => i === 0 || i === list.length - 1 || i % 2 === 0);
+}
+
+type Params = Record<string, number & boolean>;
+
+/**
+ * Far LOD: a three.js primitive (sphere, cylinder, torus) rebuilt with fewer segments (¾ at 1, ½ at 2; never
+ * under 4 around, 3 across). Only primitives still as made: one already rotated or moved keeps its segments.
+ */
+function simplerPrimitive(geo: THREE.BufferGeometry, lod: number): THREE.BufferGeometry {
+  const p = (geo as THREE.BufferGeometry & { parameters?: Params }).parameters;
+  if (!p) return geo;
+  const k = lod === 1 ? 0.75 : 0.5;
+  const less = (n: number, min: number) => Math.max(Math.min(n, min), Math.round(n * k));
+  let make: ((a: number, b: number) => THREE.BufferGeometry) | null = null;
+  let segs: [number, number] = [0, 0];
+  let fewer: [number, number] = [0, 0];
+  switch (geo.type) {
+    case 'SphereGeometry':
+      make = (w, h) => new THREE.SphereGeometry(p.radius, w, h, p.phiStart, p.phiLength, p.thetaStart, p.thetaLength);
+      segs = [p.widthSegments, p.heightSegments];
+      fewer = [less(segs[0], 4), less(segs[1], 3)];
+      break;
+    case 'CylinderGeometry':
+      make = (r) => new THREE.CylinderGeometry(p.radiusTop, p.radiusBottom, p.height, r, p.heightSegments, p.openEnded, p.thetaStart, p.thetaLength);
+      segs = [p.radialSegments, 0];
+      fewer = [less(segs[0], 4), 0];
+      break;
+    case 'TorusGeometry':
+      make = (r, t) => new THREE.TorusGeometry(p.radius, p.tube, r, t, p.arc);
+      segs = [p.radialSegments, p.tubularSegments];
+      fewer = [less(segs[0], 3), less(segs[1], 5)];
+      break;
+  }
+  if (!make || (fewer[0] === segs[0] && fewer[1] === segs[1])) return geo;
+  // Still as made? (the same parameters give the same vertices)
+  const same = make(segs[0], segs[1]);
+  const a = geo.getAttribute('position').array;
+  const b = same.getAttribute('position').array;
+  same.dispose();
+  if (a.length !== b.length) return geo;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return geo;
+  geo.dispose();
+  return make(fewer[0], fewer[1]);
+}
 
 export class FacetBuilder {
   /** Level of detail this builder was created at (0 full; 1, 2 the far versions). */
@@ -294,12 +347,13 @@ export class FacetBuilder {
     const r0 = o.radius(0) * Math.max(sx(0), sz(0));
     const r1 = o.radius(1) * Math.max(sx(1), sz(1));
     if (o.capStart) rings.push({ t: 0, scale: 0.62, add: 0, along: -Math.sqrt(1 - 0.62 * 0.62) * r0 * o.capStart });
-    // Farthest LOD: no thickness bands (hems, cuffs, collars) — a pixel or two at that distance.
+    // Farthest LOD: no thickness bands (hems, cuffs, collars) — a pixel or two at that distance. At 1 the band
+    // stays, without its lip (the end face going in to the cloth, a few millimeters seen end-on).
     const rimStart = this.lod >= 2 ? undefined : o.rimStart;
     const rimEnd = this.lod >= 2 ? undefined : o.rimEnd;
     if (rimStart) {
       const h = rimStart.h / len;
-      rings.push({ t: 0, scale: 1, add: -0.004, along: 0, paint: rimStart.paint });
+      if (this.lod < 1) rings.push({ t: 0, scale: 1, add: -0.004, along: 0, paint: rimStart.paint });
       rings.push({ t: 0, scale: 1, add: rimStart.out, along: 0, paint: rimStart.paint });
       rings.push({ t: h, scale: 1, add: rimStart.out, along: 0, paint: rimStart.paint });
       rings.push({ t: h, scale: 1, add: 0, along: 0 });
@@ -311,7 +365,7 @@ export class FacetBuilder {
       rings.push({ t: 1 - h, scale: 1, add: 0, along: 0 });
       rings.push({ t: 1 - h, scale: 1, add: rimEnd.out, along: 0, paint: rimEnd.paint });
       rings.push({ t: 1, scale: 1, add: rimEnd.out, along: 0, paint: rimEnd.paint });
-      rings.push({ t: 1, scale: 1, add: -0.004, along: 0, paint: rimEnd.paint });
+      if (this.lod < 1) rings.push({ t: 1, scale: 1, add: -0.004, along: 0, paint: rimEnd.paint });
     }
     if (o.capEnd) rings.push({ t: 1, scale: 0.62, add: 0, along: Math.sqrt(1 - 0.62 * 0.62) * r1 * o.capEnd });
 
@@ -371,6 +425,7 @@ export class FacetBuilder {
         geo.dispose();
         return;
       }
+      geo = simplerPrimitive(geo, this.lod);
     }
     const src = geo.index ? geo.toNonIndexed() : geo;
     const posAttr = src.getAttribute('position') as THREE.BufferAttribute;

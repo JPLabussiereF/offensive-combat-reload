@@ -60,7 +60,7 @@ export function stele(c: Ctx, x: number, z: number) {
   b.box(x, 2.55, z, 2.4, 3.5, 0.55, 'pedra', { tint: 0xb4ae9f });
   // The inscription, in columns read top to bottom, right to left: "I fucked the ass of whoever is reading
   // this" (the pt-BR joke "comi o cu de quem tá lendo"; 操 carries the slang meaning that 吃, "eat", wouldn't).
-  for (const side of [-1, 1]) inscription(c.scene, ['我操了正在', '读这句话的', '人的屁眼'], x, 2.7, z + side * 0.285, side > 0 ? 0 : Math.PI, 1.5, 2.7);
+  for (const side of [-1, 1]) inscription(c.scene, ['我操了正在', '读这句话的', '人的屁眼'], x, 2.7, z + side * 0.285, side > 0 ? 0 : Math.PI, 1.5, 2.7, c.b);
 }
 
 export function planterPine(c: Ctx, x: number, z: number) {

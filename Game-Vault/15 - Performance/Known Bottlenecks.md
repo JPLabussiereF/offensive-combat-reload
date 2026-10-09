@@ -16,6 +16,8 @@ source_paths:
   - client/render/viewmodelArms.ts
   - client/main.ts
   - client/render/effects.ts
+  - client/ui/galpao/scene.ts
+  - tools/orcamento.ts
 tags:
   - performance
   - gargalos
@@ -39,6 +41,8 @@ Gargalos e limitações de desempenho evidenciados no código ou na documentaç�
 | 9 | **Gravação de progresso em lote a cada 60 s** | `server/app.ts` (`FLUSH_EVERY_MS`) | Queda abrupta do processo (sem SIGTERM) perde até 60 s de progresso | Gravação também ao sair e no SIGTERM. Ver [[ADR - Progresso gravado em lotes por delta]]. |
 | 10 | ~~**Shader dos braços recompilado a cada troca de arma**~~ (resolvido na PF-34) | `client/render/viewmodel.ts`, `client/render/viewmodelArms.ts` | Engasgo ao trocar muitas vezes entre o rifle e uma secundária de pistola (rodinha do mouse) | Material único dos braços, mão de apoio nas duas poses, aquecimento no começo da partida e limite de 150 ms na rodinha. Detalhes abaixo. |
 | 11 | **Primeira explosão de granada da partida compila shaders na cena do mundo** | Medição da PF-34 (Chrome headless, RTX 3070 Ti): cerca de 0,5 s depois de soltar a primeira granada surgem 3 programas WebGL novos, usados pelas nuvens de fumaça (`MeshToonMaterial` transparente) e pelas bolas de fogo e anéis da onda de choque (`MeshBasicMaterial` transparente) da explosão (`Effects.explosion`, `client/render/effects.ts`), e um quadro de ~55 ms (antes da PF-34, ~69 ms) | Um tranco único por partida, na primeira explosão | Nenhuma. Fora do escopo da PF-34 (decisão do dev, P3): o aquecimento dela cobre só o viewmodel (trocar, esfaquear e arremessar), não os efeitos do mundo. Issue própria a abrir no Jira. |
+| 12 | **Peso geométrico dos mapas no celular** (PF-35) | `tools/orcamento.ts`, `client/tests/polyBudget.test.ts` | Antes, o celular desenhava os mesmos objetos que o PC: Jardim do Dragão com 524 mil triângulos na pior câmera, 44 mil deles instâncias invisíveis | Cortes sem perda para todos e o detalhe Leve: Jardim 394 mil (Normal) / 312 mil (Leve). Ver [[ADR - Detalhe geométrico Normal e Leve]] e [[Performance Rendering]]. Restam: a Vila com 263 chamadas nos dois níveis (orçamento leve 250, dentro da folga de 5%; peças únicas com textura própria, P13) e o FPS num celular fraco ainda não medido (no PC rápido o FPS não muda de forma mensurável: o gargalo não são os triângulos). |
+| 13 | **Quadro inteiro do galpão (tela inicial)** | `?bench=galpao` (`client/dev/bench.ts`) | Cada quadro desenha a cena de novo para a sombra do sol, para 2 holofotes com sombra e, a cada 3 quadros, para uma câmera de CCTV: 168–187 mil triângulos e 750–895 chamadas no build normal, 58–65 mil e 264–358 no build leve do celular (medido no Chrome com GPU, 1280×720) | Só informação (P14 da PF-35): o orçamento do galpão vale para a passada da câmera, 9,6–17,3 mil triângulos. |
 
 ## PF-34: troca de arma recompilava o shader dos braços (resolvido)
 

@@ -68,8 +68,9 @@ export class Kit {
     }
   }
 
-  /** A rectangle from X0 to X1 and y0 to y1 on the front or the back. */
+  /** A rectangle from X0 to X1 and y0 to y1 on the front or the back (far LODs: none thinner than 12 mm, a seam). */
   rect(X0: number, X1: number, y0: number, y1: number, paint: Paint, back = false, off?: number, step = 0.04) {
+    if (this.b.lod >= 1 && Math.min(Math.abs(X1 - X0), Math.abs(y1 - y0)) < 0.012) return;
     const n = Math.max(1, Math.ceil((y1 - y0) / step));
     const rows: Row[] = Array.from({ length: n + 1 }, (_, i) => {
       const y = lerp(y0, y1, i / n);

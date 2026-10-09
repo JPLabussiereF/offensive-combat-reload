@@ -6,7 +6,7 @@ import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import type { MapData, Peca, Vec3 } from '@shared/mapData';
 import type { Superficie } from '@shared/mapCatalog';
 import type { Physics, SurfaceMaterial, OccluderKind } from '../physics';
-import type { MapBuilder, PieceOpts } from '../mapBuilder';
+import type { MapBuilder, ObjectDetail, PieceOpts } from '../mapBuilder';
 import type { PropBus } from '../props';
 import type { Seeded } from '../oriental';
 import type { SurfaceKey } from '../surfaces';
@@ -43,6 +43,10 @@ export interface MapOutputs {
 
 export interface BuildCtx {
   readonly modo: 'jogo' | 'editor';
+  /** The detail the map is built with (PF-35; always 'normal' in the editor and on the server). */
+  readonly detalhe: ObjectDetail;
+  /** `normal` with the normal detail, `leve` with the light one (MapBuilder.seg). */
+  seg<T>(normal: T, leve: T): T;
   readonly b: MapBuilder;
   /** Where the piece's own objects go: the scene, or the piece's group in the editor. */
   scene: THREE.Scene;

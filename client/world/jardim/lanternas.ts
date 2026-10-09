@@ -30,7 +30,7 @@ export function bianzhong(c: Ctx, x0: number, x1: number, z: number) {
   b.span(x0 - 0.35, top, z - 0.1, x1 + 0.35, top + 0.18, z + 0.1, 'pintura', { tint: C.lacquer, collide: false });
   b.span(x0 - 0.37, top + 0.18, z - 0.11, x1 + 0.37, top + 0.22, z + 0.11, 'pintura', { tint: C.gold, collide: false });
   for (const s of [-1, 1]) b.box(s < 0 ? x0 - 0.45 : x1 + 0.45, top + 0.24, z, 0.3, 0.12, 0.2, 'pintura', { tint: C.gold, collide: false, rot: new THREE.Euler(0, 0, -s * 0.5) });
-  plaque(c.scene, '編鐘', (x0 + x1) / 2, top + 0.45, z - 0.02, Math.PI, 1.0, 0.42, '#8a2a22');
+  plaque(c.scene, '編鐘', (x0 + x1) / 2, top + 0.45, z - 0.02, Math.PI, 1.0, 0.42, '#8a2a22', undefined, c.b);
   const step = (x1 - x0 - 1.1) / (NOTES.length - 1);
   NOTES.forEach((f, i) => {
     const x = x0 + 0.55 + i * step;

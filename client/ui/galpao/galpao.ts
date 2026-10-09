@@ -53,7 +53,8 @@ export interface GalpaoStart {
   hooks: GalpaoHooks;
 }
 
-const labels = (): GalpaoLabels => ({
+/** The scene's painted texts in the player's language (also the dev bench's, client/dev/bench.ts). */
+export const labels = (): GalpaoLabels => ({
   stations: {
     play: t('gpSign_play'),
     maps: t('gpSign_maps'),

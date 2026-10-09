@@ -174,12 +174,12 @@ export const garden: Record<string, Adapter> = {
   placaNome(c, p) {
     const q = P<{ texto: string; largura: number; altura: number; fundo?: string; letra?: string }>(p);
     const [x, y, z] = at(p);
-    plaque(c.scene, q.texto, x, y, z, yawOf(p), q.largura, q.altura, q.fundo, q.letra);
+    plaque(c.scene, q.texto, x, y, z, yawOf(p), q.largura, q.altura, q.fundo, q.letra, c.b);
   },
 
   inscricao(c, p) {
     const q = P<{ colunas: string[]; largura: number; altura: number }>(p);
     const [x, y, z] = at(p);
-    inscription(c.scene, q.colunas, x, y, z, yawOf(p), q.largura, q.altura);
+    inscription(c.scene, q.colunas, x, y, z, yawOf(p), q.largura, q.altura, c.b);
   },
 };

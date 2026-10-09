@@ -49,6 +49,7 @@ Termos próprios do projeto, com o **nome exibido ao jogador**, o **nome no cód
 | Contra bots | `mode: 'bots'` | Modo offline contra bots (`facil`/`normal`/`dificil`) | [[Versus Bots]] |
 | Cozinhar | `cookT` | Segurar G com o pino tirado; depois de 3 s a granada explode na mão | [[Grenades]] |
 | Dancinha da Vitória | `taunt`, `danceMusic` | A dança da Opressão (3,2 s, funk de 150 bpm) | [[Humiliation]] |
+| Detalhe dos objetos (Normal / Leve) | `Settings.detalhe`, `ObjectDetail`, `objectDetail`, `MapBuilder.seg` | Quanto de geometria o mapa monta: o Leve (padrão no celular e com renderização por software) simplifica folhagem, árvores mortas, lanternas do céu, telhados, props esculpidos e estantes e troca o LOD dos personagens mais cedo; colisão igual. Vale a partir da próxima partida (PF-35) | [[Settings]] · [[ADR - Detalhe geométrico Normal e Leve]] |
 | Dose Dupla | melhoria opcional da granada (nível 3, grupo `modo`), `tipo: 'dupla'` | Duas granadas por carga, com 0,3 s entre elas | [[Grenades]] |
 | Frases rápidas | `QUICK_CHAT` | Mensagens de chat de um toque no celular | [[Chat]] |
 | Granada de pato | poção `pato` | Visual e som de pato de borracha nas granadas, sem efeito de jogo | [[Buffs & Debuffs]] |

@@ -244,12 +244,18 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   const TS = mobile ? 512 : 1024;
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false });
+  // Dev only (PF-35): what the last frame drew, every pass together (the scene, its shadow maps, a CCTV feed every
+  // third frame, the post chain), and the scene and the camera, in window.__ocGalpao; client/dev/bench.ts
+  // (?bench=galpao) measures with it (the budget holds the camera's pass).
+  const devInfo = import.meta.env.DEV ? { renderer, chamadas: 0, triangulos: 0, quadros: 0 } : null;
+  if (devInfo) Object.assign(window, { __ocGalpao: devInfo });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.25 : 1.6));
   renderer.shadowMap.enabled = true;
   // PCFSoftShadowMap was removed (three warns and falls back); PCF now does a soft Vogel-disk filter itself
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.localClippingEnabled = true;
   const scene = new THREE.Scene();
+  if (devInfo) Object.assign(devInfo, { scene });
   scene.background = new THREE.Color(0x060708);
   scene.fog = new THREE.FogExp2(0x0d0f12, 0.03);
   await tick(0.05);
@@ -1109,7 +1115,8 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   cb2.cyl(M.red, 0.08, 0.08, 0.5, 14, -11.6, 0.6, -6.3); cb2.cyl(M.poly, 0.03, 0.03, 0.08, 8, -11.6, 0.9, -6.3);
   cb2.flush(world);
   // chain hoist
-  const linkGeo = new THREE.TorusGeometry(0.025, 0.007, 6, 10);
+  // The lighter build's links are 4 × 6 (PF-35, P14): 56 of them were the heaviest thing in the scene.
+  const linkGeo = mobile ? new THREE.TorusGeometry(0.025, 0.007, 4, 6) : new THREE.TorusGeometry(0.025, 0.007, 6, 10);
   const links = new THREE.InstancedMesh(linkGeo, M.galv, 56);
   for (let i = 0; i < 56; i++) { links.setMatrixAt(i, mtx(2.8, 6.2 - i * 0.042, 1.6, 0, i % 2 ? Math.PI / 2 : 0, Math.PI / 2)); }
   links.castShadow = true; world.add(links);
@@ -1169,6 +1176,7 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
 
   // ---------- camera director ----------
   const cam = new THREE.PerspectiveCamera(34, 1, 0.04, 80);
+  if (devInfo) Object.assign(devInfo, { cam });
   const tmpCam = cam.clone();
   let vw = 1, vh = 1, aspect = 1, portrait = false;
   const HOME = { pos: V(0.45, 1.36, 3.25), target: V(-0.42, 1.12, -0.05), fov: 33 };
@@ -1401,6 +1409,10 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   function loop(now: number) {
     if (disposed) return;
     raf = requestAnimationFrame(loop);
+    if (devInfo) {
+      renderer.info.autoReset = false;
+      renderer.info.reset();
+    }
     const dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt; frame++;
     // camera
     if (move) {
@@ -1475,6 +1487,11 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     postU.tB1.value = rtA.texture; postU.tB2.value = rtC.texture;
     pass(post, null);
     updateSurfaces(dt);
+    if (devInfo) {
+      devInfo.chamadas = renderer.info.render.calls;
+      devInfo.triangulos = renderer.info.render.triangles;
+      devInfo.quadros++;
+    }
   }
   await tick(1);
   raf = requestAnimationFrame(loop);
