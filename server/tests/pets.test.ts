@@ -264,18 +264,17 @@ describe('habilidades dos pets no motor do zumbi', () => {
     expect(ev.until - f.t).toBeLessThanOrEqual(PET_ABILITIES.amora.tranco * 1000);
   });
 
-  it('Feitiço do Pato: o peso do tipo pela distância escolhe o alvo, que fica na boia, parado e levando tiro (P35)', () => {
+  it('Feitiço do Pato: a variante perigosa mais perto vira o alvo, mesmo com um comum colado; fica na boia, parada e levando tiro (P41)', () => {
     quick();
     for (const t of Object.values(ZOMBIE.tipos)) t.dano = 0;
     const f = fakeMatch([[YARD, 'bruxinha']], 3);
     const pet = (f.match.parts.get(1) as unknown as { pet: { ready: number } }).pet;
     pet.ready = Infinity;
     f.step(0.5);
-    // A Fiscal (corredor, 1.6) at 2 m beats a plain one at 1.5 m (1.6 / 2 > 1 / 1.5)...
-    const plain = put(f, 'comum', [1.5, 0.1, 0], true);
-    const runner = put(f, 'corredor', [0, 0.1, 2]);
-    const score = (z: Z) => (PET_ABILITIES.bruxinha.peso[z.kind] ?? 1) / Math.max(1, Math.hypot(z.pos[0] - YARD[0], z.pos[2] - YARD[2]));
-    expect(score(runner)).toBeGreaterThan(score(plain));
+    // A plain one at the owner's feet, a runner at 6 m and a Segurança at 8 m: the nearest variant (the runner).
+    put(f, 'comum', [1.2, 0.1, 0], true);
+    const runner = put(f, 'corredor', [0, 0.1, 6]);
+    put(f, 'brutamontes', [8, 0.1, 0]);
     pet.ready = 0;
     f.step(0.05);
     const ev = f.pet(1, 'duck')[0];
@@ -284,13 +283,14 @@ describe('habilidades dos pets no motor do zumbi', () => {
     expect(f.match.snapshot().z.find((n) => n[0] === runner.id)![6] & ZF.duck).toBe(ZF.duck);
     // It still takes shots (no hitbox lost).
     expect(f.match.damage(runner.id, 1, 1, 'head')).toBe(true);
-    // ...but one far off loses to the plain one at the owner's feet (no longer "any variant first").
+    // With no variant in range, the nearest plain one.
     const g = fakeMatch([[YARD, 'bruxinha']], 3);
     const gpet = (g.match.parts.get(1) as unknown as { pet: { ready: number } }).pet;
     gpet.ready = Infinity;
     g.step(0.5);
-    const near = put(g, 'comum', [1.2, 0.1, 0], true);
-    put(g, 'corredor', [0, 0.1, 6]);
+    put(g, 'comum', [0, 0.1, 4], true);
+    const near = put(g, 'comum', [1.5, 0.1, 0]);
+    put(g, 'corredor', [0, 0.1, 30]);
     gpet.ready = 0;
     g.step(0.05);
     expect(g.pet(1, 'duck')[0].z).toBe(near.id);

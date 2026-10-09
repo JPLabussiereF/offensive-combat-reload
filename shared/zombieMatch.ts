@@ -1841,21 +1841,14 @@ export class ZombieMatch {
   }
 
   /**
-   * Feitiço do Pato: a duck float on the zombie near the owner with the most weight for its distance (bruxinha.peso /
-   * meters, at least 1: a bruiser a little farther before a plain one at the owner's feet; in a wave of plain ones,
-   * the nearest). Bosses are immune.
+   * Feitiço do Pato (P41): a duck float on the nearest dangerous variant near the owner (the Segurança, the Tio, the
+   * Tia, the runner: any type but the plain one), or with none of them in range, the nearest plain one. Bosses are
+   * immune.
    */
   private petDuck(p: Part, pet: PetState, now: number) {
     const B = PET_ABILITIES.bruxinha;
-    let z: Zombie | undefined;
-    let best = -Infinity;
-    for (const o of this.near(p, this.petTargets(now).filter((o) => !isBoss(o.kind)), B.alcance)) {
-      const score = (B.peso[o.kind] ?? 1) / Math.max(1, dist2(o.pos, p.feet));
-      if (score > best) {
-        best = score;
-        z = o;
-      }
-    }
+    const list = this.near(p, this.petTargets(now).filter((o) => !isBoss(o.kind)), B.alcance);
+    const z = list.find((o) => o.kind !== 'comum') ?? list[0];
     if (!z) return;
     // It stops whatever it was winding up.
     if (z.act) this.endAct(z);

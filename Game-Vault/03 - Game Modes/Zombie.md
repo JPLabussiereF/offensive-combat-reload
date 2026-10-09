@@ -289,7 +289,7 @@ Cada jogador pode trazer o seu pet ([[Pets]], com o interruptor **Junto no zumbi
 | Pet | Habilidade | Resumo | Recarga |
 |---|---|---|---|
 | Amora | Segura, Amora! | segura pela canela, por 3 s, o zumbi mais perto do dono (até 7 m, sem o muro no meio), **cancelando o golpe que ele tinha começado**; o Segurança e os chefes só levam um tranco de 0,6 s, que não cancela (`ZF.held`) | 18 s |
-| Bruxinha | Feitiço do Pato | boia de patinho por 4 s no zumbi a até 10 m com o maior peso do tipo ÷ distância (Segurança 3, Tio 2,4, Tia 2, Fiscal 1,6, comum 1; chefes imunes): parado e levando tiro (`ZF.duck`) | 25 s |
+| Bruxinha | Feitiço do Pato | boia de patinho por 4 s na variante perigosa mais perto a até 10 m (qualquer tipo menos o comum) ou, sem nenhuma, no comum mais perto (P41; chefes imunes): parado e levando tiro (`ZF.duck`) | 25 s |
 | Gata | Sétima Vida | levanta o dono caído em 6 s (começa 2 s depois da queda), 2 vezes por partida; **cede a vez a um colega** que comece a reanimar e nunca entra nas reanimações | cargas |
 | Fuinha | Mão na Massa | prega 1 tábua a cada 2,5 s, até 2, na barricada erguida mais danificada perto do dono (até 6 m), sem dinheiro | 15 s |
 | Lontra | Pedrada | cancela o cuspe da Tia ou o inchaço do Tio perto do dono (até 9 m) e deixa o zumbi tonto 1,5 s; o Tio só volta a inchar 3 s depois | 12 s |

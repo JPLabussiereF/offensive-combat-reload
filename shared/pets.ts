@@ -245,8 +245,7 @@ export const petName = (id: PetId, lang: keyof PetText, c?: PetChoice | null) =>
 /** What each pet does in the zumbi mode (data/pets.json; the tests shorten them). */
 export const PET_ABILITIES = structuredClone(data.habilidades) as {
   amora: { alcance: number; segura: number; tranco: number; recarga: number };
-  /** `peso`: how much each zombie type is worth to the float (divided by its distance: the dangerous ones first). */
-  bruxinha: { alcance: number; duracao: number; recarga: number; peso: Record<string, number> };
+  bruxinha: { alcance: number; duracao: number; recarga: number };
   gato: { cargas: number; espera: number; segundos: number; vida: number };
   fuinha: { alcance: number; tabuaSegundos: number; tabuas: number; recarga: number };
   /** `murcha`: a Tio do Churrasco hit while swelling can't swell again for that long. */

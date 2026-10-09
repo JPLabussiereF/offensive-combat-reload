@@ -64,17 +64,19 @@ Dar identidade e um motivo para ter um pet sem vender vantagem agora, sem atrapa
 10. **Nenhum pet atravessa o muro** (P27): a Amora, que corre até o zumbi e morde, só escolhe um sem o muro no meio (ou por um vão aberto), com o mesmo teste do golpe do zumbi (`wallBetween`); a Bruxinha voa e sobe a 2,4 m para lançar o feitiço por cima da grade; a pedra da lontra passa por cima do muro.
 
 11. **Junção das duas implementações (P28–P37, 08/10/2026).** A implementação desta branch é a **base** (formato de dados, modelos, estação do galpão, números e P23–P27); da outra vieram, **à mão** (os formatos não eram compatíveis), só estes itens:
-    - **P29:** os números são os desta base; os únicos novos são `lontra.murcha` e `bruxinha.peso`.
+    - **P29:** os números são os desta base; os únicos novos são `lontra.murcha` e `bruxinha.peso` (este saiu na P41).
     - **P30:** a migration passou a **`009_pets.sql`** (007 é o `007_album_colado` da PF-26 e 008 será da PF-28), com `ADD COLUMN IF NOT EXISTS`/`DROP COLUMN IF EXISTS`: um banco que já rodou `007_pets.sql` registra a 009 sem erro (o controle é pelo nome do arquivo em `schema_migrations`). Ver [[Data Migrations]].
     - **P31:** a **boia de patinho com peças compartilhadas** (antes cada zumbi criava a sua geometria e ela nunca era liberada), a **pata desenhada na cor da coleira** (`client/pets/paw.ts`, seguindo o alvo), os sons **`softQuack`** (a boia) e **`potionPop`** (a poção estoura no zumbi); `HERO_HANDS`/`PET_CLEARANCE` e o pet da visão geral em x 0,27 (nunca a menos de 0,25 m das mãos do personagem); e os testes "sem pet nada age", o rastro do dono, "sem colisor nem alvo" e a folga das mãos.
     - **P32 (Pedrada):** além do tonto de 1,5 s, o Tio do Churrasco **só volta a inchar 3 s depois** da pedrada (`cd.fuse`, `lontra.murcha`).
     - **P33 (Rabo de Isca):** o **golpe de fantasma** também solta o rabo; espinhos e corvos continuam fora.
     - **P34 (Amora):** segurar **cancela o golpe que o zumbi já tinha começado**; o tranco no Segurança e nos chefes não cancela. O teste do muro (P27) e os números ficam.
-    - **P35 (Bruxinha):** o alvo é o maior **peso do tipo ÷ distância** (Segurança 3, Tio 2,4, Tia 2, Fiscal 1,6, comum 1; em `pets.json`); alcance, duração e recarga ficam.
+    - **P35 (Bruxinha):** o alvo era o maior **peso do tipo ÷ distância** (Segurança 3, Tio 2,4, Tia 2, Fiscal 1,6, comum 1; em `pets.json`). **Substituída pela P41.**
     - **P36:** `PATCH /api/perfil` com um `pet.id` que não existe responde **400 `pet_invalido`** (corpo `{ erro }`, como o resto da API); pelagem, coleira e nome fora do formato continuam limpos em silêncio.
     - **P37:** a fuinha continua trabalhando também na contagem antes da partida (sem mudança).
     - **P38 (09/10/2026):** o visual de um pet desconhecido em `cfg` continua sendo descartado em silêncio (200).
     - **P39 (09/10/2026):** um `pet` que não é objeto nem `null` (string, número, lista) responde **400 `pet_invalido`** e o pet salvo não muda; `null` continua sendo "sem pet".
+    - **P40 (09/10/2026):** confirmada a P34: a Amora segurando um zumbi que já começou o golpe **cancela** o golpe; o tranco no Segurança e nos chefes não cancela.
+    - **P41 (09/10/2026):** o alvo da Bruxinha volta a ser a **variante perigosa mais perto** (Segurança, Tio, Tia, corredor: qualquer tipo menos o comum) e, sem nenhuma, o **comum mais perto**; `bruxinha.peso` saiu de `pets.json` e o cálculo de `shared/zombieMatch.ts`. Alcance, duração, recarga e a imunidade dos chefes ficam.
     - Nada mais da outra implementação foi trazido.
 
 ## Motivo
