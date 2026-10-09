@@ -33,12 +33,16 @@ const SAME_AS_EN: Record<'es' | 'de', StringKey[]> = {
   es: [
     'title', 'arsenal', 'prog_rifle', 'fx_zoom', 'botCount', 'skillNormal', 'touchChat', 'tabArsenal', 'zColXp', 'pillarArsenalKicker', 'mgRole_admin',
     'mgRoles', 'pmSubVideo', 'pmSubAudio', 'gpSt_arsenal', 'gpSign_arsenal', 'gpTagOn', 'gpTagOff', 'gpCtaLine',
+    // Keys of the branches merged after PF-30 (sprint): PF-35's detail and PF-32's Play tab.
+    'detailNormal', 'modeBotsShort', 'playBotsN', 'playCtaOnline', 'playCtaBots',
   ],
   de: [
     'title', 'arsenal', 'level', 'knifePassive', 'fx_zoom', 'cvUpgRow_resto', 'cvUpgrades', 'cvOptional', 'touchPause', 'botCount', 'skillNormal',
     'sessions', 'touchChat', 'tabArsenal', 'tabAlbum', 'modeOnline', 'gameMode_zumbi', 'ztype_comum', 'zAssist', 'zColXp', 'pillarArsenalKicker',
     'zstatMatches', 'finishDourada', 'onlineSubtitle', 'mapsCommunity', 'mapsByName', 'mgRole_admin', 'mgRole_moderador', 'mgName', 'pmSubPad',
     'gpQuickLine', 'gpSt_arsenal', 'gpSt_album', 'gpSign_arsenal', 'gpAlbumCover2', 'gpCtaLine',
+    // Keys of the branches merged after PF-30 (sprint): PF-35's detail and PF-32's Play tab.
+    'detailNormal', 'modeOnlineShort', 'modeBotsShort', 'playSessionsBtn', 'playCtaOnline', 'playCtaBots',
   ],
 };
 const EDITOR_SAME_AS_EN: Record<'es' | 'de', EditorKey[]> = {
