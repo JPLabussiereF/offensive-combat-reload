@@ -58,7 +58,7 @@ A API HTTP do jogo vive sob `/api/` e é atendida pelo próprio servidor do jogo
 | `GET /api/auth/discord[?vincular=1]` | opcional | Redireciona ao Discord (OAuth + PKCE). | 302 |
 | `GET /api/auth/discord/retorno` | — | Retorno do Discord: login, cadastro ou vínculo. | 302 para `/`, `/#escolher-nome`, `/#perfil` ou `/#erro=<código>` |
 | `POST /api/auth/sair` | opcional | Revoga a sessão e derruba conexões de jogo da conta. | 204 + cookie apagado |
-| `POST /api/auth/recuperar` | não | Pede link de redefinição (sempre a mesma resposta). | 204 |
+| `POST /api/auth/recuperar` | não | Pede link de redefinição (sempre a mesma resposta). Corpo `{ email, idioma? }`: `idioma` (PF-30) é o idioma do e-mail (`pt-BR`, `en`, `es`, `de`; ausente ou inválido → pt-BR). | 204 |
 | `POST /api/auth/redefinir` | não | Troca a senha com o token do link. | 204; 400 `token_invalido`/`senha_invalida` |
 | `DELETE /api/auth/identidade/discord` | sim | Desvincula o Discord. | 204; 404; 409 `unica_forma_de_entrar` |
 | `GET /api/perfil` | sim | Perfil completo (nível, totais, `armas` com `{xp, nivel}` por arma, `arsenal` com a escolha do Arsenal, participações, aparência). | 200 |

@@ -2,7 +2,7 @@
 // (no DOM), so the rules are tested on their own (client/tests/keybinds.test.ts); input.ts turns the result into
 // its BINDINGS table and the pause menu edits it. Action lives here, not in input.ts, so the tests (type-checked
 // by server/tsconfig.json, without the DOM) never load the DOM code.
-import type { Lang } from '../ui/strings';
+import { LANGS, type Lang } from '@shared/langs';
 
 export type Action =
   | 'forward' | 'back' | 'left' | 'right'
@@ -172,26 +172,26 @@ export interface LayoutMap {
   get(code: string): string | undefined;
 }
 
-// Names by key code: one string for both languages, or [pt-BR, en].
-const NAMES: Record<string, string | [string, string]> = {
-  Space: ['Espaço', 'Space'],
-  ShiftLeft: ['Shift esquerdo', 'Left Shift'],
-  ShiftRight: ['Shift direito', 'Right Shift'],
-  AltLeft: ['Alt esquerdo', 'Left Alt'],
-  AltRight: ['Alt direito', 'Right Alt'],
-  ArrowUp: ['Seta para cima', 'Up Arrow'],
-  ArrowDown: ['Seta para baixo', 'Down Arrow'],
-  ArrowLeft: ['Seta para a esquerda', 'Left Arrow'],
-  ArrowRight: ['Seta para a direita', 'Right Arrow'],
-  Mouse0: ['Botão esquerdo', 'Left click'],
-  Mouse1: ['Botão do meio', 'Middle click'],
-  Mouse2: ['Botão direito', 'Right click'],
-  WheelUp: ['Roda para cima', 'Wheel up'],
-  WheelDown: ['Roda para baixo', 'Wheel down'],
+// Names by key code: one string for every language, or one per language in the order of LANGS (pt-BR, en, es, de).
+const NAMES: Record<string, string | [string, string, string, string]> = {
+  Space: ['Espaço', 'Space', 'Espacio', 'Leertaste'],
+  ShiftLeft: ['Shift esquerdo', 'Left Shift', 'Shift izquierdo', 'Shift links'],
+  ShiftRight: ['Shift direito', 'Right Shift', 'Shift derecho', 'Shift rechts'],
+  AltLeft: ['Alt esquerdo', 'Left Alt', 'Alt izquierdo', 'Alt links'],
+  AltRight: ['Alt direito', 'Right Alt', 'Alt derecho', 'Alt rechts'],
+  ArrowUp: ['Seta para cima', 'Up Arrow', 'Flecha arriba', 'Pfeil hoch'],
+  ArrowDown: ['Seta para baixo', 'Down Arrow', 'Flecha abajo', 'Pfeil runter'],
+  ArrowLeft: ['Seta para a esquerda', 'Left Arrow', 'Flecha izquierda', 'Pfeil links'],
+  ArrowRight: ['Seta para a direita', 'Right Arrow', 'Flecha derecha', 'Pfeil rechts'],
+  Mouse0: ['Botão esquerdo', 'Left click', 'Clic izquierdo', 'Linksklick'],
+  Mouse1: ['Botão do meio', 'Middle click', 'Clic central', 'Mittelklick'],
+  Mouse2: ['Botão direito', 'Right click', 'Clic derecho', 'Rechtsklick'],
+  WheelUp: ['Roda para cima', 'Wheel up', 'Rueda arriba', 'Mausrad hoch'],
+  WheelDown: ['Roda para baixo', 'Wheel down', 'Rueda abajo', 'Mausrad runter'],
   Tab: 'Tab',
   CapsLock: 'Caps Lock',
   Enter: 'Enter',
-  NumpadEnter: ['Enter (numérico)', 'Numpad Enter'],
+  NumpadEnter: ['Enter (numérico)', 'Numpad Enter', 'Enter (teclado numérico)', 'Enter (Ziffernblock)'],
   Backspace: 'Backspace',
   Insert: 'Insert',
   Delete: 'Delete',
@@ -222,7 +222,7 @@ export function keyLabel(code: string, lang: Lang, layout?: LayoutMap, learned?:
   const printed = layout?.get(code) ?? learned?.[code];
   if (printed && printed.trim()) return printed.toUpperCase();
   const named = NAMES[code];
-  if (named) return typeof named === 'string' ? named : named[lang === 'en' ? 1 : 0];
+  if (named) return typeof named === 'string' ? named : named[LANGS.indexOf(lang)];
   if (/^Key[A-Z]$/.test(code)) return code.slice(3);
   if (/^Digit\d$/.test(code)) return code.slice(5);
   if (/^Numpad\d$/.test(code)) return `Num ${code.slice(6)}`;

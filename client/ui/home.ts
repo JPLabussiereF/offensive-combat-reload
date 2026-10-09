@@ -18,10 +18,11 @@
 import type { MeResponse, ProfileResponse } from '@shared/account';
 import { defaultAppearance, type Appearance } from '@shared/appearance';
 import type { MapaResumo } from '@shared/mapData';
-import { CLOSE, NET, type ServerMsg, type SessionInfo, type Sex } from '@shared/protocol';
+import { CLOSE, NET, type ServerMsg, type SessionInfo, type Sex, type WsErrorCode } from '@shared/protocol';
 import { DEFAULT_MAP, isOfficialMap, OFFICIAL_MAPS, type MapId, type OfficialMapId } from '@shared/maps';
 import { DEFAULT_GAME_MODE, GAME_MODE_IDS, isGameModeId, modeAllowsMap, MODE_RULES, type GameModeId } from '@shared/modes';
 import { isEquipe } from '@shared/roles';
+import { isLang, LANG_LOCALE, LANG_NAMES, LANGS, type Lang } from '@shared/langs';
 import { OFFICIAL_INFO } from '../world/mapLoader';
 import { cardOf, playableMaps, unknownSessionMaps, type MapCard } from './mapsRules';
 import { ctaText, effectiveOnlineMap, migrateOnlineMap, playersOn, quickTarget, say, sessionsFor, type CtaState } from './playRules';
@@ -29,7 +30,7 @@ import { showMaps } from './maps';
 import { showManagement } from './management';
 import { Progress } from '../gameplay/progress';
 import { api, fetchMe, fetchProfile } from '../net/api';
-import { Connection } from '../net/connection';
+import { Connection, Refusal } from '../net/connection';
 import { weaponIcon } from './arsenal';
 import { ArsenalCanvas } from './arsenalCanvas';
 import { progOf, type WeaponId } from '@shared/progression';
@@ -38,7 +39,7 @@ import { errorText, showAuth, type AuthView } from './auth';
 import { closeCustomizer, onCustomizerChange, renderPortrait, showCustomizer, Stage, type CustomizerHandle } from './customize';
 import { showProfile } from './profile';
 import { showAlbum } from './album';
-import { t, type StringKey } from './strings';
+import { getLang, t, type StringKey } from './strings';
 import { GalpaoHome } from './galpao/galpao';
 import { galpaoWanted } from './galpao/galpaoRules';
 
@@ -123,6 +124,20 @@ export function closeReason(code: number) {
   return code === CLOSE.revoked ? t('sessionEnded') : code === CLOSE.replaced ? t('connectedElsewhere') : t('disconnected');
 }
 
+/** Each refusal of an entry (shared/protocol.ts WS_ERRORS) in the player's language (PF-30). */
+const REFUSAL_TEXT: Record<WsErrorCode, StringKey> = {
+  sem_ola: 'wsErr_sem_ola',
+  sessao_lotada: 'wsErr_sessao_lotada',
+  sessao_inexistente: 'wsErr_sessao_inexistente',
+  mapa_indisponivel: 'wsErr_mapa_indisponivel',
+  modo_fora_do_mapa: 'wsErr_modo_fora_do_mapa',
+  sem_mapa: 'wsErr_sem_mapa',
+  entrada_falhou: 'wsErr_entrada_falhou',
+};
+
+/** Why joining failed, for the player: a refusal by its code, anything else as it came. */
+const joinErrorText = (err: unknown) => (err instanceof Refusal && err.code ? t(REFUSAL_TEXT[err.code]) : err instanceof Error ? err.message : String(err));
+
 /** A row of toggle buttons (difficulty, bot count, map); `on` marks the chosen one. */
 const segButtons = (items: { label: string; on: boolean; data: string }[]) =>
   items.map((i) => `<button type="button" class="seg-btn" data-v="${esc(i.data)}" aria-pressed="${i.on}">${esc(i.label)}</button>`).join('');
@@ -203,8 +218,11 @@ function renderLandingMap(id: OfficialMapId) {
   ).join('');
 }
 
-/** `software`: the browser draws WebGL on the CPU (client/render/quality.ts): the classic home, not the warehouse. */
-export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice> {
+/**
+ * `software`: the browser draws WebGL on the CPU (client/render/quality.ts): the classic home, not the warehouse.
+ * `onLanguage`: a language picked on the landing (PF-30), saved and applied like the settings' row (menu.ts).
+ */
+export function showHome(opts: { software?: boolean; onLanguage?: (l: Lang) => void } = {}): Promise<HomeChoice> {
   let galpaoPref: string | null = null;
   try {
     for (const k of OLD_KEYS) localStorage.removeItem(k);
@@ -510,6 +528,32 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
     });
   };
   $('land-signin').onclick = () => openAuth('login');
+  // The landing's language button (PF-30), next to ENTRAR: before any account, the four languages named in
+  // themselves; picking another one saves it on this device and reloads the page in it.
+  const langBtn = $('land-lang');
+  const langMenu = $('land-lang-menu');
+  $('land-lang-code').textContent = getLang().slice(0, 2).toUpperCase();
+  langBtn.title = `${t('language')}: ${LANG_NAMES[getLang()]}`;
+  langBtn.setAttribute('aria-label', langBtn.title);
+  langMenu.innerHTML = LANGS.map(
+    (l) => `<button type="button" role="menuitemradio" data-lang="${l}" lang="${LANG_LOCALE[l]}" aria-checked="${l === getLang()}">${esc(LANG_NAMES[l])}</button>`,
+  ).join('');
+  const openLangMenu = (open: boolean) => {
+    langMenu.classList.toggle('hidden', !open);
+    langBtn.setAttribute('aria-expanded', String(open));
+  };
+  langBtn.onclick = (e) => {
+    e.stopPropagation();
+    openLangMenu(langMenu.classList.contains('hidden'));
+  };
+  langMenu.onclick = (e) => {
+    const l = (e.target as HTMLElement).closest<HTMLElement>('[data-lang]')?.dataset.lang;
+    openLangMenu(false);
+    if (isLang(l) && l !== getLang()) opts.onLanguage?.(l);
+  };
+  document.addEventListener('click', (e) => {
+    if (!langMenu.classList.contains('hidden') && !(e.target as HTMLElement).closest('.land-lang')) openLangMenu(false);
+  });
   // Landing anchors scroll the home (no #fragment left in the address: those are reserved for the redirects).
   for (const a of home.querySelectorAll<HTMLAnchorElement>('a[href^="#land-"]')) {
     a.onclick = (e) => {
@@ -833,7 +877,7 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
         const acct = await account();
         leave({ mode: 'online', name: playerName(), sex, account: acct, map: joined.session.map, conn: c, joined });
       } catch (err) {
-        setStatus(err instanceof Error ? err.message : String(err), true);
+        setStatus(joinErrorText(err), true);
       } finally {
         busy = false;
       }

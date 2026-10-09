@@ -15,7 +15,7 @@ import personagens from '@shared/data/figurinhas/personagens.json';
 import rua from '@shared/data/figurinhas/rua.json';
 import vila from '@shared/data/figurinhas/vila.json';
 import zumbi from '@shared/data/figurinhas/zumbi.json';
-import { getLang, t, type StringKey } from './strings';
+import { locale, t, textOf, type StringKey } from './strings';
 
 /** A baked picture, as the manifests list it. */
 export interface ArtEntry {
@@ -87,7 +87,7 @@ export const FINISH_KEY: Record<Finish, StringKey> = {
 /** The CSS class of each finish (fig-t0: not stuck in). */
 export const FINISH_CLASS: Record<Finish, number> = { comum: 1, brilhante: 2, holografica: 3, dourada: 4 };
 
-export const text = (x: { pt: string; en: string }) => (getLang() === 'en' ? x.en : x.pt);
+export const text = textOf;
 
 export const finishName = (s: Sticker, tier: number) => {
   const f = finishOf(s, tier);
@@ -95,7 +95,7 @@ export const finishName = (s: Sticker, tier: number) => {
 };
 
 /** A sticker's number as it reads (hours for time). */
-export const amount = (s: Sticker, n: number) => (s.formato === 'horas' ? `${Math.floor(n / 3600)} h` : n.toLocaleString(getLang() === 'en' ? 'en' : 'pt-BR'));
+export const amount = (s: Sticker, n: number) => (s.formato === 'horas' ? `${Math.floor(n / 3600)} h` : n.toLocaleString(locale()));
 
 /** How full the bar is toward the next target, counted from zero (300 of 1,000: 30%), and its label. */
 export function bar(st: StickerState) {

@@ -296,7 +296,11 @@ export type ServerMsg =
    * still dead (back at `ready`).
    */
   | { t: 'joined'; session: SessionInfo; you: number; players: PlayerInfo[]; corpses: CorpseInfo[]; time: number; pickups?: { id: string; ready: number }[]; fish?: FishState[]; rats?: { id: string; ready: number }[]; zumbi?: ZombieSync }
-  | { t: 'error'; message: string }
+  /**
+   * An entry ('play', 'create', 'join') refused. `code` says why, for the client to tell it in the player's language
+   * (PF-30); `message` keeps the pt-BR text for clients cached from before the code existed.
+   */
+  | { t: 'error'; code: WsErrorCode; message: string }
   | { t: 'playerJoined'; player: PlayerInfo }
   | { t: 'playerLeft'; id: number }
   | { t: 'snap'; time: number; players: { id: number; s: NetState; h: number; alive: boolean }[] }
@@ -381,6 +385,19 @@ export type ServerMsg =
   | { t: 'progresso'; armas: Record<ProgWeapon, { xp: number; nivel: number }>; escolha: ArsenalChoice; conta: { xp: number; nivel: number }; subiu?: { tipo: ProgWeapon | 'conta'; nivel: number } }
   /** A sticker of the album went up to finish `nivel` (1 common .. 4 gold); only to its owner. */
   | { t: 'figurinha'; id: string; nivel: number };
+
+/** Why the server refused an entry ({ t: 'error' }), with the pt-BR text it also sends (WS_ERRORS[code]). */
+export const WS_ERRORS = {
+  sem_ola: 'Diga olá primeiro.',
+  sessao_lotada: 'Sessão lotada.',
+  sessao_inexistente: 'Essa sessão não existe mais.',
+  mapa_indisponivel: 'Esse mapa não está disponível.',
+  modo_fora_do_mapa: 'Esse modo não é jogado nesse mapa.',
+  sem_mapa: 'Nenhum mapa disponível para esse modo.',
+  entrada_falhou: 'Não deu para entrar agora.',
+} as const;
+export type WsErrorCode = keyof typeof WS_ERRORS;
+export const isWsErrorCode = (v: unknown): v is WsErrorCode => typeof v === 'string' && Object.hasOwn(WS_ERRORS, v);
 
 /** WebSocket close codes sent by the server. */
 export const CLOSE = {

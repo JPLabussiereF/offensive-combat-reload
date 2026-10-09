@@ -4449,6 +4449,35 @@ html:not(.mobile) #tab-arsenal .hint-touch {
 .land-nav a:hover {
   color: var(--team-a);
 }
+/* The landing's language button (PF-30): a small menu under it with the four languages. */
+.land-lang {
+  position: relative;
+}
+.land-lang-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 190px;
+  padding: 8px;
+}
+.land-lang-menu button {
+  padding: 8px 12px;
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: 900 15px var(--body);
+  text-align: left;
+  cursor: pointer;
+}
+.land-lang-menu button[aria-checked='true'] {
+  background: var(--team-a);
+  color: #fff;
+}
 .land-ctas a {
   text-decoration: none;
 }

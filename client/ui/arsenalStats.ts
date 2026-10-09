@@ -7,12 +7,12 @@ import { SCORE } from '@shared/constants';
 import { isGun, isKnife, type Efeitos, type GunId, type KnifeId, type WeaponId } from '@shared/progression';
 import { MELEE } from '@shared/weapons';
 import { SPATIAL_KINDS } from '../audio/spatial';
-import { getLang, t, type StringKey } from './strings';
+import { locale, t, type StringKey } from './strings';
 
 // Texts keyed by ids (client/tests/arsenalText.test.ts checks they all exist).
 const str = (key: string, params?: Record<string, string | number>) => t(key as StringKey, params);
 
-export const num = (n: number, digits = 1) => n.toLocaleString(getLang() === 'en' ? 'en' : 'pt-BR', { maximumFractionDigits: digits });
+export const num = (n: number, digits = 1) => n.toLocaleString(locale(), { maximumFractionDigits: digits });
 
 /** A stat as a bar's fill: never empty (something always shows), never past full. */
 const fill = (x: number) => Math.max(0.06, Math.min(1, x));

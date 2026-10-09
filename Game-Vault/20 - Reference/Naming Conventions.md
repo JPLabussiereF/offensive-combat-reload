@@ -10,6 +10,8 @@ source_paths:
   - client/world/surfaces.ts
   - client/world/props.ts
   - client/ui/strings.ts
+  - shared/langs.ts
+  - shared/protocol.ts
   - client/ui/home.ts
   - index.html
   - server/api.ts
@@ -31,7 +33,7 @@ tags:
   - reference
   - naming
   - conventions
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Naming Conventions
@@ -95,9 +97,11 @@ Convenções **observadas** no código (não há guia de estilo escrito nem lint
 
 ## Textos e logs
 
-- Strings ao jogador **só** em `client/ui/strings.ts` (dicionários `ptBR` e `en`, chaves em inglês camelCase: `cherryTaken`, `killedByWith`), acessadas por `t('chave', { param })`. Idioma pelo `navigator.language`. Exceção: falas de NPCs e placas do cenário estão em pt-BR direto no código (`GHOST_LINES`, `WITCH_SCOLDS`, `BOT_NAMES`, nomes de bonecos).
+- Strings ao jogador **só** em `client/ui/strings.ts` (dicionários `ptBR` e `en` no arquivo; `es` e `de` em `strings.es.ts` e `strings.de.ts`, tipados por `StringKey`; chaves em inglês camelCase: `cherryTaken`, `killedByWith`), acessadas por `t('chave', { param })`. Idiomas em `LANGS` (`shared/langs.ts`): `'pt-BR' | 'en' | 'es' | 'de'`; escolhido nas Configurações e guardado em `Settings.idioma`, ou pelo navegador (PF-30). Uma chave nova entra nos **quatro** dicionários (o typecheck acusa a que faltar). Exceção: falas de NPCs, nomes e placas de mapa, nomes de bots, bonecos e convidados e o texto dentro das imagens das figurinhas ficam em pt-BR direto no código (`GHOST_LINES`, `WITCH_SCOLDS`, `BOT_NAMES`, nomes de bonecos).
+- Textos de **dados** (álbum `conquistas.json`, catálogo de roupas, catálogo de peças do mapa) usam o tipo `Text` `{ pt, en, es, de }` (`pt` é pt-BR); a tabela de roupas de `shared/catalog.ts` tem as colunas `id|pt|en|es|de|slots|canais|manga`. Os rótulos do editor de personagem são tuplas `[pt, en, es, de]` na ordem de `LANGS` (`client/ui/customizeLabels.ts`).
+- Espanhol: latino-americano neutro (es-419), tratando o jogador por "tú" ("ustedes" no plural). Alemão: "du". As traduções adaptam o humor, como o inglês já faz.
 - Logs do servidor em pt-BR com prefixo de módulo entre colchetes: `[servidor]`, `[banco]`, `[progresso]`, `[api]`, `[ws]`. Ver [[Logging]].
-- Mensagens de erro do protocolo em pt-BR ("Sessão lotada.").
+- Recusas do protocolo (`{ t: 'error' }`) com **código** em pt `snake_case` sem acento (`sessao_lotada`, `mapa_indisponivel`, `modo_fora_do_mapa`… em `WS_ERRORS`, `shared/protocol.ts`) e a mensagem em pt-BR ("Sessão lotada.") mantida para clientes antigos; o cliente mostra o texto `wsErr_<código>` no idioma escolhido.
 
 ## Testes
 

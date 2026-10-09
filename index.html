@@ -330,6 +330,11 @@
             <nav class="land-nav">
               <a href="#land-game" data-t="navGame"></a><a href="#land-maps" data-t="navMaps"></a><a href="#land-modes" data-t="navModes"></a><a href="#land-account" data-t="navAccount"></a>
             </nav>
+            <!-- The language before signing up (PF-30): the same list as the settings' row (client/ui/home.ts). -->
+            <div class="land-lang">
+              <button id="land-lang" type="button" class="small-btn alt" aria-haspopup="menu" aria-expanded="false"><span aria-hidden="true">🌐</span> <span id="land-lang-code"></span></button>
+              <div id="land-lang-menu" class="land-lang-menu sticker hidden" role="menu"></div>
+            </div>
             <button id="land-signin" type="button" class="small-btn" data-t="signIn"></button>
           </div>
         </header>
@@ -462,6 +467,8 @@
                 <div class="pm-row pm-row-toggle"><span class="pm-row-text"><span id="lbl-quality"></span><small id="desc-quality"></small></span><div id="set-quality" class="pm-seg"></div></div>
                 <div class="pm-row pm-row-toggle"><span class="pm-row-text"><span id="lbl-detail"></span><small id="desc-detail"></small></span><div id="set-detail" class="pm-seg"></div></div>
                 <div id="fs-desktop" class="pm-row pm-row-toggle desktop-only"><span class="pm-row-text"><span id="lbl-fullscreen-desktop"></span><small id="desc-fullscreen-desktop"></small></span><button id="set-fullscreen-desktop" type="button" class="pm-toggle"></button></div>
+                <!-- The language (PF-30): each button is the language's name in itself (shared/langs.ts LANG_NAMES). -->
+                <div class="pm-row pm-row-toggle pm-row-lang"><span class="pm-row-text"><span id="lbl-lang"></span><small id="desc-lang" role="status"></small></span><div id="set-lang" class="pm-seg"></div></div>
               </div>
               <div class="pm-sub" data-sub="audio">
                 <label class="pm-row"><span class="pm-row-text"><span id="lbl-vol"></span><small id="desc-vol"></small></span><input id="set-vol" type="range" min="0" max="1" step="0.05" /><output id="out-vol"></output></label>

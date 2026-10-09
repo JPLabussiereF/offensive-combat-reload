@@ -1,4 +1,4 @@
-// Every weapon and upgrade of shared/data/progression.json has its name and description in both languages
+// Every weapon and upgrade of shared/data/progression.json has its name and description in every language
 // (client/ui/strings.ts): the Arsenal, the HUD and the kill feed show them by id. Every knife's passive too, with its
 // numbers filled in. The secondaries of PF-10 have the names and descriptions of the plan, and so do their coffin
 // items (zumbi) and ladder steps.
@@ -8,13 +8,14 @@ import { GAME_MODE_IDS } from '@shared/modes';
 import { LADDER } from '@shared/gunGame';
 import { SCORE } from '@shared/constants';
 import { MELEE } from '@shared/weapons';
-import { setLang, t, type Lang, type StringKey } from '../ui/strings';
+import { LANGS } from '@shared/langs';
+import { setLang, t, type StringKey } from '../ui/strings';
 import { TREE_ROWS } from '../ui/arsenalTree';
 import { UPGRADE_KINDS } from '../ui/arsenalCanvasLayout';
 import { passiveText } from '../ui/arsenalStats';
 
 describe('textos do Arsenal', () => {
-  for (const lang of ['pt-BR', 'en'] as Lang[]) {
+  for (const lang of LANGS) {
     it(`toda arma e melhoria tem nome e descrição em ${lang}`, () => {
       setLang(lang);
       const missing: string[] = [];
@@ -59,7 +60,7 @@ describe('passivas das facas', () => {
     frango: ['15', '3'],
     peixe: ['100', String(SCORE.backstab)],
   };
-  for (const lang of ['pt-BR', 'en'] as Lang[]) {
+  for (const lang of LANGS) {
     it(`toda faca tem passiva com nome e descrição preenchidos em ${lang}`, () => {
       setLang(lang);
       for (const k of KNIVES) {
@@ -80,21 +81,21 @@ describe('passivas das facas', () => {
     });
   }
 
-  it('cada faca tem a sua passiva (nenhuma repetida) e os dois idiomas dizem coisas diferentes', () => {
+  it('cada faca tem a sua passiva (nenhuma repetida) e os idiomas dizem coisas diferentes', () => {
     expect(new Set(KNIVES.map((k) => MELEE[k].passiva.id)).size).toBe(KNIVES.length);
     for (const k of KNIVES) {
-      setLang('pt-BR');
-      const pt = passiveText(k);
-      setLang('en');
-      const en = passiveText(k);
-      expect({ k, same: pt.desc === en.desc }).toEqual({ k, same: false });
+      const descs = LANGS.map((lang) => {
+        setLang(lang);
+        return passiveText(k).desc;
+      });
+      expect({ k, distinct: new Set(descs).size }).toEqual({ k, distinct: LANGS.length });
     }
     setLang('pt-BR');
   });
 });
 
 describe('textos dos modos de jogo', () => {
-  for (const lang of ['pt-BR', 'en'] as Lang[]) {
+  for (const lang of LANGS) {
     it(`todo modo e todo degrau da corrida armada tem nome em ${lang}`, () => {
       setLang(lang);
       const missing: string[] = [];
@@ -135,7 +136,7 @@ describe('textos do menu de pausa', () => {
     'keyGroupCombat', 'keyGroupOther',
   ];
   const PARAMS = { name: 'Rua', n: 3, max: 10, skill: 'Normal', total: 12, players: 3, file: 'a.glb', upgrade: 'X', xp: '1.000', prog: 'rifle', k: 1, need: 3, mag: 30, rpm: 700, weapon: 'Sabre', cost: 950, m: '1,4', wave: 'Onda 2/12' };
-  for (const lang of ['pt-BR', 'en'] as Lang[]) {
+  for (const lang of LANGS) {
     it(`todo texto existe e preenche os parâmetros em ${lang}`, () => {
       setLang(lang);
       const bad = KEYS.filter((k) => {
@@ -146,7 +147,7 @@ describe('textos do menu de pausa', () => {
     });
   }
 
-  it('os dois idiomas dizem coisas diferentes (nada ficou sem tradução)', () => {
+  it('o inglês diz coisas diferentes do português (nada ficou sem tradução)', () => {
     const same = KEYS.filter((k) => {
       setLang('pt-BR');
       const pt = t(k as StringKey, PARAMS);
@@ -154,6 +155,19 @@ describe('textos do menu de pausa', () => {
       return pt === t(k as StringKey, PARAMS);
     });
     expect(same).toEqual([]);
+  });
+
+  it('espanhol e alemão dizem coisas diferentes do inglês (salvo Vídeo e Áudio em espanhol)', () => {
+    const SAME: Record<'es' | 'de', string[]> = { es: ['pmSubVideo', 'pmSubAudio'], de: ['pmSubPad'] };
+    for (const lang of ['es', 'de'] as const) {
+      const same = KEYS.filter((k) => {
+        setLang('en');
+        const en = t(k as StringKey, PARAMS);
+        setLang(lang);
+        return en === t(k as StringKey, PARAMS);
+      });
+      expect({ lang, same: same.sort() }).toEqual({ lang, same: SAME[lang].sort() });
+    }
   });
 });
 
@@ -173,13 +187,29 @@ describe('textos das secundárias novas', () => {
       garrucha: "Cangaceiro's Double-Barrel",
       pistolao: "Gym Bro's Hand Cannon",
     },
+    es: {
+      grampeador: 'Engrapadora de RR. HH.',
+      revolver: 'Revólver del Sheriff del Baile Vaquero',
+      furadeira: 'Taladro Dominguero del Vecino',
+      garrucha: 'Doble Cañón del Cangaceiro',
+      pistolao: 'Pistolón del Gymbro',
+    },
+    de: {
+      grampeador: 'HR-Tacker',
+      revolver: 'Revolver des Linedance-Sheriffs',
+      furadeira: 'Sonntagsbohrer vom Nachbarn',
+      garrucha: 'Doppelläufer des Cangaceiro',
+      pistolao: 'Handkanone des Pumpers',
+    },
   } as const;
   // The start of each description, enough to tell it's the plan's (and the language's).
   const DESCS = {
     'pt-BR': { grampeador: 'Tec-tec-tec', revolver: 'Do casamento caipira', furadeira: 'Oito da manhã de domingo', garrucha: 'Dois canos', pistolao: 'Treinou braço' },
     en: { grampeador: 'Chk-chk-chk', revolver: 'From the square-dance', furadeira: '8 a.m. on a Sunday', garrucha: 'Two barrels', pistolao: 'Skipped leg day' },
+    es: { grampeador: 'Clac-clac-clac', revolver: 'De la boda del baile vaquero', furadeira: 'Domingo, ocho de la mañana', garrucha: 'Dos cañones', pistolao: 'Hizo brazo' },
+    de: { grampeador: 'Klack-klack-klack', revolver: 'Von der Zwangshochzeit', furadeira: 'Sonntag, 8 Uhr früh', garrucha: 'Zwei Läufe', pistolao: 'Hat dafür jeden Beintag' },
   } as const;
-  for (const lang of ['pt-BR', 'en'] as const) {
+  for (const lang of LANGS) {
     it(`nome, descrição, item do caixão e degrau de cada uma em ${lang}`, () => {
       setLang(lang);
       for (const [w, name] of Object.entries(NAMES[lang])) {

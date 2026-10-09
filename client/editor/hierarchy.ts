@@ -150,7 +150,7 @@ export class Hierarchy {
     if (q) {
       for (const p of d.pecas) {
         const k = MAP_CATALOG[p.tipo];
-        if (plain(`${labelOf(p)} ${p.id} ${k ? `${k.nome.pt} ${k.nome.en}` : p.tipo}`).includes(q)) frag.append(this.row(p, 0, kids));
+        if (plain(`${labelOf(p)} ${p.id} ${k ? Object.values(k.nome).join(' ') : p.tipo}`).includes(q)) frag.append(this.row(p, 0, kids));
       }
     } else {
       const walk = (pai: string | null, depth: number) => {

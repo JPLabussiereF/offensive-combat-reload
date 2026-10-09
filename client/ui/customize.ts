@@ -50,149 +50,11 @@ import { ItemThumbs } from './customize/itemThumbs';
 import { setupScene } from './customize/lights';
 import { lineupHtml } from './customize/lineup';
 import type { Pic } from './customize/rules';
-import { getLang } from './strings';
+import { l } from './customizeLabels';
+import { getLang, textOf } from './strings';
 
 export { setupScene };
 
-/** Labels in pt-BR and en (the editor has many; they live here instead of strings.ts). */
-const L: Record<string, [string, string]> = {
-  title: ['Personalizar personagem', 'Customize character'],
-  tabBody: ['Corpo', 'Body'],
-  tabHair: ['Rosto e cabelo', 'Face & hair'],
-  tabTop: ['Parte de cima', 'Tops'],
-  tabBottom: ['Parte de baixo', 'Bottoms'],
-  tabShoes: ['Calçados', 'Shoes'],
-  tabHead: ['Cabeça', 'Headwear'],
-  tabAcc: ['Acessórios', 'Accessories'],
-  tabTactical: ['Tático', 'Tactical'],
-  tabPcd: ['Modo PCD', 'PCD mode'],
-  search: ['Buscar peça…', 'Search items…'],
-  results: ['Resultados', 'Results'],
-  noResults: ['Nada encontrado.', 'Nothing found.'],
-  soon: ['As peças desta categoria chegam nas próximas atualizações.', 'Items in this category arrive in the next updates.'],
-  height: ['Altura', 'Height'],
-  build: ['Biotipo', 'Build'],
-  wallNote: ['Só visual: hitbox e mira iguais para todos', 'Looks only: same hitbox and aim for everyone'],
-  skin: ['Cor da pele', 'Skin color'],
-  hairStyle: ['Cabelo', 'Hair'],
-  hairColor: ['Cor do cabelo e da barba', 'Hair & beard color'],
-  beard: ['Barba', 'Facial hair'],
-  eyeColor: ['Cor dos olhos', 'Eye color'],
-  eyeStyle: ['Olhos', 'Eyes'],
-  redondo: ['Redondos', 'Round'],
-  amendoado: ['Amendoados', 'Almond'],
-  marcante: ['Marcantes', 'Sharp'],
-  caido: ['Caídos', 'Downturned'],
-  puxado: ['Puxados', 'Upturned'],
-  grande: ['Grandes', 'Big'],
-  // The face (keys prefixed: some values repeat across features).
-  faceShape: ['Formato do rosto', 'Face shape'],
-  'formato.oval': ['Oval', 'Oval'],
-  'formato.quadrado': ['Quadrado', 'Square'],
-  'formato.redondo': ['Redondo', 'Round'],
-  'formato.longo': ['Fino e longo', 'Long'],
-  'formato.coracao': ['Coração', 'Heart'],
-  brows: ['Sobrancelhas', 'Brows'],
-  'sobrancelhas.reta': ['Retas', 'Straight'],
-  'sobrancelhas.arqueada': ['Arqueadas', 'Arched'],
-  'sobrancelhas.grossa': ['Grossas', 'Thick'],
-  'sobrancelhas.fina': ['Finas', 'Thin'],
-  nose: ['Nariz', 'Nose'],
-  'nariz.reto': ['Reto', 'Straight'],
-  'nariz.largo': ['Largo', 'Wide'],
-  'nariz.aquilino': ['Aquilino', 'Aquiline'],
-  'nariz.arrebitado': ['Arrebitado', 'Upturned'],
-  mouth: ['Boca', 'Mouth'],
-  'boca.media': ['Média', 'Medium'],
-  'boca.fina': ['Lábios finos', 'Thin lips'],
-  'boca.carnuda': ['Lábios carnudos', 'Full lips'],
-  ears: ['Orelhas', 'Ears'],
-  'orelhas.normal': ['Normais', 'Normal'],
-  'orelhas.pequena': ['Pequenas', 'Small'],
-  'orelhas.abano': ['De abano', 'Protruding'],
-  marks: ['Marcas', 'Marks'],
-  'marcas.nenhuma': ['Nenhuma', 'None'],
-  'marcas.sardas': ['Sardas', 'Freckles'],
-  'marcas.cicatriz': ['Cicatriz', 'Scar'],
-  'marcas.pinta': ['Pinta', 'Beauty mark'],
-  animIdle: ['Parado', 'Idle'],
-  animWalk: ['Andar', 'Walk'],
-  animRun: ['Correr', 'Run'],
-  animDance: ['Dançar', 'Dance'],
-  animAim: ['Mirar', 'Aim'],
-  random: ['Aleatório', 'Random'],
-  copyJson: ['Copiar JSON', 'Copy JSON'],
-  copied: ['Configuração copiada (JSON).', 'Config copied (JSON).'],
-  exportGlb: ['Exportar GLB', 'Export GLB'],
-  exported: ['Modelo exportado (personagem.glb).', 'Model exported (personagem.glb).'],
-  colors: ['Cores', 'Colors'],
-  P: ['Principal', 'Main'],
-  S: ['Secundária', 'Secondary'],
-  D: ['Detalhe', 'Detail'],
-  arm: ['Braço ou mão', 'Arm or hand'],
-  leg: ['Perna', 'Leg'],
-  pcdHint: [
-    'Personagem sem um braço, uma mão ou uma perna. A hitbox fica menor; sem mão ou braço recarrega 30% mais devagar, sem perna anda 25% mais devagar. Aparece também nas mãos em primeira pessoa.',
-    'A character missing an arm, a hand or a leg. Smaller hitbox; no hand or arm reloads 30% slower, no leg moves 25% slower. Also shown on the first-person hands.',
-  ],
-  save: ['SALVAR', 'SAVE'],
-  cancel: ['Cancelar', 'Cancel'],
-  reset: ['Restaurar padrão', 'Reset to default'],
-  saved: ['Personagem salvo.', 'Character saved.'],
-  effects: ['No jogo', 'In the game'],
-  health: ['Vida', 'Health'],
-  reload: ['Recarga', 'Reload'],
-  speed: ['Velocidade', 'Speed'],
-  hitbox: ['Hitbox', 'Hitbox'],
-  dragHint: ['Arraste para girar · role para aproximar', 'Drag to rotate · scroll to zoom'],
-  none: ['Nenhum', 'None'],
-  pequeno: ['Pequeno', 'Short'],
-  medio: ['Médio', 'Medium'],
-  alto: ['Alto', 'Tall'],
-  magro: ['Magro', 'Slim'],
-  gordo: ['Gordo', 'Heavy'],
-  complete: ['Completo', 'Full'],
-  bracoEsq: ['Sem braço esq.', 'No left arm'],
-  bracoDir: ['Sem braço dir.', 'No right arm'],
-  maoEsq: ['Sem mão esq.', 'No left hand'],
-  maoDir: ['Sem mão dir.', 'No right hand'],
-  pernaEsq: ['Sem perna esq.', 'No left leg'],
-  pernaDir: ['Sem perna dir.', 'No right leg'],
-  // Groups of the catalog.
-  camiseta: ['Camisetas e regatas', 'Tees & tanks'],
-  blusa: ['Blusas e moletons', 'Sweaters & hoodies'],
-  jaqueta: ['Jaquetas e casacos (por cima)', 'Jackets & coats (over)'],
-  calca: ['Calças', 'Pants'],
-  short: ['Shorts e bermudas', 'Shorts'],
-  saia: ['Saias', 'Skirts'],
-  calcado: ['Calçados', 'Shoes'],
-  // Slots.
-  tronco: ['Parte de cima', 'Top'],
-  sobreposicao: ['Jaqueta', 'Jacket'],
-  baixo: ['Parte de baixo', 'Bottoms'],
-  cabeca: ['Cabeça', 'Head'],
-  rosto: ['Rosto', 'Face'],
-  orelhas: ['Orelhas', 'Ears'],
-  pescoco: ['Pescoço', 'Neck'],
-  pulsoE: ['Pulso esquerdo', 'Left wrist'],
-  pulsoD: ['Pulso direito', 'Right wrist'],
-  maos: ['Mãos', 'Hands'],
-  antebraco: ['Antebraço', 'Forearm'],
-  cotovelos: ['Cotovelos', 'Elbows'],
-  ombro: ['Ombro', 'Shoulder'],
-  ombros: ['Ombros', 'Shoulders'],
-  colete: ['Colete', 'Vest'],
-  acessorioColete: ['No colete', 'On the vest'],
-  peito: ['Peito', 'Chest'],
-  costas: ['Costas', 'Back'],
-  cintura: ['Cintura', 'Waist'],
-  coxaE: ['Coxa esquerda', 'Left thigh'],
-  coxaD: ['Coxa direita', 'Right thigh'],
-  joelhos: ['Joelhos', 'Knees'],
-  pes: ['Pés', 'Feet'],
-  pele: ['Pele', 'Skin'],
-};
-const l = (key: string) => (L[key] ?? [key, key])[getLang() === 'en' ? 1 : 0];
 const lang = (): 'pt' | 'en' => (getLang() === 'en' ? 'en' : 'pt');
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const clone = (a: Appearance): Appearance => JSON.parse(JSON.stringify(a));
@@ -640,7 +502,7 @@ export function showCustomizer(root: HTMLElement, o: Options): CustomizerHandle 
   let picker: { p: ColorPicker; slot: Slot; ch: number } | null = null;
 
   // --- Groups of each tab --------------------------------------------------------------------------------
-  const nameOf = (i: CatalogItem) => (getLang() === 'en' ? i.name.en : i.name.pt);
+  const nameOf = (i: CatalogItem) => textOf(i.name);
 
   /** Applying a catalog item: hair and facial hair have their own fields, the rest goes in its slot. */
   const applyItem = (i: CatalogItem) => (a: Appearance) => {
@@ -694,7 +556,8 @@ export function showCustomizer(root: HTMLElement, o: Options): CustomizerHandle 
 
   const searchResults = (q: string): Group[] => {
     const n = norm(q);
-    const items = CATALOG.filter((i) => i.ready && (norm(i.name.pt).includes(n) || norm(i.name.en).includes(n)));
+    // A name in any of the languages finds the item.
+    const items = CATALOG.filter((i) => i.ready && Object.values(i.name).some((name) => norm(name).includes(n)));
     // One section per category, framed on the part of the body it dresses.
     const titles: Record<Category, string> = { cabelo: l('hairStyle'), barba: l('beard'), camiseta: l('camiseta'), blusa: l('blusa'), jaqueta: l('jaqueta'), calca: l('calca'), short: l('short'), calcado: l('calcado'), cabeca: l('tabHead'), acessorio: l('tabAcc'), tatico: l('tabTactical') };
     const cats = [...new Set(items.map((i) => i.category))];

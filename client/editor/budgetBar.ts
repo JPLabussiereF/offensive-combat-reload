@@ -12,6 +12,7 @@ import { buildMapFromData } from '../world/mapLoader';
 import { measureMapBudget, overDetailBudget, type BudgetReport } from '../world/budget';
 import type { ObjectDetail } from '../world/mapBuilder';
 import { silentSfx } from './view';
+import { locale } from '../ui/strings';
 import { et } from './strings';
 
 /** Waits this long after the last edit before measuring (a drag commits once, but typing may commit a few times). */
@@ -134,7 +135,7 @@ export class BudgetBar {
     el.append(
       bar(r.drawCalls, MAP_BUDGET.drawCalls),
       bar(r.triangulos, MAP_BUDGET.triangulos),
-      et('budgetText', { dc: r.drawCalls, dcMax: MAP_BUDGET.drawCalls, tri: r.triangulos.toLocaleString(), triMax: MAP_BUDGET.triangulos.toLocaleString() }),
+      et('budgetText', { dc: r.drawCalls, dcMax: MAP_BUDGET.drawCalls, tri: r.triangulos.toLocaleString(locale()), triMax: MAP_BUDGET.triangulos.toLocaleString(locale()) }),
     );
     if (r.excedeu.length) {
       el.classList.add('ed-over');

@@ -82,7 +82,7 @@ function minis(s: Sticker, src: string | null) {
     .join('');
   const dark = `
     <table class="est-placar"><tbody>
-      <tr><td class="sb-name">${badgeHtml(s, 1, { src })}Vizinho#4821<small class="sb-title">${text(pageOf(s)?.titulo ?? { pt: '', en: '' })}</small></td><td>12</td><td>3</td></tr>
+      <tr><td class="sb-name">${badgeHtml(s, 1, { src })}Vizinho#4821<small class="sb-title">${text(pageOf(s)?.titulo ?? { pt: '', en: '', es: '', de: '' })}</small></td><td>12</td><td>3</td></tr>
       <tr><td class="sb-name">${badgeHtml(s, n, { src })}Amora#0001</td><td>9</td><td>5</td></tr>
     </tbody></table>`;
   return `<div class="est-minis">${light}${dark}</div>`;

@@ -67,6 +67,11 @@ source_paths:
   - client/ui/pauseMenu.ts
   - client/ui/arsenalTree.ts
   - client/tests/viewmodelSwitch.test.ts
+  - client/tests/i18n.test.ts
+  - client/tests/settingsLang.test.ts
+  - client/ui/strings.ts
+  - client/ui/customizeLabels.ts
+  - shared/langs.ts
 tags:
   - testes
   - unitarios
@@ -86,14 +91,14 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 
 ## `client/tests/keybinds.test.ts` → [[Input & Controls]]
 
-31 casos em grupos:
+32 casos em grupos:
 
 - **Atribuir teclas:** tecla livre vai ao espaço escolhido sem alterar o original; tecla usada sai da outra ação e informa o espaço que ficou vazio; aceita botões laterais do mouse; recusa `Ctrl` e as teclas fixas, dizendo o motivo.
-- **Roda do mouse:** vale em ações de um toque; recusada em ações de segurar e no chat; descartada ao carregar se salva numa ação de segurar; tem nome nos dois idiomas.
+- **Roda do mouse:** vale em ações de um toque; recusada em ações de segurar e no chat; descartada ao carregar se salva numa ação de segurar; tem nome nos idiomas.
 - **Esvaziar um espaço (×)** e **teclas proibidas** (`Ctrl` dos dois lados, `F3`, `F4`, `F6`).
 - **Carregar o salvo:** sem nada volta o padrão (cópia); ação nova recebe o padrão; respeita espaço vazio de propósito; descarta lixo; tecla duplicada fica só na primeira.
 - **Teclas do caixão no modo zumbi:** `Z` doa e `X` recusa por padrão, e um save antigo (sem essas ações) as ganha.
-- **Tabela do Input** e **nome das teclas** (QWERTY, AZERTY via mapa do navegador, fallback do Firefox, código desconhecido).
+- **Tabela do Input** e **nome das teclas** (QWERTY, AZERTY via mapa do navegador, fallback do Firefox, código desconhecido); nomes nos quatro idiomas (Espacio, Leertaste, Clic izquierdo, Rechtsklick…) e espanhol e alemão nunca com o nome em inglês (PF-30: antes, tudo que não era pt-BR virava en).
 - **Troca de arma pela roda (PF-34, `wheelSwapAllowed`):** aceita a primeira troca, recusa dentro de 150 ms e aceita a partir de 150 ms; girando sem parar (um passo a cada 16 ms por 1 s) troca 6 ou 7 vezes, sempre com 150 ms ou mais entre elas.
 
 ## `client/tests/heldKnife.test.ts` → [[Weapon Models]]
@@ -110,10 +115,24 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 
 ## `client/tests/arsenalText.test.ts` → [[Inventory UI]]
 
-- Um caso por idioma (pt-BR e en) — e mais um por idioma para as secundárias da PF-10: o nome do plano, o começo da descrição, o item do caixão (`zitem_`) e os degraus `ladder_garrucha`/`ladder_grampeador` —: toda arma e toda melhoria de `progression.json` tem nome e descrição (`arma_*`, `armaDesc_*`, `upg_<arma>_<id>`, `upgDesc_*`), todo efeito tem o seu rótulo (`fx_*`) e toda linha da árvore do Arsenal o seu (`treeRow_*`) em `client/ui/strings.ts`.
-- **Textos do menu de pausa** (PF-11), 3 casos: em cada idioma, todo texto do menu (`pm*`, `keyGroup*`) existe e preenche os seus parâmetros (nenhum `{…}` sobrando); e nenhum ficou igual nos dois idiomas (nada sem tradução).
+- Um caso por idioma (os quatro de `LANGS` desde a PF-30) — e mais um por idioma para as secundárias da PF-10: o nome do plano, o começo da descrição, o item do caixão (`zitem_`) e os degraus `ladder_garrucha`/`ladder_grampeador` —: toda arma e toda melhoria de `progression.json` tem nome e descrição (`arma_*`, `armaDesc_*`, `upg_<arma>_<id>`, `upgDesc_*`), todo efeito tem o seu rótulo (`fx_*`) e toda linha da árvore do Arsenal o seu (`treeRow_*`) em `client/ui/strings.ts`.
+- **Textos do menu de pausa** (PF-11), 3 casos: em cada idioma, todo texto do menu (`pm*`, `keyGroup*`) existe e preenche os seus parâmetros (nenhum `{…}` sobrando); nenhum ficou igual em pt-BR e en; e espanhol e alemão dizem coisas diferentes do inglês (salvo "Video"/"Audio" em espanhol e "Controller" em alemão).
 
-- **Passivas das facas** (2026-10-07): em cada idioma, toda faca tem passiva com nome e descrição preenchidos (sem `{…}` sobrando) e com os números (colher 50; frango 15 e 3; peixe 100 e `SCORE.backstab`); os textos `knifePassive`, `knifePassiveWhere` e os quatro rótulos das barras existem; nenhuma passiva se repete e pt-BR e en são diferentes.
+- **Passivas das facas** (2026-10-07): em cada idioma, toda faca tem passiva com nome e descrição preenchidos (sem `{…}` sobrando) e com os números (colher 50; frango 15 e 3; peixe 100 e `SCORE.backstab`); os textos `knifePassive`, `knifePassiveWhere` e os quatro rótulos das barras existem; nenhuma passiva se repete e os quatro idiomas dizem coisas diferentes.
+
+## `client/tests/i18n.test.ts` → [[UI Overview]], [[Settings]], [[ADR - Seletor de idioma por aparelho]]
+
+Os idiomas do jogo (PF-30), em grupos:
+
+- **Idioma do navegador e salvo:** tabela de `detectLang` (pt-PT e pt → pt-BR, es-MX, es_419, de-AT, en-GB, maiúsculas, francês → en, `['fr-FR', 'de']` → de, lista vazia ou ausente → en); `resolveLang` usa o salvo válido e cai no do sistema com valor inválido (`fr`, `pt`, `PT-BR`, `es-MX`, vazio, nulo, número, objeto); `LANGS`, `LANG_NAMES` e `LANG_LOCALE` (es-419); números no formato de cada idioma (1.234,5 em pt-BR e de; 1,234.5 em en e es).
+- **Textos do jogo:** os quatro dicionários com as mesmas chaves (mais de mil); em cada idioma todo texto existe e tem os mesmos `{params}` do pt-BR; espanhol e alemão não deixaram texto em inglês, salvo uma lista fixa de iguais de verdade (marcas, "Arsenal", "Bots", "Zoom"…); dicas, frases rápidas e mensagens de morte em todos os idiomas, com piadas próprias em es e de; a palavra da capa da revista dividida em duas linhas curtas; as recusas de entrada e a linha do idioma nos quatro.
+- **Voltar com o controle:** todo botão cujo inglês começa com Back/Cancel/Close começa, em cada idioma, com uma palavra de `BACK_WORDS` (jogo e editor); os voltar comuns (Voltar, Volver, Zurück, Cancelar, Abbrechen, Fechar, Cerrar, Schließen…) são reconhecidos; espanhol e alemão não criam botão de voltar que o português não tem; palavras que só começam igual (Zurücksetzen, Cerrarse) não contam.
+- **Editor de mapas:** os quatro dicionários com as mesmas chaves e `{params}`; es e de sem texto em inglês esquecido (lista fixa); o nome da peça vem no idioma escolhido.
+- **Dados:** álbum sem problemas (`albumProblems` confere os quatro textos) e com os quatro textos em páginas, figurinhas, itens e dicas; o "como" mostra a meta em todo idioma e, em es e de, escolhe a palavra pelo número como o pt-BR; roupas e peças do mapa com os quatro nomes (e a tabela de roupas com as colunas no lugar); `textOf` no idioma escolhido; rótulos do editor de personagem com quatro textos.
+
+## `client/tests/settingsLang.test.ts` → [[Settings]]
+
+3 casos: `loadSettings` guarda um dos quatro idiomas; descarta um idioma inválido (`fr`, `pt`, `PT-BR`, `es-MX`, vazio, número, nulo, objeto) e mantém o resto; sem idioma salvo fica sem (vale o do navegador). O teste dá ao `settings.ts` um navegador mínimo (`document`, `location`, `matchMedia`, `localStorage`) só durante o import e o devolve depois; o import é por variável para o typecheck do servidor (sem DOM) não segui-lo.
 
 ## `client/tests/arsenalKnifeStats.test.ts` → [[Inventory UI]], [[Melee]]
 

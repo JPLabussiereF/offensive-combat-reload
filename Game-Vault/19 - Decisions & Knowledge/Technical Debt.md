@@ -29,7 +29,7 @@ tags:
   - game
   - decisions
   - technical-debt
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Dívida técnica
@@ -85,8 +85,11 @@ Lista consolidada da dívida técnica encontrada ao documentar o código (2026-1
 
 ## Interface e produto
 
-- `CorpseTimer` desenha o "E" e "OPRIMIDO!" fixos, sem keybind e sem i18n (`client/ui/corpseTimer.ts`).
-- `setLang` existe, mas não há seletor de idioma (`client/ui/strings.ts`). A mensagem `errOffline` é voltada ao desenvolvedor ("Rode bun run dev:online").
+- `CorpseTimer` desenha o "E" fixo, sem keybind (`client/ui/corpseTimer.ts`). ~~"OPRIMIDO!" fixo, sem i18n~~ — resolvido na PF-30: `t('humiliatedBanner')`, ajustado à largura do sprite.
+- ~~`setLang` existe, mas não há seletor de idioma~~ — resolvido na PF-30 ([[ADR - Seletor de idioma por aparelho]]). A mensagem `errOffline` é voltada ao desenvolvedor ("Rode bun run dev:online").
+- As traduções em espanhol e alemão (PF-30) foram geradas por IA e revisadas por amostragem; não houve revisão por falante nativo. Uma chave nova de texto precisa entrar nos quatro dicionários (`strings.ts`, `strings.es.ts`, `strings.de.ts`; o typecheck aponta a que falta), assim como os textos novos de `conquistas.json`, do catálogo de roupas e do catálogo de peças.
+- A coluna `account.locale` continua sem uso: o idioma é escolhido por aparelho (`Settings.idioma`), não na conta ([[Database]]).
+- Em pt-BR, o PadNav trata como "voltar" qualquer botão que comece com "Sair" ou "Cancelar" fora de telas `data-pad-explicit` (ex.: "Sair da conta", "Cancelar exclusão"); espanhol, alemão e inglês não têm esse efeito nesses botões (`BACK_WORDS` em `client/ui/strings.ts`).
 - O painel de ajuste F6 fica disponível também em produção (`client/main.ts`). `?mapa=` vale também online, sem restrição de modo ([[Problem - Prévia glTF por URL sobrepõe o mapa da sessão]]).
 - ~~Os tiros dos outros jogadores só desenham o traçante, sem decal nem partículas de impacto (`conn.on('shot')`).~~ — resolvido na PF-5: marca, detritos, faíscas e som de impacto no mapa (ver [[Decals]]). Continuam só para quem atirou os furos de penetração e os efeitos de acerto em jogadores.
 - Google Fonts é uma dependência externa em tempo de execução (`index.html`).
