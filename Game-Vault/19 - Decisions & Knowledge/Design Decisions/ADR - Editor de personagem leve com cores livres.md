@@ -121,7 +121,7 @@ O laboratório (`/tools/lab-personagens.html?editor=1`, sem galpão) mostrou o m
 - **Aba PCD:** desenha 8 personagens inteiros sob demanda (~350–650 ms), mais devagar que antes (~210–330 ms), porque a fila é em momentos livres.
 - Janela anônima sem IndexedDB: os cartões ficam só em memória enquanto a página está aberta.
 - Cliente e servidor precisam subir juntos (mesma imagem): um servidor antigo trocaria uma cor livre pela da paleta ao salvar.
-- Textos novos só em pt-BR e en. O espanhol e o alemão ficam para quem integrar depois da PF-30.
+- Textos novos só em pt-BR e en. O espanhol e o alemão ficam para quem integrar depois da PF-30. Na integração da sprint `sprint/outubro-semana-2` com a PF-30 os rótulos novos (`wallNote`, `colors`, P e S) foram para `client/ui/customizeLabels.ts` com es e de, e o seletor de cor (textos e nomes da paleta da casa) e a régua da parede de altura passaram a seguir o idioma do jogo (`Lang`; vírgula decimal em pt-BR e de).
 - Achados no caminho, no galpão: o `dt` do laço podia ficar negativo ao voltar da pausa ou da aba escondida, e `smoother(0,9999999999999987)` dá 1,0000000000000013. Nos dois casos a curva da câmera era lida fora de [0, 1] e dava o erro "reading 'x'". Corrigido com clamp (`client/ui/galpao/scene.ts`).
 
 ## Respostas do dev durante a implementação

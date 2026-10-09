@@ -67,6 +67,7 @@ Desde a PF-29, cada conta pode levar **um pet companheiro**. São seis: a **Amor
 - **Coleira:** 8 cores (vermelha, azul, verde, amarela, rosa, roxa, laranja, branca), para qualquer pet.
 - **Nome:** opcional, até 12 caracteres (letras, números, espaço e `_ . ' -`), **visível só para o dono** (nunca vai para os outros jogadores: não precisa de moderação). Vazio = o nome do catálogo. A Amora não muda de nome.
 - **Cada pet guarda o seu nome, pelagem e coleira**; trocar de pet não perde a personalização do anterior.
+- **Idiomas:** nomes, espécies, pelagens e coleiras estão em `shared/pets.ts` nos quatro idiomas do jogo (`PetText`: pt-BR, en, es, de). Amora e Bruxinha são nomes próprios e ficam iguais em espanhol e alemão (o inglês da PF-29 diz "Little Witch"); gata, fuinha, lontra e iguana são substantivos (Gata/Katze, Comadreja/Wiesel, Nutria/Otter, Iguana/Leguan). Os textos da tela em `client/ui/strings*.ts`.
 - **Sem pet:** conta nova começa sem pet; "Deixar no quintal" volta a sem pet.
 - **Interruptores:** **Junto no PvP** (enfeite) e **Junto no zumbi** (habilidade), por conta.
 - Acessórios (chapéu, laço, bandana) ficam para as versões pagas.

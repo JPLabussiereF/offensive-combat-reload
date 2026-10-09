@@ -72,7 +72,7 @@ A escolha por aparelho reaproveita o mecanismo das configurações e evita decid
 ## Consequências
 
 - O bundle cresce com os textos novos ([[Problem - Bundle JavaScript único de ~5 MB]]): no `vite build` da PF-30, o `index-*.js` foi de 6.766 kB (2.444 kB gzip) para 6.913 kB (2.502 kB gzip), +147 kB (+57 kB gzip). Os quatro idiomas vão no mesmo bundle (sem carregar sob demanda).
-- Toda chave nova de texto precisa entrar nos quatro dicionários (o typecheck aponta); tarefas em paralelo que criam chaves só em pt-BR e en completam es e de no merge.
+- Toda chave nova de texto precisa entrar nos quatro dicionários (o typecheck aponta); tarefas em paralelo que criam chaves só em pt-BR e en completam es e de no merge. Na sprint `sprint/outubro-semana-2` (PF-29, PF-32, PF-33, PF-34 e PF-35 juntas com a PF-30) isso deu 34 chaves novas do jogo (PF-32 30, PF-35 4), 7 que mudaram de sentido depois da tradução (PF-32), 13 tiradas pela PF-32, 5 do editor de mapas (PF-35), 55 chaves novas da PF-29 (mais `gpSign_admin`, que passou a 08, e `gpExit` trocada por `gpYard`), os nomes de `shared/pets.ts` (`PetText` com es e de) e o seletor de cor da PF-33. Além das chaves, apareceram suposições de dois idiomas que o typecheck não pega (`lang === 'en' ? 1 : 0`, vírgula decimal só em pt-BR, `toLocaleLowerCase` num substantivo alemão): vale procurar por elas no merge.
 - A coluna `account.locale` continua sem uso.
 - Trocar o idioma dentro da partida não muda a tela até voltar ao início (fora do escopo: troca ao vivo).
 - As traduções não passaram por falante nativo ([[Technical Debt]]).
