@@ -14,13 +14,14 @@ source_paths:
   - server/api.ts
   - server/session.ts
   - server/modes.ts
-  - server/migrations/007_pets.sql
+  - server/migrations/009_pets.sql
   - client/pets/rig.ts
   - client/pets/species.ts
   - client/pets/anim.ts
   - client/pets/follow.ts
   - client/pets/manager.ts
   - client/pets/portrait.ts
+  - client/pets/paw.ts
   - client/world/dog.ts
   - client/zombies/client.ts
   - client/zombies/view.ts
@@ -28,6 +29,7 @@ source_paths:
   - client/character/animator.ts
   - client/ui/pets.ts
   - client/ui/galpao/petStage.ts
+  - client/ui/galpao/galpaoRules.ts
   - client/ui/galpao/petBoard.ts
   - client/ui/galpao/scene.ts
   - client/ui/galpao/galpao.ts
@@ -71,26 +73,27 @@ Desde a PF-29, cada conta pode levar **um pet companheiro**. São seis: a **Amor
 
 ## No modo zumbi (PvE)
 
-Cada pet age **sozinho**, sem tecla, quando a habilidade está pronta e há o que fazer, e depois espera a recarga. **Sem dano, sem dinheiro, sem estatística.** O pet é **invulnerável e os zumbis o ignoram** (ele nem existe no motor: só o efeito). Números em `shared/data/pets.json` (`PET_ABILITIES`), fáceis de ajustar:
+Cada pet age **sozinho**, sem tecla, quando a habilidade está pronta e há o que fazer, e depois espera a recarga. **Sem dano, sem dinheiro, sem estatística.** O pet é **invulnerável e os zumbis o ignoram** (ele nem existe no motor: só o efeito). Números em `shared/data/pets.json` (`PET_ABILITIES`), fáceis de ajustar. As regras abaixo juntam as duas implementações da PF-29 (decisões P28–P37 de 08/10/2026, ver [[ADR - Pets companheiros com habilidade no zumbi]]):
 
 | Pet | Habilidade | Quando | Efeito | Recarga |
 |---|---|---|---|---|
-| Amora | **Segura, Amora!** | um zumbi a até 7 m do dono, **sem o muro no meio** (ou por um vão aberto) | late, morde a canela do mais perto e o **segura 3 s** (não anda nem começa golpe; o que já começou termina). No Segurança e nos chefes, só um **tranco** de 0,6 s | 18 s |
-| Bruxinha | **Feitiço do Pato** | um zumbi a até 10 m (variante antes de comum; **chefes imunes**) | prende o zumbi numa **boia de patinho por 4 s**: parado, cancela o que preparava e **continua levando tiro** (a boia fica na barriga, acima da virilha: o tiro no pássaro vale como sempre) | 25 s |
+| Amora | **Segura, Amora!** | um zumbi a até 7 m do dono, **sem o muro no meio** (ou por um vão aberto) | late, morde a canela do mais perto e o **segura 3 s**: não anda e **o golpe que já tinha começado é cancelado** (P34). No Segurança e nos chefes, só um **tranco** de 0,6 s (para de andar; o golpe começado continua) | 18 s |
+| Bruxinha | **Feitiço do Pato** | o zumbi a até 10 m com o maior **peso do tipo ÷ distância** (pesos em `bruxinha.peso`: Segurança 3, Tio do Churrasco 2,4, Tia da Fofoca 2, Fiscal 1,6, comum 1; distância mínima 1 m), então um perigoso um pouco mais longe vem antes de um comum colado, e numa onda só de comuns ela age no mais perto (P35); **chefes imunes** | prende o zumbi numa **boia de patinho por 4 s**: parado, cancela o que preparava e **continua levando tiro** (a boia fica na barriga, acima da virilha: o tiro no pássaro vale como sempre) | 25 s |
 | Gata | **Sétima Vida** | o dono cai | 2 s depois começa a levantá-lo; em **6 s** ele volta com 50% da vida (um colega leva 3 s). **2 vezes por partida.** Se um colega começa a reanimar, a gata **cede a vez** (pausa) e continua se ele soltar; ela **nunca entra nas reanimações** (`reviving`/`revives`): o colega continua vendo o aviso de reanimar | cargas |
 | Fuinha | **Mão na Massa** | uma barricada já erguida e danificada a até 6 m do dono | prega **1 tábua a cada 2,5 s** (o jogador: 0,8 s), até 2 por vez, na mais danificada; nunca ergue barricada (isso é pago); espera o vão ficar livre como o jogador | 15 s |
-| Lontra | **Pedrada** | a Tia da Fofoca preparando o cuspe ou o Tio do Churrasco inchando a até 9 m | a pedra **cancela o golpe** e deixa o zumbi **tonto 1,5 s** (a Tia recomeça a espera do próximo cuspe; o Tio "murcha") | 12 s |
-| Iguana | **Rabo de Isca** | um golpe de zumbi deixa o dono com **35% da vida ou menos** | solta o rabo onde o dono está; os zumbis a até 8 m (**não os chefes**) vão atrás do rabo por 5 s, sem atacar | 40 s |
+| Lontra | **Pedrada** | a Tia da Fofoca preparando o cuspe ou o Tio do Churrasco inchando a até 9 m | a pedra **cancela o golpe** e deixa o zumbi **tonto 1,5 s** (a Tia recomeça a espera do próximo cuspe; o Tio "murcha" e **só volta a inchar 3 s depois da pedrada**, `lontra.murcha`, também na barricada — P32) | 12 s |
+| Iguana | **Rabo de Isca** | um golpe de zumbi **ou de fantasma** (P33; espinhos e corvos não contam) deixa o dono com **35% da vida ou menos** | solta o rabo onde o dono está; os zumbis a até 8 m (**não os chefes**) vão atrás do rabo por 5 s, sem atacar | 40 s |
 
 - **Ninguém de pé (inclui o solo):** caído **com a gata vindo** não é derrota; a partida espera (os zumbis ignoram quem está caído). No **solo** o estado "caído" só existe para quem leva a gata: sem cargas, cair sozinho é perder, como antes.
 - Partida nova: tudo pronto de novo e a gata com as 2 cargas.
+- A **fuinha** também trabalha na contagem antes da partida e nos intervalos (P37: mantido).
 
 ### Como aparece (todos veem e ouvem)
 
 Assinatura comum, sem cores ou formas reservadas aos avisos do modo (nada de anéis ou faixas no chão, disco ou feixe verde, cruz vermelha, caveira em disco vermelho, estrelas):
 
-- **Pata na cor da coleira** sobre o alvo por até 1,5 s.
-- O pet **corre até o alvo** e faz o gesto: a Amora morde a canela com o corpo para fora do zumbi (o zumbi olha para baixo e se debate); a Bruxinha voa perto e **sobe a 2,4 m** para lançar o feitiço (por cima da grade, se o zumbi estiver do lado de fora) (a boia amarela com cabeça de pato aparece na barriga; só a boia balança, a cabeça do zumbi fica parada; um **quá** baixo na captura e a cada ~1,5 s); a lontra fica de pé e joga a pedra, que voa em arco até a cabeça, e uma **espiral** gira sobre o zumbi tonto (o Tio murcha com um **"pfff"** escrito e ar saindo); a fuinha vai até a barricada e martela (**martelada aguda**, três por gesto); a iguana larga um **rabo colorido** que se remexe no chão (o dela volta a crescer); a gata empurra o dono caído.
+- **Pata na cor da coleira** (`client/pets/paw.ts`: desenhada na cor, uma textura por cor) sobre o alvo por até 1,5 s, **seguindo o zumbi** enquanto dura.
+- O pet **corre até o alvo** e faz o gesto: a Amora morde a canela com o corpo para fora do zumbi (o zumbi olha para baixo e se debate); a Bruxinha voa perto e **sobe a 2,4 m** para lançar o feitiço (por cima da grade, se o zumbi estiver do lado de fora) (a poção estoura no zumbi com um **plim de vidro** (`potionPop`) e a boia amarela com cabeça de pato aparece na barriga, crescendo; só a boia balança, a cabeça do zumbi fica parada; um **quá baixinho** (`softQuack`) na captura e a cada ~1,5 s; as peças da boia são criadas uma vez e compartilhadas por todas as boias); a lontra fica de pé e joga a pedra, que voa em arco até a cabeça, e uma **espiral** gira sobre o zumbi tonto (o Tio murcha com um **"pfff"** escrito e ar saindo); a fuinha vai até a barricada e martela (**martelada aguda**, três por gesto); a iguana larga um **rabo colorido** que se remexe no chão (o dela volta a crescer); a gata empurra o dono caído.
 - **Som curto, abaixo dos avisos do modo**, no máximo **um latido ou miado a cada 2 s** por cliente.
 - **Para o dono:** o ícone do pet no HUD pisca com um texto curto ("Segurou!", "Pato!", "Pedrada!", "Tábua!", "Rabo!", "Levantando…", "De pé!") e, caído com a gata, a tela diz **"A gata está te levantando · Ns"** (com nome: "{nome} está te levantando · Ns"). Os colegas veem uma **pata sobre a cruz vermelha** de quem a gata está levantando. Ver [[HUD]].
 
@@ -130,24 +133,24 @@ Nada da posição do pet trafega: cada jogo desenha cada pet a partir da posiç�
 
 ## Dados e rede
 
-- `player_profile.pet jsonb` (migration `007_pets.sql`; nula = sem pet): `{ id, pvp, pve, cfg: { <pet>: { nome?, cor?, coleira? } } }`, conferido por `sanitizePet` na leitura e na escrita, como a aparência. Ver [[Player Data]] e [[Database]].
-- `PATCH /api/perfil {pet}` ([[APIs]]); `GET /api/perfil` devolve `pet`.
+- `player_profile.pet jsonb` (migration `009_pets.sql`, renumerada de 007 na junção — P30; nula = sem pet): `{ id, pvp, pve, cfg: { <pet>: { nome?, cor?, coleira? } } }`, conferido por `sanitizePet` na leitura e na escrita, como a aparência. Ver [[Player Data]] e [[Database]].
+- `PATCH /api/perfil {pet}` ([[APIs]]); `GET /api/perfil` devolve `pet`. Um `pet.id` que não é pet nenhum responde **400 `pet_invalido`** e nada muda (P36); pelagem, coleira e nome fora do formato continuam sendo limpos em silêncio.
 - `PlayerInfo.pet = { id, cor, coleira, pvp, pve }` só em `joined`/`playerJoined` e **só se o pet vai junto no modo da sessão**; **nunca o nome**. Evento `zpet` e bits `ZF.held`/`ZF.duck` no `zsnap`. Ver [[Remote Calls]].
 - O motor da partida zumbi decide as habilidades: o servidor online (`ZombieMode` repassa o pet no `join`), o navegador no solo. Um pet escolhido vale a partir da próxima conexão.
 
 ## Código relacionado
 
 - `shared/pets.ts` (catálogo, `sanitizePet`, `playerPet`, `petAlong`, `PET_ABILITIES`, `petProblems`), `shared/data/pets.json`.
-- `shared/zombieMatch.ts` (`join(id, name, pet)`, `tickPets`, `petHold`, `petDuck`, `petStone`, `petTail`, `tickCat`, `tickWeasel`, `petCanLift`, `zHurt`), `shared/zombies.ts` (`ZF.held`, `ZF.duck`).
-- `server/accounts.ts` (`setPet`), `server/api.ts`, `server/session.ts` (`playerInfo`), `server/modes.ts` (`ZombieMode.petOf`, `health`).
-- `client/pets/` (`rig.ts`, `species.ts`, `anim.ts`, `follow.ts`, `manager.ts`, `portrait.ts`), `client/zombies/client.ts` (HUD do dono, pata sobre a cruz), `client/zombies/view.ts` (boia, quá), `client/zombies/local.ts` (solo com a gata), `client/character/animator.ts` (`ZombiePose.stuck`).
-- `client/ui/pets.ts` (ficha e aba clássica), `client/ui/galpao/petStage.ts`, `petBoard.ts`, `scene.ts`, `galpao.ts`, `client/ui/home.ts`.
+- `shared/zombieMatch.ts` (`join(id, name, pet)`, `tickPets`, `petHold`, `petDuck`, `petStone`, `petTail`, `tickCat`, `tickWeasel`, `petCanLift`, `zHurt` — também no golpe do fantasma —, `cd.fuse` do Tio murcho), `shared/zombies.ts` (`ZF.held`, `ZF.duck`).
+- `server/accounts.ts` (`setPet`: 400 `pet_invalido`), `server/api.ts`, `server/session.ts` (`playerInfo`), `server/modes.ts` (`ZombieMode.petOf`, `health`).
+- `client/pets/` (`rig.ts`, `species.ts`, `anim.ts`, `follow.ts`, `manager.ts`, `portrait.ts`, `paw.ts`), `client/zombies/client.ts` (HUD do dono, pata sobre a cruz), `client/zombies/view.ts` (`renderFloats`: boia com peças compartilhadas, quá baixinho), `client/zombies/local.ts` (solo com a gata), `client/character/animator.ts` (`ZombiePose.stuck`).
+- `client/ui/pets.ts` (ficha e aba clássica), `client/ui/galpao/petStage.ts`, `petBoard.ts`, `scene.ts`, `galpao.ts`, `galpaoRules.ts` (`petSpot`, `HERO_HANDS`, `PET_CLEARANCE`, `clearOfHands`), `client/ui/home.ts`.
 
 ## Testes
 
-- `server/tests/pets.test.ts`: catálogo e `sanitizePet`; quem vê o quê e em que modo; cada habilidade no motor com relógio falso (incluindo a Amora sem atravessar o muro, a Sétima Vida cedendo ao colega e fora das reanimações, e o solo com a gata); PATCH, `PlayerInfo.pet` por modo e interruptor (nunca o nome) e a Amora agindo numa partida zumbi no servidor de verdade.
-- `client/tests/pets.test.ts`: triângulos de cada pet e pelagem (e da versão leve), a Amora pelo construtor do mapa, os gestos, a coleira curta do PvP e o caminho e o cone do zumbi.
-- `client/tests/galpaoRules.test.ts`: ordem das estações, `petSpot` e `flightDuration`.
+- `server/tests/pets.test.ts`: catálogo e `sanitizePet`; quem vê o quê e em que modo; cada habilidade no motor com relógio falso (incluindo a Amora sem atravessar o muro e cancelando o golpe começado, o tranco que não cancela, o pato por peso ÷ distância e numa onda só de comuns, o Tio murcho sem inchar por 3 s, o rabo pelo golpe de fantasma, a Sétima Vida cedendo ao colega e fora das reanimações, o solo com a gata e sem pet nada age); a migração 009 rodando de novo sem erro; PATCH (400 `pet_invalido` e a limpeza silenciosa), `PlayerInfo.pet` por modo e interruptor (nunca o nome) e a Amora agindo numa partida zumbi no servidor de verdade.
+- `client/tests/pets.test.ts`: triângulos de cada pet e pelagem (e da versão leve), a Amora pelo construtor do mapa, os gestos, nenhum colisor nem alvo, a pata (uma textura por cor), a coleira curta do PvP, o rastro (25 cm, até 24 pontos, segue a esquina) e o caminho e o cone do zumbi.
+- `client/tests/galpaoRules.test.ts`: ordem das estações, `petSpot` (o pet pequeno a pelo menos 0,25 m das mãos do personagem em toda janela deitada) e `flightDuration`.
 
 ## Limites e próximos passos
 

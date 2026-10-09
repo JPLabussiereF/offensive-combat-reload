@@ -18,7 +18,7 @@ source_paths:
   - server/migrations/004_estatisticas_zumbi.sql
   - shared/zombieMatch.ts
   - shared/pets.ts
-  - server/migrations/007_pets.sql
+  - server/migrations/009_pets.sql
 tags:
   - game
   - data
@@ -59,7 +59,7 @@ Colunas e índices em [[Database]].
 | Sexo / corpo | `player_profile.sex` (`m`/`f`) | Trocar mantém a aparência (sanitizada para o novo corpo) |
 | Aparência | `player_profile.appearance` (jsonb, versão `v: 2`) | Sempre passa por `sanitizeAppearance` na leitura e escrita; `NULL` = padrão. Ver [[Character Customization]] |
 | `avatar_url`, `bio` | `player_profile` | Existem no schema; não usados pelo código atual (só zerados na anonimização) |
-| Pet ([[Pets]]) | `player_profile.pet` (jsonb, migration 007) | `{ id, pvp, pve, cfg }`: o pet levado (`id: null` = nenhum, "Deixar no quintal"), os interruptores **Junto no PvP** e **Junto no zumbi** e, **por pet**, o nome (só o dono vê; nunca vai para os outros), a pelagem e a coleira. Sempre passa por `sanitizePet` na leitura e na escrita; `NULL` = conta sem pet. Muda por `PATCH /api/perfil {pet}` (`setPet`); o jogo lê no login (`profile.pet`) e vale a partir da próxima conexão |
+| Pet ([[Pets]]) | `player_profile.pet` (jsonb, migration 009) | `{ id, pvp, pve, cfg }`: o pet levado (`id: null` = nenhum, "Deixar no quintal"), os interruptores **Junto no PvP** e **Junto no zumbi** e, **por pet**, o nome (só o dono vê; nunca vai para os outros), a pelagem e a coleira. Sempre passa por `sanitizePet` na leitura e na escrita; `NULL` = conta sem pet. Muda por `PATCH /api/perfil {pet}` (`setPet`); o jogo lê no login (`profile.pet`) e vale a partir da próxima conexão |
 
 ## Progresso e estatísticas
 
