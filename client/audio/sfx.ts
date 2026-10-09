@@ -1450,6 +1450,22 @@ export class Sfx {
     for (const at of [0, 0.11]) this.tone(t + at, 'square', 1900, 2600, 0.06, 0.03, 'sfx', 0.003);
   }
 
+  /** The Bruxinha's potion bursting into a duck float on the zombie: a glassy pop and a sparkle. */
+  potionPop() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.noiseBurst(t, 0.06, 'highpass', 4000, 1, 0.1);
+    for (const [f, at] of [[1568, 0.05], [2093, 0.1], [2637, 0.15]] as const) this.tone(t + at, 'triangle', f, f, 0.12, 0.025, 'sfx', 0.005);
+  }
+
+  /** A duck float's quiet quack (when it catches a zombie and every ~1.5 s while the zombie is stuck in it). */
+  softQuack() {
+    if (!this.ready) return;
+    const t = this.ctx!.currentTime;
+    this.tone(t, 'sawtooth', 820, 500, 0.12, 0.035, 'sfx', 0.01);
+    this.noiseBurst(t, 0.08, 'bandpass', 1200, 4, 0.03);
+  }
+
   /** A hammer knocking a nail in: two knocks on wood. */
   boardNail() {
     if (!this.ready) return;

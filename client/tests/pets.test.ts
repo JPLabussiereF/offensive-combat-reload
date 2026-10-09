@@ -2,17 +2,19 @@
 // players with a pet stay around 20 thousand), the Amora is the map's Chow Chow builder (the map's own unchanged),
 // and where a pet walks: the PvP leash (at most 0.7 m from the edge of its owner's body, always behind on its side)
 // and the zumbi's path behind and beside its owner (the breadcrumbs it follows), out of the cone in front of them; and
-// no pet has a collider or a hit target (only bones, groups and meshes).
+// no pet has a collider or a hit target (only bones, groups and meshes); the ability's paw is one texture per collar
+// color.
 import { describe, expect, it } from 'bun:test';
 import { PET_IDS, PETS } from '@shared/pets';
 import * as THREE from 'three';
 import { behindSpot, BODY_RADIUS, followTarget, FRONT_RANGE, inFrontCone, newFollow, PVE_SIDE, PVP_LEASH, stepFollow, type Owner } from '../pets/follow';
-import { loadClient } from '../../tools/headless';
+import { installCanvasStandIn, loadClient } from '../../tools/headless';
 
 const { makePet } = await loadClient('client/pets/species.ts');
 const { PET_MAX_TRIS } = await loadClient('client/pets/rig.ts');
 const { chowParts } = await loadClient('client/world/dog.ts');
 const { PetAnimator, restPose, STATION_GESTURE, GESTURE_TIME } = await loadClient('client/pets/anim.ts');
+const { pawTexture, pawSprite } = await loadClient('client/pets/paw.ts');
 
 const coats = (id: (typeof PET_IDS)[number]) => (PETS[id].pelagens.length ? PETS[id].pelagens.map((p) => p.id) : ['']);
 
@@ -75,6 +77,26 @@ describe('modelos dos pets', () => {
       anim.update(0.05, { ...restPose(), speed: 5 });
       anim.update(0.05, { ...restPose(), dance: true, tailGone: 1, sit: 1 });
       m.dispose();
+    }
+  });
+});
+
+describe('a pata da assinatura', () => {
+  it('na cor da coleira, uma textura por cor (compartilhada pelos sprites, nunca uma por pata)', () => {
+    // The paw is drawn on a canvas: a stand-in for the browser's.
+    const restore = installCanvasStandIn();
+    try {
+      const red = pawTexture(0xd8352a);
+      expect(pawTexture('#d8352a')).toBe(red);
+      expect(pawTexture(0x2f7fe0)).not.toBe(red);
+      const a = pawSprite(0xd8352a);
+      const b = pawSprite(0xd8352a);
+      expect(a.material.map).toBe(red);
+      expect(b.material.map).toBe(red);
+      // Seen through walls, over the scene.
+      expect(a.material.depthTest).toBe(false);
+    } finally {
+      restore();
     }
   });
 });
