@@ -218,6 +218,27 @@ describe('o mapa do modo zumbi', () => {
     expect(route(all & ~gateFlag(gap('portao')))).toEqual({ reached: true, gaps: ['portao'] });
     q.destroy();
   });
+
+  it('a capela e o terraço estão na malha dos zumbis: cada uma das três escadas sobe direto do chão', () => {
+    // The chapel stands on a 0.6 m pedestal. Its stairs are 'suave' (a ramp under 45°): with two steps the ramp was
+    // ~58°, the navmesh left the chapel out, and a player on the altar had the horde waiting outside the wall right
+    // behind it, the walkable spot nearest to them (PF-67).
+    const q = new NavMeshQuery(navMesh);
+    const HALF = { x: 2, y: 4, z: 2 };
+    const length = (p: { x: number; z: number }[]) => p.slice(1).reduce((s, b, i) => s + Math.hypot(b.x - p[i].x, b.z - p[i].z), 0);
+    const flights = {
+      frente: [{ x: 0, y: 0, z: -5.4 }, { x: 0, y: 0.6, z: -8.6 }],
+      oeste: [{ x: -7, y: 0, z: -13.5 }, { x: -3.7, y: 0.6, z: -13.5 }],
+      leste: [{ x: 7, y: 0, z: -13.5 }, { x: 3.7, y: 0.6, z: -13.5 }],
+    };
+    for (const [name, [foot, top]] of Object.entries(flights)) {
+      const r = q.computePath(foot, top, { halfExtents: HALF });
+      const end = r.path.at(-1)!;
+      // Up that flight, not round by another one (the next way in is 15 m or more).
+      expect({ name, up: end.y > 0.5 && Math.hypot(end.x - top.x, end.z - top.z) < 0.5, short: length(r.path) < 6 }).toEqual({ name, up: true, short: true });
+    }
+    q.destroy();
+  });
 });
 
 describe('barricadas (motor, relógio falso)', () => {
@@ -1013,6 +1034,20 @@ describe('altar (sacrilégio) e árvores (corvos)', () => {
     expect(of(h, 'zprofane').at(-1)).toEqual({ t: 'zprofane', id: 1, until: 0 });
     expect(match.sync().marks).toEqual([]);
     expect(h.hurts).toHaveLength(1);
+  });
+
+  it('com alguém em cima do altar, a horda entra na capela em vez de ficar atrás dela, do lado de fora do muro', () => {
+    ZOMBIE.inicioSegundos = 1;
+    ZOMBIE.sacrilegio.esperaSegundos = 1000;
+    const a = altar();
+    const f = fake([[a.c[0], a.c[1] + a.h[1], a.c[2]]], 1);
+    f.step(40);
+    const alive = [...f.match.zombies.values()].filter((z) => !z.dead);
+    // The chapel's room and the strip of the north field behind it.
+    const inChapel = alive.filter((z) => Math.abs(z.pos[0]) < 4.35 && z.pos[2] > -17.05 && z.pos[2] < -10.35 && z.pos[1] > 0.5);
+    const behind = alive.filter((z) => Math.abs(z.pos[0]) < 6 && z.pos[2] < -18);
+    expect(alive.length).toBeGreaterThan(0);
+    expect({ inChapel: inChapel.length >= Math.min(4, alive.length), behind: behind.length }).toEqual({ inChapel: true, behind: 0 });
   });
 
   it('os zumbis vão atrás de quem está profanado, mesmo com alguém mais perto', () => {

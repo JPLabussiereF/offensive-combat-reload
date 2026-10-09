@@ -24,7 +24,7 @@ tags:
   - map
   - zombies
   - coop
-updated: 2026-10-07
+updated: 2026-10-09
 ---
 
 # Map - Cemitério da Capela
@@ -74,7 +74,7 @@ O mapa **exclusivo do [[Zombie|modo zumbi]]**: um cemitério murado e compacto e
 
 ## Layout
 
-- **A capela** (âncora, centro-norte): sobre um **pedestal de 0,6 m** (x −5..5, z −17,5..−7,4), paredes de pedra de 4,4 m, telhado de duas águas com um **campanário** sobre a fachada, vitrais pintados (cores escuras, lidas como vidro aceso por dentro), rosácea sobre a porta. Portas: **sul** (2 m, para o terraço) e **oeste/leste** (1,6 m, com escadinhas até o chão). Dentro: altar com **duas velas e o totem** da Vigília Sem Trégua no meio (ver [[Zombie]]) e bancos curtos (cobertura agachada) com corredores largos no meio e junto às paredes.
+- **A capela** (âncora, centro-norte): sobre um **pedestal de 0,6 m** (x −5..5, z −17,5..−7,4), paredes de pedra de 4,4 m, telhado de duas águas com um **campanário** sobre a fachada, vitrais pintados (cores escuras, lidas como vidro aceso por dentro), rosácea sobre a porta. Portas: **sul** (2 m, para o terraço) e **oeste/leste** (1,6 m, com escadinhas até o chão). As três escadas do pedestal (a do terraço e as das portas laterais) têm **três degraus suaves** (`suave` nas peças `escada`: rampa de colisão de ~38°), para a horda subir também (ver "Problemas conhecidos"). Dentro: altar com **duas velas e o totem** da Vigília Sem Trégua no meio (ver [[Zombie]]) e bancos curtos (cobertura agachada) com corredores largos no meio e junto às paredes.
 - **O terraço** (frente da capela, z −10,2..−7,4): parapeito de 0,55 m (cobertura agachada), aberto só na escada central de 4 m que desce para a Alameda. É o ponto alto (0,6 m) que olha o portão.
 - **A Alameda**: avenida de pedra de 3,6 m de largura do terraço até o Portão Principal (z −6,7 → 18,3), com **4 lampiões** (x ±2,6; z −2,5 e 9,2) e dois obeliscos perto do portão. Dos dois lados, covas baixas.
 - **A Travessa**: caminho de pedra de 2 m (z 4..6) de uma brecha lateral à outra, cruzando a Alameda.
@@ -152,10 +152,11 @@ Os do [[Zombie|modo zumbi]]: sobreviver às ondas. Pontos de interesse: o caixã
 
 ## Navmesh do servidor
 
-`shared/data/navmesh/cemiterio.json` (~116 KB, 781 polígonos), gerada a partir de `shared/data/mapas/cemiterio.json` (montado sem tela pelo mesmo carregador do cliente) por `bun run navmesh` com as caixas das brechas marcadas (`gateAreas`). **Mudou o mapa, refaça a malha** (o teste do hash avisa). O jogo solo constrói a mesma malha no navegador. Ver [[Navigation]].
+`shared/data/navmesh/cemiterio.json` (~117 KB, 789 polígonos), gerada a partir de `shared/data/mapas/cemiterio.json` (montado sem tela pelo mesmo carregador do cliente) por `bun run navmesh` com as caixas das brechas marcadas (`gateAreas`). **Mudou o mapa, refaça a malha** (o teste do hash avisa). O jogo solo constrói a mesma malha no navegador. Ver [[Navigation]].
 
 ## Problemas conhecidos
 
+- **Corrigido na PF-67 (09/10/2026): a capela ficava fora da malha dos zumbis.** As três escadas do pedestal tinham dois degraus; a rampa de colisão subia 0,6 m em 0,38 m (~58°), mais do que a malha aceita (46°, degrau de 0,4 m: [[Navigation]]). A capela e o terraço viravam uma ilha que a horda não alcançava: com alguém no altar, os zumbis iam para o ponto andável mais perto dele, o campo norte logo atrás da capela, do lado de fora do muro, e ficavam lá. Quem ficava no terraço ou dentro da capela também ficava fora de alcance: o caminho da horda até lá terminava ao pé da escada da frente (ou atrás da capela). Agora as escadas são `suave` (três degraus, começando 0,38 m mais longe do pedestal), a malha foi refeita e os zumbis entram pelas três escadas. Testes: `server/tests/zombieBarricades.test.ts` ("a capela e o terraço estão na malha dos zumbis", "com alguém em cima do altar, a horda entra na capela").
 - O caixão e as tábuas têm colisão para os jogadores, mas não estão na navmesh: um zumbi pode encostar no caixão; nas brechas, as tábuas são regra do motor (o filtro), não geometria.
 - **Revisto na PF-16:** antes, um zumbi encostado no muro alcançava um jogador colado nas grades do outro lado ("braço pela grade", aceito como intencional sem teste com jogadores). A pedido do dono do projeto, nenhum golpe atravessa mais o muro, só uma brecha aberta ([[Zombie]]); o braço ainda passa pelas barras no desenho.
 - O topo do telhado da capela não foi pensado para jogo (alcançável só por depuração).

@@ -55,7 +55,7 @@ tags:
   - online
   - coop
   - zombies
-updated: 2026-10-08
+updated: 2026-10-09
 ---
 
 # Zombie
@@ -261,6 +261,7 @@ Os outros lugares altos onde a horda não chega também punem, com a mesma regra
 - Depois de 3 s em cima: o sino toca, as velas soltam um clarão, e o jogador é **jogado para fora** do altar (empurrão de 9 m/s para longe do meio dele; bem no meio, para a frente, na direção da nave) e leva **25 de dano**.
 - E fica **Profanado por 20 s**: enquanto houver alguém profanado de pé, **todos os zumbis vão atrás dos profanados** (o mais perto entre eles), mesmo com outros jogadores mais perto; na hora do sacrilégio todos escolhem o alvo de novo. Fora de uma onda, só o empurrão e o dano valem.
 - Quem profanou vê a faixa "SACRILÉGIO! A horda inteira vem atrás de você" e o buff ☠️ Profanado com o tempo; os outros veem uma **caveira num disco vermelho** sobre ele (vista através das paredes) e o aviso "Fulano profanou o altar e virou o alvo da horda por 20 s". Voltar ao altar repete tudo (e renova os 20 s).
+- A horda alcança quem está no altar: entra na capela pelas escadas do pedestal e para na frente da pedra (de onde o golpe alcança o topo). Até a PF-67 (09/10/2026) a capela ficava fora da malha dos zumbis e eles esperavam atrás dela, do lado de fora do muro ([[Map - Cemitério da Capela]] → Problemas conhecidos).
 - O altar vem das peças do mapa (`altarOf` em `shared/altar.ts`: a peça `caixa` cujo topo é onde o totem está e que o contém), então vale em qualquer mapa do modo que tenha totem.
 
 **As árvores (corvos).** Só as 6 árvores mortas que têm colisão (dentro e fora do muro); as da borda do mapa não colidem e não contam.

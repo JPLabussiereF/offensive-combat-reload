@@ -21,7 +21,7 @@ tags:
   - navigation
   - navmesh
   - recast
-updated: 2026-10-06
+updated: 2026-10-09
 ---
 
 # Navigation
@@ -96,10 +96,11 @@ Detalhes das decisões em [[AI Decisions]].
 
 O servidor não monta mapas; para mover os zumbis online ele carrega uma navmesh **gerada em tempo de desenvolvimento** ([[ADR - Zumbis simulados no servidor sobre navmesh pré-gerada]]):
 
-- `tools/bake-navmesh.ts` (`bun run navmesh`) monta o mapa **headless em Bun** com o próprio código do cliente (`client/world/*`, com um canvas que não desenha) e chama `NavMap.build`: as mesmas configurações e os mesmos colisores dos bots. Exporta com `exportNavMesh` para `shared/data/navmesh/<mapa>.json` (base64, com tamanho e hash). Hoje: só `cemiterio` (~116 KB, 781 polígonos), o mapa oficial do modo zumbi (`exclusivo: 'zumbi'`). Esse arquivo semeia a versão 1 do mapa no banco (`seedOfficialMaps`); daí em diante o servidor guarda a navmesh **com cada versão salva** (`map_version.navmesh`) e a gera ao salvar um mapa zumbi, na thread de montagem (`server/mapWorker.ts`, o mesmo `NavMap.build` com as brechas). `server/navmesh.ts` carrega a de cada versão uma vez por processo (chave `mapa@versão`).
+- `tools/bake-navmesh.ts` (`bun run navmesh`) monta o mapa **headless em Bun** com o próprio código do cliente (`client/world/*`, com um canvas que não desenha) e chama `NavMap.build`: as mesmas configurações e os mesmos colisores dos bots. Exporta com `exportNavMesh` para `shared/data/navmesh/<mapa>.json` (base64, com tamanho e hash). Hoje: só `cemiterio` (~117 KB, 789 polígonos), o mapa oficial do modo zumbi (`exclusivo: 'zumbi'`). Esse arquivo semeia a versão 1 do mapa no banco (`seedOfficialMaps`); daí em diante o servidor guarda a navmesh **com cada versão salva** (`map_version.navmesh`) e a gera ao salvar um mapa zumbi, na thread de montagem (`server/mapWorker.ts`, o mesmo `NavMap.build` com as brechas). `server/navmesh.ts` carrega a de cada versão uma vez por processo (chave `mapa@versão`).
 - `server/navmesh.ts` carrega a malha uma vez por processo (`importNavMesh`, depois de iniciar o WebAssembly do Recast), compartilhada por todas as sessões do mapa.
 - `ZombieMatch` (`shared/zombieMatch.ts`) usa uma `Crowd` do Detour por sessão (até 64 agentes) para seguir caminho e espaçar a horda, `findClosestPoint`/`findRandomPointAroundCircle` para pontos de surgimento (pontos além de 1,5× o raio são recusados: o Detour pode devolver um ponto qualquer de um polígono grande que só toca o círculo) e `raycast` na malha como linha de visão (cuspe da Tia da Fofoca, investida do Prefeito).
 - A geração é determinística (o mapa usa aleatoriedade com semente): `server/tests/zombies.test.ts` refaz a malha e compara o hash. **Mudou o mapa do cemitério (`shared/data/mapas/cemiterio.json`, inclusive as brechas no campo `zumbi`), rode `bun run navmesh`** (a malha é feita a partir do JSON), senão o teste falha.
+- **Escadas no mapa de um modo zumbi:** a malha só sobe rampas de até 46° (`walkableSlopeAngle`) e degraus de até 0,4 m (`walkableClimb`, o degrau do jogador). Um lance curto sem `suave` (o `gentle` de [[ADR - Escadas com colisão em rampa sólida]]) vira uma rampa mais íngreme que isso e o andar de cima fica **fora da malha**: os zumbis param no ponto andável mais perto do alvo, mesmo do outro lado de uma parede. Foi o que deixava a capela do [[Map - Cemitério da Capela]] fora do alcance da horda até a PF-67 (09/10/2026).
 - Offline, o zumbi solo gera a malha na hora no navegador com as mesmas caixas de brecha (é a mesma malha).
 
 ### Brechas e barricadas
