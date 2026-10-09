@@ -62,6 +62,7 @@ source_paths:
   - client/ui/arsenalStats.ts
   - client/ui/pauseMenu.ts
   - client/ui/arsenalTree.ts
+  - client/tests/viewmodelSwitch.test.ts
 tags:
   - testes
   - unitarios
@@ -81,7 +82,7 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 
 ## `client/tests/keybinds.test.ts` → [[Input & Controls]]
 
-29 casos em grupos:
+31 casos em grupos:
 
 - **Atribuir teclas:** tecla livre vai ao espaço escolhido sem alterar o original; tecla usada sai da outra ação e informa o espaço que ficou vazio; aceita botões laterais do mouse; recusa `Ctrl` e as teclas fixas, dizendo o motivo.
 - **Roda do mouse:** vale em ações de um toque; recusada em ações de segurar e no chat; descartada ao carregar se salva numa ação de segurar; tem nome nos dois idiomas.
@@ -89,6 +90,7 @@ Testes de lógica pura, sem servidor nem banco (embora rodem no mesmo `bun test`
 - **Carregar o salvo:** sem nada volta o padrão (cópia); ação nova recebe o padrão; respeita espaço vazio de propósito; descarta lixo; tecla duplicada fica só na primeira.
 - **Teclas do caixão no modo zumbi:** `Z` doa e `X` recusa por padrão, e um save antigo (sem essas ações) as ganha.
 - **Tabela do Input** e **nome das teclas** (QWERTY, AZERTY via mapa do navegador, fallback do Firefox, código desconhecido).
+- **Troca de arma pela roda (PF-34, `wheelSwapAllowed`):** aceita a primeira troca, recusa dentro de 150 ms e aceita a partir de 150 ms; girando sem parar (um passo a cada 16 ms por 1 s) troca 6 ou 7 vezes, sempre com 150 ms ou mais entre elas.
 
 ## `client/tests/heldKnife.test.ts` → [[Weapon Models]]
 
@@ -218,6 +220,17 @@ O personagem completo (`Character`, sem WebGL) e o `CharacterAnimator` com o mod
 ## `client/tests/viewmodelOneHand.test.ts` → [[Animation]]
 
 O `Viewmodel` de verdade com um `document` mínimo (só o canvas do clarão do tiro): mirando, o ponto da mira fica no centro (x ≈ 0, y ≈ 0) com e sem a mão direita; sem a mão direita, a arma fica do lado esquerdo da tela. O arquivo carrega `viewmodel.ts` por caminho, porque a checagem de tipos do servidor (que cobre `client/tests`) não tem os tipos do DOM.
+
+## `client/tests/viewmodelSwitch.test.ts` → [[Weapon Models]], [[Known Bottlenecks]]
+
+O `Viewmodel` de verdade, no mesmo molde do anterior (PF-34), 7 casos:
+
+- depois do `setBody`, 50 trocas entre rifle, pistola, submetralhadora e revólver: os materiais, as geometrias e os braços em `vm.root` são os mesmos da primeira volta, nenhum `dispose` é disparado e os braços têm um material só;
+- sem PCD, `maoEsq`, `maoDir` e `bracoEsq`: o braço esquerdo visível fica no pulso de `pistolLeft` com a pistola e no de `left` com o rifle e a submetralhadora (sem mão de apoio quando a arma está espelhada ou falta o braço esquerdo), e a mão da arma está sempre lá;
+- `setBody` duas vezes mantém a mesma instância de material, com a pele nova nas cores;
+- o aquecimento (`warmup`) põe na cena as armas preparadas e mostra tudo (armas, as duas poses da mão de apoio, faca e granada) durante o compile, e depois devolve cada objeto à visibilidade de antes (com o viewmodel escondido).
+
+Sem a correção da PF-34, falham o das 50 trocas, o do `setBody` e o do aquecimento; os de PCD já passavam (as poses continuam as mesmas de antes).
 
 ## `server/tests/progression-modes.test.ts` → [[Weapons]], [[Progression]], [[Game Modes Index]]
 

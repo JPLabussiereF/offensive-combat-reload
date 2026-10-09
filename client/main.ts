@@ -11,7 +11,7 @@ import { clampExplosionDamage, computeDamage, critRegion, explosionDamage, ideal
 import { eyeHeight, type MoveInput } from '@shared/movement';
 import { CLOSE, FLAG, NET, type AwardLabel, type KillKind, type Vec3 } from '@shared/protocol';
 import { startLoop } from './core/loop';
-import { applyKeybinds, Input } from './core/input';
+import { applyKeybinds, Input, wheelSwapAllowed } from './core/input';
 import { CAN_KEEP_ESCAPE, enterFullscreen, escapeIsKept, IS_MOBILE, isFullscreen, keepEscape } from './core/device';
 import { TouchControls } from './ui/touch';
 import { gamepad } from './core/gamepad';
@@ -952,6 +952,8 @@ async function boot() {
   const switchTo = (next: GunSlot) => {
     if (!bladeOnly && next !== slot && gunIn(loadout, next)) holdSlot(next, true);
   };
+  /** When (performance.now) the mouse wheel last switched guns: see wheelSwapAllowed. */
+  let lastWheelSwap = -Infinity;
 
   // --- Weapon progression: each kill's points level up only the weapon that made it ------------------
   let knifeForm: KnifeId = 'faca';
@@ -979,6 +981,8 @@ async function boot() {
       // the coffin holds fewer rounds (its damage penalty is the server's, on every hit).
       if (g) guns[s].setData(zombieMode ? zombieGunData(g, lo.danificadas?.[progOf(g.arma)]) : g);
       guns[s].reloadMul = body.reloadMul;
+      // Both guns' models built now: a switch only shows the other one (PF-34).
+      if (g) viewmodel.prepare(guns[s].data);
     }
     const knife = loadoutKnife(lo);
     melee.setData(knife);
@@ -1047,6 +1051,9 @@ async function boot() {
       hud.notice(t('arsenalSaveFailed'));
     });
   applyLoadout(startLoadout);
+  // The first switch, stab and throw shouldn't stutter (PF-34): the guns, the knife and the grenade are shown for
+  // an instant and their shaders compiled now, then hidden again as they were.
+  viewmodel.warmup(() => ctx.renderer.compile(ctx.vmScene, ctx.vmCamera));
   // Zumbi: the bigger reserve from the start.
   if (zombieMode) for (const g of Object.values(guns)) g.refill();
   const scopeEl = document.getElementById('scope')!;
@@ -2051,14 +2058,23 @@ async function boot() {
         const done = taunt.update(dt, simTime);
         if (done) finishTaunt(done);
         // Switching guns: 1 and 2 pick a slot, the wheel (or the swap button) goes to the other one. Not with
-        // the hands busy (knife, dance, a grenade in hand): those presses are dropped.
-        const pick1 = input.consume('weapon1');
-        const pick2 = input.consume('weapon2');
-        const swap = input.consume('swapWeapon');
+        // the hands busy (knife, dance, a grenade in hand): those presses are dropped. A switch from the mouse
+        // wheel goes through at most once per WHEEL_SWAP_MS (PF-34: one click, one switch; a spinning wheel or a
+        // trackpad no longer flips the gun at random); keys, the controller and touch switch at once.
+        const pick1 = input.consumeFrom('weapon1');
+        const pick2 = input.consumeFrom('weapon2');
+        const swap = input.consumeFrom('swapWeapon');
         if (!taunt.active && !melee.swinging && !thrower.busy) {
-          if (pick1) switchTo('primaria');
-          if (pick2) switchTo('secundaria');
-          if (swap) switchTo(slot === 'primaria' ? 'secundaria' : 'primaria');
+          const now = performance.now();
+          const go = (from: 'press' | 'wheel' | null) => {
+            if (from !== 'wheel') return from === 'press';
+            if (!wheelSwapAllowed(now, lastWheelSwap)) return false;
+            lastWheelSwap = now;
+            return true;
+          };
+          if (go(pick1)) switchTo('primaria');
+          if (go(pick2)) switchTo('secundaria');
+          if (go(swap)) switchTo(slot === 'primaria' ? 'secundaria' : 'primaria');
         }
         drawT = Math.max(0, drawT - dt);
         const busy = taunt.active || melee.swinging || thrower.busy || drawT > 0 || downed || !!zombies?.busyHands;
@@ -2421,6 +2437,13 @@ async function boot() {
       if (watched.id !== specArms) {
         specArms = watched.id;
         specVm.setBody(watched.look, watched.sex);
+        // Their two guns built and every shader compiled as the view comes to them, so their switches don't
+        // stutter here (PF-34; then everything is hidden again as it was).
+        for (const s of ['primaria', 'secundaria'] as const) {
+          const g = slotStats(watched.loadout, s);
+          if (g) specVm.prepare(g);
+        }
+        specVm.warmup(() => ctx.renderer.compile(ctx.vmScene, ctx.vmCamera));
       }
       specVm.setGun(watched.gun);
       const f = watched.flags;

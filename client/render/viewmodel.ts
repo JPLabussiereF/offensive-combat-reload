@@ -1,10 +1,12 @@
 // First-person arms + gun (the viewmodel), in their own scene and camera so they never clip into walls.
 // The gun in hand comes with its upgrades (sight, magazine, silencer: weaponModels.ts), built once per look
-// and kept, so switching guns costs nothing; switching plays a short draw. The arms are the character's own
-// forearms and hands, faceted, in its skin and sleeve (viewmodelArms.ts), with PCD (a missing hand or arm is
-// not drawn; the knife or the grenade goes to the other hand; without the right hand the gun is held by the
-// left one, mirrored to the left of the screen, and with one hand it rests to reload and goes away for the
-// knife and the grenade).
+// and kept, so switching guns costs nothing (PF-34: nothing is created or disposed on a switch, the support
+// hand is already built in both of its poses and the switch only shows one); switching plays a short draw.
+// The arms are the character's own forearms and hands, faceted, in its skin and sleeve (viewmodelArms.ts), all
+// four in one material made once; with PCD (a missing hand or arm is not drawn; the knife or the grenade goes
+// to the other hand; without the right hand the gun is held by the left one, mirrored to the left of the
+// screen, and with one hand it rests to reload and goes away for the knife and the grenade). At the start of a
+// match `prepare` builds the loadout's guns and `warmup` shows everything for one shader compile.
 //
 // Procedural layers on top of the hip / ADS / sprint pose, each a damped spring (springs.ts) with every
 // number in VM_FEEL (tunable live with F6):
@@ -24,7 +26,8 @@ import type { Sex } from '@shared/protocol';
 import { toonGradient } from './materials';
 import { ANIM } from '../character/animator';
 import { Spring } from './springs';
-import { armMesh, placeArm } from './viewmodelArms';
+import type { PaintedMaterial } from '../character/material';
+import { armMaterial, armMesh, paintArms, placeArm } from './viewmodelArms';
 import { stanceOffset } from './viewmodelStance';
 import { grenadeModel } from '../weapons/grenades';
 import { gunModelKey, gunParts, knifeModel, mineModel, type GunHold, type GunLookKey } from './weaponModels';
@@ -117,7 +120,7 @@ export class Viewmodel {
   /** The gun in hand, and every gun look built so far. */
   private kit!: GunKit;
   private kits = new Map<string, GunKit>();
-  /** How the arms are posed (rebuilt when it changes). */
+  /** Where the support hand goes on the gun in hand (a switch only shows the matching pose). */
   private hold: GunHold = 'longa';
   private knife = new THREE.Group();
   /** Mirrors the knife to the left hand when the right one is missing. */
@@ -138,6 +141,15 @@ export class Viewmodel {
   /** The arm on the grip (with one hand it leaves the grip to change the magazine), and its wrist there. */
   private gripArm: THREE.Object3D | null = null;
   private gripWrist = new THREE.Vector3();
+  /**
+   * The one material of the four arms (gun hand, support hand, knife, grenade), made at the first build and kept
+   * for good: setBody repaints it in place. Shared: an arm needing other colors or another mask would need its
+   * own material (PF-34: recreating it on every switch recompiled its shader).
+   */
+  private armMat: PaintedMaterial | null = null;
+  /** The support hand in its two poses: on a handguard or foregrip (A.left) and cupping a pistol's grip. */
+  private leftArm: THREE.Object3D | null = null;
+  private leftPistolArm: THREE.Object3D | null = null;
   private knifeItem: THREE.Object3D | null = null;
   private grenadeArm = new THREE.Group();
   private grenadeInHand: THREE.Object3D = new THREE.Group();
@@ -209,7 +221,14 @@ export class Viewmodel {
     this.grenadeSide.scale.x = m.handL ? -1 : 1;
     // No right hand: the left one holds the gun by the grip, the whole gun mirrored to the left.
     this.gunSide.scale.x = m.handR ? -1 : 1;
+    // The new colors go on the arms' own material (built once, never recreated).
+    if (this.armMat) paintArms(this.armMat, this.armColors());
     this.buildArms();
+  }
+
+  /** What colors the arms: the skin, the long sleeve, the gloves. */
+  private armColors() {
+    return { sleeve: this.sleeve, skin: this.skin, glove: this.glove };
   }
 
   /** The gun is in the left hand, mirrored (no right hand). */
@@ -222,42 +241,56 @@ export class Viewmodel {
     return this.missing.handL || this.missing.handR;
   }
 
-  /** Rebuilds the arms on the gun (PCD: a missing hand leaves the forearm, a missing arm leaves nothing). */
+  /**
+   * Builds the arms on the gun (PCD: a missing hand leaves the forearm, a missing arm leaves nothing): only when
+   * the body or the tuning changes (setBody, retune), never on a gun switch. The meshes are dropped and made
+   * again; their geometry is cached and their one material is kept (nothing is disposed).
+   */
   private buildArms() {
-    for (const g of [this.arms, this.knifeArm, this.grenadeHandArm]) {
-      for (const child of [...g.children]) {
-        g.remove(child);
-        ((child as THREE.Mesh).material as THREE.Material)?.dispose();
-      }
-    }
+    for (const g of [this.arms, this.knifeArm, this.grenadeHandArm]) for (const child of [...g.children]) g.remove(child);
+    const mat = (this.armMat ??= armMaterial(this.armColors()));
     const A = VM_FEEL.arms;
-    const opts = (grip: number, hand: boolean) => ({ sleeve: this.sleeve, skin: this.skin, grip, hand, glove: this.glove });
+    const opts = (grip: number, hand: boolean) => ({ ...this.armColors(), grip, hand });
     // Mirrored (no right hand), the arm on the grip is the left hand and the right one hangs out of view.
     this.gripArm = null;
     if (this.mirrored || !this.missing.armR) {
-      const r = armMesh(this.sex, 1, opts(A.right.grip, this.mirrored || !this.missing.handR));
+      const r = armMesh(this.sex, 1, opts(A.right.grip, this.mirrored || !this.missing.handR), mat);
       placeArm(r, v3(A.right.elbow), v3(A.right.wrist), A.right.roll);
       this.arms.add(r);
       this.gripArm = r;
       this.gripWrist.copy(r.position);
     }
+    // The support hand in both of its poses (the gun in hand shows one): on a handguard and on a pistol's grip.
+    this.leftArm = this.leftPistolArm = null;
     if (!this.mirrored && !this.missing.armL) {
-      const L = this.hold === 'pistola' ? A.pistolLeft : A.left;
-      const l = armMesh(this.sex, -1, opts(L.grip, !this.missing.handL));
-      placeArm(l, v3(L.elbow), v3(L.wrist), L.roll);
-      this.arms.add(l);
+      const pose = (L: (typeof A)['left']) => {
+        const l = armMesh(this.sex, -1, opts(L.grip, !this.missing.handL), mat);
+        placeArm(l, v3(L.elbow), v3(L.wrist), L.roll);
+        this.arms.add(l);
+        return l;
+      };
+      this.leftArm = pose(A.left);
+      this.leftPistolArm = pose(A.pistolLeft);
     }
+    this.showHold();
     // The knife's fist and the grenade's open hand (their groups are mirrored when that hand is missing).
-    const k = armMesh(this.sex, 1, opts(1, true));
+    const k = armMesh(this.sex, 1, opts(1, true), mat);
     placeArm(k, new THREE.Vector3(0.03, -0.06, 0.32), new THREE.Vector3(0, -0.01, 0.07), -1.5);
     this.knifeArm.add(k);
-    const g = armMesh(this.sex, -1, opts(0.45, true));
+    const g = armMesh(this.sex, -1, opts(0.45, true), mat);
     placeArm(g, new THREE.Vector3(-0.03, -0.14, 0.3), new THREE.Vector3(0, -0.05, 0.06), Math.PI);
     this.grenadeHandArm.add(g);
   }
 
-  /** Puts a gun in the hands as its upgrades make it (sight, magazine, silencer), with the matching ADS pose. */
-  setGun(g: GunLookKey) {
+  /** The support hand's pose for the gun in hand: a pistol's grip or a handguard (the SMG's foregrip too). */
+  private showHold() {
+    const pistol = this.hold === 'pistola';
+    if (this.leftArm) this.leftArm.visible = !pistol;
+    if (this.leftPistolArm) this.leftPistolArm.visible = pistol;
+  }
+
+  /** A gun's model as its upgrades make it, built the first time that look is asked for and kept. */
+  private kitFor(g: GunLookKey): GunKit {
     const key = gunModelKey(g);
     let kit = this.kits.get(key);
     if (!kit) {
@@ -270,6 +303,20 @@ export class Viewmodel {
       kit = { group, mag: parts.mag, magY: parts.magY, sightY: parts.sightY, adsZ: parts.adsZ ?? null, scoped: parts.scoped, muzzle: parts.muzzle, hold: parts.hold };
       this.kits.set(key, kit);
     }
+    return kit;
+  }
+
+  /** Builds a gun's model ahead of time (the loadout's guns), so its first switch builds nothing. */
+  prepare(g: GunLookKey) {
+    this.kitFor(g);
+  }
+
+  /**
+   * Puts a gun in the hands as its upgrades make it (sight, magazine, silencer), with the matching ADS pose. Only
+   * swaps what is shown: no arm is rebuilt and nothing is created once the gun's look was built (prepare).
+   */
+  setGun(g: GunLookKey) {
+    const kit = this.kitFor(g);
     if (kit === this.kit) return;
     if (this.kit) this.gun.remove(this.kit.group);
     this.kit = kit;
@@ -279,10 +326,31 @@ export class Viewmodel {
     this.flashGroup.position.copy(kit.muzzle);
     this.ads.set(0, -kit.sightY, kit.adsZ ?? VM_FEEL.pose.adsZ);
     this.scoped = kit.scoped;
-    // The support hand moves between a handguard and a pistol's grip.
-    const rebuild = (kit.hold === 'pistola') !== (this.hold === 'pistola') || !this.arms.children.length;
+    // The support hand moves between a handguard and a pistol's grip: both are built, one is shown.
     this.hold = kit.hold;
-    if (rebuild) this.buildArms();
+    this.showHold();
+  }
+
+  /**
+   * Everything this viewmodel can show is put in place and made visible while `compile` runs (the game calls
+   * renderer.compile on the viewmodel's scene there): every gun prepared, the knife, the grenade, the muzzle
+   * flash and both poses of the support hand, so their shaders are ready before the first switch, stab or
+   * throw. Then everything goes back as it was (the guns not in hand leave the scene again).
+   */
+  warmup(compile: () => void) {
+    const shown: THREE.Object3D[] = [this.root, this.gunSide, this.gun, this.knifeSide, this.knife, this.grenadeSide, this.grenadeArm, this.grenadeInHand, this.flashGroup];
+    if (this.leftArm) shown.push(this.leftArm);
+    if (this.leftPistolArm) shown.push(this.leftPistolArm);
+    const was = shown.map((o) => o.visible);
+    const others = [...this.kits.values()].filter((k) => k !== this.kit).map((k) => k.group);
+    for (const g of others) this.gun.add(g);
+    for (const o of shown) o.visible = true;
+    try {
+      compile();
+    } finally {
+      for (const g of others) this.gun.remove(g);
+      shown.forEach((o, i) => (o.visible = was[i]));
+    }
   }
 
   /** A switch: the gun now in hand comes up from below over `seconds`. */

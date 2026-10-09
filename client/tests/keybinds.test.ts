@@ -10,6 +10,8 @@ import {
   keyLabel,
   mergeKeybinds,
   toBindings,
+  wheelSwapAllowed,
+  WHEEL_SWAP_MS,
 } from '../core/keybinds';
 
 describe('atribuir teclas', () => {
@@ -209,5 +211,31 @@ describe('nome das teclas', () => {
 
   it('código desconhecido aparece como veio', () => {
     expect(keyLabel('IntlRo', 'en')).toBe('IntlRo');
+  });
+});
+
+describe('troca de arma pela rodinha (PF-34)', () => {
+  it('aceita a primeira troca, recusa dentro de 150 ms e aceita depois', () => {
+    expect(WHEEL_SWAP_MS).toBe(150);
+    let last = -Infinity;
+    expect(wheelSwapAllowed(1000, last)).toBe(true);
+    last = 1000;
+    expect(wheelSwapAllowed(1001, last)).toBe(false);
+    expect(wheelSwapAllowed(1149, last)).toBe(false);
+    expect(wheelSwapAllowed(1150, last)).toBe(true);
+    expect(wheelSwapAllowed(1400, last)).toBe(true);
+  });
+
+  it('girando sem parar (um passo a cada 16 ms por 1 s), troca no máximo 7 vezes e para no último passo aceito', () => {
+    let last = -Infinity;
+    const taken: number[] = [];
+    for (let t = 0; t <= 1000; t += 16) {
+      if (!wheelSwapAllowed(t, last)) continue;
+      last = t;
+      taken.push(t);
+    }
+    expect(taken.length).toBeLessThanOrEqual(7);
+    expect(taken.length).toBeGreaterThanOrEqual(6);
+    for (let i = 1; i < taken.length; i++) expect(taken[i] - taken[i - 1]).toBeGreaterThanOrEqual(150);
   });
 });

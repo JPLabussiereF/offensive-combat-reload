@@ -53,7 +53,7 @@ flowchart LR
 | Faca | F | R1 / RB ou R3 | botão |
 | Granada (segurar = cozinhar) | G | L1 / LB | botão |
 | Primária / secundária | 1 / 2 | — | — |
-| Trocar de arma (a outra) | roda do mouse (para baixo; alternativa: para cima) | direcional ← / → | botão de troca (acima do pular) |
+| Trocar de arma (a outra) | roda do mouse (para baixo; alternativa: para cima), no máximo uma troca a cada 150 ms | direcional ← / → | botão de troca (acima do pular) |
 | Oprimir / interagir | E | △ / Y | tocar no prompt |
 | Zumbi: doar / recusar a arma que o caixão oferece ([[Zombie]]) | Z / X | — | — |
 | Zumbi, fora da onda: assistir o colega anterior / o próximo ([[Zombie]]) | D / F (teclas físicas, fixas: fora da onda não se anda nem se ataca) | LB / RB | setas da barra "Assistindo" |
@@ -65,6 +65,10 @@ flowchart LR
 | Painel de ajuste | F6 (fixo) | — | — |
 
 Mecânicas: [[Movement]], [[Combat]], [[Weapons]] (troca de arma), [[Grenades]], [[Melee]], [[Humiliation]], [[Aim Assist]]. As ações de troca são `weapon1`, `weapon2` e `swapWeapon`.
+
+### Troca de arma pela roda do mouse (PF-34)
+
+A roda troca de arma **no máximo uma vez a cada 150 ms** (`WHEEL_SWAP_MS`, função pura `wheelSwapAllowed(agora, ultimaTrocaPelaRoda)` em `client/core/keybinds.ts`, exportada também por `input.ts`): um clique da roda é uma troca, e uma roda solta ou um gesto de trackpad (dezenas de passos) troca cerca de 6 vezes por segundo e para na arma do último passo aceito, em vez de alternar ao acaso. Os passos recusados são descartados (não ficam para depois). O limite vale para qualquer troca que venha da roda, também se o jogador ligar a roda a primária/secundária; `Input.consumeFrom(ação)` diz se o aperto veio só de um passo da roda (`'wheel'`) ou de tecla, botão, controle ou toque (`'press'`, que vence se os dois vierem juntos). **Teclas 1 e 2, o D-pad e o botão de toque trocam na hora**, sem limite. O limite é aplicado em `client/main.ts`, só com as mãos livres (com as mãos ocupadas o aperto já é descartado e não conta).
 
 ## Teclas remapeáveis
 
@@ -110,10 +114,11 @@ No **Play dentro do editor** (etapa 4) o jogo roda numa página própria na aba 
 
 ## Código relacionado
 
-- `client/core/input.ts` — `Input`, `BINDINGS`, `applyKeybinds`.
-- `client/core/keybinds.ts` — `Action`, `DEFAULT_KEYBINDS`, `FIXED_KEYS`, `REBINDABLE`, `assign`, `clearSlot`, `mergeKeybinds`, `toBindings`, `keyLabel`, `WHEEL_ACTIONS`.
+- `client/core/input.ts` — `Input` (`consume`, `consumeFrom`), `BINDINGS`, `applyKeybinds`.
+- `client/core/keybinds.ts` — `Action`, `DEFAULT_KEYBINDS`, `FIXED_KEYS`, `REBINDABLE`, `assign`, `clearSlot`, `mergeKeybinds`, `toBindings`, `keyLabel`, `WHEEL_ACTIONS`, `isWheel`, `WHEEL_SWAP_MS`, `wheelSwapAllowed`.
+- `client/main.ts` — troca de arma (`switchTo`, limite da roda com `lastWheelSwap`).
 - `client/core/gamepad.ts` — `GamepadInput`, `gamepad`, `GLYPHS`.
 - `client/core/device.ts` — `IS_MOBILE`, `IS_IOS`, `CAN_FULLSCREEN`, `CAN_KEEP_ESCAPE`, `enterFullscreen`, `keepEscape`.
 - `client/ui/menu.ts` — subabas Teclas (por grupo) e Controle, captura de teclas.
 - `client/ui/pauseMenu.ts` — `KEY_GROUPS`.
-- `client/tests/keybinds.test.ts` — testes de atribuição. Ver [[Unit Tests]].
+- `client/tests/keybinds.test.ts` — testes de atribuição e do limite da roda na troca de arma. Ver [[Unit Tests]].

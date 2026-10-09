@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import type { Sex } from '@shared/protocol';
 import { BodyParts, buildHand, SHAPES, type Side } from '../character/body';
 import { FacetBuilder } from '../character/builder';
-import { paintedMaterial } from '../character/material';
+import { paintedMaterial, setChannels, setTints, type Channels, type PaintedMaterial } from '../character/material';
 import { darker, DETAIL, PRIMARY, SECONDARY, SKIN } from '../character/palette';
 import { buildGlove, FULL_GLOVES } from '../character/pieces/accessories';
 
@@ -59,11 +59,29 @@ function armGeometry(sex: Sex, side: Side, long: boolean, grip: number, hand: bo
   return g;
 }
 
-/** A first-person arm mesh; place it with `placeArm`. */
-export function armMesh(sex: Sex, side: Side, o: ArmOptions): THREE.Mesh {
+/** The arms' colors, as the material's channels: the sleeve (or the skin), the glove's two colors (or the skin). */
+function armChannels(o: Pick<ArmOptions, 'sleeve' | 'skin' | 'glove'>): Channels {
   const g = o.glove ?? null;
-  const channels = { primary: o.sleeve ?? o.skin, secondary: g?.colors[0] ?? o.skin, detail: g?.colors[1] ?? g?.colors[0] ?? o.skin };
-  const m = new THREE.Mesh(armGeometry(sex, side, !!o.sleeve, o.grip, o.hand, g?.id ?? null), paintedMaterial({}, channels, { skin: o.skin }));
+  return { primary: o.sleeve ?? o.skin, secondary: g?.colors[0] ?? o.skin, detail: g?.colors[1] ?? g?.colors[0] ?? o.skin };
+}
+
+/**
+ * The first-person arms' material, made once per viewmodel and shared by all its arms (PF-34): creating and
+ * disposing one per arm on every gun switch dropped and recompiled its shader each time.
+ */
+export function armMaterial(o: Pick<ArmOptions, 'sleeve' | 'skin' | 'glove'>): PaintedMaterial {
+  return paintedMaterial({}, armChannels(o), { skin: o.skin });
+}
+
+/** New colors (skin, sleeve, gloves) on the arms' material, in place: the shader stays as it is. */
+export function paintArms(m: PaintedMaterial, o: Pick<ArmOptions, 'sleeve' | 'skin' | 'glove'>) {
+  setChannels(m, armChannels(o));
+  setTints(m, { skin: o.skin });
+}
+
+/** A first-person arm mesh in the arms' material (`armMaterial`); place it with `placeArm`. */
+export function armMesh(sex: Sex, side: Side, o: ArmOptions, mat: PaintedMaterial): THREE.Mesh {
+  const m = new THREE.Mesh(armGeometry(sex, side, !!o.sleeve, o.grip, o.hand, o.glove?.id ?? null), mat);
   m.frustumCulled = false;
   return m;
 }

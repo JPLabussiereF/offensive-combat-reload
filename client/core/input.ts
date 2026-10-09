@@ -2,8 +2,10 @@
 // tablets the touch controls (ui/touch.ts) drive the same actions (`press`), an analog stick (`move`) and the
 // look (`addLook`), and "locked" means "playing" (there is no pointer lock: the play/pause buttons set it).
 import { IS_MOBILE } from './device';
-import { DEFAULT_KEYBINDS, FIXED_KEYS, toBindings, type Action, type Keybinds } from './keybinds';
+import { DEFAULT_KEYBINDS, FIXED_KEYS, isWheel, toBindings, type Action, type Keybinds } from './keybinds';
 export type { Action };
+// The wheel's weapon switch limit lives with the other pure key rules (tested without the DOM).
+export { wheelSwapAllowed } from './keybinds';
 
 /** Keys of each action (the player's keybinds plus the fixed dev keys); filled by applyKeybinds. */
 export const BINDINGS = {} as Record<Action, string[]>;
@@ -224,6 +226,22 @@ export class Input {
     let hit = this.vPressed.delete(a);
     for (const c of BINDINGS[a]) if (this.pressed.delete(c)) hit = true;
     return hit;
+  }
+
+  /**
+   * Like consume, also telling where the press came from: 'wheel' when only a wheel step pressed it (the weapon
+   * switch on the wheel is held to one per WHEEL_SWAP_MS, see wheelSwapAllowed), 'press' for a key, a mouse
+   * button, the controller or a touch control (one of those wins when both came at once), null when none did.
+   */
+  consumeFrom(a: Action): 'press' | 'wheel' | null {
+    let press = this.vPressed.delete(a);
+    let wheel = false;
+    for (const c of BINDINGS[a]) {
+      if (!this.pressed.delete(c)) continue;
+      if (isWheel(c)) wheel = true;
+      else press = true;
+    }
+    return press ? 'press' : wheel ? 'wheel' : null;
   }
 
   /**
