@@ -736,8 +736,11 @@ export function showHome(opts: { software?: boolean; onLanguage?: (l: Lang) => v
     /** A map card: one choice (aria-pressed), never a start. */
     const tile = (attr: string, card: { cartao: { emoji: string; cor: string } }, name: string, sub: string, on: boolean) =>
       `<button type="button" class="map-btn map-tile" ${attr} aria-pressed="${on}">${thumb(card)}<span class="map-text"><b>${esc(name)}</b><small>${esc(sub)}</small></span><span class="map-mark" aria-hidden="true"></span></button>`;
-    /** The online choice's name: the map's, or "qualquer mapa" inside a sentence. */
-    const onlineLabel = (map: string | null) => (map ? nameOf(map) : t('playAnyMap').toLocaleLowerCase());
+    /**
+     * The online choice's name: the map's, or "qualquer mapa" inside a sentence (lower case, but German keeps its
+     * nouns capitalized: "beliebige Karte").
+     */
+    const onlineLabel = (map: string | null) => (map ? nameOf(map) : getLang() === 'de' ? t('playAnyMap').replace(/^./, (c) => c.toLocaleLowerCase('de')) : t('playAnyMap').toLocaleLowerCase());
 
     const renderPlay = () => {
       const online = prefs.mode === 'online';
