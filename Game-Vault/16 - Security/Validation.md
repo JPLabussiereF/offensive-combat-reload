@@ -13,6 +13,7 @@ source_paths:
   - shared/protocol.ts
   - shared/account.ts
   - shared/appearance.ts
+  - shared/color.ts
   - shared/progression.ts
   - server/migrations/001_contas.sql
   - client/ui/chat.ts
@@ -22,7 +23,7 @@ tags:
   - game
   - security
   - validation
-updated: 2026-10-07
+updated: 2026-10-08
 ---
 
 # Validation
@@ -41,7 +42,7 @@ Validação de entrada em cada camada. As regras ficam, sempre que possível, em
 | Senha | 8–128 caracteres; no login, só os primeiros 1024 são verificados | `validPassword`, `login` |
 | Nome | `cleanName` (espaços colapsados) + `NAME_RULE`: 3–16, começa/termina com letra/número, meio com letras, números, espaço, `_`, `.`, `-` | `shared/account.ts` |
 | Sexo | qualquer valor que não `f` vira `m` | `asSex` |
-| Aparência | `sanitizeAppearance`: tudo fora do catálogo/paleta vira escolha válida | `shared/appearance.ts` |
+| Aparência | `sanitizeAppearance`, ao salvar e ao ler (`server/accounts.ts`, `server/gestao.ts`): itens fora do catálogo saem (os obrigatórios voltam ao padrão); pele, cabelo e olhos encaixados na paleta (`snap`); cores das peças normalizadas (`#abc`, maiúsculas) e limitadas por `clampItemColor` (croma ≤ 0,55 na principal de `tronco`/`sobreposicao`/`baixo`, brilho V ≥ 0,12 em todo canal de peça; idempotente: validar de novo não muda nada); o que não é cor vira o padrão do item. O seletor de cor mostra o mesmo limite antes de salvar ([[ADR - Editor de personagem leve com cores livres]]) | `shared/appearance.ts`, `shared/color.ts` |
 | Arsenal | `sanitizeChoice(raw, xp)`: `primaria` em `PRIMARIES`, secundária em `SECONDARIES` e `faca` em `KNIVES`, todas liberadas (`weaponUnlocked`; senão voltam ao Rifle Padrão, à pistola e à faca de cozinha), só ids de melhorias **opcionais** conhecidas em `ligadas` (uma por grupo) e **comuns** conhecidas em `desligadas`; se alguma arma está trancada ou alguma melhoria ainda não foi liberada, a requisição inteira falha (`400 nivel_bloqueado`) | `setArsenal` |
 | Tokens (ticket, redefinição) | ≤ 100 caracteres; procurados pelo SHA-256 | `server/app.ts`, `resetPassword` |
 | Erros | sempre `{ erro: código }`; exceções inesperadas viram `500 erro_interno` sem detalhes | `handleApi` |

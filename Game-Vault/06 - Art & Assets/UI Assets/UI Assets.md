@@ -13,12 +13,15 @@ source_paths:
   - client/main.ts
   - shared/data/progression.json
   - client/ui/arsenal.ts
+  - client/ui/customize/itemThumbs.ts
+  - client/ui/customize/cardStore.ts
+  - client/ui/customize/lineup.ts
 tags:
   - game
   - art
   - ui
   - assets
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # UI Assets
@@ -50,7 +53,14 @@ A interface não usa imagens rasterizadas. Os "assets" de UI são: **um ícone S
 
 ## Miniaturas geradas
 
-As miniaturas do editor de personagem não são arquivos: são renderizadas em tempo real do próprio personagem (`toDataURL`). Ver [[Character Customization]].
+As figuras dos cartões do editor de personagem não são arquivos do repositório: o navegador as desenha (PF-33) e as guarda.
+
+- **O que mostram:** a peça sozinha, nas cores padrão do catálogo, igual para todos; tatuagens e luvas num manequim de argila; cabelo, barba, traços do rosto, brincos e piercings numa cabeça de argila (`#c2b8a8`, um pouco mais clara que a argila do galpão). "Nenhum" e "Descalço" são ícones SVG no próprio cartão; um cartão cuja figura falhou mostra um "?".
+- **Formato:** 144 × 144 px em WebP (desenhadas em 288 px e reduzidas), fundo transparente, a luz do editor (`client/ui/customize/lights.ts`).
+- **Onde ficam:** IndexedDB "oc-personagem", store "miniaturas", chave `item:<id>:<sexo>` ou `rosto:<traço>.<valor>:<sexo>`, assinatura = formato do desenho (`CARD_FORMAT`) + versão do jogo (o commit do build). Uma atualização do jogo faz o navegador desenhar de novo, aos poucos, as ~300 figuras de cada corpo. A peça vestida em outras cores e os cartões do Modo PCD (o personagem do jogador) ficam só em memória enquanto o editor está aberto.
+- **A parede de altura e biotipo** é SVG gerado no código (`client/ui/customize/lineup.ts`): régua, linhas da parede, silhuetas genéricas e a placa.
+
+Ver [[Character Customization]] e [[ADR - Editor de personagem leve com cores livres]].
 
 > [!note]
 > As fontes dependem da rede (Google Fonts); sem conexão, caem nos fallbacks (`'Arial Black'`, `system-ui`).

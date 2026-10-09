@@ -14,6 +14,9 @@ source_paths:
   - client/tests/heldKnife.test.ts
   - client/tests/spatial.test.ts
   - server/tests/appearance.test.ts
+  - server/tests/color.test.ts
+  - client/tests/customizeCards.test.ts
+  - client/tests/colorPicker.test.ts
   - server/tsconfig.json
   - client/tests/arsenalText.test.ts
   - server/tests/arsenal.test.ts
@@ -177,10 +180,23 @@ Testa funções de `shared/appearance.ts` (puras):
 - Escolhas inválidas viram padrão; nada fora do catálogo é aceito.
 - Conversão da aparência versão 1 e da versão 2 sem rosto.
 - Item que ocupa vários slots remove o que estava neles.
-- Acentos de cor só em peças pequenas.
+- Cor principal das peças grandes limitada (nada de neon; um acento da paleta desce até o limite), peças pequenas e canais secundários livres (qualquer cor, não só a da paleta), nada de preto puro (`#000000` → `#1f1f1f`); toda cor de tecido continua valendo (PF-33).
+- 500 cores aleatórias em quatro peças: validar de novo não muda nada, e a principal das peças grandes fica dentro do limite.
 - Altura e biotipo só visuais; sem mão recarrega 30% mais devagar, sem perna anda 25% mais devagar.
 - Dano por zona da hitbox: cabeça 2,5×, pescoço 1,5×, mãos 0,5×, virilha mata (ver [[Damage System]]).
 - Aparência aleatória dos bots sempre válida.
+
+## `server/tests/color.test.ts` → [[Character Customization]], [[Material Palette]], [[Validation]]
+
+Testa `shared/color.ts` (puro, PF-33): `normalizeHex` (`#abc`, maiúsculas, sem `#`, espaços; o resto não é cor); ida e volta código ↔ HSV com 500 cores; as 22 cores de tecido valem na principal das peças grandes e as 33 de item em qualquer outro canal, sem mudar; o neon na principal de `tronco` fica com croma ≤ 0,55, mesmo brilho e mesmo tom, e é livre no secundário e nas peças pequenas; o piso de brilho em todos os canais (preto puro vira `#1f1f1f`, um azul quase preto sobe mantendo o tom); 2000 cores em slots e canais aleatórios: ajustar de novo não muda nada.
+
+## `client/tests/customizeCards.test.ts` → [[Character Customization]], [[UI Assets]]
+
+Testa `client/ui/customize/rules.ts` e `lineup.ts` (PF-33): o cartão de uma peça tem a mesma chave (`item:<id>:<sexo>`) e a mesma assinatura (só formato e versão do jogo) para qualquer visual; a peça vestida nas cores do catálogo usa a figura guardada e, em outras cores, uma só dela em memória; penteado e barba vestidos seguem a cor do cabelo (P13); "Nenhum" e "Descalço" são ícones; traço do rosto igual para todos; o cartão do Modo PCD só muda quando o visual sem o PCD muda; as alturas 1,73 / 1,80 / 1,87 m saem de `EFFECTS.heightScale` × `RIG_HEIGHT`; a parede marca a escolhida, tem a placa e um botão por silhueta, e a régua começa em 1,40.
+
+## `client/tests/colorPicker.test.ts` → [[Character Customization]], [[Menus]]
+
+Testa `client/ui/colorPickerRules.ts` e `client/ui/padNavRules.ts` (PF-33): Recentes (a última primeiro, no máximo 10, sem repetir; o guardado é lido de volta limpo); "Combina" (tom sobre tom ×0,72, as cores já usadas, a vizinha de matiz dessaturada, dentro do limite, sem a atual e sem repetir); o cursor do quadrado para na borda do neon (só na principal das peças grandes) e no piso de brilho; a paleta da casa (4 grupos e 22 cores na principal das peças grandes, 6 grupos e 33 no resto); no controle, `[role="slider"]` entra na navegação, o quadrado entra em modo ajuste com ✕, o direcional manda as setas, ✕ confirma e ◯ desfaz, e a faixa de matiz anda pelo direcional ao longo dela.
 
 ## `server/tests/arsenal.test.ts` → [[Weapons]], [[Progression]]
 

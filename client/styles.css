@@ -5528,32 +5528,326 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   color: var(--ink);
   text-align: center;
 }
-.swatches {
+/* Cards with no picture (nothing worn, bare feet), and a card whose picture couldn't be drawn. */
+.cz-thumb-icon {
+  display: grid;
+  place-items: center;
+  color: rgba(27, 21, 48, 0.55);
+}
+.cz-thumb-icon svg {
+  width: 46%;
+  height: 46%;
+}
+.cz-thumb-empty {
+  position: relative;
+}
+.cz-thumb-empty img {
+  display: none;
+}
+.cz-thumb-empty::after {
+  content: '?';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 900 28px var(--body);
+  color: rgba(27, 21, 48, 0.3);
+}
+
+/* Height and build: the line-up wall (ui/customize/lineup.ts). */
+.cz-wall {
+  position: relative;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--paper);
+}
+.cz-wall svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.cz-wall-bg {
+  fill: #ece2d0;
+}
+.cz-wall-ruler {
+  fill: var(--paper);
+}
+.cz-wall-line {
+  stroke: rgba(27, 21, 48, 0.16);
+  stroke-width: 1;
+}
+.cz-wall-tick {
+  stroke: var(--ink);
+  stroke-width: 1.2;
+}
+.cz-wall-num {
+  font: 800 10px var(--body);
+  fill: var(--ink);
+  text-anchor: end;
+}
+.cz-wall-mark {
+  stroke: rgba(27, 21, 48, 0.4);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.cz-fig {
+  fill: rgba(27, 21, 48, 0.3);
+}
+.cz-fig.on {
+  fill: var(--team-a);
+}
+.cz-fig-label {
+  text-anchor: middle;
+  font: 900 12px var(--body);
+  fill: var(--ink);
+}
+.cz-plate {
+  fill: var(--ink);
+}
+.cz-plate-text {
+  font: 900 10px var(--body);
+  fill: var(--paper);
+  text-anchor: middle;
+}
+.cz-wall-pick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+.cz-wall-pick:hover {
+  background: rgba(255, 122, 26, 0.1);
+}
+.cz-wall-pick:focus-visible,
+.cz-wall-pick.pad-focus {
+  outline: 3px solid var(--team-b);
+  outline-offset: -4px;
+}
+.cz-wall-note {
+  margin: 6px 0 0;
+  -webkit-text-stroke: 0;
+}
+
+/* The game's color picker (ui/colorPicker.ts): one chip per channel of the worn piece, the picker under them. Skin,
+   hair and eye swatches take the same look as the picker's swatches. */
+.cp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 3px 12px 3px 4px;
+  font: 800 12px var(--body);
+  color: var(--ink);
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.cp-chip[aria-expanded='true'] {
+  background: var(--team-a);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--ink);
+}
+.cp-chip-color {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+}
+.cp {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  background: var(--paper);
+}
+.cp-sv {
+  position: relative;
+  height: 150px;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  background: linear-gradient(to top, #000, rgba(0, 0, 0, 0)), linear-gradient(to right, #fff, var(--cp-hue, red));
+  cursor: crosshair;
+  touch-action: none;
+}
+.cp-limits {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.cp-cursor {
+  position: absolute;
+  left: var(--cp-x, 0);
+  top: var(--cp-y, 0);
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--cp-color, transparent);
+  box-shadow: 0 0 0 2px var(--ink);
+  pointer-events: none;
+}
+.cp-hue {
+  position: relative;
+  height: 24px;
+  margin: 4px 8px;
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  background: linear-gradient(to right, #f00 0%, #ff0 16.67%, #0f0 33.33%, #0ff 50%, #00f 66.67%, #f0f 83.33%, #f00 100%);
+  cursor: pointer;
+  touch-action: none;
+}
+.cp-hue-cursor {
+  position: absolute;
+  top: 50%;
+  left: var(--cp-x, 0);
+  width: 16px;
+  height: calc(100% + 12px);
+  border: 3px solid var(--ink);
+  border-radius: 6px;
+  background: var(--cp-hue, red);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.cp-sv:focus-visible,
+.cp-hue:focus-visible,
+.cp-sv.pad-focus,
+.cp-hue.pad-focus {
+  outline: 3px solid var(--team-b);
+  outline-offset: 2px;
+}
+.cp-sv.pad-adjust {
+  outline: 3px dashed var(--team-a);
+  outline-offset: 2px;
+}
+.cp-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cp-compare {
+  display: flex;
+  overflow: hidden;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+}
+.cp-before,
+.cp-now {
+  display: block;
+  width: 48px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+}
+.cp-before {
+  cursor: pointer;
+  border-right: 3px solid var(--ink);
+}
+.cp-hex {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font: 900 15px var(--body);
+}
+.cp-hex input {
+  width: 7em;
+  padding: 5px 8px;
+  font: 700 14px ui-monospace, 'JetBrains Mono', monospace;
+  color: var(--ink);
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  user-select: text;
+}
+.cp-warn {
+  margin: 0;
+  font: 800 12px var(--body);
+  color: #a3440f;
+}
+.cp-warn:not(.on) {
+  display: none;
+}
+.cp-lists h5 {
+  margin: 6px 0 4px;
+  font: 900 11px var(--body);
+  text-transform: uppercase;
+}
+.cp-swatches {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
 }
-.swatch {
-  width: 28px;
-  height: 28px;
-  border: 3px solid var(--ink);
-  border-radius: 50%;
-  cursor: pointer;
+.cp-swatch {
+  width: 30px;
+  height: 30px;
   padding: 0;
+  border: 3px solid var(--ink);
+  border-radius: 9px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.28);
+  cursor: pointer;
 }
-.swatch[aria-pressed='true'] {
+.cp-swatch[aria-pressed='true'] {
   outline: 3px solid var(--team-a);
   outline-offset: 2px;
 }
-.customizer input[type='color'] {
-  width: 40px;
-  height: 32px;
-  padding: 0 2px;
-  border: 3px solid var(--ink);
-  border-radius: 8px;
-  background: #fff;
-  cursor: pointer;
+.cp-house {
+  display: grid;
+  gap: 6px;
+}
+.cp-group {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  align-items: center;
+  gap: 6px;
+}
+.cp-group > span {
+  font: 800 11px var(--body);
+}
+/* Touch: targets of at least 44 px. */
+@media (pointer: coarse) {
+  .cp-swatch {
+    width: 44px;
+    height: 44px;
+  }
+  .cp-chip {
+    min-height: 50px;
+  }
+  .cp-chip-color {
+    width: 36px;
+    height: 36px;
+  }
+  .cp-hue {
+    height: 44px;
+  }
+  .cp-sv {
+    height: 200px;
+  }
+  .cp-before,
+  .cp-now {
+    width: 56px;
+    height: 44px;
+  }
+  .cp-group {
+    grid-template-columns: 1fr;
+  }
 }
 .cz-anims {
   margin-top: 8px;

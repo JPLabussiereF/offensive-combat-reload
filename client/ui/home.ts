@@ -32,7 +32,7 @@ import { ArsenalCanvas } from './arsenalCanvas';
 import { progOf, type WeaponId } from '@shared/progression';
 import { knifeOf } from '@shared/arsenal';
 import { errorText, showAuth, type AuthView } from './auth';
-import { renderPortrait, showCustomizer, Stage } from './customize';
+import { closeCustomizer, onCustomizerChange, renderPortrait, showCustomizer, Stage, type CustomizerHandle } from './customize';
 import { showProfile } from './profile';
 import { showAlbum } from './album';
 import { t, type StringKey } from './strings';
@@ -277,6 +277,8 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
   const showTab = (next: Tab) => {
     // Gerenciamento is the staff's (the server checks every request again).
     if (next === 'management' && !(me && isEquipe(me))) next = 'play';
+    // Another tab: the character editor open in this one goes (its stage and cards are freed; PF-33).
+    if (next !== tab) closeCustomizer();
     tab = next;
     for (const id of TABS) $(`tab-${id}`).classList.toggle('hidden', id !== next);
     for (const b of homeTabs()) b.setAttribute('aria-selected', String(b.dataset.tab === next));
@@ -313,7 +315,7 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
     shownLook = key;
     galpao?.setLook(look, s);
     if (!useGalpao) {
-      stage ??= new Stage($<HTMLCanvasElement>('char-canvas'), { wheelZoom: false });
+      stage ??= new Stage($<HTMLCanvasElement>('char-canvas'), { wheelZoom: false, spin: true });
       stage.show(look, s);
     }
     void renderPortrait(look, s).then((url) => {
@@ -391,6 +393,8 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
   const openAuth = (view: AuthView, extra: { resetToken?: string; currentName?: string } = {}) => {
     if (me) {
       showTab('auth');
+      // The pane may hold the character editor: freed before the form takes it.
+      closeCustomizer();
       showAuth($('tab-auth'), view, { ...authOpts, ...extra });
       return;
     }
@@ -434,7 +438,8 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
       progress,
       look: profile?.aparencia ?? defaultAppearance(sex),
       sex,
-      hooks: { showTab: (next) => showTab(next), quickPlay: () => playHooks.quickPlay(), quickLine: () => playHooks.quickLine() },
+      // Leaving the locker closes the character editor (and so lets the warehouse run again).
+      hooks: { showTab: (next) => showTab(next), quickPlay: () => playHooks.quickPlay(), quickLine: () => playHooks.quickLine(), leaving: () => closeCustomizer() },
     });
     galpaoStarting = false;
     if (!g) {
@@ -456,15 +461,20 @@ export function showHome(opts: { software?: boolean } = {}): Promise<HomeChoice>
     galpao?.dispose();
     setGalpao(null);
   };
+  // The character editor holds the warehouse on its last frame while it's open (the camera is at the locker).
+  onCustomizerChange((open) => galpao?.pause(open));
 
   for (const b of homeTabs()) b.onclick = () => showTab(b.dataset.tab as Tab);
   $('acct-chip').onclick = () => showTab('profile');
+  /** The character card's editor (in the spare pane), freed before the pane gets anything else. */
+  let cardEditor: CustomizerHandle | null = null;
   $('char-customize').onclick = () => {
     if (!profile) return;
     // The editor takes the panel's spare pane (the aside hides while it is open: .home-card.wide).
     showTab('auth');
     const pane = $('tab-auth');
-    showCustomizer(pane, {
+    cardEditor?.dispose();
+    cardEditor = showCustomizer(pane, {
       look: profile.aparencia,
       sex: profile.sexo,
       setStatus,

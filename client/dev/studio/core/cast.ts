@@ -6,7 +6,7 @@
 // the helpers' copies keep it, dress and strip refill the required slots with that sex's defaults, and k.avatar
 // builds that body. A copy made by hand ({ ...look }, structuredClone) is a new object and loses it: the helpers
 // and k.avatar refuse such a look rather than guess a man's body.
-import { allowedColors, choice, defaultAppearance, randomAppearance, wear, type Appearance, type BrowStyle, type EyeStyle, type Face, type ItemChoice } from '@shared/appearance';
+import { suggestedColors, choice, defaultAppearance, randomAppearance, wear, type Appearance, type BrowStyle, type EyeStyle, type Face, type ItemChoice } from '@shared/appearance';
 import { CATALOG, catalogItem, REQUIRED_SLOTS, type Slot } from '@shared/catalog';
 import type { Sex } from '@shared/protocol';
 import { seeded } from './seed';
@@ -159,7 +159,7 @@ export function neighbor(n: number, o: { sex?: Sex; keep?: (Slot | 'pcd')[] } = 
     a.itens[slot] = choice(
       it,
       it.channels.map((_, i) => {
-        const colors = allowedColors(slot, i);
+        const colors = suggestedColors(slot, i);
         return colors[Math.floor(rnd() * colors.length)];
       }),
     );

@@ -69,6 +69,11 @@ export interface Galpao {
   launch(done: () => void): void;
   resetLaunch(): void;
   resize(): void;
+  /**
+   * Freezes the scene on its last frame (true: no more frames, the character editor is open over the locker) or lets
+   * it run again. A resize while frozen draws the one frame again and moves the surfaces with it.
+   */
+  pause(on: boolean): void;
   dispose(): void;
 }
 
@@ -1179,6 +1184,8 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
   if (devInfo) Object.assign(devInfo, { cam });
   const tmpCam = cam.clone();
   let vw = 1, vh = 1, aspect = 1, portrait = false;
+  // paused (the character editor is open over the locker): no frames; a resize draws one and places the surfaces
+  let paused = false;
   const HOME = { pos: V(0.45, 1.36, 3.25), target: V(-0.42, 1.12, -0.05), fov: 33 };
   let station: CamStation = 'intro', arrived = false, move: Move | null = null, peekId: StationId | null = null;
   const peekT = V();
@@ -1387,6 +1394,8 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     cam.aspect = aspect; cam.updateProjectionMatrix();
     if (station !== 'intro' && !move) { const p = poseFor(station); sizeSurface(station, p); cam.position.copy(p.pos); cam.quaternion.copy(lookQuat(p.pos, p.target, p.up)); cam.fov = p.fov; cam.filmOffset = p.film; cam.updateProjectionMatrix(); }
     else if (move && surfOf(move.id)) sizeSurface(move.id, poseFor(move.id));
+    // the canvas was cleared by the new size: the frozen frame again, and the surfaces where it puts them
+    if (paused) { cam.updateMatrixWorld(); drawScene(); updateSurfaces(0); }
   }
   const ro = new ResizeObserver(resize); ro.observe(host); resize();
 
@@ -1407,17 +1416,20 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     heroModel = null;
   };
   function loop(now: number) {
-    if (disposed) return;
+    if (disposed || paused) return;
     raf = requestAnimationFrame(loop);
     if (devInfo) {
       renderer.info.autoReset = false;
       renderer.info.reset();
     }
-    const dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt; frame++;
+    // never negative: a frame's time can be a little before the performance.now() taken when the loop restarted
+    // (unpaused, the tab shown again), and the camera's curve read before its start breaks (reading 'x')
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now; time += dt; frame++;
     // camera
     if (move) {
       move.t = Math.min(1, move.t + dt / move.dur);
-      const e = smoother(move.t);
+      // clamped: the polynomial gives 1.0000000000000013 for t = 0.9999999999999987, and the curve read past its end breaks
+      const e = clamp(smoother(move.t), 0, 1);
       cam.position.copy(move.curve.getPointAt(e));
       cam.quaternion.slerpQuaternions(move.q0, move.q1, smoother(clamp((move.t - 0.04) / 0.9, 0, 1)));
       cam.fov = lerp(move.fov0, move.fov1, e); cam.filmOffset = lerp(move.film0, move.film1, e); cam.updateProjectionMatrix();
@@ -1477,6 +1489,16 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
       renderer.setRenderTarget(f.rt); renderer.render(scene, f.cam);
       monG.visible = true; shaftMesh.visible = true;
     }
+    drawScene();
+    updateSurfaces(dt);
+    if (devInfo) {
+      devInfo.chamadas = renderer.info.render.calls;
+      devInfo.triangulos = renderer.info.render.triangles;
+      devInfo.quadros++;
+    }
+  }
+  // the scene and its post chain onto the canvas (every frame; once on a resize while paused)
+  function drawScene() {
     renderer.setRenderTarget(rtScene); renderer.render(scene, cam);
     brightU.t.value = rtScene.texture; brightU.px.value.set(1 / rtScene.width, 1 / rtScene.height); pass(brightMat, rtA);
     blurU.t.value = rtA.texture; blurU.dir.value.set(1 / rtA.width, 0); pass(blurMat, rtB);
@@ -1486,12 +1508,6 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     blurU.t.value = rtD.texture; blurU.dir.value.set(0, 2 / rtC.height); pass(blurMat, rtC);
     postU.tB1.value = rtA.texture; postU.tB2.value = rtC.texture;
     pass(post, null);
-    updateSurfaces(dt);
-    if (devInfo) {
-      devInfo.chamadas = renderer.info.render.calls;
-      devInfo.triangulos = renderer.info.render.triangles;
-      devInfo.quadros++;
-    }
   }
   await tick(1);
   raf = requestAnimationFrame(loop);
@@ -1564,6 +1580,18 @@ export async function createGalpao(opt: GalpaoOptions): Promise<Galpao> {
     },
     resetLaunch() { if (disposed) return; launchState = null; curtain.position.y = 0; postU.white.value = 0; fadeIn = 0; station = 'intro'; goTo('home', true); },
     resize,
+    pause(on: boolean) {
+      if (disposed || on === paused) return;
+      paused = on;
+      cancelAnimationFrame(raf);
+      if (on) {
+        // the surfaces end where they were going (a reveal halfway would stay faded)
+        updateSurfaces(1);
+        return;
+      }
+      last = performance.now();
+      raf = requestAnimationFrame(loop);
+    },
     dispose() {
       if (disposed) return;
       dropHero();

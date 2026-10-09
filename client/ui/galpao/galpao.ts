@@ -41,6 +41,11 @@ export interface GalpaoHooks {
   quickPlay(): void;
   /** The line under ENTRADA RÁPIDA: match type and the maps it would pick from. */
   quickLine(): string;
+  /**
+   * The camera is about to leave the station it's at (a station picked, Esc, ‹ GALPÃO): the home closes what is open
+   * there and holds the scene paused (the character editor, PF-33).
+   */
+  leaving?(): void;
 }
 
 export interface GalpaoStart {
@@ -206,9 +211,22 @@ export class GalpaoHome {
   go(id: StationId | 'home') {
     if (!this.scene || this.launching) return;
     if (id === 'admin' && !this.staff) return;
+    if (id !== this.scene.station) this.o.hooks.leaving?.();
     if (id !== 'home') this.o.hooks.showTab(tabOf(id));
     this.fly(id);
   }
+
+  /**
+   * Freezes the warehouse on its last frame while the character editor is open over the locker (the camera is still
+   * there; the editor gets the GPU), or lets it run again (PF-33).
+   */
+  pause(on: boolean) {
+    this.paused = on;
+    this.scene?.pause(on);
+  }
+
+  /** Paused for the character editor. */
+  private paused = false;
 
   /** The home opened a tab by itself (a form's Back, a link from an e-mail): the camera goes to its station. */
   follow(tab: HomeTab) {
@@ -218,6 +236,8 @@ export class GalpaoHome {
 
   private fly(id: StationId | 'home') {
     const scene = this.scene!;
+    // The camera moves: never frozen while flying.
+    if (this.paused) this.pause(false);
     this.setHover(null);
     if (id !== 'arsenal') this.pickWeapon(null);
     scene.goTo(id);

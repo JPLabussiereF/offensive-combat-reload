@@ -18,6 +18,8 @@ source_paths:
   - client/render/effects.ts
   - client/ui/galpao/scene.ts
   - tools/orcamento.ts
+  - client/ui/customize.ts
+  - client/ui/customize/itemThumbs.ts
 tags:
   - performance
   - gargalos
@@ -43,6 +45,7 @@ Gargalos e limitações de desempenho evidenciados no código ou na documentaç�
 | 11 | **Primeira explosão de granada da partida compila shaders na cena do mundo** | Medição da PF-34 (Chrome headless, RTX 3070 Ti): cerca de 0,5 s depois de soltar a primeira granada surgem 3 programas WebGL novos, usados pelas nuvens de fumaça (`MeshToonMaterial` transparente) e pelas bolas de fogo e anéis da onda de choque (`MeshBasicMaterial` transparente) da explosão (`Effects.explosion`, `client/render/effects.ts`), e um quadro de ~55 ms (antes da PF-34, ~69 ms) | Um tranco único por partida, na primeira explosão | Nenhuma. Fora do escopo da PF-34 (decisão do dev, P3): o aquecimento dela cobre só o viewmodel (trocar, esfaquear e arremessar), não os efeitos do mundo. Issue própria a abrir no Jira. |
 | 12 | **Peso geométrico dos mapas no celular** (PF-35) | `tools/orcamento.ts`, `client/tests/polyBudget.test.ts` | Antes, o celular desenhava os mesmos objetos que o PC: Jardim do Dragão com 524 mil triângulos na pior câmera, 44 mil deles instâncias invisíveis | Cortes sem perda para todos e o detalhe Leve: Jardim 394 mil (Normal) / 312 mil (Leve). Ver [[ADR - Detalhe geométrico Normal e Leve]] e [[Performance Rendering]]. Restam: a Vila com 263 chamadas nos dois níveis (orçamento leve 250, dentro da folga de 5%; peças únicas com textura própria, P13) e o FPS num celular fraco ainda não medido (no PC rápido o FPS não muda de forma mensurável: o gargalo não são os triângulos). |
 | 13 | **Quadro inteiro do galpão (tela inicial)** | `?bench=galpao` (`client/dev/bench.ts`) | Cada quadro desenha a cena de novo para a sombra do sol, para 2 holofotes com sombra e, a cada 3 quadros, para uma câmera de CCTV: 168–187 mil triângulos e 750–895 chamadas no build normal, 58–65 mil e 264–358 no build leve do celular (medido no Chrome com GPU, 1280×720) | Só informação (P14 da PF-35): o orçamento do galpão vale para a passada da câmera, 9,6–17,3 mil triângulos. |
+| 14 | **Primeira abertura do editor de personagem depois de uma atualização** (PF-33) | Medido (Chrome com GPU, 1440×900): com o cache vazio, o preenchimento em segundo plano desenha ~300 cartões; enquanto isso aparecem algumas long tasks de 50–140 ms (montagem da geometria de cada peça pela primeira vez e compilação de shaders) | Nos primeiros segundos, raros engasgos de até ~140 ms; a aba Parte de cima fica pronta em ~2,3 s (os cartões em vista em 75–340 ms) | Fila em `requestIdleCallback`, um cartão por vez, os visíveis primeiro, parada durante o arraste de cor; depois tudo vem do IndexedDB ("oc-personagem"): aba do cache em ~100 ms, palco parado sem quadros, arraste com p95 de 7,1 ms e nenhuma long task. Antes da PF-33 cada troca de cor custava ~1,7 s de thread principal no galpão. Ver [[ADR - Editor de personagem leve com cores livres]]. |
 
 ## PF-34: troca de arma recompilava o shader dos braços (resolvido)
 
@@ -68,7 +71,7 @@ Primeira vez na partida: a primeira troca criava 2 programas (pior quadro 13,8 m
 
 ## Código relacionado
 
-- `client/render/quality.ts`, `client/character/body.ts`, `client/world/halloween.ts`
+- `client/render/quality.ts`, `client/character/body.ts`, `client/world/halloween.ts`, `client/ui/customize/itemThumbs.ts`
 - `client/render/viewmodel.ts`, `client/render/viewmodelArms.ts`, `client/main.ts` (PF-34)
 - `client/render/effects.ts` (primeira explosão, #11)
 - `server/session.ts`, `server/app.ts`

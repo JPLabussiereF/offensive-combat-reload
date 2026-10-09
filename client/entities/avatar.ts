@@ -4,7 +4,7 @@
 // character) and animates it procedurally (CharacterAnimator).
 import * as THREE from 'three';
 import { sanitizeFace, type Appearance, type ItemChoice } from '@shared/appearance';
-import { catalogItem, type Slot } from '@shared/catalog';
+import { catalogItem, type Channel, type Slot } from '@shared/catalog';
 import type { Sex } from '@shared/protocol';
 import { bodyStats } from '@shared/appearance';
 import { DEFAULT_LOADOUT, knifeOf, slotStats, type Loadout } from '@shared/arsenal';
@@ -15,6 +15,18 @@ import { heldGrenade, heldGun, heldKnife } from './heldWeapons';
 
 export type { AvatarPose };
 
+/** The Character's color key of an item's channel in a slot: '<slot>' (primary), '<slot>.secondary', '<slot>.detail'. */
+export const colorKey = (slot: Slot, ch: Channel): string => (ch === 'P' ? slot : `${slot}.${ch === 'S' ? 'secondary' : 'detail'}`);
+
+/** An item's colors (one per channel of the catalog item) as Character color keys. */
+export function itemColorKeys(slot: Slot, id: string, cores: readonly string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  catalogItem(id)?.channels.forEach((ch, i) => {
+    if (cores[i]) out[colorKey(slot, ch)] = cores[i];
+  });
+  return out;
+}
+
 /**
  * The saved look (Appearance, validated by the server) as a Character config: every item in its slot, its
  * colors as '<slot>' (primary), '<slot>.secondary' and '<slot>.detail'.
@@ -24,11 +36,7 @@ export function appearanceToConfig(look: Appearance, sex: Sex): CharacterConfig 
   const colors: Record<string, string> = { skin: look.pele, eyes: look.olhos, hair: look.cabelo.cor };
   for (const [slot, c] of Object.entries(look.itens) as [Slot, ItemChoice][]) {
     items[slot] = c.id;
-    const it = catalogItem(c.id);
-    it?.channels.forEach((ch, i) => {
-      const key = ch === 'P' ? slot : `${slot}.${ch === 'S' ? 'secondary' : 'detail'}`;
-      if (c.cores[i]) colors[key] = c.cores[i];
-    });
+    Object.assign(colors, itemColorKeys(slot, c.id, c.cores));
   }
   return {
     v: 1,

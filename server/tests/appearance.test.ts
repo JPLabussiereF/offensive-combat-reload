@@ -2,6 +2,7 @@
 // everyone seeing it, bodies included).
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { bodyStats, DEFAULT_FACE, defaultAppearance, EYE_STYLES, FACE_SHAPES, hitboxSize, randomAppearance, sanitizeAppearance, sanitizeFace, wear, type Appearance, type Face } from '@shared/appearance';
+import { chroma, MAX_CHROMA } from '@shared/color';
 import { CLOTH_COLORS } from '@shared/palette';
 import { computeDamage, HIT_REGIONS, LETHAL_DAMAGE, WEAPONS } from '@shared/weapons';
 import type { GameServer } from '../app';
@@ -58,8 +59,9 @@ describe('regras da aparência', () => {
     expect(Object.keys(a.itens).sort()).toEqual(['baixo', 'cabeca', 'calcado', 'pulsoE', 'tronco']);
     expect(a.itens.tronco?.id).toBe('polo');
     expect(a.itens.pulsoE?.id).toBe('relogio');
-    // Old free colors snap to the palette (no accent on the primary color of a big piece).
-    expect(CLOTH_COLORS).toContain(a.itens.baixo!.cores[0]);
+    // Old free colors stay, within the limits (no neon on the primary color of a big piece).
+    expect(chroma(a.itens.baixo!.cores[0])).toBeLessThanOrEqual(MAX_CHROMA);
+    expect(a.itens.tronco!.cores[0]).toBe('#2d3b6b');
     expect(a.itens.tronco!.cores).toHaveLength(3);
   });
 
@@ -106,11 +108,29 @@ describe('regras da aparência', () => {
     expect(wrong.itens.rosto).toBeUndefined();
   });
 
-  it('acentos não vão na cor principal das peças grandes; vão nas pequenas', () => {
-    const a = sanitizeAppearance({ itens: { tronco: { id: 'basica', cores: ['#e0702a', '#e0702a'] }, cabeca: { id: 'bone', cores: ['#e0702a'] } } }, 'm');
-    expect(a.itens.tronco!.cores[0]).not.toBe('#e0702a');
-    expect(a.itens.tronco!.cores[1]).toBe('#e0702a');
-    expect(a.itens.cabeca!.cores[0]).toBe('#e0702a');
+  it('principal das peças grandes limitada (nada de neon), peças pequenas livres; nada de preto puro', () => {
+    const neon = '#ff00aa';
+    const a = sanitizeAppearance({ itens: { tronco: { id: 'basica', cores: [neon, neon] }, baixo: { id: 'calcaJeans', cores: ['#e0702a'] }, cabeca: { id: 'bone', cores: [neon] }, pulsoE: { id: 'relogio', cores: ['#000000'] } } }, 'm');
+    expect(a.itens.tronco!.cores[0]).not.toBe(neon);
+    expect(chroma(a.itens.tronco!.cores[0])).toBeLessThanOrEqual(MAX_CHROMA);
+    expect(chroma(a.itens.baixo!.cores[0])).toBeLessThanOrEqual(MAX_CHROMA);
+    // Secondary channel and small items: any color (not only the palette's).
+    expect(a.itens.tronco!.cores[1]).toBe(neon);
+    expect(a.itens.cabeca!.cores[0]).toBe(neon);
+    expect(a.itens.pulsoE!.cores[0]).toBe('#1f1f1f');
+    // Every color of the palette is still valid where it was.
+    for (const c of CLOTH_COLORS) expect(sanitizeAppearance({ itens: { tronco: { id: 'basica', cores: [c] } } }, 'm').itens.tronco!.cores[0]).toBe(c);
+  });
+
+  it('500 cores aleatórias: o que o servidor guarda não muda ao validar de novo', () => {
+    let seed = 99;
+    const r = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const hex = () => `#${Math.floor(r() * 0xffffff).toString(16).padStart(6, '0')}`;
+    for (let i = 0; i < 500; i++) {
+      const a = sanitizeAppearance({ itens: { tronco: { id: 'basica', cores: [hex(), hex()] }, sobreposicao: { id: 'm65', cores: [hex()] }, baixo: { id: 'calcaCargo', cores: [hex(), hex()] }, cabeca: { id: 'bone', cores: [hex()] } } }, i % 2 ? 'f' : 'm');
+      expect(sanitizeAppearance(a, i % 2 ? 'f' : 'm')).toEqual(a);
+      for (const slot of ['tronco', 'sobreposicao', 'baixo'] as const) expect(chroma(a.itens[slot]!.cores[0])).toBeLessThanOrEqual(MAX_CHROMA);
+    }
   });
 
   it('altura e biotipo são só visuais; sem mão recarrega 30% mais devagar, sem perna anda 25% mais devagar', () => {

@@ -10,6 +10,8 @@ source_paths:
   - client/render/weaponModels.ts
   - client/render/effects.ts
   - shared/palette.ts
+  - shared/color.ts
+  - client/ui/colorPicker.ts
   - client/character/palette.ts
   - client/styles.css
 tags:
@@ -17,7 +19,7 @@ tags:
   - art
   - palette
   - colors
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Material Palette
@@ -59,7 +61,7 @@ plaster `#f3eee2`, lacquer `#c0352b`, lacquerDark `#8a2a22`, wood `#8a5432`, woo
 
 ## Paleta de personagens (`shared/palette.ts`)
 
-Famílias do guia de estilo. O servidor encaixa toda cor salva nelas (`snap`).
+Famílias do guia de estilo. Pele, cabelo e olhos são encaixados nelas (`snap`) ao salvar; as cores das **peças** são livres dentro de dois limites (abaixo), e as famílias viram a **paleta sugerida** (`suggestedColors`: a paleta da casa do seletor de cor e o que os bots vestem).
 
 | Família | Cores |
 | --- | --- |
@@ -74,7 +76,14 @@ Famílias do guia de estilo. O servidor encaixa toda cor salva nelas (`snap`).
 
 Íris (fora das famílias): 8 cores (`EYE_COLORS`).
 
-**Regra de saturação:** no máximo ~15% do personagem em cor saturada; a primária das peças grandes só aceita tecidos e couros.
+**Regra de saturação:** no máximo ~15% do personagem em cor saturada. Desde a PF-33 ela vale como limite numérico (`clampItemColor` em `shared/color.ts`), no cliente e no servidor:
+
+| Limite | Onde | Valor | Referência na paleta |
+| --- | --- | --- | --- |
+| Croma máxima (máx − mín do RGB, 0–1) | cor principal de `tronco`, `sobreposicao` e `baixo` | **0,55** | mostarda `#b8912e`, o tecido mais saturado, tem 0,54 |
+| Brilho mínimo (V = máx do RGB, 0–1) | todos os canais de peça | **0,12** (o mais escuro é `#1f1f1f`) | preto `#1f2226` tem 0,15 |
+
+Uma cor fora do limite é ajustada mantendo o tom (a saturação desce até a borda, mantendo o brilho; o escuro sobe até o piso, mantendo matiz e saturação); ajustar de novo não muda nada. As 22 cores de tecido e couro passam sem mudança na principal das peças grandes, e as 33 de item em qualquer outro canal. Ver [[ADR - Editor de personagem leve com cores livres]].
 
 ### Atlas de paleta (`client/character/palette.ts`)
 
@@ -100,13 +109,14 @@ Confete: `#ff4f9a`, `#ffd23f`, `#3fd3ff`, `#7dff5a`, `#b27dff`, `#ff7a1a`. Faís
 
 ## UI
 
-Variáveis CSS (`client/styles.css`): `--ink #1b1530`, `--paper #fff8ec`, `--team-a #ff7a1a`, `--team-b #2f9bff`, `--good #7dff5a`, `--warn #ffd23f`, `--bad #ff4a3d`. Ver [[UI Assets]].
+Variáveis CSS (`client/styles.css`): `--ink #1b1530`, `--paper #fff8ec`, `--team-a #ff7a1a`, `--team-b #2f9bff`, `--good #7dff5a`, `--warn #ffd23f`, `--bad #ff4a3d`. O seletor de cor do editor (`client/ui/colorPicker.ts`) usa as mesmas variáveis e mostra a paleta da casa em grupos com o nome de cada cor (Neutros: Preto, Grafite, Cinza, Branco gelo, Bege, Cáqui; Terrosos: Oliva, Musgo, Marrom, Caramelo, Ferrugem, Mostarda; Frios: Marinho, Jeans, Petróleo, Vinho, Roxo escuro; Couros: Couro escuro, café, médio, conhaque e claro; Metais: Aço, Latão, Bronze, Metal pintado, Aço escuro, Cinza-chumbo; Acentos: Laranja, Amarelo, Vermelho, Turquesa, Lima). Ver [[UI Assets]].
 
 ## Código relacionado
 
 - `client/render/materials.ts` (`PALETTE`)
 - `client/world/halloween.ts` (`SPOOKY`), `client/world/oriental.ts` (`ORIENTAL`)
 - `shared/palette.ts` (`FAMILIES`, `snap`, `CLOTH_COLORS`, `ALL_ITEM_COLORS`)
+- `shared/color.ts` (`clampItemColor`, `MAX_CHROMA`, `MIN_VALUE`, hex ↔ HSV)
 - `client/character/palette.ts` (atlas, `TINT`, `NEUTRAL_VALUES`)
 - `client/render/weaponModels.ts` (`LOOKS`)
 
