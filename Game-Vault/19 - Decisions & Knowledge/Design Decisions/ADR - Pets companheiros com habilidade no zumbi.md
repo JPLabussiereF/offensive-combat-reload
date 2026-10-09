@@ -73,6 +73,8 @@ Dar identidade e um motivo para ter um pet sem vender vantagem agora, sem atrapa
     - **P35 (Bruxinha):** o alvo é o maior **peso do tipo ÷ distância** (Segurança 3, Tio 2,4, Tia 2, Fiscal 1,6, comum 1; em `pets.json`); alcance, duração e recarga ficam.
     - **P36:** `PATCH /api/perfil` com um `pet.id` que não existe responde **400 `pet_invalido`** (corpo `{ erro }`, como o resto da API); pelagem, coleira e nome fora do formato continuam limpos em silêncio.
     - **P37:** a fuinha continua trabalhando também na contagem antes da partida (sem mudança).
+    - **P38 (09/10/2026):** o visual de um pet desconhecido em `cfg` continua sendo descartado em silêncio (200).
+    - **P39 (09/10/2026):** um `pet` que não é objeto nem `null` (string, número, lista) responde **400 `pet_invalido`** e o pet salvo não muda; `null` continua sendo "sem pet".
     - Nada mais da outra implementação foi trazido.
 
 ## Motivo

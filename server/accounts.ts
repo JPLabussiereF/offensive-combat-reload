@@ -370,12 +370,14 @@ export async function setArsenal(db: Db, accountId: string, raw: unknown): Promi
 
 /**
  * Saves the pet (shared/pets.ts): the one taken along (or none), the PvP / PvE switches and each pet's look.
- * A pet that doesn't exist is 400 pet_invalido (P36: a client asking for it is out of date or forged); anything
- * else invalid (a coat, a collar, a long name) falls back to a valid choice, like the appearance. No pet needs the
- * support pack for now (PF-28).
+ * A pet that doesn't exist (P36) or a `pet` that is neither an object nor null (P39: a string, a number, a list) is
+ * 400 pet_invalido and nothing changes: a client sending it is out of date or forged. Anything else invalid (a coat,
+ * a collar, a long name, a look for an unknown pet in `cfg`, P38) falls back to a valid choice, like the
+ * appearance. null: no pet (the looks are reset). No pet needs the support pack for now (PF-28).
  */
 export async function setPet(db: Queryable, accountId: string, raw: unknown): Promise<PetChoice> {
-  const id = typeof raw === 'object' && raw !== null ? (raw as { id?: unknown }).id : undefined;
+  if (raw !== null && (typeof raw !== 'object' || Array.isArray(raw))) throw new HttpError(400, 'pet_invalido');
+  const id = raw !== null ? (raw as { id?: unknown }).id : undefined;
   if (id !== undefined && id !== null && !isPetId(id)) throw new HttpError(400, 'pet_invalido');
   const p = await profileOf(db, accountId);
   const pet = sanitizePet(raw);

@@ -134,7 +134,7 @@ Nada da posição do pet trafega: cada jogo desenha cada pet a partir da posiç�
 ## Dados e rede
 
 - `player_profile.pet jsonb` (migration `009_pets.sql`, renumerada de 007 na junção — P30; nula = sem pet): `{ id, pvp, pve, cfg: { <pet>: { nome?, cor?, coleira? } } }`, conferido por `sanitizePet` na leitura e na escrita, como a aparência. Ver [[Player Data]] e [[Database]].
-- `PATCH /api/perfil {pet}` ([[APIs]]); `GET /api/perfil` devolve `pet`. Um `pet.id` que não é pet nenhum responde **400 `pet_invalido`** e nada muda (P36); pelagem, coleira e nome fora do formato continuam sendo limpos em silêncio.
+- `PATCH /api/perfil {pet}` ([[APIs]]); `GET /api/perfil` devolve `pet`. Um `pet.id` que não é pet nenhum (P36) ou um `pet` que não é objeto nem `null` (string, número, lista: P39) responde **400 `pet_invalido`** e nada muda; pelagem, coleira, nome fora do formato e o visual de um pet desconhecido em `cfg` (P38) continuam sendo limpos em silêncio (200).
 - `PlayerInfo.pet = { id, cor, coleira, pvp, pve }` só em `joined`/`playerJoined` e **só se o pet vai junto no modo da sessão**; **nunca o nome**. Evento `zpet` e bits `ZF.held`/`ZF.duck` no `zsnap`. Ver [[Remote Calls]].
 - O motor da partida zumbi decide as habilidades: o servidor online (`ZombieMode` repassa o pet no `join`), o navegador no solo. Um pet escolhido vale a partir da próxima conexão.
 
