@@ -16,7 +16,7 @@ tags:
   - game
   - data
   - save
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Save System
@@ -65,7 +65,7 @@ Nome, sexo, aparência e a escolha do Arsenal (`PATCH /api/perfil {arsenal}`, `s
 | Chave `localStorage` | Conteúdo | Código |
 |---|---|---|
 | `oc.settings.v1` | `Settings`: sensibilidade (e de mira), FOV, inverter Y, volume, áudio espacial, qualidade, opções de toque (sensibilidade, escala, opacidade, layout dos botões, mira assistida, segurar para mirar), tela cheia, sensibilidade do controle, **teclas** (`keybinds`) e rótulos de teclas aprendidos (`keyLabels`) | `client/core/settings.ts` |
-| `oc.bots` | dificuldade, quantidade e mapa escolhidos para o modo contra bots | `client/ui/home.ts` |
+| `oc.bots` | lugar (`mode`), tipo de partida (`game`), mapa de bots e do treino (`map`), mapa do Online (`onlineMap`, `null` = Qualquer mapa), dificuldade e quantidade de bots; gravado a cada escolha na aba Jogar. O filtro antigo (`fora`/`filtro`) é convertido ao abrir (`migrateOnlineMap`) | `client/ui/home.ts` |
 | `oc.name`, `oc.sex`, `oc.profile` | **legado**: apagadas ao abrir a home (nome, corpo e progressão agora vivem na conta) | `client/ui/home.ts` |
 
 - Leitura: `loadSettings()` mescla com os padrões; as teclas são mescladas **ação por ação** (`mergeKeybinds`) para que ações novas recebam o padrão; `keyLabels` só aceita um caractere imprimível por tecla.

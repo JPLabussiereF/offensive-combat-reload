@@ -4,6 +4,7 @@ type: decision
 status: documented
 area: ui
 source_paths:
+  - client/ui/playRules.ts
   - client/ui/home.ts
   - server/app.ts
   - shared/protocol.ts
@@ -12,7 +13,7 @@ tags:
   - decision
   - ui
   - networking
-updated: 2026-10-05
+updated: 2026-10-08
 ---
 
 # ADR - Conexão online aberta sob demanda na tela inicial
@@ -49,7 +50,12 @@ Mantém o modelo "uma conexão por conta" sem criar efeito colateral ao só nave
 
 A opção do endpoint de leitura foi adotada: `GET /api/sessoes` ([[APIs]]) traz a lista sem WebSocket. A aba Jogar já abre com as sessões carregadas (6 por vez, **VER MAIS** quando há mais), e o botão VER SESSÕES deixou de existir. A decisão central continua: a **conexão de jogo** só abre quando o jogador escolhe entrar (**ENTRAR**, **CRIAR** ou **JOGAR ONLINE**), então abrir o jogo em outra aba não derruba uma partida.
 
+## Revisão (2026-10-08, PF-32)
+
+O filtro de vários mapas saiu da aba Jogar: a entrada rápida passou a ser **do mapa escolhido, ou de qualquer mapa**. Com um mapa escolhido, o botão laranja (e a ENTRADA RÁPIDA do galpão) manda `play` para ele; com **Qualquer mapa**, para o mapa da sessão mais cheia não lotada do tipo, ou para um mapa oficial do tipo quando ninguém joga (`quickTarget` em `client/ui/playRules.ts`). A escolha continua no cliente, a partir da lista; dentro do mapa, o servidor põe na primeira sala com vaga (ou abre uma), por isso os textos novos não prometem "a sessão mais cheia". A decisão central não muda: a **conexão de jogo** só abre quando o jogador escolhe entrar (JOGAR ONLINE, ENTRAR, CRIAR ou a ENTRADA RÁPIDA), e a lista continua vindo por `GET /api/sessoes`.
+
 ## Código afetado
 
-- `client/ui/home.ts` (`connect`, `closeConn`, `join`, `refreshList`, handler de `#home-quick`)
+- `client/ui/home.ts` (`connect`, `closeConn`, `join`, `refreshList`, `quickJoin`, handlers de `#home-play-cta` e `#home-quick`)
+- `client/ui/playRules.ts` (`quickTarget`, desde a PF-32)
 - `server/app.ts` (`GET /api/sessoes`)

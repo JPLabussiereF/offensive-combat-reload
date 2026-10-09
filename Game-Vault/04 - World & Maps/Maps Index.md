@@ -25,7 +25,7 @@ tags:
   - world
   - maps
   - index
-updated: 2026-10-06
+updated: 2026-10-08
 ---
 
 # Maps Index
@@ -122,6 +122,6 @@ Confirmado em código e em `docs/MAPAS.md`:
 - `client/world/mapLoader.ts` — `loadOfficialMap` (JSON no pacote do cliente) e `buildMapFromData`.
 - `client/main.ts` — montagem do mapa: online, a versão da sala baixada por `fetchMapVersion` (`client/net/maps.ts`, cache em memória e IndexedDB); offline, `loadOfficialMap(choice.map)`; depois `buildMapFromData` (`buildGltfMap` com `?mapa=`).
 - `client/world/budget.ts` — `measureMapBudget` (chamadas de desenho e triângulos sem GPU).
-- `client/ui/home.ts` — seletores dos mapas oficiais (treino/bots, filtro, entrada rápida com `play` e criação de sessão; os exclusivos só no modo deles).
+- `client/ui/home.ts` — cartões de mapa da aba Jogar (um mapa escolhido; no Online também Qualquer mapa, com `play` no botão laranja e a sessão com nome no mapa escolhido; os exclusivos só no modo deles). Regras em `client/ui/playRules.ts`.
 - `server/app.ts` — salas sob demanda (`sessionFor`, `enter`).
 - `docs/MAPAS.md` — guia humano de criação de mapas.

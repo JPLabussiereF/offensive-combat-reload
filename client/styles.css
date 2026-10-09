@@ -3282,63 +3282,6 @@ input[type='range'] {
   padding: 20px 22px;
   text-align: left;
 }
-#tab-play {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-#tab-play.hidden {
-  display: none;
-}
-.mode-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
-}
-.mode-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-align: left;
-  padding: 12px 14px;
-  border: 3px solid var(--ink);
-  border-radius: 14px;
-  background: var(--paper);
-  cursor: pointer;
-  font-family: inherit;
-  color: var(--ink);
-}
-.mode-card[aria-pressed='true'] {
-  background: #fff;
-  box-shadow: 4px 4px 0 var(--c);
-  transform: translateY(-2px);
-}
-.mode-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.mode-title i {
-  width: 14px;
-  height: 14px;
-  border: 3px solid var(--ink);
-  border-radius: 50%;
-  background: #fff;
-}
-.mode-card[aria-pressed='true'] .mode-title i {
-  background: var(--c);
-}
-.mode-title b {
-  font-family: var(--display);
-  font-weight: 400;
-  font-size: 21px;
-}
-.mode-desc {
-  font-size: 13px;
-  font-weight: 800;
-  opacity: 0.75;
-  line-height: 1.3;
-}
 .pane-head {
   display: flex;
   flex-wrap: wrap;
@@ -3349,11 +3292,6 @@ input[type='range'] {
 #home .pane-head h3 {
   font-size: 22px;
   margin: 0;
-}
-.map-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
 }
 .map-btn {
   display: flex;
@@ -3412,29 +3350,273 @@ input[type='range'] {
   border-radius: 50%;
   background: #fff;
 }
-.map-btn.filter .map-mark {
-  border-radius: 5px;
-}
 .map-btn[aria-pressed='true'] .map-mark {
   background: var(--team-a);
 }
-.bot-opts {
+/* --- Jogar (PF-32): where → match type → one map → the orange button ---------------------------------------------
+   One markup for both presentations. Here: what both share and the classic home (the panel is a container: two
+   columns from 760 px, stacked below with the orange button stuck to the bottom of the screen). The warehouse's
+   table (desktop and compact) is in the Galpão section. */
+#tab-play.hidden {
+  display: none;
+}
+/* Toggles with a long and a short label (.l / .s): the compact table shows the short one. */
+.seg-btn .s {
+  display: none;
+}
+.play-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 16px 20px;
+  align-items: center;
+  gap: 8px 16px;
 }
-#home-bots {
-  margin-left: auto;
-  font-size: 26px;
-  padding: 6px 28px;
-  white-space: nowrap;
+.play-hint {
+  flex: 1 1 220px;
+  font-size: 13px;
+  font-weight: 800;
+  opacity: 0.7;
 }
-#home-lobby #session-list {
-  max-height: none;
+.play-type .seg {
+  margin-top: 6px;
+}
+/* The type's buttons have one height, kept on the range (no type: the row stays, empty) so the maps never move. */
+#home-game .seg-btn {
+  min-height: 40px;
+}
+#home-game:empty {
+  min-height: 40px;
+}
+/* The type's line, under its buttons, in a box of two lines: a longer text never pushes anything. */
+.play-desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  min-height: calc(2 * 1.35em);
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+  opacity: 0.75;
+}
+.play-maps .pane-head {
+  align-items: center;
+}
+#home-all-maps {
+  margin: 0 0 0 auto;
+}
+.map-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+/* The compact table's last card, "Todos os mapas ›" (elsewhere the link on the maps' head). */
+.map-all {
+  display: none;
+}
+.map-mark {
+  display: grid;
+  place-items: center;
+  font: 900 10px / 1 var(--body);
+  color: #fff;
+}
+.map-btn[aria-pressed='true'] .map-mark::after {
+  content: '✓';
+}
+/* The side panel: the sessions of the chosen map, the options against bots, the range's line. */
+.lobby-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+#home .lobby-head h4 {
+  margin: 0;
+}
+#home-maps-back {
+  display: none;
 }
 #home-more {
   margin-top: 8px;
+}
+#home-create-toggle {
+  display: block;
+}
+#home-create-toggle .s,
+#home-create-toggle .x {
+  display: none;
+}
+#home-create-toggle[aria-expanded='true'] .x {
+  display: inline;
+  margin-left: 10px;
+  text-decoration: none;
+}
+#home-create-toggle:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+#home-create-pick {
+  display: block;
+  margin-top: 4px;
+}
+#session-create {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 8px;
+}
+#session-create input {
+  grid-column: auto;
+}
+#home-create-where {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0.65;
+}
+.bot-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.range-info p {
+  margin: 0;
+}
+/* The compact table's foot (SESSÕES, the bot selects, the horde's line) only exists there. */
+.play-foot > :not(.play-cta) {
+  display: none;
+}
+/* The orange button: one, always at the end of the side panel, with a fixed height; it says what it will do. */
+.play-cta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: center;
+  column-gap: 12px;
+  width: 100%;
+  height: 78px;
+  padding: 0 18px;
+  border: 4px solid var(--ink);
+  border-radius: 18px;
+  background: var(--team-a);
+  box-shadow: 0 6px 0 var(--ink);
+  color: #fff;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.play-cta::after {
+  content: '▶';
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  font-size: 20px;
+}
+.play-cta b,
+.play-cta span {
+  grid-column: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.play-cta b {
+  font: 400 30px / 1.05 var(--display);
+  -webkit-text-stroke: 1.2px var(--ink);
+}
+.play-cta span {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.play-cta:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--ink);
+}
+/* Classic home: the panel decides (stacked below 760 px: the orange button sticks to the bottom of the screen). */
+.home-panel {
+  container: playpanel / inline-size;
+}
+.home-panel #tab-play {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.home-panel .play-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.home-panel .play-side {
+  display: contents;
+}
+.home-panel #session-list {
+  max-height: none;
+}
+/* Two rows of cards at least: a one-map type (zumbi) doesn't pull the orange button up. */
+.home-panel .map-grid {
+  min-height: 138px;
+  align-content: start;
+}
+/* Cards of one height: the name in up to two lines, the line under it in one. */
+.home-panel .map-tile {
+  height: 64px;
+}
+.home-panel .map-text {
+  flex: 1 1 auto;
+}
+.home-panel .map-text b {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.05;
+}
+.home-panel .map-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-panel .play-foot {
+  position: sticky;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  z-index: 2;
+}
+.mobile .home-panel .play-cta {
+  height: 56px;
+}
+.mobile .home-panel .play-cta b {
+  font-size: 24px;
+}
+@container playpanel (min-width: 760px) {
+  .home-panel #tab-play {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-areas: 'head head' 'main side';
+    align-items: start;
+    gap: 16px 20px;
+  }
+  .home-panel .play-head {
+    grid-area: head;
+  }
+  .home-panel .play-main {
+    grid-area: main;
+  }
+  .home-panel .play-side {
+    grid-area: side;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .home-panel .play-foot {
+    margin-top: auto;
+    bottom: 18px;
+  }
+}
+/* One orange button per screen: the character card's quick join leaves while the Play tab is open. */
+#home-in:has(#tab-play:not(.hidden)) #home-quick-box {
+  display: none;
 }
 /* --- Arsenal canvas (the home's Arsenal tab, client/ui/arsenalCanvas.ts) --------------------------------------- */
 /* The tab takes the screen's height: the canvas pans and zooms instead of the page scrolling. Narrow screens leave
@@ -4627,7 +4809,7 @@ html:not(.mobile) #tab-arsenal .hint-touch {
 }
 #session-list li {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: 1fr auto auto;
   align-items: center;
   gap: 12px;
   padding: 8px 10px 8px 14px;
@@ -4662,14 +4844,6 @@ html:not(.mobile) #tab-arsenal .hint-touch {
 .s-count {
   font-variant-numeric: tabular-nums;
   opacity: 0.7;
-}
-/* The session's game mode, as a small tag (tinted per mode by home.ts). */
-#session-list .s-mode {
-  align-self: center;
-  white-space: nowrap;
-}
-#home-game-box .seg {
-  margin-top: 6px;
 }
 
 .small-btn {
@@ -4781,7 +4955,7 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   padding: 2px 6px;
   background: #fff;
 }
-/* Phones: the create row wraps (name on its own line, then map, mode and the button). */
+/* Phones: the create rows wrap (the text field on its own line, then the selects and the button). */
 @media (max-width: 560px) {
   .session-create {
     grid-template-columns: 1fr 1fr auto;
@@ -4792,14 +4966,6 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   .session-create select {
     min-width: 0;
     width: 100%;
-  }
-  #session-list li {
-    grid-template-columns: 1fr auto auto;
-  }
-  #session-list .s-mode {
-    grid-column: 1;
-    grid-row: 2;
-    justify-self: start;
   }
 }
 /* ---------- Account (home card) ---------- */
@@ -6567,12 +6733,9 @@ html:not(.mobile) #tab-arsenal .hint-touch {
 
 /* ---------- Galpão: the signed-in home as a 3D warehouse (client/ui/galpao) ---------- */
 /* Design "Galpão Home": a dark warehouse, paper and ink on the props, one orange for what starts or confirms.
-   Classic home (no WebGL): the warehouse-only parts hide and the Play tab's columns don't box anything. */
+   Classic home (no WebGL): the warehouse-only parts hide. */
 #home-in:not(.galpao-on) .gp-only {
   display: none;
-}
-.play-col {
-  display: contents;
 }
 #home.galpao-mode {
   overflow: hidden;
@@ -6792,8 +6955,7 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   text-align: left;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
 }
-.gp-quick:hover,
-.gp-cta:hover {
+.gp-quick:hover {
   background: #ff8c3d;
 }
 .gp-quick-row {
@@ -7171,107 +7333,98 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   background: #3f8a4a;
 }
 
-/* 01 Jogar: the map sheet on the tactical table, in three columns of paper cards. */
-#galpao .gp-surf #tab-play {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  align-content: start;
-  gap: 16px;
-  padding: 2.2%;
+/* 01 Jogar (PF-32): the tactical table's sheet. It never scrolls (each area scrolls inside), and its own size picks
+   the layout: the desktop one from 440 px of height (head; type and maps; the side panel with the orange button),
+   the compact one below it (a phone lying down: a sheet of ~550×270 px, everything in view without scrolling). */
+#galpao .gp-surf[data-station='play'] {
+  container: playsurf / size;
+  overflow: hidden;
 }
-#galpao .gp-surf #tab-play.hidden {
+#galpao #tab-play {
+  display: grid;
+  height: 100%;
+  overflow: hidden;
+}
+#galpao #tab-play.hidden {
   display: none;
 }
-.gp-sheet-head {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 8px 20px;
-  padding: 10px 16px 12px;
-  background: rgba(236, 230, 215, 0.95);
-  border-radius: 2px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
-}
-.gp-sheet-head > span:first-child {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.gp-sheet-head b {
-  font: 700 38px / 0.95 var(--gp-cond);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-#home-play-hint {
-  max-width: 520px;
-  font: 500 14px var(--gp-sans);
-  color: #4f4a40;
-  text-wrap: pretty;
-}
-#galpao .play-col {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
-}
-#galpao .play-col > div {
-  padding: 12px 14px;
+#galpao .play-head,
+#galpao .play-main,
+#galpao .play-panel {
   background: rgba(236, 230, 215, 0.95);
   border-radius: 2px;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
 }
-#galpao .play-col > div.hidden {
-  display: none;
+#galpao .play-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
-#galpao .mode-grid {
-  grid-template-columns: 1fr;
-}
-#galpao .mode-card {
-  border: 0;
-  border-radius: 2px;
-  background: #f4efe3;
-  box-shadow: none;
-  transform: none;
-}
-#galpao .mode-card[aria-pressed='true'] {
-  background: var(--gp-ink);
-  color: var(--gp-paper);
-}
-#galpao .mode-title i {
-  display: none;
-}
-#galpao .mode-title b {
-  font: 700 22px / 1 var(--gp-cond);
-  letter-spacing: 0.03em;
+#galpao .play-title b {
+  font: 700 38px / 0.95 var(--gp-cond);
+  letter-spacing: 0.02em;
   text-transform: uppercase;
 }
-#galpao .mode-desc {
+#galpao .play-hint {
+  font: 500 14px var(--gp-sans);
+  color: #4f4a40;
+  opacity: 1;
+  text-align: right;
+  text-wrap: pretty;
+}
+#galpao .play-desc {
   font: 500 13px / 1.35 var(--gp-sans);
-  opacity: 0.85;
+  color: #4f4a40;
+  opacity: 1;
 }
-#galpao .map-row {
-  grid-template-columns: 1fr;
-  gap: 6px;
+#galpao #home-game .seg-btn,
+#galpao #home-game:empty {
+  min-height: 34px;
 }
-#galpao .map-btn {
-  padding: 5px 8px 5px 5px;
+#galpao .play-maps {
+  padding-top: 10px;
+  border-top: 1px dashed #b9b09c;
+}
+/* Map cards: paper, the map's color and emoji on top, the orange ✓ on the chosen one. */
+#galpao .map-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+  padding: 0;
   border: 1px solid rgba(30, 29, 27, 0.25);
   border-radius: 2px;
   background: #f4efe3;
   box-shadow: none;
   transform: none;
+  overflow: hidden;
 }
-#galpao .map-btn[aria-pressed='true'] {
+#galpao .map-tile:hover {
+  transform: none;
   border-color: var(--gp-ink);
-  box-shadow: none;
 }
-#galpao .map-thumb {
-  width: 54px;
-  height: 34px;
+#galpao .map-tile[aria-pressed='true'] {
+  border-color: var(--gp-ink);
+  background: #fbf8f1;
+  box-shadow: inset 0 0 0 2px var(--gp-ink);
+}
+#galpao .map-tile .map-thumb {
+  width: 100%;
+  height: 64px;
   border: 0;
-  border-radius: 1px;
+  border-radius: 0;
+  font-size: 30px;
+}
+#galpao .map-tile .map-text {
+  padding: 6px 9px;
+}
+#galpao .map-text b,
+#galpao .map-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 #galpao .map-text b {
   font: 700 16px / 1.05 var(--gp-cond);
@@ -7282,27 +7435,41 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   opacity: 1;
   color: #5f5a50;
 }
-#galpao .map-mark {
-  width: 14px;
-  height: 14px;
-  border: 1.5px solid var(--gp-ink);
-  background: transparent;
-}
-#galpao .map-btn.filter .map-mark {
-  border-radius: 2px;
-}
-#galpao .map-btn[aria-pressed='true'] .map-mark {
-  background: var(--gp-orange);
-}
-#galpao #home-bots {
+#galpao .map-tile .map-mark {
+  position: absolute;
+  top: 6px;
+  right: 6px;
   display: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--gp-orange);
+  color: #160e07;
+  font: 800 13px / 1 var(--gp-sans);
+}
+#galpao .map-tile[aria-pressed='true'] .map-mark {
+  display: grid;
+}
+#galpao .map-all {
+  place-items: center;
+  padding: 6px;
+  border: 1.5px dashed #8a8272;
+  border-radius: 2px;
+  background: transparent;
+  color: #4f4a40;
+  font: 700 14px / 1.1 var(--gp-cond);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
 }
 #galpao #session-list {
   max-height: none;
   gap: 4px;
 }
 #galpao #session-list li {
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
   padding: 7px 8px 7px 10px;
   border: 0;
@@ -7310,12 +7477,20 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   background: #f4efe3;
   font: 600 14px var(--gp-sans);
 }
+#galpao #session-list li.empty {
+  padding: 10px;
+  font: 500 13px / 1.35 var(--gp-sans);
+  text-align: left;
+  opacity: 1;
+  color: #5f5a50;
+}
 #galpao #session-list .s-count {
   font: 600 12px var(--gp-mono);
   opacity: 1;
   color: #3d3930;
 }
-#galpao #session-list .small-btn {
+#galpao #session-list .small-btn,
+#galpao #session-create-btn {
   background: var(--gp-ink);
   color: var(--gp-paper);
 }
@@ -7323,37 +7498,314 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   background: #cfc6b1;
   color: #6a6458;
 }
-#galpao .session-create {
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px;
+#galpao .range-info h4 {
+  margin-bottom: 6px;
 }
-#galpao .session-create input {
-  grid-column: 1 / -1;
+#galpao .range-info p,
+#galpao #home-horde-info {
+  margin: 0;
+  font: 500 13px / 1.4 var(--gp-sans);
+  color: #4f4a40;
 }
-#galpao #session-create-btn {
-  background: var(--gp-ink);
-  color: var(--gp-paper);
-}
-.gp-cta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 14px 18px;
+/* The orange button: same place and size in every tab. */
+#galpao .play-cta {
+  height: 78px;
+  padding: 0 18px;
   border: 0;
   border-radius: 2px;
-  background: #f07a2a;
-  color: #160e07;
+  background: var(--gp-orange);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
-  cursor: pointer;
-  text-align: left;
+  color: #160e07;
 }
-.gp-cta b {
-  font: 800 28px / 1 'Barlow Condensed', 'Arial Narrow', sans-serif;
+#galpao .play-cta:hover {
+  background: #ff8c3d;
+}
+#galpao .play-cta:active {
+  transform: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+#galpao .play-cta b {
+  font: 800 28px / 1.05 var(--gp-cond);
   letter-spacing: 0.05em;
+  -webkit-text-stroke: 0;
 }
-.gp-cta span {
-  font: 500 13px 'Barlow', system-ui, sans-serif;
+#galpao .play-cta span {
+  font: 500 13px var(--gp-sans);
+  color: #160e07;
+}
+#galpao .play-cta::after {
+  font-size: 16px;
+}
+
+/* Desktop: head across; type and maps on the left; the side panel and the orange button on the right. */
+@container playsurf (min-height: 440px) {
+  #galpao #tab-play {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: 'head head' 'main side';
+    gap: 14px;
+    padding: 2.2%;
+  }
+  #galpao .play-head {
+    grid-area: head;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    gap: 8px 24px;
+    padding: 10px 16px 12px;
+  }
+  #galpao .play-main {
+    grid-area: main;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+    padding: 12px 14px;
+  }
+  #galpao .play-maps {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+  #galpao .map-grid {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-auto-rows: 128px;
+    align-content: start;
+    gap: 8px;
+  }
+  #galpao .play-side {
+    grid-area: side;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+  }
+  #galpao .play-panel {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 14px;
+  }
+}
+
+/* Compact (a phone lying down): where and the type on one line with short labels, the type's line, the maps in a row
+   that scrolls sideways, and the foot (SESSÕES or the bot options, and the orange button). Touch targets ≥ 40 px.
+   SESSÕES shows the list over the maps (‹ MAPAS goes back). */
+@container playsurf (max-height: 439px) {
+  #galpao #tab-play {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 40px 16px minmax(0, 1fr) 56px;
+    grid-template-areas: 'where type' 'desc desc' 'maps maps' 'foot foot';
+    gap: 6px 8px;
+    padding: 8px;
+    background: rgba(236, 230, 215, 0.92);
+  }
+  #galpao .play-head,
+  #galpao .play-main,
+  #galpao #home-game-box,
+  #galpao .play-maps,
+  #galpao .play-side {
+    display: contents;
+  }
+  #galpao .play-title,
+  #galpao .play-hint,
+  #galpao #tab-play h3,
+  #galpao .play-maps .pane-head {
+    display: none;
+  }
+  #galpao .seg-btn .l {
+    display: none;
+  }
+  #galpao .seg-btn .s {
+    display: inline;
+  }
+  #galpao #home-modes,
+  #galpao #home-game {
+    flex-wrap: nowrap;
+    gap: 4px;
+    margin: 0;
+    min-width: 0;
+  }
+  #galpao #home-modes {
+    grid-area: where;
+  }
+  #galpao #home-game {
+    grid-area: type;
+  }
+  #galpao #tab-play .seg-btn {
+    min-height: 40px;
+    padding: 4px 9px;
+    white-space: nowrap;
+  }
+  #galpao #home-game-hint {
+    grid-area: desc;
+    display: block;
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #galpao #home-maps {
+    grid-area: maps;
+    align-self: start;
+    grid-template-columns: none;
+    grid-template-rows: 100px;
+    grid-auto-flow: column;
+    grid-auto-columns: 128px;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+  }
+  #galpao .map-tile,
+  #galpao .map-all {
+    height: 100px;
+    scroll-snap-align: start;
+  }
+  #galpao .map-all {
+    display: grid;
+  }
+  #galpao .map-tile .map-thumb {
+    height: 46px;
+    font-size: 24px;
+  }
+  #galpao .map-tile .map-text {
+    padding: 4px 7px;
+  }
+  #galpao .map-tile .map-mark {
+    top: 4px;
+    right: 4px;
+  }
+  /* The side panel only as the sessions view, over where, the type and the maps. */
+  #galpao .play-panel {
+    display: none;
+  }
+  #galpao #tab-play.sessions-open .play-panel {
+    display: block;
+    grid-area: 1 / 1 / 4 / 3;
+    z-index: 1;
+    background: #ece6d7;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 6px 8px;
+  }
+  #galpao #home-bot-opts,
+  #galpao #home-range-info {
+    display: none;
+  }
+  #galpao #home-lobby {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'head toggle' 'list list' 'more more';
+    gap: 6px 8px;
+  }
+  #galpao .lobby-head {
+    grid-area: head;
+    margin: 0;
+    min-width: 0;
+  }
+  #galpao .lobby-head h4 {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #galpao #home-maps-back {
+    display: inline-block;
+    flex: none;
+  }
+  #galpao #session-list {
+    grid-area: list;
+  }
+  #galpao #home-more {
+    grid-area: more;
+    justify-self: start;
+    margin: 0;
+  }
+  #galpao #home-lobby .small-btn,
+  #galpao #home-create-toggle,
+  #galpao #session-create input,
+  #galpao .play-foot select,
+  #galpao #home-sessions-toggle {
+    min-height: 40px;
+  }
+  #galpao #session-list li {
+    padding: 2px 4px 2px 10px;
+  }
+  #galpao #home-create-toggle {
+    grid-area: toggle;
+    margin: 0;
+    padding: 0 12px;
+    border-radius: 2px;
+    background: var(--gp-ink);
+    color: var(--gp-paper);
+    font: 700 15px var(--display);
+    letter-spacing: 0.06em;
+    text-decoration: none;
+  }
+  #galpao #home-create-toggle .l {
+    display: none;
+  }
+  #galpao #home-create-toggle .s {
+    display: inline;
+  }
+  #galpao #home-create-toggle[aria-expanded='true'] .s {
+    display: none;
+  }
+  #galpao #home-create-toggle[aria-expanded='true'] .x {
+    margin: 0;
+    font-size: 18px;
+  }
+  #galpao #home-create-pick,
+  #galpao #home-create-where {
+    display: none;
+  }
+  /* The name field on top of the sheet: the on-screen keyboard (the lower half) doesn't hide it. */
+  #galpao #session-create {
+    grid-area: head;
+    margin: 0;
+  }
+  #galpao #home-lobby.create-open .lobby-head {
+    display: none;
+  }
+  #galpao .play-foot {
+    grid-area: foot;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  #galpao .play-foot > :not(.play-cta) {
+    display: block;
+    flex: none;
+  }
+  #galpao #home-sessions-toggle[aria-pressed='true']::after {
+    content: ' •';
+  }
+  #galpao #home-horde-short {
+    font: 600 13px var(--gp-sans);
+    color: #3d3930;
+  }
+  #galpao .play-cta {
+    flex: 0 1 62%;
+    min-width: 0;
+    height: 56px;
+    margin-left: auto;
+    padding: 0 14px;
+  }
+  #galpao .play-cta b {
+    font-size: 22px;
+  }
+  #galpao .play-cta span {
+    font-size: 12px;
+  }
 }
 
 /* 02 Mapas: paper strips and cards pinned to the corkboard. */
@@ -7818,7 +8270,6 @@ html:not(.mobile) #tab-arsenal .hint-touch {
   margin-top: 14px;
 }
 #galpao .gp-surf .pane-head h3,
-#galpao .gp-surf .play-col h3,
 #galpao .gp-surf h3:first-child {
   margin-top: 0;
 }
